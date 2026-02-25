@@ -58,6 +58,10 @@ export const enUS: Translations = {
     revoke: 'Revoke',
     deleteAccount: 'Delete account',
     deleteAccountDescription: 'Permanently removes your account and all associated data. This cannot be undone.',
+    removeEmail: 'Remove email',
+    removeEmailConfirm: 'Enter your password to remove this email address.',
+    removePhone: 'Remove phone',
+    removePhoneConfirm: 'Enter your password to remove this phone number.',
   },
   
   // Sidebar

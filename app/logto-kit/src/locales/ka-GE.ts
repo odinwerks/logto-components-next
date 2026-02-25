@@ -58,6 +58,10 @@ export const kaGE: Translations = {
     revoke: 'გაუქმება',
     deleteAccount: 'ანგარიშის წაშლა',
     deleteAccountDescription: 'სამუდამოდ შლის თქვენს ანგარიშს და ყველა მონაცემს. ეს უკან დაბრუნებადი არ არის.',
+    removeEmail: 'ელფოსტის წაშლა',
+    removeEmailConfirm: 'შეიყვანეთ პაროლი ამ ელფოსტის მისამართის წასაშლელად.',
+    removePhone: 'ტელეფონის წაშლა',
+    removePhoneConfirm: 'შეიყვანეთ პაროლი ამ ტელეფონის ნომრის წასაშლელად.',
   },
   
   // Sidebar

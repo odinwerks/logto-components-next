@@ -30,56 +30,263 @@ interface SecurityTabProps {
 
 const ISSUER = process.env.NEXT_PUBLIC_MFA_ISSUER || 'Logto';
 
-function PageHeader({ title, description, themeColors }: { title: string; description: string; themeColors: ThemeColors }) {
-  return (
-    <div style={{ marginBottom: 26 }}>
-      <h2 style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 600, fontSize: 18, color: themeColors.textPrimary, marginBottom: 4 }}>
-        {title}
-      </h2>
-      <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 13, color: themeColors.textSecondary, lineHeight: 1.55 }}>
-        {description}
-      </p>
-    </div>
-  );
-}
+const T = {
+  bg: '#08080b',
+  surface: '#0e0e12',
+  raised: '#131318',
+  border: '#1e1e26',
+  borderFaint: '#161620',
+  text: '#e8e8f0',
+  textSub: '#72728a',
+  textMuted: '#38384a',
+  blue: '#3060e0',
+  blueHov: '#2854cc',
+  blueDim: '#18284a',
+  blueEdge: '#2044aa',
+  blueText: '#6a9af4',
+  red: '#bf3a3a',
+  redDim: '#1c0e0e',
+  redBorder: '#381616',
+  redText: '#de5858',
+  green: '#2a8a58',
+  greenDim: '#0a1e12',
+  greenText: '#4aad76',
+  amber: '#966e1e',
+  amberDim: '#1c1508',
+  amberText: '#bf8c3a',
+  font: "'Sora', system-ui, sans-serif",
+  mono: "'IBM Plex Mono', monospace",
+};
 
-function SectionLabel({ children, themeColors }: { children: React.ReactNode; themeColors: ThemeColors }) {
+const ic = (d: React.ReactNode) => ({ size = 16, color = 'currentColor', strokeWidth = 1.5, style }: { size?: number; color?: string; strokeWidth?: number; style?: React.CSSProperties }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="square" strokeLinejoin="miter" style={style}>
+    {d}
+  </svg>
+);
+
+const ICheck = ic(<polyline points="20 6 9 17 4 12" />);
+const IX = ic(<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>);
+const IChevron = ic(<polyline points="9 18 15 12 9 6" />);
+const IWarn = ic(<><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>);
+const IKey = ic(<><circle cx="7.5" cy="15.5" r="5.5" /><path d="M21 2l-9.6 9.6" /><path d="M15.5 7.5l3 3L22 7l-3-3" /></>);
+const ITrash = ic(<><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" /></>);
+const IPlus = ic(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>);
+const IEye = ic(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>);
+const IEyeOff = ic(<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>);
+const IRefresh = ic(<><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-.18-5.83" /></>);
+
+function Badge({ children, variant = 'neutral' }: { children: React.ReactNode; variant?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }) {
+  const m: Record<string, { bg: string; color: string; border: string }> = {
+    neutral: { bg: T.raised, color: T.textSub, border: T.border },
+    success: { bg: T.greenDim, color: T.greenText, border: '#183028' },
+    warning: { bg: T.amberDim, color: T.amberText, border: '#2c2010' },
+    danger: { bg: T.redDim, color: T.redText, border: T.redBorder },
+    info: { bg: T.blueDim, color: T.blueText, border: '#1c2e5e' },
+  };
+  const s = m[variant];
   return (
-    <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 600, fontSize: 10.5, color: themeColors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12, marginTop: 24 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', fontSize: 11, fontFamily: T.mono, background: s.bg, border: `1px solid ${s.border}`, color: s.color, letterSpacing: 0.15, whiteSpace: 'nowrap', lineHeight: '18px' }}>
       {children}
-    </p>
+    </span>
   );
 }
 
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', marginBottom: 16, ...style }}>
-      {children}
-    </div>
+    <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      style={{ width: 38, height: 22, position: 'relative', cursor: 'pointer', flexShrink: 0, background: checked ? T.blue : T.raised, border: `1px solid ${checked ? T.blueEdge : T.border}`, transition: 'background .18s,border-color .18s' }}>
+      <span style={{ position: 'absolute', top: 3, left: checked ? 19 : 3, width: 14, height: 14, background: checked ? '#fff' : T.textMuted, transition: 'left .18s,background .18s', display: 'block' }} />
+    </button>
   );
 }
 
-function Btn({ children, variant = 'secondary', size = 'md', onClick, disabled, style }: { children: React.ReactNode; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md'; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties }) {
-  const sz = size === 'sm' ? { p: '5px 13px', fs: 12 } : { p: '8px 17px', fs: 13 };
-  const vr = { primary: { bg: '#2d5bbf', color: '#fff', border: '#2550aa' }, secondary: { bg: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: 'var(--border)' }, ghost: { bg: 'transparent', color: 'var(--text-tertiary)', border: 'transparent' }, danger: { bg: '#1a0c0c', color: '#b03535', border: '#341414' } };
+function Btn({ children, variant = 'secondary', size = 'md', onClick, disabled, style }: { children: React.ReactNode; variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid'; size?: 'sm' | 'md'; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties }) {
+  const sz = size === 'sm' ? { p: '5px 13px', fs: 12, gap: 5 } : { p: '8px 17px', fs: 13, gap: 7 };
+  const vr: Record<string, { bg: string; color: string; bdr: string; sh: string; cls: string }> = {
+    primary: { bg: T.blue, color: '#fff', bdr: `1px solid ${T.blueEdge}`, sh: 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)', cls: 'bp' },
+    secondary: { bg: T.raised, color: T.textSub, bdr: `1px solid ${T.border}`, sh: 'inset 0 1px 0 rgba(255,255,255,0.04),0 1px 2px rgba(0,0,0,0.3)', cls: 'bs' },
+    ghost: { bg: 'transparent', color: T.textMuted, bdr: '1px solid transparent', sh: 'none', cls: 'bg' },
+    danger: { bg: T.redDim, color: T.redText, bdr: `1px solid ${T.redBorder}`, sh: 'none', cls: 'bd' },
+    'danger-solid': { bg: T.red, color: '#fff', bdr: '1px solid #a02828', sh: 'inset 0 1px 0 rgba(255,255,255,0.08)', cls: 'bds' },
+  };
   const v = vr[variant];
   return (
-    <button onClick={onClick} disabled={disabled} style={{ display: 'inline-flex', alignItems: 'center', gap: sz.fs < 13 ? 5 : 7, padding: sz.p, fontSize: sz.fs, fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, background: v.bg, color: v.color, border: `1px solid ${v.border}`, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, ...style }}>
+    <button onClick={onClick} disabled={disabled} className={v.cls}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: sz.gap, padding: sz.p, fontSize: sz.fs, fontFamily: T.font, fontWeight: 500, background: v.bg, color: v.color, border: v.bdr, boxShadow: v.sh, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, transition: 'background .12s,border-color .12s', letterSpacing: '-0.01em', ...style }}>
       {children}
     </button>
   );
 }
 
+function Inp({ type = 'text', value, defaultValue, onChange, placeholder, style: ext, autoFocus, suffix, onKeyDown }: { type?: string; value?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder?: string; style?: React.CSSProperties; autoFocus?: boolean; suffix?: React.ReactNode; onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void }) {
+  const el = (
+    <input type={type} className="fi" defaultValue={defaultValue} value={value} onChange={onChange}
+      placeholder={placeholder} autoFocus={autoFocus} onKeyDown={onKeyDown}
+      style={{ width: '100%', padding: '9px 12px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, fontFamily: T.font, fontSize: 13, boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)', ...ext }} />
+  );
+  if (!suffix) return el;
+  return (
+    <div style={{ position: 'relative' }}>
+      {el}
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, padding: '0 11px', display: 'flex', alignItems: 'center', borderLeft: `1px solid ${T.border}`, background: T.raised }}>
+        {suffix}
+      </div>
+    </div>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <label style={{ display: 'block', fontFamily: T.font, fontWeight: 500, fontSize: 12, color: T.textSub, marginBottom: 6 }}>{children}</label>;
+}
+
+function SL({ children }: { children: React.ReactNode }) {
+  return <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 10.5, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12 }}>{children}</p>;
+}
+
+function Card({ children, danger, style }: { children: React.ReactNode; danger?: boolean; style?: React.CSSProperties }) {
+  return (
+    <div style={{ background: danger ? '#0d0808' : T.surface, border: `1px solid ${danger ? T.redBorder : T.border}`, marginBottom: 16, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function PH({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div>
+        <h2 style={{ fontFamily: T.font, fontWeight: 600, fontSize: 18, color: T.text, letterSpacing: '-0.025em', marginBottom: 4 }}>{title}</h2>
+        <p style={{ fontFamily: T.font, fontSize: 13, color: T.textSub, lineHeight: 1.55 }}>{description}</p>
+      </div>
+      {action && <div style={{ flexShrink: 0, marginTop: 2 }}>{action}</div>}
+    </div>
+  );
+}
+
+const HR = () => <div style={{ height: 1, background: T.borderFaint, margin: '22px 0' }} />;
+
+type ModalProps = {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  error?: string;
+  confirmLabel?: string;
+};
+
+function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel }: ModalProps) {
+  const W = 504;
+  const H = 315;
+  const H_HEAD = 72;
+  const H_FOOT = 64;
+  const H_BODY = H - H_HEAD - H_FOOT;
+
+  const [val, setVal] = useState('');
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState(false);
+  const [shk, setShk] = useState(false);
+
+  const go = () => {
+    if (val.length < 1) {
+      setErr(true);
+      setShk(true);
+      setTimeout(() => setShk(false), 450);
+      return;
+    }
+    onConfirm();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') go();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px) saturate(0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'overlayIn .18s ease' }}>
+      <div style={{
+        width: W, height: H,
+        minWidth: W, maxWidth: W,
+        minHeight: H, maxHeight: H,
+        overflow: 'hidden',
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        boxShadow: '0 0 0 1px rgba(255,255,255,0.03), 0 40px 100px rgba(0,0,0,0.75)',
+        animation: shk ? 'shake .42s ease' : 'modalIn .22s cubic-bezier(0.32,0.72,0,1)',
+      }}>
+        <div style={{
+          width: W, height: H_HEAD,
+          padding: '0 22px',
+          borderBottom: `1px solid ${T.borderFaint}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          overflow: 'hidden',
+        }}>
+          <div>
+            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 15, color: T.text, letterSpacing: '-0.02em', marginBottom: subtitle ? 3 : 0 }}>{title}</p>
+            {subtitle && <p style={{ fontFamily: T.font, fontSize: 12, color: T.textSub, lineHeight: 1.4 }}>{subtitle}</p>}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex', padding: 4, flexShrink: 0 }}>
+            <IX size={15} />
+          </button>
+        </div>
+
+        <div style={{
+          width: W, height: H_BODY,
+          padding: '20px 22px 0',
+          overflow: 'hidden',
+        }}>
+          <Label>Current password</Label>
+          <Inp
+            type={show ? 'text' : 'password'}
+            value={val}
+            onChange={e => { setVal(e.target.value); setErr(false); }}
+            placeholder="••••••••••••"
+            autoFocus
+            style={{ borderColor: err || error ? T.red : undefined, background: err || error ? '#120a0a' : T.bg }}
+            suffix={
+              <button onClick={() => setShow(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex', padding: 0 }}>
+                {show ? <IEyeOff size={13} /> : <IEye size={13} />}
+              </button>
+            }
+            onKeyDown={handleKeyDown}
+          />
+          <p style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontFamily: T.font, fontSize: 12, color: T.redText,
+            marginTop: 8, height: 18,
+            visibility: err || error ? 'visible' : 'hidden',
+          }}>
+            <IWarn size={12} /> {error || 'Incorrect password — try again.'}
+          </p>
+        </div>
+
+        <div style={{
+          width: W, height: 64,
+          padding: '0 22px',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
+          borderTop: `1px solid ${T.borderFaint}`,
+          overflow: 'hidden',
+        }}>
+          <Btn onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" onClick={go}>
+            {confirmLabel || 'Continue'} <IChevron size={13} />
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type PasswordModalState = {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  confirmLabel?: string;
+  onConfirm: (password: string) => void;
+};
+
 export function SecurityTab({
   userData,
-  themeColors,
   t,
   onVerifyPassword,
-  onSendEmailVerification,
-  onSendPhoneVerification,
-  onVerifyCode,
-  onUpdateEmail,
-  onUpdatePhone,
   onRemoveEmail,
   onRemovePhone,
   onGetMfaVerifications,
@@ -93,6 +300,14 @@ export function SecurityTab({
 }: SecurityTabProps) {
   const [mfaVerifications, setMfaVerifications] = useState<MfaVerification[]>([]);
   const [mfaLoading, setMfaLoading] = useState(false);
+
+  const [passwordModal, setPasswordModal] = useState<PasswordModalState>({
+    open: false,
+    title: '',
+    subtitle: '',
+    onConfirm: () => {},
+  });
+  const [pendingPassword, setPendingPassword] = useState('');
 
   const [mfaVerificationState, setMfaVerificationState] = useState<{
     operation: 'add-totp' | 'delete-mfa' | 'generate-backup' | 'view-backup' | null;
@@ -110,7 +325,6 @@ export function SecurityTab({
   const [totpVerificationCode, setTotpVerificationCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
-  const [mfaPassword, setMfaPassword] = useState('');
 
   const loadMfaVerifications = useCallback(async () => {
     setMfaLoading(true);
@@ -126,18 +340,26 @@ export function SecurityTab({
 
   useEffect(() => { loadMfaVerifications(); }, [loadMfaVerifications]);
 
+  const openPasswordModal = (title: string, subtitle: string, onConfirm: (password: string) => void, confirmLabel?: string) => {
+    setPendingPassword('');
+    setPasswordModal({ open: true, title, subtitle, confirmLabel, onConfirm });
+  };
+
+  const handlePasswordModalConfirm = async () => {
+    if (!pendingPassword) return;
+    passwordModal.onConfirm(pendingPassword);
+  };
+
   const handleStartTotpEnrollment = useCallback(() => {
     setMfaVerificationState({ operation: 'add-totp', verificationId: null, targetMfaId: null, step: 'password' });
-    setMfaPassword('');
     setTotpSecret(null);
     setTotpVerificationCode('');
   }, []);
 
-  const handleVerifyPasswordForMfa = useCallback(async () => {
-    if (!mfaPassword) { onError(t.mfa.passwordRequired); return; }
+  const handleVerifyPasswordForMfa = useCallback(async (password: string) => {
     setMfaLoading(true);
     try {
-      const identityResponse = await onVerifyPassword(mfaPassword);
+      const identityResponse = await onVerifyPassword(password);
       const identityId = identityResponse.verificationRecordId;
 
       if (mfaVerificationState.operation === 'add-totp') {
@@ -167,7 +389,7 @@ export function SecurityTab({
     } finally {
       setMfaLoading(false);
     }
-  }, [mfaPassword, mfaVerificationState, onVerifyPassword, onGenerateTotpSecret, onGenerateBackupCodes, onGetBackupCodes, onDeleteMfaVerification, loadMfaVerifications, onSuccess, onError, t]);
+  }, [mfaVerificationState, onVerifyPassword, onGenerateTotpSecret, onGenerateBackupCodes, onGetBackupCodes, onDeleteMfaVerification, loadMfaVerifications, onSuccess, onError, t]);
 
   const handleCompleteTotpEnrollment = useCallback(async () => {
     if (!totpSecret || !totpVerificationCode || !mfaVerificationState.verificationId) { onError(t.mfa.missingVerification); return; }
@@ -183,7 +405,6 @@ export function SecurityTab({
 
   const cancelMfaOperation = useCallback(() => {
     setMfaVerificationState({ operation: null, verificationId: null, targetMfaId: null, step: null });
-    setMfaPassword('');
     setTotpSecret(null);
     setTotpVerificationCode('');
     setBackupCodes(null);
@@ -211,113 +432,227 @@ export function SecurityTab({
 
   const formatDate = (date: string) => new Date(date).toLocaleString();
 
+  const handleRemoveEmail = () => {
+    openPasswordModal(
+      t.security.removeEmail || 'Remove email',
+      t.security.removeEmailConfirm || 'Enter your password to remove this email address.',
+      async (password) => {
+        try {
+          const identityResponse = await onVerifyPassword(password);
+          await onRemoveEmail(identityResponse.verificationRecordId);
+          onSuccess(t.profile.emailRemoved);
+        } catch (err) {
+          onError(err instanceof Error ? err.message : t.profile.updateFailed);
+        }
+      }
+    );
+  };
+
+  const handleRemovePhone = () => {
+    openPasswordModal(
+      t.security.removePhone || 'Remove phone',
+      t.security.removePhoneConfirm || 'Enter your password to remove this phone number.',
+      async (password) => {
+        try {
+          const identityResponse = await onVerifyPassword(password);
+          await onRemovePhone(identityResponse.verificationRecordId);
+          onSuccess(t.profile.phoneRemoved);
+        } catch (err) {
+          onError(err instanceof Error ? err.message : t.profile.updateFailed);
+        }
+      }
+    );
+  };
+
+  const handleDeleteMfa = (mfaId: string) => {
+    setMfaVerificationState({ operation: 'delete-mfa', targetMfaId: mfaId, verificationId: null, step: 'password' });
+  };
+
   return (
-    <div>
-      <PageHeader title={t.security.title} description={t.security.description} themeColors={themeColors} />
+    <div style={{ animation: 'fadeUp .2s ease' }}>
+      {passwordModal.open && (
+        <Modal
+          title={passwordModal.title}
+          subtitle={passwordModal.subtitle}
+          confirmLabel={passwordModal.confirmLabel}
+          onClose={() => setPasswordModal(prev => ({ ...prev, open: false }))}
+          onConfirm={() => {
+            setPendingPassword(passwordModal.title); // Store for the handler
+            handlePasswordModalConfirm();
+          }}
+        />
+      )}
 
-      {/* Email & Phone */}
-      <SectionLabel themeColors={themeColors}>{t.security.contactAndCredentials}</SectionLabel>
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
-          <div>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, fontSize: 13, color: themeColors.textPrimary }}>{t.security.email}</p>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textTertiary }}>{userData.primaryEmail || t.profile.notSet}</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            {userData.primaryEmail ? (
-              <Btn size="sm" variant="danger" onClick={async () => { try { await onRemoveEmail(''); onSuccess(t.profile.emailRemoved); } catch (e) { onError(t.profile.updateFailed); } }}>{t.profile.remove}</Btn>
-            ) : <Btn size="sm">{t.profile.add}</Btn>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px' }}>
-          <div>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, fontSize: 13, color: themeColors.textPrimary }}>{t.security.phone}</p>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textTertiary }}>{userData.primaryPhone || t.profile.notSet}</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            {userData.primaryPhone ? (
-              <Btn size="sm" variant="danger" onClick={async () => { try { await onRemovePhone(''); onSuccess(t.profile.phoneRemoved); } catch (e) { onError(t.profile.updateFailed); } }}>{t.profile.remove}</Btn>
-            ) : <Btn size="sm">{t.profile.add}</Btn>}
-          </div>
-        </div>
-      </Card>
+      <PH title={t.security.title} description={t.security.description} />
 
-      {/* Password */}
-      <SectionLabel themeColors={themeColors}>{t.security.password}</SectionLabel>
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px' }}>
-          <div>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, fontSize: 13, color: themeColors.textPrimary }}>{t.security.password}</p>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textTertiary }}>{t.security.passwordLastChanged}: 34 days ago</p>
-          </div>
-          <Btn size="sm">{t.security.changePassword}</Btn>
-        </div>
-      </Card>
-
-      {/* MFA Factors */}
-      <SectionLabel themeColors={themeColors}>{t.mfa.enrolledFactors}</SectionLabel>
-      <Card>
-        {mfaLoading && <div style={{ padding: 20, textAlign: 'center', color: themeColors.textTertiary, fontSize: 11 }}>{t.common.loading}</div>}
-        {!mfaLoading && mfaVerifications.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: themeColors.textTertiary, fontSize: 11 }}>{t.mfa.noFactors}</div>}
-        {!mfaLoading && mfaVerifications.map(mfa => (
-          <div key={mfa.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+      <SL>Two-factor authentication</SL>
+      <Card style={{ marginBottom: 18 }}>
+        <div style={{ padding: '15px 18px', borderBottom: mfaVerifications.length > 0 ? `1px solid ${T.borderFaint}` : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 600, fontSize: 11, color: themeColors.textPrimary }}>{mfa.type}{mfa.name && ` - ${mfa.name}`}</div>
-              <div style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 9, color: themeColors.textTertiary, marginTop: 2 }}>{t.mfa.created}: {formatDate(mfa.createdAt)}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8' }}>Authenticator app</p>
+                {mfaVerifications.length > 0 && <Badge variant="success"><ICheck size={9} /> Active</Badge>}
+              </div>
+              <p style={{ fontFamily: T.font, fontSize: 12, color: T.textMuted }}>TOTP via Google Authenticator, Authy, or 1Password.</p>
+            </div>
+            <Toggle
+              checked={mfaVerifications.length > 0}
+              onChange={v => {
+                if (!v && mfaVerifications.length > 0) {
+                  openPasswordModal(
+                    'Disable 2FA',
+                    'Enter your password to disable two-factor authentication.',
+                    async (password) => {
+                      await handleVerifyPasswordForMfa(password);
+                    }
+                  );
+                }
+              }}
+            />
+          </div>
+        </div>
+        {mfaVerifications.length > 0 && (
+          <div style={{ padding: '10px 18px', background: T.bg, display: 'flex', gap: 7, borderBottom: `1px solid ${T.borderFaint}` }}>
+            <Btn size="sm" variant="secondary" onClick={() => {
+              openPasswordModal(
+                'View recovery codes',
+                'Enter your password to view your backup codes.',
+                async (password) => {
+                  setPendingPassword(password);
+                  await handleVerifyPasswordForMfa(password);
+                }
+              );
+            }}>
+              <IKey size={12} /> View recovery codes
+            </Btn>
+            <Btn size="sm" variant="ghost" onClick={() => {
+              openPasswordModal(
+                'Reconfigure TOTP',
+                'Enter your password before setting up a new authenticator.',
+                async (password) => {
+                  setPendingPassword(password);
+                  await handleVerifyPasswordForMfa(password);
+                }
+              );
+            }}>
+              <IRefresh size={12} /> Reconfigure
+            </Btn>
+          </div>
+        )}
+        <div style={{ padding: '15px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>SMS backup</p>
+              <p style={{ fontFamily: T.font, fontSize: 12, color: T.textMuted }}>Receive a one-time code by text as a fallback.</p>
+            </div>
+            <Toggle checked={false} onChange={() => {}} />
+          </div>
+        </div>
+      </Card>
+
+      <SL>Contact & credentials</SL>
+      <Card style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${T.borderFaint}`, gap: 16 }}>
+          <div>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.email}</p>
+            <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>{userData.primaryEmail || t.profile.notSet}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            {userData.primaryEmail ? (
+              <>
+                <Badge variant="success"><ICheck size={9} /> Verified</Badge>
+                <Btn size="sm" variant="danger" onClick={handleRemoveEmail}>{t.profile.remove}</Btn>
+              </>
+            ) : (
+              <Btn size="sm">{t.profile.add}</Btn>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${T.borderFaint}`, gap: 16 }}>
+          <div>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.phone}</p>
+            <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>{userData.primaryPhone || t.profile.notSet}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            {userData.primaryPhone ? (
+              <>
+                <Badge variant="success"><ICheck size={9} /> Verified</Badge>
+                <Btn size="sm" variant="danger" onClick={handleRemovePhone}>{t.profile.remove}</Btn>
+              </>
+            ) : (
+              <Btn size="sm">{t.profile.add}</Btn>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', gap: 16 }}>
+          <div>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.password}</p>
+            <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>Last changed 34 days ago</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            <Btn size="sm" onClick={() => {
+              openPasswordModal(
+                'Change password',
+                'Enter your current password to set a new one.',
+                async (password) => {
+                  // TODO: Implement password change
+                  onSuccess('Password change feature coming soon');
+                }
+              );
+            }}>{t.security.changePassword}</Btn>
+          </div>
+        </div>
+      </Card>
+
+      <SL>MFA Factors</SL>
+      <Card style={{ marginBottom: 18 }}>
+        {mfaLoading && <div style={{ padding: 20, textAlign: 'center', color: T.textMuted, fontSize: 11 }}>{t.common.loading}</div>}
+        {!mfaLoading && mfaVerifications.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: T.textMuted, fontSize: 11 }}>{t.mfa.noFactors}</div>}
+        {!mfaLoading && mfaVerifications.map(mfa => (
+          <div key={mfa.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: `1px solid ${T.borderFaint}` }}>
+            <div>
+              <div style={{ fontFamily: T.mono, fontWeight: 600, fontSize: 11, color: '#c0c0d8' }}>{mfa.type}{mfa.name && ` - ${mfa.name}`}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 9, color: T.textMuted, marginTop: 2 }}>{t.mfa.created}: {formatDate(mfa.createdAt)}</div>
             </div>
             {mfa.type !== 'BackupCode' && (
-              <Btn size="sm" variant="danger" onClick={() => { if (confirm(t.mfa.confirmRemoveFactor.replace('${mfa.type}', mfa.type))) { setMfaVerificationState({ operation: 'delete-mfa', targetMfaId: mfa.id, verificationId: null, step: 'password' }); setMfaPassword(''); } }}>{t.mfa.remove}</Btn>
+              <Btn size="sm" variant="danger" onClick={() => handleDeleteMfa(mfa.id)}>{t.mfa.remove}</Btn>
             )}
           </div>
         ))}
         {mfaVerificationState.step === 'password' && mfaVerificationState.operation === 'delete-mfa' && (
-          <div style={{ padding: 12, background: themeColors.bgPage, borderTop: `1px solid ${themeColors.borderColor}` }}>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textSecondary, marginBottom: 8 }}>{t.mfa.verifyPasswordToRemoveFactor}</p>
+          <div style={{ padding: 12, background: T.bg, borderTop: `1px solid ${T.borderFaint}` }}>
+            <p style={{ fontFamily: T.font, fontSize: 11, color: T.textSub, marginBottom: 8 }}>{t.mfa.verifyPasswordToRemoveFactor}</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="password" value={mfaPassword} onChange={e => setMfaPassword(e.target.value)} placeholder={t.mfa.enterPasswordPlaceholder} style={{ flex: 1, padding: 8, background: themeColors.bgSecondary, border: `1px solid ${themeColors.borderColor}`, borderRadius: 4, color: themeColors.textPrimary, fontSize: 12, fontFamily: 'var(--font-ibm-plex-mono)' }} />
-              <Btn variant="danger" onClick={handleVerifyPasswordForMfa} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Inp
+                type="password"
+                placeholder={t.mfa.enterPasswordPlaceholder}
+                onChange={(e) => {
+                  const password = e.target.value;
+                  setPendingPassword(password);
+                }}
+                style={{ flex: 1 }}
+              />
+              <Btn variant="danger" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
               <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
             </div>
           </div>
         )}
       </Card>
 
-      {/* TOTP Enrollment */}
-      <SectionLabel themeColors={themeColors}>{t.mfa.totp} - {t.mfa.totpDescription}</SectionLabel>
-      <Card>
-        {mfaVerificationState.operation === 'add-totp' && mfaVerificationState.step === 'password' && (
-          <div style={{ padding: 16 }}>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textSecondary, marginBottom: 8 }}>{t.mfa.verifyPasswordToGenerateTotp}</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="password" value={mfaPassword} onChange={e => setMfaPassword(e.target.value)} placeholder={t.mfa.enterPasswordPlaceholder} style={{ flex: 1, padding: 8, background: themeColors.bgPage, border: `1px solid ${themeColors.borderColor}`, borderRadius: 4, color: themeColors.textPrimary, fontSize: 12, fontFamily: 'var(--font-ibm-plex-mono)' }} />
-              <Btn variant="primary" onClick={handleVerifyPasswordForMfa} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
-              <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
-            </div>
-          </div>
-        )}
-        {mfaVerificationState.operation === 'add-totp' && mfaVerificationState.step === 'complete' && totpSecret && (
-          <div style={{ padding: 16 }}>
-            <div style={{ textAlign: 'center', marginBottom: 12 }}><QRCodeSVG value={getTotpUri()} size={180} /></div>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 10, color: themeColors.textTertiary, marginBottom: 12, wordBreak: 'break-all' }}>{t.mfa.cantScan} {t.mfa.enterManually} <code style={{ background: themeColors.bgTertiary, padding: '2px 6px', borderRadius: 3 }}>{totpSecret.secret}</code></p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" value={totpVerificationCode} onChange={e => setTotpVerificationCode(e.target.value.replace(/\D/g, '').substring(0, 6))} placeholder={t.mfa.enterCodePlaceholder} maxLength={6} style={{ flex: 1, padding: 8, background: themeColors.bgPage, border: `1px solid ${themeColors.borderColor}`, borderRadius: 4, color: themeColors.textPrimary, fontSize: 14, fontFamily: 'var(--font-ibm-plex-mono)', letterSpacing: 4, textAlign: 'center' }} />
-              <Btn variant="primary" onClick={handleCompleteTotpEnrollment} disabled={totpVerificationCode.length !== 6 || mfaLoading}>{mfaLoading ? t.common.loading : t.mfa.verifyAndEnroll}</Btn>
-              <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
-            </div>
-          </div>
-        )}
-        {!mfaVerificationState.operation && <div style={{ padding: 16 }}><Btn onClick={handleStartTotpEnrollment} disabled={mfaLoading}>{t.mfa.generateTotpSecret}</Btn></div>}
-      </Card>
-
-      {/* Backup Codes */}
-      <SectionLabel themeColors={themeColors}>{t.mfa.backupCodes}</SectionLabel>
-      <Card>
+      <SL>Backup codes</SL>
+      <Card style={{ marginBottom: 18 }}>
         {mfaVerificationState.step === 'password' && (mfaVerificationState.operation === 'generate-backup' || mfaVerificationState.operation === 'view-backup') && (
           <div style={{ padding: 16 }}>
-            <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textSecondary, marginBottom: 8 }}>{mfaVerificationState.operation === 'generate-backup' ? t.mfa.verifyPasswordToGenerateBackupCodes : t.mfa.verifyPasswordToViewBackupCodes}</p>
+            <p style={{ fontFamily: T.font, fontSize: 11, color: T.textSub, marginBottom: 8 }}>{mfaVerificationState.operation === 'generate-backup' ? t.mfa.verifyPasswordToGenerateBackupCodes : t.mfa.verifyPasswordToViewBackupCodes}</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="password" value={mfaPassword} onChange={e => setMfaPassword(e.target.value)} placeholder={t.mfa.enterPasswordPlaceholder} style={{ flex: 1, padding: 8, background: themeColors.bgPage, border: `1px solid ${themeColors.borderColor}`, borderRadius: 4, color: themeColors.textPrimary, fontSize: 12, fontFamily: 'var(--font-ibm-plex-mono)' }} />
-              <Btn variant="primary" onClick={handleVerifyPasswordForMfa} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Inp
+                type="password"
+                placeholder={t.mfa.enterPasswordPlaceholder}
+                onChange={(e) => setPendingPassword(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <Btn variant="primary" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
               <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
             </div>
           </div>
@@ -326,7 +661,7 @@ export function SecurityTab({
           <div style={{ padding: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
               {backupCodes.map((code, idx) => (
-                <div key={idx} style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 11, color: themeColors.textPrimary, padding: 6, background: themeColors.bgPage, borderRadius: 3, border: `1px solid ${themeColors.borderColor}` }}>{code}</div>
+                <div key={idx} style={{ fontFamily: T.mono, fontSize: 11, color: T.text, padding: 6, background: T.bg, borderRadius: 3, border: `1px solid ${T.border}` }}>{code}</div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -337,20 +672,53 @@ export function SecurityTab({
         )}
         {!showBackupCodes && !mfaVerificationState.step && (
           <div style={{ padding: 16, display: 'flex', gap: 8 }}>
-            <Btn onClick={() => { setBackupCodes(null); setShowBackupCodes(false); setMfaVerificationState({ operation: 'generate-backup', verificationId: null, targetMfaId: null, step: 'password' }); setMfaPassword(''); }}>{t.mfa.generateNewCodes}</Btn>
+            <Btn onClick={() => {
+              openPasswordModal(
+                'Generate backup codes',
+                'Enter your password to generate new backup codes.',
+                async (password) => {
+                  setPendingPassword(password);
+                  await handleVerifyPasswordForMfa(password);
+                }
+              );
+            }}>{t.mfa.generateNewCodes}</Btn>
             {mfaVerifications.some(v => v.type === 'BackupCode') && (
-              <Btn onClick={() => { setBackupCodes(null); setShowBackupCodes(false); setMfaVerificationState({ operation: 'view-backup', verificationId: null, targetMfaId: null, step: 'password' }); setMfaPassword(''); }}>{t.mfa.viewExisting}</Btn>
+              <Btn onClick={() => {
+                openPasswordModal(
+                  'View backup codes',
+                  'Enter your password to view your existing backup codes.',
+                  async (password) => {
+                    setPendingPassword(password);
+                    await handleVerifyPasswordForMfa(password);
+                  }
+                );
+              }}>{t.mfa.viewExisting}</Btn>
             )}
           </div>
         )}
       </Card>
 
-      {/* Delete Account */}
-      <SectionLabel themeColors={themeColors}>{t.security.deleteAccount}</SectionLabel>
-      <Card>
-        <div style={{ padding: 16 }}>
-          <p style={{ fontFamily: 'var(--font-ibm-plex-mono)', fontSize: 12, color: themeColors.textTertiary, marginBottom: 12 }}>{t.security.deleteAccountDescription}</p>
-          <Btn variant="danger">{t.security.deleteAccount}</Btn>
+      <Card danger style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+          <div>
+            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 13, color: T.redText, marginBottom: 3 }}>Delete account</p>
+            <p style={{ fontFamily: T.font, fontSize: 12, color: '#60282a', lineHeight: 1.55 }}>Permanently removes your account and all associated data. This cannot be undone.</p>
+          </div>
+          <div style={{ flexShrink: 0 }}>
+            <Btn variant="danger" size="sm" onClick={() => {
+              openPasswordModal(
+                'Delete account',
+                'This is permanent. Enter your password to confirm.',
+                async (password) => {
+                  // TODO: Implement delete account
+                  onSuccess('Delete account feature coming soon');
+                },
+                'Delete'
+              );
+            }}>
+              <ITrash size={12} /> Delete account
+            </Btn>
+          </div>
         </div>
       </Card>
     </div>

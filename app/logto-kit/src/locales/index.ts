@@ -72,8 +72,12 @@ export interface Translations {
     revoke: string;
     deleteAccount: string;
     deleteAccountDescription: string;
+    removeEmail: string;
+    removeEmailConfirm: string;
+    removePhone: string;
+    removePhoneConfirm: string;
   };
-  
+
   // Sidebar
   sidebar: {
     profileAvatar: string;
