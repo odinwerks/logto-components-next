@@ -30,33 +30,43 @@ interface SecurityTabProps {
 
 const ISSUER = process.env.NEXT_PUBLIC_MFA_ISSUER || 'Logto';
 
-const T = {
-  bg: '#08080b',
-  surface: '#0e0e12',
-  raised: '#131318',
-  border: '#1e1e26',
-  borderFaint: '#161620',
-  text: '#e8e8f0',
-  textSub: '#72728a',
-  textMuted: '#38384a',
-  blue: '#3060e0',
-  blueHov: '#2854cc',
-  blueDim: '#18284a',
-  blueEdge: '#2044aa',
-  blueText: '#6a9af4',
-  red: '#bf3a3a',
-  redDim: '#1c0e0e',
-  redBorder: '#381616',
-  redText: '#de5858',
-  green: '#2a8a58',
-  greenDim: '#0a1e12',
-  greenText: '#4aad76',
-  amber: '#966e1e',
-  amberDim: '#1c1508',
-  amberText: '#bf8c3a',
-  font: "'Sora', system-ui, sans-serif",
-  mono: "'IBM Plex Mono', monospace",
-};
+function makeTheme(themeColors: ThemeColors) {
+  return {
+    bg: themeColors.bgPage,
+    surface: themeColors.bgSecondary,
+    raised: themeColors.bgTertiary,
+    border: themeColors.borderColor,
+    borderFaint: themeColors.borderColor + '80',
+    text: themeColors.textPrimary,
+    textSub: themeColors.textSecondary,
+    textMuted: themeColors.textTertiary,
+    blue: themeColors.accentBlue,
+    blueHov: adjustColor(themeColors.accentBlue, -20),
+    blueDim: themeColors.warningBg,
+    blueEdge: adjustColor(themeColors.accentBlue, -15),
+    blueText: adjustColor(themeColors.accentBlue, 30),
+    red: themeColors.accentRed,
+    redDim: themeColors.errorBg,
+    redBorder: adjustColor(themeColors.accentRed, -40) + '40',
+    redText: themeColors.accentRed,
+    green: themeColors.accentGreen,
+    greenDim: themeColors.successBg,
+    greenText: adjustColor(themeColors.accentGreen, 20),
+    amber: themeColors.accentYellow,
+    amberDim: themeColors.warningBg,
+    amberText: adjustColor(themeColors.accentYellow, 20),
+    font: "'Sora', system-ui, sans-serif",
+    mono: "'IBM Plex Mono', monospace",
+  };
+}
+
+function adjustColor(hex: string, amount: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
 
 const ic = (d: React.ReactNode) => ({ size = 16, color = 'currentColor', strokeWidth = 1.5, style }: { size?: number; color?: string; strokeWidth?: number; style?: React.CSSProperties }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="square" strokeLinejoin="miter" style={style}>
@@ -75,13 +85,14 @@ const IEye = ic(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circ
 const IEyeOff = ic(<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>);
 const IRefresh = ic(<><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-.18-5.83" /></>);
 
-function Badge({ children, variant = 'neutral' }: { children: React.ReactNode; variant?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }) {
+function Badge({ children, variant = 'neutral', themeColors }: { children: React.ReactNode; variant?: 'neutral' | 'success' | 'warning' | 'danger' | 'info'; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   const m: Record<string, { bg: string; color: string; border: string }> = {
     neutral: { bg: T.raised, color: T.textSub, border: T.border },
-    success: { bg: T.greenDim, color: T.greenText, border: '#183028' },
-    warning: { bg: T.amberDim, color: T.amberText, border: '#2c2010' },
+    success: { bg: T.greenDim, color: T.greenText, border: adjustColor(themeColors.accentGreen, -40) + '40' },
+    warning: { bg: T.amberDim, color: T.amberText, border: adjustColor(themeColors.accentYellow, -40) + '40' },
     danger: { bg: T.redDim, color: T.redText, border: T.redBorder },
-    info: { bg: T.blueDim, color: T.blueText, border: '#1c2e5e' },
+    info: { bg: T.blueDim, color: T.blueText, border: adjustColor(themeColors.accentBlue, -40) + '40' },
   };
   const s = m[variant];
   return (
@@ -91,7 +102,8 @@ function Badge({ children, variant = 'neutral' }: { children: React.ReactNode; v
   );
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ checked, onChange, themeColors }: { checked: boolean; onChange: (v: boolean) => void; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   return (
     <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
       style={{ width: 38, height: 22, position: 'relative', cursor: 'pointer', flexShrink: 0, background: checked ? T.blue : T.raised, border: `1px solid ${checked ? T.blueEdge : T.border}`, transition: 'background .18s,border-color .18s' }}>
@@ -100,7 +112,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-function Btn({ children, variant = 'secondary', size = 'md', onClick, disabled, style }: { children: React.ReactNode; variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid'; size?: 'sm' | 'md'; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties }) {
+function Btn({ children, variant = 'secondary', size = 'md', onClick, disabled, style, themeColors }: { children: React.ReactNode; variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid'; size?: 'sm' | 'md'; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   const sz = size === 'sm' ? { p: '5px 13px', fs: 12, gap: 5 } : { p: '8px 17px', fs: 13, gap: 7 };
   const vr: Record<string, { bg: string; color: string; bdr: string; sh: string; cls: string }> = {
     primary: { bg: T.blue, color: '#fff', bdr: `1px solid ${T.blueEdge}`, sh: 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)', cls: 'bp' },
@@ -118,7 +131,8 @@ function Btn({ children, variant = 'secondary', size = 'md', onClick, disabled, 
   );
 }
 
-function Inp({ type = 'text', value, defaultValue, onChange, placeholder, style: ext, autoFocus, suffix, onKeyDown }: { type?: string; value?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder?: string; style?: React.CSSProperties; autoFocus?: boolean; suffix?: React.ReactNode; onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void }) {
+function Inp({ type = 'text', value, defaultValue, onChange, placeholder, style: ext, autoFocus, suffix, onKeyDown, themeColors }: { type?: string; value?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder?: string; style?: React.CSSProperties; autoFocus?: boolean; suffix?: React.ReactNode; onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   const el = (
     <input type={type} className="fi" defaultValue={defaultValue} value={value} onChange={onChange}
       placeholder={placeholder} autoFocus={autoFocus} onKeyDown={onKeyDown}
@@ -135,23 +149,27 @@ function Inp({ type = 'text', value, defaultValue, onChange, placeholder, style:
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({ children, themeColors }: { children: React.ReactNode; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   return <label style={{ display: 'block', fontFamily: T.font, fontWeight: 500, fontSize: 12, color: T.textSub, marginBottom: 6 }}>{children}</label>;
 }
 
-function SL({ children }: { children: React.ReactNode }) {
+function SL({ children, themeColors }: { children: React.ReactNode; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   return <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 10.5, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12 }}>{children}</p>;
 }
 
-function Card({ children, danger, style }: { children: React.ReactNode; danger?: boolean; style?: React.CSSProperties }) {
+function Card({ children, danger, style, themeColors }: { children: React.ReactNode; danger?: boolean; style?: React.CSSProperties; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   return (
-    <div style={{ background: danger ? '#0d0808' : T.surface, border: `1px solid ${danger ? T.redBorder : T.border}`, marginBottom: 16, ...style }}>
+    <div style={{ background: danger ? T.redDim : T.surface, border: `1px solid ${danger ? T.redBorder : T.border}`, marginBottom: 16, ...style }}>
       {children}
     </div>
   );
 }
 
-function PH({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+function PH({ title, description, action, themeColors }: { title: string; description: string; action?: React.ReactNode; themeColors: ThemeColors }) {
+  const T = makeTheme(themeColors);
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 26 }}>
       <div>
@@ -163,7 +181,10 @@ function PH({ title, description, action }: { title: string; description: string
   );
 }
 
-const HR = () => <div style={{ height: 1, background: T.borderFaint, margin: '22px 0' }} />;
+const HR = ({ themeColors }: { themeColors: ThemeColors }) => {
+  const T = makeTheme(themeColors);
+  return <div style={{ height: 1, background: T.borderFaint, margin: '22px 0' }} />;
+};
 
 type ModalProps = {
   title: string;
@@ -172,9 +193,11 @@ type ModalProps = {
   onConfirm: () => void;
   error?: string;
   confirmLabel?: string;
+  themeColors: ThemeColors;
 };
 
-function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel }: ModalProps) {
+function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel, themeColors }: ModalProps) {
+  const T = makeTheme(themeColors);
   const W = 504;
   const H = 315;
   const H_HEAD = 72;
@@ -233,14 +256,15 @@ function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel }: Mod
           padding: '20px 22px 0',
           overflow: 'hidden',
         }}>
-          <Label>Current password</Label>
+          <Label themeColors={themeColors}>Current password</Label>
           <Inp
             type={show ? 'text' : 'password'}
             value={val}
             onChange={e => { setVal(e.target.value); setErr(false); }}
             placeholder="••••••••••••"
             autoFocus
-            style={{ borderColor: err || error ? T.red : undefined, background: err || error ? '#120a0a' : T.bg }}
+            themeColors={themeColors}
+            style={{ borderColor: err || error ? T.red : undefined, background: err || error ? T.redDim : T.bg }}
             suffix={
               <button onClick={() => setShow(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex', padding: 0 }}>
                 {show ? <IEyeOff size={13} /> : <IEye size={13} />}
@@ -265,8 +289,8 @@ function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel }: Mod
           borderTop: `1px solid ${T.borderFaint}`,
           overflow: 'hidden',
         }}>
-          <Btn onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" onClick={go}>
+          <Btn onClick={onClose} themeColors={themeColors}>Cancel</Btn>
+          <Btn variant="primary" onClick={go} themeColors={themeColors}>
             {confirmLabel || 'Continue'} <IChevron size={13} />
           </Btn>
         </div>
@@ -285,6 +309,7 @@ type PasswordModalState = {
 
 export function SecurityTab({
   userData,
+  themeColors,
   t,
   onVerifyPassword,
   onRemoveEmail,
@@ -298,6 +323,7 @@ export function SecurityTab({
   onSuccess,
   onError,
 }: SecurityTabProps) {
+  const T = makeTheme(themeColors);
   const [mfaVerifications, setMfaVerifications] = useState<MfaVerification[]>([]);
   const [mfaLoading, setMfaLoading] = useState(false);
 
@@ -477,22 +503,23 @@ export function SecurityTab({
           confirmLabel={passwordModal.confirmLabel}
           onClose={() => setPasswordModal(prev => ({ ...prev, open: false }))}
           onConfirm={() => {
-            setPendingPassword(passwordModal.title); // Store for the handler
+            setPendingPassword(passwordModal.title);
             handlePasswordModalConfirm();
           }}
+          themeColors={themeColors}
         />
       )}
 
-      <PH title={t.security.title} description={t.security.description} />
+      <PH title={t.security.title} description={t.security.description} themeColors={themeColors} />
 
-      <SL>Two-factor authentication</SL>
-      <Card style={{ marginBottom: 18 }}>
+      <SL themeColors={themeColors}>Two-factor authentication</SL>
+      <Card style={{ marginBottom: 18 }} themeColors={themeColors}>
         <div style={{ padding: '15px 18px', borderBottom: mfaVerifications.length > 0 ? `1px solid ${T.borderFaint}` : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8' }}>Authenticator app</p>
-                {mfaVerifications.length > 0 && <Badge variant="success"><ICheck size={9} /> Active</Badge>}
+                <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text }}>Authenticator app</p>
+                {mfaVerifications.length > 0 && <Badge variant="success" themeColors={themeColors}><ICheck size={9} /> Active</Badge>}
               </div>
               <p style={{ fontFamily: T.font, fontSize: 12, color: T.textMuted }}>TOTP via Google Authenticator, Authy, or 1Password.</p>
             </div>
@@ -509,6 +536,7 @@ export function SecurityTab({
                   );
                 }
               }}
+              themeColors={themeColors}
             />
           </div>
         </div>
@@ -523,7 +551,7 @@ export function SecurityTab({
                   await handleVerifyPasswordForMfa(password);
                 }
               );
-            }}>
+            }} themeColors={themeColors}>
               <IKey size={12} /> View recovery codes
             </Btn>
             <Btn size="sm" variant="ghost" onClick={() => {
@@ -535,7 +563,7 @@ export function SecurityTab({
                   await handleVerifyPasswordForMfa(password);
                 }
               );
-            }}>
+            }} themeColors={themeColors}>
               <IRefresh size={12} /> Reconfigure
             </Btn>
           </div>
@@ -543,51 +571,51 @@ export function SecurityTab({
         <div style={{ padding: '15px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>SMS backup</p>
+              <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 3 }}>SMS backup</p>
               <p style={{ fontFamily: T.font, fontSize: 12, color: T.textMuted }}>Receive a one-time code by text as a fallback.</p>
             </div>
-            <Toggle checked={false} onChange={() => {}} />
+            <Toggle checked={false} onChange={() => {}} themeColors={themeColors} />
           </div>
         </div>
       </Card>
 
-      <SL>Contact & credentials</SL>
-      <Card style={{ marginBottom: 18 }}>
+      <SL themeColors={themeColors}>Contact & credentials</SL>
+      <Card style={{ marginBottom: 18 }} themeColors={themeColors}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${T.borderFaint}`, gap: 16 }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.email}</p>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 3 }}>{t.security.email}</p>
             <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>{userData.primaryEmail || t.profile.notSet}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
             {userData.primaryEmail ? (
               <>
-                <Badge variant="success"><ICheck size={9} /> Verified</Badge>
-                <Btn size="sm" variant="danger" onClick={handleRemoveEmail}>{t.profile.remove}</Btn>
+                <Badge variant="success" themeColors={themeColors}><ICheck size={9} /> Verified</Badge>
+                <Btn size="sm" variant="danger" onClick={handleRemoveEmail} themeColors={themeColors}>{t.profile.remove}</Btn>
               </>
             ) : (
-              <Btn size="sm">{t.profile.add}</Btn>
+              <Btn size="sm" themeColors={themeColors}>{t.profile.add}</Btn>
             )}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${T.borderFaint}`, gap: 16 }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.phone}</p>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 3 }}>{t.security.phone}</p>
             <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>{userData.primaryPhone || t.profile.notSet}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
             {userData.primaryPhone ? (
               <>
-                <Badge variant="success"><ICheck size={9} /> Verified</Badge>
-                <Btn size="sm" variant="danger" onClick={handleRemovePhone}>{t.profile.remove}</Btn>
+                <Badge variant="success" themeColors={themeColors}><ICheck size={9} /> Verified</Badge>
+                <Btn size="sm" variant="danger" onClick={handleRemovePhone} themeColors={themeColors}>{t.profile.remove}</Btn>
               </>
             ) : (
-              <Btn size="sm">{t.profile.add}</Btn>
+              <Btn size="sm" themeColors={themeColors}>{t.profile.add}</Btn>
             )}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', gap: 16 }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: '#c0c0d8', marginBottom: 3 }}>{t.security.password}</p>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 3 }}>{t.security.password}</p>
             <p style={{ fontFamily: T.mono, fontSize: 11, color: T.textMuted }}>Last changed 34 days ago</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
@@ -596,27 +624,26 @@ export function SecurityTab({
                 'Change password',
                 'Enter your current password to set a new one.',
                 async (password) => {
-                  // TODO: Implement password change
                   onSuccess('Password change feature coming soon');
                 }
               );
-            }}>{t.security.changePassword}</Btn>
+            }} themeColors={themeColors}>{t.security.changePassword}</Btn>
           </div>
         </div>
       </Card>
 
-      <SL>MFA Factors</SL>
-      <Card style={{ marginBottom: 18 }}>
+      <SL themeColors={themeColors}>MFA Factors</SL>
+      <Card style={{ marginBottom: 18 }} themeColors={themeColors}>
         {mfaLoading && <div style={{ padding: 20, textAlign: 'center', color: T.textMuted, fontSize: 11 }}>{t.common.loading}</div>}
         {!mfaLoading && mfaVerifications.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: T.textMuted, fontSize: 11 }}>{t.mfa.noFactors}</div>}
         {!mfaLoading && mfaVerifications.map(mfa => (
           <div key={mfa.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: `1px solid ${T.borderFaint}` }}>
             <div>
-              <div style={{ fontFamily: T.mono, fontWeight: 600, fontSize: 11, color: '#c0c0d8' }}>{mfa.type}{mfa.name && ` - ${mfa.name}`}</div>
+              <div style={{ fontFamily: T.mono, fontWeight: 600, fontSize: 11, color: T.text }}>{mfa.type}{mfa.name && ` - ${mfa.name}`}</div>
               <div style={{ fontFamily: T.mono, fontSize: 9, color: T.textMuted, marginTop: 2 }}>{t.mfa.created}: {formatDate(mfa.createdAt)}</div>
             </div>
             {mfa.type !== 'BackupCode' && (
-              <Btn size="sm" variant="danger" onClick={() => handleDeleteMfa(mfa.id)}>{t.mfa.remove}</Btn>
+              <Btn size="sm" variant="danger" onClick={() => handleDeleteMfa(mfa.id)} themeColors={themeColors}>{t.mfa.remove}</Btn>
             )}
           </div>
         ))}
@@ -632,16 +659,17 @@ export function SecurityTab({
                   setPendingPassword(password);
                 }}
                 style={{ flex: 1 }}
+                themeColors={themeColors}
               />
-              <Btn variant="danger" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
-              <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
+              <Btn variant="danger" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Btn onClick={cancelMfaOperation} themeColors={themeColors}>{t.common.close}</Btn>
             </div>
           </div>
         )}
       </Card>
 
-      <SL>Backup codes</SL>
-      <Card style={{ marginBottom: 18 }}>
+      <SL themeColors={themeColors}>Backup codes</SL>
+      <Card style={{ marginBottom: 18 }} themeColors={themeColors}>
         {mfaVerificationState.step === 'password' && (mfaVerificationState.operation === 'generate-backup' || mfaVerificationState.operation === 'view-backup') && (
           <div style={{ padding: 16 }}>
             <p style={{ fontFamily: T.font, fontSize: 11, color: T.textSub, marginBottom: 8 }}>{mfaVerificationState.operation === 'generate-backup' ? t.mfa.verifyPasswordToGenerateBackupCodes : t.mfa.verifyPasswordToViewBackupCodes}</p>
@@ -651,9 +679,10 @@ export function SecurityTab({
                 placeholder={t.mfa.enterPasswordPlaceholder}
                 onChange={(e) => setPendingPassword(e.target.value)}
                 style={{ flex: 1 }}
+                themeColors={themeColors}
               />
-              <Btn variant="primary" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
-              <Btn onClick={cancelMfaOperation}>{t.common.close}</Btn>
+              <Btn variant="primary" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Btn onClick={cancelMfaOperation} themeColors={themeColors}>{t.common.close}</Btn>
             </div>
           </div>
         )}
@@ -665,8 +694,8 @@ export function SecurityTab({
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Btn onClick={downloadBackupCodesTxt}>{t.mfa.downloadTxt}</Btn>
-              <Btn onClick={() => { cancelMfaOperation(); if (mfaVerificationState.operation === 'generate-backup') loadMfaVerifications(); }}>{mfaVerificationState.operation === 'generate-backup' ? t.mfa.finishAndSave : t.mfa.hide}</Btn>
+              <Btn onClick={downloadBackupCodesTxt} themeColors={themeColors}>{t.mfa.downloadTxt}</Btn>
+              <Btn onClick={() => { cancelMfaOperation(); if (mfaVerificationState.operation === 'generate-backup') loadMfaVerifications(); }} themeColors={themeColors}>{mfaVerificationState.operation === 'generate-backup' ? t.mfa.finishAndSave : t.mfa.hide}</Btn>
             </div>
           </div>
         )}
@@ -681,7 +710,7 @@ export function SecurityTab({
                   await handleVerifyPasswordForMfa(password);
                 }
               );
-            }}>{t.mfa.generateNewCodes}</Btn>
+            }} themeColors={themeColors}>{t.mfa.generateNewCodes}</Btn>
             {mfaVerifications.some(v => v.type === 'BackupCode') && (
               <Btn onClick={() => {
                 openPasswordModal(
@@ -692,17 +721,17 @@ export function SecurityTab({
                     await handleVerifyPasswordForMfa(password);
                   }
                 );
-              }}>{t.mfa.viewExisting}</Btn>
+              }} themeColors={themeColors}>{t.mfa.viewExisting}</Btn>
             )}
           </div>
         )}
       </Card>
 
-      <Card danger style={{ padding: '16px 20px' }}>
+      <Card danger style={{ padding: '16px 20px' }} themeColors={themeColors}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
           <div>
             <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 13, color: T.redText, marginBottom: 3 }}>Delete account</p>
-            <p style={{ fontFamily: T.font, fontSize: 12, color: '#60282a', lineHeight: 1.55 }}>Permanently removes your account and all associated data. This cannot be undone.</p>
+            <p style={{ fontFamily: T.font, fontSize: 12, color: adjustColor(themeColors.accentRed, 40), lineHeight: 1.55 }}>Permanently removes your account and all associated data. This cannot be undone.</p>
           </div>
           <div style={{ flexShrink: 0 }}>
             <Btn variant="danger" size="sm" onClick={() => {
@@ -710,12 +739,11 @@ export function SecurityTab({
                 'Delete account',
                 'This is permanent. Enter your password to confirm.',
                 async (password) => {
-                  // TODO: Implement delete account
                   onSuccess('Delete account feature coming soon');
                 },
                 'Delete'
               );
-            }}>
+            }} themeColors={themeColors}>
               <ITrash size={12} /> Delete account
             </Btn>
           </div>
