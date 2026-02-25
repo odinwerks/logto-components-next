@@ -1,0 +1,87 @@
+/* ============================================================================
+ * Light Theme - Logto Debug Dashboard
+ * OG Terminal/Hacker Aesthetic (Light Variant)
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root[data-theme="light"] {
+  /* Backgrounds */
+  --ldd-bg-page: #e8eaed;
+  --ldd-bg-primary: #ffffff;
+  --ldd-bg-secondary: #dadcde;
+  --ldd-bg-tertiary: #c0c2c4;
+  
+  /* Text */
+  --ldd-text-primary: #050505;
+  --ldd-text-secondary: #333333;
+  --ldd-text-tertiary: #555555;
+  
+  /* Border */
+  --ldd-border-color: #7a7c7e;
+  --ldd-border-radius: 6px;
+  --ldd-border-radius-sm: 4px;
+  
+  /* Accents */
+  --ldd-accent-green: #059669;
+  --ldd-accent-yellow: #d97706;
+  --ldd-accent-red: #dc2626;
+  --ldd-accent-blue: #2563eb;
+  
+  /* Button backgrounds */
+  --ldd-btn-primary-bg: #059669;
+  --ldd-btn-danger-bg: #dc2626;
+  --ldd-btn-secondary-bg: #c0c2c4;
+  
+  /* Status backgrounds */
+  --ldd-success-bg: #ecfdf5;
+  --ldd-error-bg: #fef2f2;
+  --ldd-warning-bg: #fffbdc;
+  
+  /* Typography */
+  --ldd-font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  --ldd-font-size-xs: 9px;
+  --ldd-font-size-sm: 10px;
+  --ldd-font-size-base: 11px;
+  --ldd-font-size-md: 12px;
+  --ldd-font-size-lg: 14px;
+  --ldd-font-size-xl: 16px;
+  --ldd-font-weight: 500;
+  
+  /* Spacing */
+  --ldd-spacing-xs: 4px;
+  --ldd-spacing-sm: 8px;
+  --ldd-spacing-md: 12px;
+  --ldd-spacing-lg: 16px;
+  --ldd-spacing-xl: 20px;
+  
+  /* Layout */
+  --ldd-sidebar-width: 320px;
+  --ldd-header-height: auto;
+  --ldd-max-content-width: 1400px;
+}
+
+/* Light mode scrollbar */
+[data-theme="light"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--ldd-bg-secondary);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #a0a0a0;
+  border-radius: 4px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #808080;
+}
+
+/* Selection color */
+[data-theme="light"] ::selection {
+  background: var(--ldd-accent-blue);
+  color: #ffffff;
+}

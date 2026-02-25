@@ -1,0 +1,93 @@
+/* ============================================================================
+ * Dark Theme - Logto Debug Dashboard
+ * OG Terminal/Hacker Aesthetic
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root[data-theme="dark"],
+:root {
+  /* Backgrounds */
+  --ldd-bg-page: #0a0a0a;
+  --ldd-bg-primary: #050505;
+  --ldd-bg-secondary: #0a0a0a;
+  --ldd-bg-tertiary: #1a1a1a;
+  
+  /* Text */
+  --ldd-text-primary: #d1d5db;
+  --ldd-text-secondary: #9ca3af;
+  --ldd-text-tertiary: #6b7280;
+  
+  /* Border */
+  --ldd-border-color: #374151;
+  --ldd-border-radius: 6px;
+  --ldd-border-radius-sm: 4px;
+  
+  /* Accents */
+  --ldd-accent-green: #86efac;
+  --ldd-accent-yellow: #fbbf24;
+  --ldd-accent-red: #ef4444;
+  --ldd-accent-blue: #60a5fa;
+  
+  /* Button backgrounds */
+  --ldd-btn-primary-bg: #059669;
+  --ldd-btn-danger-bg: #ef4444;
+  --ldd-btn-secondary-bg: #1a1a1a;
+  
+  /* Status backgrounds */
+  --ldd-success-bg: #003300;
+  --ldd-error-bg: #330000;
+  --ldd-warning-bg: #78350f;
+  
+  /* Typography */
+  --ldd-font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  --ldd-font-size-xs: 9px;
+  --ldd-font-size-sm: 10px;
+  --ldd-font-size-base: 11px;
+  --ldd-font-size-md: 12px;
+  --ldd-font-size-lg: 14px;
+  --ldd-font-size-xl: 16px;
+  --ldd-font-weight: 400;
+  
+  /* Spacing */
+  --ldd-spacing-xs: 4px;
+  --ldd-spacing-sm: 8px;
+  --ldd-spacing-md: 12px;
+  --ldd-spacing-lg: 16px;
+  --ldd-spacing-xl: 20px;
+  
+  /* Layout */
+  --ldd-sidebar-width: 320px;
+  --ldd-header-height: auto;
+  --ldd-max-content-width: 1400px;
+}
+
+/* Dark mode scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar,
+:root[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track,
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--ldd-bg-primary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--ldd-border-color);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--ldd-text-tertiary);
+}
+
+/* Selection color */
+[data-theme="dark"] ::selection,
+:root[data-theme="dark"] ::selection {
+  background: var(--ldd-accent-green);
+  color: var(--ldd-bg-primary);
+}

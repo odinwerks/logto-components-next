@@ -1,0 +1,24 @@
+{
+  "name": "logto-debug-dashboard",
+  "version": "0.2.0",
+  "private": true,
+  "description": "A Next.js debug dashboard for Logto authentication with comprehensive user profile management",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@logto/next": "^4.2.6",
+    "next": "^15.5.9",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "typescript": "^5.3.3"
+  }
+}
