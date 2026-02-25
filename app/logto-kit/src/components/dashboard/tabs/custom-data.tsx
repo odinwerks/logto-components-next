@@ -94,13 +94,13 @@ export function CustomDataTab({
               marginBottom: 12,
             }}
           >
-            Appearance
+            {t.common.appearance}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
             {[
-              { id: 'light', label: 'Light' },
-              { id: 'dark', label: 'Dark' },
-              { id: 'system', label: 'System' },
+              { id: 'light', label: t.common.lightTheme },
+              { id: 'dark', label: t.common.darkTheme },
+              { id: 'system', label: t.common.systemTheme },
             ].map((opt) => {
               const isSelected = (opt.id === 'system' ? theme : opt.id) === theme;
               return (
@@ -146,7 +146,7 @@ export function CustomDataTab({
                   marginBottom: 12,
                 }}
               >
-                Language
+                {t.common.language}
               </div>
               <div style={{ position: 'relative' }}>
                 <select

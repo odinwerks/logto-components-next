@@ -10,7 +10,7 @@ import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
 import { CustomDataTab } from './tabs/custom-data';
-import { MfaTab } from './tabs/mfa';
+import { SecurityTab } from './tabs/security';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { RawDataTab } from './tabs/raw-data';
@@ -37,11 +37,11 @@ function getTabLabel(id: TabId, t: Translations): string {
   switch (id) {
     case 'profile': return t.tabs.profile;
     case 'custom-data': return t.tabs.customData;
+    case 'security': return t.tabs.security;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
-    case 'mfa': return t.tabs.mfa;
     case 'raw': return t.tabs.raw;
-    case 'preferences': return 'Preferences';
+    case 'preferences': return t.tabs.preferences;
     default: return (id as string).toUpperCase();
   }
 }
@@ -94,7 +94,7 @@ const LogoutIcon = ({ size = 14, color = 'currentColor' }: { size?: number; colo
 function getTabIcon(id: TabId) {
   switch (id) {
     case 'profile': return UserIcon;
-    case 'mfa': return ShieldIcon;
+    case 'security': return ShieldIcon;
     case 'identities': return LinkIcon;
     case 'organizations': return BuildingIcon;
     case 'preferences': return SettingsIcon;
@@ -410,7 +410,7 @@ export function DashboardClient({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {userData.primaryEmail || userData.username || 'No email'}
+                  {userData.primaryEmail || userData.username || t.profile.notSet}
                 </p>
               </div>
             </div>
@@ -483,9 +483,9 @@ export function DashboardClient({
                 cursor: 'pointer',
                 textAlign: 'left',
               }}
-            >
+              >
               <LogoutIcon size={13} />
-              Sign out
+              {t.common.signOut}
             </button>
           </div>
         </div>
@@ -538,18 +538,25 @@ export function DashboardClient({
             />
           )}
 
-          {activeTab === 'mfa' && (
-            <MfaTab
+          {activeTab === 'security' && (
+            <SecurityTab
               userData={userData}
               themeColors={themeColors}
               t={t}
+              onVerifyPassword={onVerifyPassword}
+              onSendEmailVerification={onSendEmailVerification}
+              onSendPhoneVerification={onSendPhoneVerification}
+              onVerifyCode={onVerifyCode}
+              onUpdateEmail={onUpdateEmail}
+              onUpdatePhone={onUpdatePhone}
+              onRemoveEmail={onRemoveEmail}
+              onRemovePhone={onRemovePhone}
               onGetMfaVerifications={onGetMfaVerifications}
               onGenerateTotpSecret={onGenerateTotpSecret}
               onAddMfaVerification={onAddMfaVerification}
               onDeleteMfaVerification={onDeleteMfaVerification}
               onGenerateBackupCodes={onGenerateBackupCodes}
               onGetBackupCodes={onGetBackupCodes}
-              onVerifyPassword={onVerifyPassword}
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
             />

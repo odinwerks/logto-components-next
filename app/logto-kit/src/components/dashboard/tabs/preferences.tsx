@@ -120,17 +120,17 @@ export function PreferencesTab({
   return (
     <div style={{ animation: 'fadeUp 0.2s ease' }}>
       <PageHeader
-        title="Preferences"
+        title={t.common.preferences}
         description="Appearance and language settings."
         themeColors={themeColors}
       />
 
-      <SectionLabel themeColors={themeColors}>Appearance</SectionLabel>
+      <SectionLabel themeColors={themeColors}>{t.common.appearance}</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 26 }}>
         {[
-          { id: 'light', label: 'Light', Icon: SunIcon },
-          { id: 'dark', label: 'Dark', Icon: MoonIcon },
-          { id: 'system', label: 'System', Icon: MonitorIcon },
+          { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
+          { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
+          { id: 'system', label: t.common.systemTheme, Icon: MonitorIcon },
         ].map((opt) => {
           const isSelected = (opt.id === 'system' ? theme : opt.id) === theme;
           return (
@@ -175,7 +175,7 @@ export function PreferencesTab({
         })}
       </div>
 
-      <SectionLabel themeColors={themeColors}>Language</SectionLabel>
+      <SectionLabel themeColors={themeColors}>{t.common.language}</SectionLabel>
       <Card style={{ padding: '14px 16px' }} themeColors={themeColors}>
         <div style={{ position: 'relative' }}>
           <select

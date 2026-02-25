@@ -5,15 +5,15 @@
 
 // TabId is defined here (logic layer) so that components/dashboard/types.ts
 // can import it from logic — not the other way around.
-export type TabId = 'profile' | 'custom-data' | 'identities' | 'organizations' | 'mfa' | 'raw' | 'preferences';
+export type TabId = 'profile' | 'custom-data' | 'security' | 'identities' | 'organizations' | 'raw' | 'preferences';
 
 // All valid tab IDs and their display labels (used as fallback)
 export const ALL_TABS: TabId[] = [
   'profile',
   'custom-data',
+  'security',
   'identities',
   'organizations',
-  'mfa',
   'raw',
   'preferences',
 ];
@@ -39,10 +39,11 @@ const TAB_ALIASES: Record<string, TabId> = {
   orgs: 'organizations',
   org: 'organizations',
 
-  // mfa aliases
-  mfa: 'mfa',
-  '2fa': 'mfa',
-  totp: 'mfa',
+  // security aliases (formerly mfa)
+  security: 'security',
+  mfa: 'security',
+  '2fa': 'security',
+  totp: 'security',
 
   // raw aliases
   raw: 'raw',

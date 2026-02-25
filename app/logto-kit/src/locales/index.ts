@@ -35,10 +35,43 @@ export interface Translations {
   tabs: {
     profile: string;
     customData: string;
+    security: string;
     identities: string;
     organizations: string;
     mfa: string;
     raw: string;
+    preferences: string;
+  };
+  
+  // Security tab
+  security: {
+    title: string;
+    description: string;
+    twoFactorAuth: string;
+    authenticatorApp: string;
+    authenticatorDescription: string;
+    totpActive: string;
+    totpInactive: string;
+    viewRecoveryCodes: string;
+    reconfigure: string;
+    smsBackup: string;
+    smsBackupDescription: string;
+    contactAndCredentials: string;
+    email: string;
+    phone: string;
+    password: string;
+    passwordLastChanged: string;
+    verified: string;
+    unverified: string;
+    changeEmail: string;
+    changePhone: string;
+    changePassword: string;
+    verifyPhone: string;
+    activeSessions: string;
+    thisSession: string;
+    revoke: string;
+    deleteAccount: string;
+    deleteAccountDescription: string;
   };
   
   // Sidebar
@@ -231,6 +264,13 @@ export interface Translations {
     retry: string;
     notAvailable: string;
     invalidDate: string;
+    preferences: string;
+    appearance: string;
+    language: string;
+    signOut: string;
+    lightTheme: string;
+    darkTheme: string;
+    systemTheme: string;
   };
 }
 
