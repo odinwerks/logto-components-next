@@ -3,27 +3,18 @@ import type { Translations } from './index';
 export const kaGE: Translations = {
   // Dashboard
   dashboard: {
-    title: 'LOGTO DEBUG DASHBOARD',
-    version: 'v3.4',
     loading: '[მომხმარებლის მონაცემების ჩატვირთვა...]',
     error: '[შეცდომა]',
     refresh: '[განახლება]',
     signOut: '[გასვლა]',
     session: 'სესია',
     processing: '[დამუშავება...]',
-    systemMessage: '[სისტემა] ეს დებაგ ინსტრუმენტი მხოლოდ ALPHA-ს ფაზაშია. შეიძლება თავად იყოს ბაგი. გაერთეთ.',
     availableLangs: 'ხელმისაწვდომი ენები',
     refreshFailed: 'მონაცემების განახლება ვერ მოხერხდა',
     signOutFailed: 'გასვლა ვერ მოხერხდა',
     loadFailed: 'დაშბორდის მონაცემების ჩატვირთვა ვერ მოხერხდა',
     signInPrompt: 'შედით სისტემაში, რომ ნახოთ და შეცვალოთ თქვენი პროფილის მონაცემები',
     signInButton: '[შესვლა]',
-  },
-  
-  // Terminal header
-  terminal: {
-    prompt: 'მომხმარებელი@logto-debug:~$',
-    command: 'sudo userinfo --verbose --edit',
   },
   
   // Tabs

@@ -17,27 +17,18 @@ export type LocaleCode = 'en-US' | 'ka-GE';
 export interface Translations {
   // Dashboard
   dashboard: {
-    title: string;
-    version: string;
     loading: string;
     error: string;
     refresh: string;
     signOut: string;
     session: string;
     processing: string;
-    systemMessage: string;
     availableLangs: string;
     refreshFailed: string;
     signOutFailed: string;
     loadFailed: string;
     signInPrompt: string;
     signInButton: string;
-  };
-  
-  // Terminal header
-  terminal: {
-    prompt: string;
-    command: string;
   };
   
   // Tabs

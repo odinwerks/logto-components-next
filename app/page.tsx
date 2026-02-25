@@ -36,7 +36,7 @@ export default async function HomePage() {
           }}
         >
           <h1 style={{ color: '#d1d5db', marginBottom: '20px', fontFamily: 'var(--font-ibm-plex-mono)' }}>
-            {t.dashboard.title}
+            User Profile
           </h1>
           <p style={{ color: '#9ca3af', marginBottom: '30px', fontFamily: 'var(--font-ibm-plex-mono)', fontSize: '12px' }}>
             {t.dashboard.signInPrompt}

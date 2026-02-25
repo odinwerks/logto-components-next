@@ -3,27 +3,18 @@ import type { Translations } from './index';
 export const enUS: Translations = {
   // Dashboard
   dashboard: {
-    title: 'LOGTO DEBUG DASHBOARD',
-    version: 'v3.4',
     loading: '[LOADING USER DATA...]',
     error: '[ERROR]',
     refresh: '[REFRESH]',
     signOut: '[SIGN OUT]',
     session: 'SESSION',
     processing: '[PROCESSING...]',
-    systemMessage: '[SYSTEM] This debug tool is barely an ALPHA. It itself may be a bug. Haaaave fuun.',
     availableLangs: 'AVAILABLE LANGUAGES',
     refreshFailed: 'Failed to refresh data',
     signOutFailed: 'Sign out failed',
     loadFailed: 'Failed to load dashboard data',
     signInPrompt: 'Sign in to view and edit your profile data',
     signInButton: '[SIGN IN]',
-  },
-  
-  // Terminal header
-  terminal: {
-    prompt: 'user@logto-debug:~$',
-    command: 'sudo userinfo --verbose --edit',
   },
   
   // Tabs

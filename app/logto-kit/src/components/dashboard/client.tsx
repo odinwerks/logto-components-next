@@ -286,56 +286,6 @@ export function DashboardClient({
         fontFamily: 'var(--font-ibm-plex-mono)',
       }}
     >
-      {/* ── Header ── */}
-      <div
-        style={{
-          background: themeColors.bgSecondary,
-          border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '6px',
-          marginBottom: '16px',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            background: themeColors.bgPrimary,
-            padding: '10px 16px',
-            borderBottom: `1px solid ${themeColors.borderColor}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: '12px', color: themeColors.textTertiary }}>
-            {t.terminal.prompt} {t.terminal.command}
-          </span>
-        </div>
-
-        <div style={{ padding: '14px', background: themeColors.bgPrimary }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              marginBottom: '10px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ fontSize: '13px', color: themeColors.textTertiary }}>
-              [{t.dashboard.title} {t.dashboard.version}]
-            </span>
-            <span style={{ fontSize: '11px', color: themeColors.textTertiary, fontWeight: 'bold' }}>
-              {t.dashboard.session}: {userData.id.substring(0, 12)}...
-            </span>
-            {isRefreshing && (
-              <span style={{ fontSize: '11px', color: themeColors.accentYellow }}>
-                {t.dashboard.processing}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* ── Main Layout ── */}
       <div
         style={{
@@ -671,22 +621,6 @@ export function DashboardClient({
             )}
           </div>
         </div>
-      </div>
-
-      {/* ── Footer ── */}
-      <div
-        style={{
-          textAlign: 'center',
-          marginTop: '12px',
-          padding: '8px',
-          color: themeColors.textTertiary,
-          fontSize: '10px',
-          background: themeColors.bgSecondary,
-          borderRadius: '4px',
-          border: `1px solid ${themeColors.borderColor}`,
-        }}
-      >
-        <div>{t.dashboard.systemMessage}</div>
       </div>
 
       {/* ── Toasts ── */}
