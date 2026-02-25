@@ -1,5 +1,5 @@
 import { fetchDashboardData } from '../../logic/actions';
-import { DashboardClient } from './client';
+import { DashboardClient, UserProfile } from './client';
 import {
   updateUserBasicInfo,
   updateUserProfile,
@@ -126,3 +126,6 @@ export async function Dashboard() {
     />
   );
 }
+
+// Re-export UserProfile for modal usage
+export { UserProfile };

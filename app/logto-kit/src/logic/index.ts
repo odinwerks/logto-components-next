@@ -4,7 +4,6 @@ export type {
   DashboardAuthError,
   DashboardFetchError,
   UserData,
-  UserProfile,
   MfaVerification,
   TotpSecret,
   BackupCode,

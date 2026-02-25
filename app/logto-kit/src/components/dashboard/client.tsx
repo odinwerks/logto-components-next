@@ -14,6 +14,7 @@ import { MfaTab } from './tabs/mfa';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { RawDataTab } from './tabs/raw-data';
+import { PreferencesTab } from './tabs/preferences';
 import { getPreferencesFromUserData, buildUpdatedCustomData } from '../../logic/preferences';
 import { UserBadge } from '../userbutton';
 
@@ -40,7 +41,64 @@ function getTabLabel(id: TabId, t: Translations): string {
     case 'organizations': return t.tabs.organizations;
     case 'mfa': return t.tabs.mfa;
     case 'raw': return t.tabs.raw;
+    case 'preferences': return 'Preferences';
     default: return (id as string).toUpperCase();
+  }
+}
+
+// Icons for sidebar navigation
+const UserIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+  </svg>
+);
+
+const ShieldIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M12 3L4 7v5c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7L12 3z" />
+  </svg>
+);
+
+const LinkIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M9 17H7a5 5 0 0 1 0-10h2" />
+    <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
+    <line x1="8" y1="12" x2="16" y2="12" />
+  </svg>
+);
+
+const BuildingIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <rect x="3" y="9" width="5" height="12" />
+    <rect x="9" y="5" width="6" height="16" />
+    <rect x="16" y="12" width="5" height="9" />
+  </svg>
+);
+
+const SettingsIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+const LogoutIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+function getTabIcon(id: TabId) {
+  switch (id) {
+    case 'profile': return UserIcon;
+    case 'mfa': return ShieldIcon;
+    case 'identities': return LinkIcon;
+    case 'organizations': return BuildingIcon;
+    case 'preferences': return SettingsIcon;
+    default: return UserIcon;
   }
 }
 
@@ -230,6 +288,18 @@ export function DashboardClient({
     await onRefresh();
   }, [theme, persistPreferences, onRefresh]);
 
+  const handleThemeChange = useCallback(async (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    await persistPreferences({ theme: newTheme });
+    await onRefresh();
+  }, [persistPreferences, onRefresh]);
+
+  const handleLangChange = useCallback(async (code: string) => {
+    setLang(code);
+    await persistPreferences({ lang: code });
+    await onRefresh();
+  }, [persistPreferences, onRefresh]);
+
   // ── Sign out ───────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
     try {
@@ -275,356 +345,242 @@ export function DashboardClient({
     <div
       className={ibmPlexMono.className}
       style={{
-        padding: '12px',
-        maxWidth: '100vw',
-        margin: '0',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
         backgroundColor: themeColors.bgPage,
         color: themeColors.textPrimary,
-        minHeight: '100vh',
         boxSizing: 'border-box',
-        fontWeight: themeColors.fontWeight,
         fontFamily: 'var(--font-ibm-plex-mono)',
       }}
     >
-      {/* ── Main Layout ── */}
+      {/* Centered Modal */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '320px 1fr',
-          gap: '16px',
-          alignItems: 'start',
-          maxHeight: 'calc(100vh - 140px)',
+          width: '100%',
+          maxWidth: 990,
+          height: 660,
+          display: 'flex',
+          background: themeColors.bgSecondary,
+          border: `1px solid ${themeColors.borderColor}`,
+          boxShadow: '0 32px 90px rgba(0,0,0,0.65)',
           overflow: 'hidden',
         }}
       >
-        {/* ── Left Sidebar ── */}
+        {/* Sidebar */}
         <div
           style={{
-            border: `1px solid ${themeColors.borderColor}`,
-            borderRadius: '6px',
-            padding: '14px',
-            background: themeColors.bgSecondary,
+            width: 224,
+            height: '100%',
+            background: themeColors.bgPage,
+            borderRight: `1px solid ${themeColors.borderColor}`,
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
-            maxHeight: 'calc(100vh - 140px)',
-            overflowY: 'auto',
+            flexShrink: 0,
           }}
         >
-          {/* Avatar Card */}
-          <div
-            style={{
-              padding: '18px',
-              background: themeColors.bgPrimary,
-              border: `1px solid ${themeColors.borderColor}`,
-              borderRadius: '5px',
-            }}
-          >
-            <div style={{ color: themeColors.textTertiary, fontSize: '10px', marginBottom: '12px' }}>
-              {t.sidebar.profileAvatar}
-            </div>
-
-            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '14px' }}>
-              {/* Forced to Initials */}
-              <UserBadge
-                Canvas="Initials"
-                userData={userData}
-                themeColors={themeColors}
-              />
-
-              {/* Forced to Avatar */}
-              <UserBadge
-                Canvas="Avatar"
-                userData={userData}
-                themeColors={themeColors}
-              />
-            </div>
-
-            <div style={{ color: themeColors.textTertiary, fontSize: '10px', wordBreak: 'break-all', marginBottom: '10px', textAlign: 'center' }}>
-              {userData.avatar
-                ? userData.avatar.substring(0, 40) + '...'
-                : 'No avatar URL'}
-            </div>
-          </div>
-
-          {/* Access Token */}
-          <div>
-            <div style={{ color: themeColors.textTertiary, fontSize: '10px', marginBottom: '6px' }}>
-              {tokenPrefix}_{t.sidebar.token}
-            </div>
-            <TruncatedToken token={accessToken} themeColors={themeColors} t={t} />
-          </div>
-
-          {/* User ID */}
-          <div
-            style={{
-              padding: '10px',
-              background: themeColors.bgPrimary,
-              border: `1px solid ${themeColors.borderColor}`,
-              borderRadius: '4px',
-            }}
-          >
-            <div style={{ color: themeColors.textTertiary, fontSize: '10px', marginBottom: '6px' }}>
-              {t.sidebar.userId}
-            </div>
-            <div style={{ color: themeColors.textPrimary, fontSize: '12px', wordBreak: 'break-all' }}>
-              {userData.id}
-            </div>
-          </div>
-
-          {/* Last Login */}
-          <div
-            style={{
-              padding: '10px',
-              background: themeColors.bgPrimary,
-              border: `1px solid ${themeColors.borderColor}`,
-              borderRadius: '4px',
-            }}
-          >
-            <div style={{ color: themeColors.textTertiary, fontSize: '10px', marginBottom: '6px' }}>
-              {t.sidebar.lastLogin}
-            </div>
-            <div style={{ color: themeColors.textPrimary, fontSize: '12px' }}>
-              {formatDate(userData.lastSignInAt)}
-            </div>
-          </div>
-
-          {/* ── Language List (under last login) ── */}
-          {hasMultipleLangs && (
-            <div
-              style={{
-                padding: '10px',
-                background: themeColors.bgPrimary,
-                border: `1px solid ${themeColors.borderColor}`,
-                borderRadius: '4px',
-              }}
-            >
-              <div style={{ color: themeColors.textTertiary, fontSize: '10px', marginBottom: '8px' }}>
-                {t.dashboard.availableLangs}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {supportedLangs.map((code) => (
-                  <div
-                    key={code}
-                    onClick={async () => {
-                      if (code !== lang) {
-                        setLang(code);
-                        await persistPreferences({ lang: code });
-                        await onRefresh();
-                      }
-                    }}
-                    style={{
-                      padding: '5px 8px',
-                      borderRadius: '3px',
-                      fontSize: '11px',
-                      cursor: code !== lang ? 'pointer' : 'default',
-                      background: code === lang ? themeColors.bgTertiary : 'transparent',
-                      color: code === lang ? themeColors.accentGreen : themeColors.textSecondary,
-                      border: `1px solid ${code === lang ? themeColors.accentGreen : 'transparent'}`,
-                      transition: 'all 0.15s',
-                      userSelect: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <span style={{ opacity: code === lang ? 1 : 0, fontSize: '9px' }}>●</span>
-                    {code}
-                    {code === lang && (
-                      <span style={{ marginLeft: 'auto', fontSize: '9px', opacity: 0.6 }}>{t.sidebar.active}</span>
-                    )}
-                  </div>
-                ))}
+          {/* User Block */}
+          <div style={{ padding: '16px 14px 15px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <UserBadge userData={userData} themeColors={themeColors} Size="32px" Canvas="Avatar" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-ibm-plex-mono)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: themeColors.textPrimary,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {userData.name || 'User'}
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-ibm-plex-mono)',
+                    fontSize: 10,
+                    color: themeColors.textTertiary,
+                    marginTop: 1,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {userData.primaryEmail || userData.username || 'No email'}
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ── Action Buttons ── */}
-          <div
-            style={{
-              padding: '14px',
-              background: themeColors.bgPrimary,
-              border: `1px solid ${themeColors.borderColor}`,
-              borderRadius: '4px',
-              display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          {/* Nav */}
+          <nav style={{ flex: 1, padding: '10px 8px 6px', overflowY: 'auto' }}>
+            <p
               style={{
-                flex: 1,
-                minWidth: '80px',
-                padding: '8px 6px',
-                background: themeColors.bgTertiary,
-                color: themeColors.textPrimary,
-                border: `1px solid ${themeColors.borderColor}`,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '11px',
                 fontFamily: 'var(--font-ibm-plex-mono)',
-                whiteSpace: 'nowrap',
+                fontWeight: 600,
+                fontSize: 10,
+                color: themeColors.textTertiary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.09em',
+                padding: '4px 10px 8px',
               }}
             >
-              {theme === 'dark' ? t.sidebar.lightMode : t.sidebar.darkMode}
-            </button>
+              Account
+            </p>
+            {loadedTabs.map((tabId) => {
+              const Icon = getTabIcon(tabId);
+              const isActive = activeTab === tabId;
+              return (
+                <button
+                  key={tabId}
+                  onClick={() => setActiveTab(tabId)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    width: '100%',
+                    padding: '7px 10px',
+                    background: isActive ? themeColors.bgSecondary : 'transparent',
+                    border: 'none',
+                    borderLeft: `2px solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
+                    color: isActive ? themeColors.textPrimary : themeColors.textTertiary,
+                    fontFamily: 'var(--font-ibm-plex-mono)',
+                    fontWeight: 500,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    marginBottom: 2,
+                  }}
+                >
+                  <Icon size={13} color={isActive ? themeColors.accentBlue : themeColors.textTertiary} />
+                  {getTabLabel(tabId, t)}
+                </button>
+              );
+            })}
+          </nav>
 
-            {/* Sign out */}
+          {/* Sign Out */}
+          <div style={{ padding: '6px 8px 12px', borderTop: `1px solid ${themeColors.borderColor}` }}>
             <button
               onClick={handleSignOut}
               style={{
-                flex: 1,
-                minWidth: '80px',
-                padding: '8px 6px',
-                background: themeColors.accentRed,
-                color: '#fee2e2',
-                border: `1px solid ${themeColors.accentRed}`,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '11px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                width: '100%',
+                padding: '7px 10px',
+                background: 'transparent',
+                border: 'none',
+                borderLeft: '2px solid transparent',
+                color: themeColors.textTertiary,
                 fontFamily: 'var(--font-ibm-plex-mono)',
-                whiteSpace: 'nowrap',
+                fontWeight: 500,
+                fontSize: 13,
+                cursor: 'pointer',
+                textAlign: 'left',
               }}
             >
-              {t.dashboard.signOut}
+              <LogoutIcon size={13} />
+              Sign out
             </button>
           </div>
         </div>
 
-        {/* ── Right Content Panel ── */}
+        {/* Content */}
         <div
           style={{
-            border: `1px solid ${themeColors.borderColor}`,
-            borderRadius: '6px',
-            overflow: 'hidden',
-            background: themeColors.bgSecondary,
-            maxHeight: 'calc(100vh - 140px)',
-            display: 'flex',
-            flexDirection: 'column',
+            flex: 1,
+            padding: '28px 32px',
+            overflowY: 'auto',
+            height: '100%',
           }}
         >
-          {/* Tab bar */}
-          <div
-            style={{
-              display: 'flex',
-              borderBottom: `1px solid ${themeColors.borderColor}`,
-              background: themeColors.bgPrimary,
-              overflowX: 'auto',
-            }}
-          >
-            {loadedTabs.map((tabId) => (
-              <button
-                key={tabId}
-                onClick={() => setActiveTab(tabId)}
-                style={{
-                  flex: 1,
-                  minWidth: 'fit-content',
-                  padding: '10px 12px',
-                  background: activeTab === tabId ? themeColors.bgSecondary : themeColors.bgPrimary,
-                  color: activeTab === tabId ? themeColors.textPrimary : themeColors.textTertiary,
-                  border: 'none',
-                  borderRight: `1px solid ${themeColors.borderColor}`,
-                  borderBottom: activeTab === tabId ? `2px solid ${themeColors.accentGreen}` : '2px solid transparent',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '5px',
-                  outline: 'none',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  fontFamily: 'var(--font-ibm-plex-mono)',
-                  whiteSpace: 'nowrap',
-                  transition: 'background 0.1s, color 0.1s',
-                }}
-              >
-                <span style={{ opacity: 0.5 }}>{TAB_ICON}</span>
-                {getTabLabel(tabId, t)}
-              </button>
-            ))}
-          </div>
+          {activeTab === 'profile' && (
+            <ProfileTab
+              userData={userData}
+              themeColors={themeColors}
+              t={t}
+              onUpdateBasicInfo={onUpdateBasicInfo}
+              onUpdateAvatarUrl={onUpdateAvatarUrl}
+              onUpdateProfile={onUpdateProfile}
+              onVerifyPassword={onVerifyPassword}
+              onSendEmailVerification={onSendEmailVerification}
+              onSendPhoneVerification={onSendPhoneVerification}
+              onVerifyCode={onVerifyCode}
+              onUpdateEmail={onUpdateEmail}
+              onUpdatePhone={onUpdatePhone}
+              onRemoveEmail={onRemoveEmail}
+              onRemovePhone={onRemovePhone}
+              onSuccess={(msg) => showToast('success', msg)}
+              onError={(msg) => showToast('error', msg)}
+              refreshData={refreshData}
+            />
+          )}
 
-          {/* Tab content */}
-          <div
-            style={{
-              padding: '14px',
-              background: themeColors.bgPrimary,
-              overflowY: 'auto',
-              flex: 1,
-            }}
-          >
-            {activeTab === 'profile' && (
-              <ProfileTab
-                userData={userData}
-                themeColors={themeColors}
-                t={t}
-                onUpdateBasicInfo={onUpdateBasicInfo}
-                onUpdateAvatarUrl={onUpdateAvatarUrl}
-                onUpdateProfile={onUpdateProfile}
-                onVerifyPassword={onVerifyPassword}
-                onSendEmailVerification={onSendEmailVerification}
-                onSendPhoneVerification={onSendPhoneVerification}
-                onVerifyCode={onVerifyCode}
-                onUpdateEmail={onUpdateEmail}
-                onUpdatePhone={onUpdatePhone}
-                onRemoveEmail={onRemoveEmail}
-                onRemovePhone={onRemovePhone}
-                onSuccess={(msg) => showToast('success', msg)}
-                onError={(msg) => showToast('error', msg)}
-                refreshData={refreshData}
-              />
-            )}
+          {activeTab === 'custom-data' && (
+            <CustomDataTab
+              userData={userData}
+              themeColors={themeColors}
+              t={t}
+              onUpdateCustomData={onUpdateCustomData}
+              onSuccess={(msg) => showToast('success', msg)}
+              onError={(msg) => showToast('error', msg)}
+              refreshData={refreshData}
+            />
+          )}
 
-            {activeTab === 'custom-data' && (
-              <CustomDataTab
-                userData={userData}
-                themeColors={themeColors}
-                t={t}
-                onUpdateCustomData={onUpdateCustomData}
-                onSuccess={(msg) => showToast('success', msg)}
-                onError={(msg) => showToast('error', msg)}
-                refreshData={refreshData}
-              />
-            )}
+          {activeTab === 'mfa' && (
+            <MfaTab
+              userData={userData}
+              themeColors={themeColors}
+              t={t}
+              onGetMfaVerifications={onGetMfaVerifications}
+              onGenerateTotpSecret={onGenerateTotpSecret}
+              onAddMfaVerification={onAddMfaVerification}
+              onDeleteMfaVerification={onDeleteMfaVerification}
+              onGenerateBackupCodes={onGenerateBackupCodes}
+              onGetBackupCodes={onGetBackupCodes}
+              onVerifyPassword={onVerifyPassword}
+              onSuccess={(msg) => showToast('success', msg)}
+              onError={(msg) => showToast('error', msg)}
+            />
+          )}
 
-            {activeTab === 'mfa' && (
-              <MfaTab
-                userData={userData}
-                themeColors={themeColors}
-                t={t}
-                onGetMfaVerifications={onGetMfaVerifications}
-                onGenerateTotpSecret={onGenerateTotpSecret}
-                onAddMfaVerification={onAddMfaVerification}
-                onDeleteMfaVerification={onDeleteMfaVerification}
-                onGenerateBackupCodes={onGenerateBackupCodes}
-                onGetBackupCodes={onGetBackupCodes}
-                onVerifyPassword={onVerifyPassword}
-                onSuccess={(msg) => showToast('success', msg)}
-                onError={(msg) => showToast('error', msg)}
-              />
-            )}
+          {activeTab === 'identities' && (
+            <IdentitiesTab userData={userData} themeColors={themeColors} t={t} />
+          )}
 
-            {activeTab === 'identities' && (
-              <IdentitiesTab userData={userData} themeColors={themeColors} t={t} />
-            )}
+          {activeTab === 'organizations' && (
+            <OrganizationsTab userData={userData} themeColors={themeColors} t={t} />
+          )}
 
-            {activeTab === 'organizations' && (
-              <OrganizationsTab userData={userData} themeColors={themeColors} t={t} />
-            )}
+          {activeTab === 'raw' && (
+            <RawDataTab userData={userData} themeColors={themeColors} t={t} />
+          )}
 
-            {activeTab === 'raw' && (
-              <RawDataTab userData={userData} themeColors={themeColors} t={t} />
-            )}
-          </div>
+          {activeTab === 'preferences' && (
+            <PreferencesTab
+              theme={theme}
+              lang={lang}
+              supportedLangs={supportedLangs}
+              themeColors={themeColors}
+              t={t}
+              onThemeChange={handleThemeChange}
+              onLangChange={handleLangChange}
+            />
+          )}
         </div>
       </div>
 
-      {/* ── Toasts ── */}
+      {/* Toasts */}
       <ToastContainer messages={toasts} onDismiss={dismissToast} themeColors={themeColors} />
     </div>
   );
 }
+
+// Alias export for modal usage
+export { DashboardClient as UserProfile };
