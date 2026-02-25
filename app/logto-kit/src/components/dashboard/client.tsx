@@ -530,6 +530,11 @@ export function DashboardClient({
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
               refreshData={refreshData}
+              theme={theme}
+              lang={lang}
+              supportedLangs={supportedLangs}
+              onThemeChange={handleThemeChange}
+              onLangChange={handleLangChange}
             />
           )}
 

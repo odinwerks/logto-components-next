@@ -94,12 +94,12 @@ function SectionLabel({ children, themeColors }: { children: React.ReactNode; th
   );
 }
 
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Card({ children, style, themeColors }: { children: React.ReactNode; style?: React.CSSProperties; themeColors: ThemeColors }) {
   return (
     <div
       style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
+        background: themeColors.bgSecondary,
+        border: `1px solid ${themeColors.borderColor}`,
         ...style,
       }}
     >
@@ -143,7 +143,7 @@ export function PreferencesTab({
                 padding: 0,
                 cursor: 'pointer',
                 background: isSelected ? themeColors.bgTertiary : themeColors.bgSecondary,
-                border: `1px solid ${isSelected ? themeColors.borderColor : themeColors.borderColor}`,
+                border: `1px solid ${themeColors.borderColor}`,
                 transition: 'background 0.15s, border-color 0.15s',
                 overflow: 'hidden',
               }}
@@ -176,7 +176,7 @@ export function PreferencesTab({
       </div>
 
       <SectionLabel themeColors={themeColors}>Language</SectionLabel>
-      <Card style={{ padding: '14px 16px' }}>
+      <Card style={{ padding: '14px 16px' }} themeColors={themeColors}>
         <div style={{ position: 'relative' }}>
           <select
             value={lang}

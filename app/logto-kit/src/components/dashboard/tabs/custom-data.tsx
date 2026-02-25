@@ -14,6 +14,11 @@ interface CustomDataTabProps {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   refreshData: () => void;
+  theme?: 'dark' | 'light';
+  lang?: string;
+  supportedLangs?: string[];
+  onThemeChange?: (theme: 'dark' | 'light') => void;
+  onLangChange?: (lang: string) => void;
 }
 
 export function CustomDataTab({
@@ -24,6 +29,11 @@ export function CustomDataTab({
   onSuccess,
   onError,
   refreshData,
+  theme,
+  lang,
+  supportedLangs,
+  onThemeChange,
+  onLangChange,
 }: CustomDataTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(JSON.stringify(userData.customData || {}, null, 2));
@@ -70,6 +80,117 @@ export function CustomDataTab({
 
   return (
     <div>
+      {/* Theme & Language Settings */}
+      {(onThemeChange || onLangChange) && (
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-ibm-plex-mono)',
+              fontWeight: 600,
+              fontSize: 10.5,
+              color: themeColors.textTertiary,
+              textTransform: 'uppercase',
+              letterSpacing: '0.09em',
+              marginBottom: 12,
+            }}
+          >
+            Appearance
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+            {[
+              { id: 'light', label: 'Light' },
+              { id: 'dark', label: 'Dark' },
+              { id: 'system', label: 'System' },
+            ].map((opt) => {
+              const isSelected = (opt.id === 'system' ? theme : opt.id) === theme;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => onThemeChange?.(opt.id === 'system' ? (theme === 'light' ? 'dark' : 'light') : opt.id as 'dark' | 'light')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '9px 12px',
+                    cursor: 'pointer',
+                    background: isSelected ? themeColors.bgTertiary : themeColors.bgSecondary,
+                    border: `1px solid ${themeColors.borderColor}`,
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-ibm-plex-mono)',
+                      fontWeight: 500,
+                      fontSize: 12,
+                      color: isSelected ? themeColors.textPrimary : themeColors.textSecondary,
+                    }}
+                  >
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {onLangChange && supportedLangs && supportedLangs.length > 0 && (
+            <>
+              <div
+                style={{
+                  fontFamily: 'var(--font-ibm-plex-mono)',
+                  fontWeight: 600,
+                  fontSize: 10.5,
+                  color: themeColors.textTertiary,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.09em',
+                  marginBottom: 12,
+                }}
+              >
+                Language
+              </div>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={lang}
+                  onChange={(e) => onLangChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 36px 9px 12px',
+                    background: themeColors.bgPage,
+                    border: `1px solid ${themeColors.borderColor}`,
+                    color: themeColors.textPrimary,
+                    fontFamily: 'var(--font-ibm-plex-mono)',
+                    fontSize: 13,
+                    outline: 'none',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                  }}
+                >
+                  {supportedLangs.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%) rotate(90deg)',
+                    color: themeColors.textTertiary,
+                    pointerEvents: 'none',
+                    fontSize: 10,
+                  }}
+                >
+                  ▶
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Custom Data Section */}
       <div
         style={{
           background: themeColors.bgSecondary,
