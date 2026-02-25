@@ -245,7 +245,7 @@ type ModalStep =
 
 function FlowModal({
   title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onClose,
-  passwordError, extra, tc,
+  passwordError, extra, tc, t,
 }: {
   title: string;
   subtitle: string;
@@ -258,6 +258,7 @@ function FlowModal({
   /** Rendered above the password field when step === 'password' */
   extra?: React.ReactNode;
   tc: ThemeColors;
+  t: Translations;
 }) {
   const T = tk(tc);
   const [pw, setPw] = useState('');
@@ -307,12 +308,12 @@ function FlowModal({
           {step.kind === 'password' && (
             <>
               {extra}
-              <Lbl tc={tc}>Password</Lbl>
+              <Lbl tc={tc}>{t.verification.password}</Lbl>
               <Inp
                 type={showPw ? 'text' : 'password'}
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder={t.mfa.enterPasswordPlaceholder}
                 autoFocus={!extra}
                 hasError={!!passwordError}
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
@@ -329,9 +330,9 @@ function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-                <Btn onClick={onClose} tc={tc}>Cancel</Btn>
+                <Btn onClick={onClose} tc={tc}>{t.common.close}</Btn>
                 <Btn variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} tc={tc}>
-                  Continue <ChevronRight size={12} color="#fff" strokeWidth={1.5} />
+                  {t.verification.verifyPassword} <ChevronRight size={12} color="#fff" strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -601,7 +602,7 @@ function ContactRow({
   const handlePassword = async (pw: string) => {
     setPwErr('');
     if (modalKind === 'remove') {
-      setStep({ kind: 'loading', message: 'Verifying…' });
+      setStep({ kind: 'loading', message: t.mfa.verifying });
       try {
         const resp = await onVerifyPassword(pw);
         await onRemove(resp.verificationRecordId);
@@ -610,8 +611,8 @@ function ContactRow({
       } catch (err) { onError(err instanceof Error ? err.message : t.profile.updateFailed); close(); }
     } else {
       const target = newValueRef.current.trim();
-      if (!target) { setPwErr('Please enter a value first.'); return; }
-      setStep({ kind: 'loading', message: 'Sending code…' });
+      if (!target) { setPwErr(t.security.enterValueFirst); return; }
+      setStep({ kind: 'loading', message: t.mfa.sendingCode });
       try {
         const identity = await onVerifyPassword(pw);
         const codeResp = await onSendVerification(target);
@@ -624,7 +625,7 @@ function ContactRow({
   const handleCode = async (code: string) => {
     if (step.kind !== 'code') return;
     const { destination, verificationId, identityVerificationId } = step;
-    setStep({ kind: 'loading', message: 'Verifying code…' });
+    setStep({ kind: 'loading', message: t.mfa.verifyingCode });
     try {
       await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
       onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
@@ -648,6 +649,7 @@ function ContactRow({
           onClose={close}
           passwordError={pwErr}
           tc={tc}
+          t={t}
           extra={modalKind === 'edit' && step.kind === 'password' ? (
             <div style={{ marginBottom: 16 }}>
               <Lbl tc={tc}>{currentValue ? `New ${label.toLowerCase()}` : label}</Lbl>
@@ -816,38 +818,41 @@ export function SecurityTab({
       {/* TOTP setup modal */}
       {totpStep && (
         <FlowModal
-          title={totpFactor ? 'Reconfigure authenticator' : t.mfa.totp}
-          subtitle={totpFactor ? 'Set up a new authenticator app. Your old one will be replaced once you activate.' : t.mfa.totpDescription}
+          title={totpFactor ? t.security.reconfigreAuthenticator : t.mfa.totp}
+          subtitle={totpFactor ? t.security.reconfigureAuthenticatorDesc : t.mfa.totpDescription}
           step={totpStep}
           onPasswordSubmit={handleTotpPassword}
           onTotpSubmit={handleTotpActivate}
           onClose={closeTotp}
           passwordError={totpPwErr}
           tc={tc}
+          t={t}
         />
       )}
 
       {/* Delete TOTP modal */}
       {delTotpStep && (
         <FlowModal
-          title="Remove authenticator"
-          subtitle="Enter your password to remove two-factor authentication from your account."
+          title={t.security.removeAuthenticator}
+          subtitle={t.security.removeAuthenticatorDesc}
           step={delTotpStep}
           onPasswordSubmit={handleDelTotpPw}
           onClose={closeDelTotp}
           tc={tc}
+          t={t}
         />
       )}
 
       {/* Backup codes — password modal */}
       {backupStep && (
         <FlowModal
-          title={backupIsNew ? 'Generate backup codes' : 'View backup codes'}
+          title={backupIsNew ? t.security.generateBackupCodesTitle : t.security.viewBackupCodesTitle}
           subtitle={backupIsNew ? t.mfa.verifyPasswordToGenerateBackupCodes : t.mfa.verifyPasswordToViewBackupCodes}
           step={backupStep}
           onPasswordSubmit={handleBackupPw}
           onClose={closeBackupModal}
           tc={tc}
+          t={t}
         />
       )}
 
@@ -867,16 +872,17 @@ export function SecurityTab({
       {pwStep && (
         <FlowModal
           title={t.security.changePassword}
-          subtitle="Enter your current password to set a new one."
+          subtitle={t.security.enterCurrentPassword}
           step={pwStep}
           onPasswordSubmit={async (pw) => {
-            setPwStep({ kind: 'loading', message: 'Verifying…' });
+            setPwStep({ kind: 'loading', message: t.mfa.verifying });
             await new Promise(r => setTimeout(r, 500));
             onSuccess('Password change — connect your handler here.');
             setPwStep(null);
           }}
           onClose={() => setPwStep(null)}
           tc={tc}
+          t={t}
         />
       )}
 

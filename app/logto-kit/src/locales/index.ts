@@ -47,15 +47,6 @@ export interface Translations {
   security: {
     title: string;
     description: string;
-    twoFactorAuth: string;
-    authenticatorApp: string;
-    authenticatorDescription: string;
-    totpActive: string;
-    totpInactive: string;
-    viewRecoveryCodes: string;
-    reconfigure: string;
-    smsBackup: string;
-    smsBackupDescription: string;
     contactAndCredentials: string;
     email: string;
     phone: string;
@@ -63,19 +54,28 @@ export interface Translations {
     passwordLastChanged: string;
     verified: string;
     unverified: string;
-    changeEmail: string;
-    changePhone: string;
     changePassword: string;
-    verifyPhone: string;
-    activeSessions: string;
-    thisSession: string;
-    revoke: string;
     deleteAccount: string;
     deleteAccountDescription: string;
+    dangerZone: string;
     removeEmail: string;
     removeEmailConfirm: string;
     removePhone: string;
     removePhoneConfirm: string;
+    updateEmailTitle: string;
+    updateEmailConfirm: string;
+    removeEmailSubtitle: string;
+    updatePhoneTitle: string;
+    updatePhoneConfirm: string;
+    removePhoneSubtitle: string;
+    enterValueFirst: string;
+    reconfigreAuthenticator: string;
+    reconfigureAuthenticatorDesc: string;
+    removeAuthenticator: string;
+    removeAuthenticatorDesc: string;
+    generateBackupCodesTitle: string;
+    viewBackupCodesTitle: string;
+    enterCurrentPassword: string;
   };
 
   // Sidebar
@@ -248,6 +248,20 @@ export interface Translations {
     verifyPasswordToGenerateTotp: string;
     verifyPasswordToGenerateBackupCodes: string;
     verifyPasswordToViewBackupCodes: string;
+    verifying: string;
+    sendingCode: string;
+    verifyingCode: string;
+    removingOldAuth: string;
+    generatingSecret: string;
+    activating: string;
+    removing: string;
+    generatingCodes: string;
+    fetchingCodes: string;
+    authenticatorAuth: string;
+    authenticatorActive: string;
+    recoveryCodes: string;
+    remaining: string;
+    singleUseCodes: string;
   };
   
   // Raw tab
