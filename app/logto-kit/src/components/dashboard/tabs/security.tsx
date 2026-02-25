@@ -1051,20 +1051,20 @@ export function SecurityTab({
 
       {/* ── Danger zone ── */}
       <div style={{ marginTop: 6 }}>
-        <SL tc={tc}>Danger zone</SL>
+        <SL tc={tc}>{t.security.dangerZone}</SL>
         <Card danger tc={tc}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', gap: 20 }}>
             <div>
               <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 13, color: T.text, marginBottom: 2 }}>
-                Delete account
+                {t.security.deleteAccount}
               </p>
               <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.55 }}>
-                Permanently removes your account and all associated data. This cannot be undone.
+                {t.security.deleteAccountDescription}
               </p>
             </div>
             <Btn variant="danger" size="sm" style={{ flexShrink: 0 }}
               onClick={() => onSuccess('Delete account — connect your handler here.')} tc={tc}>
-              Delete account
+              {t.security.deleteAccount}
             </Btn>
           </div>
         </Card>
