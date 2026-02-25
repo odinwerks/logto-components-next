@@ -190,7 +190,7 @@ type ModalProps = {
   title: string;
   subtitle: string;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (password: string) => void;
   error?: string;
   confirmLabel?: string;
   themeColors: ThemeColors;
@@ -216,7 +216,7 @@ function Modal({ title, subtitle, onClose, onConfirm, error, confirmLabel, theme
       setTimeout(() => setShk(false), 450);
       return;
     }
-    onConfirm();
+    onConfirm(val);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -333,7 +333,6 @@ export function SecurityTab({
     subtitle: '',
     onConfirm: () => {},
   });
-  const [pendingPassword, setPendingPassword] = useState('');
 
   const [mfaVerificationState, setMfaVerificationState] = useState<{
     operation: 'add-totp' | 'delete-mfa' | 'generate-backup' | 'view-backup' | null;
@@ -351,6 +350,7 @@ export function SecurityTab({
   const [totpVerificationCode, setTotpVerificationCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [mfaPassword, setMfaPassword] = useState('');
 
   const loadMfaVerifications = useCallback(async () => {
     setMfaLoading(true);
@@ -367,13 +367,7 @@ export function SecurityTab({
   useEffect(() => { loadMfaVerifications(); }, [loadMfaVerifications]);
 
   const openPasswordModal = (title: string, subtitle: string, onConfirm: (password: string) => void, confirmLabel?: string) => {
-    setPendingPassword('');
     setPasswordModal({ open: true, title, subtitle, confirmLabel, onConfirm });
-  };
-
-  const handlePasswordModalConfirm = async () => {
-    if (!pendingPassword) return;
-    passwordModal.onConfirm(pendingPassword);
   };
 
   const handleStartTotpEnrollment = useCallback(() => {
@@ -431,6 +425,7 @@ export function SecurityTab({
 
   const cancelMfaOperation = useCallback(() => {
     setMfaVerificationState({ operation: null, verificationId: null, targetMfaId: null, step: null });
+    setMfaPassword('');
     setTotpSecret(null);
     setTotpVerificationCode('');
     setBackupCodes(null);
@@ -502,9 +497,9 @@ export function SecurityTab({
           subtitle={passwordModal.subtitle}
           confirmLabel={passwordModal.confirmLabel}
           onClose={() => setPasswordModal(prev => ({ ...prev, open: false }))}
-          onConfirm={() => {
-            setPendingPassword(passwordModal.title);
-            handlePasswordModalConfirm();
+          onConfirm={(password) => {
+            passwordModal.onConfirm(password);
+            setPasswordModal(prev => ({ ...prev, open: false }));
           }}
           themeColors={themeColors}
         />
@@ -547,7 +542,6 @@ export function SecurityTab({
                 'View recovery codes',
                 'Enter your password to view your backup codes.',
                 async (password) => {
-                  setPendingPassword(password);
                   await handleVerifyPasswordForMfa(password);
                 }
               );
@@ -559,7 +553,6 @@ export function SecurityTab({
                 'Reconfigure TOTP',
                 'Enter your password before setting up a new authenticator.',
                 async (password) => {
-                  setPendingPassword(password);
                   await handleVerifyPasswordForMfa(password);
                 }
               );
@@ -656,12 +649,12 @@ export function SecurityTab({
                 placeholder={t.mfa.enterPasswordPlaceholder}
                 onChange={(e) => {
                   const password = e.target.value;
-                  setPendingPassword(password);
+                  setMfaPassword(password);
                 }}
                 style={{ flex: 1 }}
                 themeColors={themeColors}
               />
-              <Btn variant="danger" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Btn variant="danger" onClick={() => handleVerifyPasswordForMfa(mfaPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
               <Btn onClick={cancelMfaOperation} themeColors={themeColors}>{t.common.close}</Btn>
             </div>
           </div>
@@ -677,11 +670,11 @@ export function SecurityTab({
               <Inp
                 type="password"
                 placeholder={t.mfa.enterPasswordPlaceholder}
-                onChange={(e) => setPendingPassword(e.target.value)}
+                onChange={(e) => setMfaPassword(e.target.value)}
                 style={{ flex: 1 }}
                 themeColors={themeColors}
               />
-              <Btn variant="primary" onClick={() => handleVerifyPasswordForMfa(pendingPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
+              <Btn variant="primary" onClick={() => handleVerifyPasswordForMfa(mfaPassword)} disabled={mfaLoading} themeColors={themeColors}>{mfaLoading ? t.common.loading : t.verification.verifyPassword}</Btn>
               <Btn onClick={cancelMfaOperation} themeColors={themeColors}>{t.common.close}</Btn>
             </div>
           </div>
@@ -706,7 +699,6 @@ export function SecurityTab({
                 'Generate backup codes',
                 'Enter your password to generate new backup codes.',
                 async (password) => {
-                  setPendingPassword(password);
                   await handleVerifyPasswordForMfa(password);
                 }
               );
@@ -717,7 +709,6 @@ export function SecurityTab({
                   'View backup codes',
                   'Enter your password to view your existing backup codes.',
                   async (password) => {
-                    setPendingPassword(password);
                     await handleVerifyPasswordForMfa(password);
                   }
                 );
