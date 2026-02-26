@@ -120,7 +120,6 @@ export async function Dashboard() {
       onAddMfaVerification={addMfaVerification}
       onDeleteMfaVerification={deleteMfaVerification}
       onGenerateBackupCodes={generateBackupCodes}
-      onGetBackupCodes={getBackupCodes}
       onSignOut={signOutUser}
       onRefresh={handleRefresh}
     />

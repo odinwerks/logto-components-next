@@ -26,7 +26,6 @@ interface SecurityTabProps {
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
-  onGetBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: Array<{ code: string; usedAt: string | null }> }>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -705,7 +704,7 @@ export function SecurityTab({
   onRemoveEmail, onRemovePhone,
   onGetMfaVerifications, onGenerateTotpSecret,
   onAddMfaVerification, onDeleteMfaVerification,
-  onGenerateBackupCodes, onGetBackupCodes,
+  onGenerateBackupCodes,
   onSuccess, onError,
 }: SecurityTabProps) {
   const T = tk(tc);
@@ -787,25 +786,19 @@ export function SecurityTab({
 
   // ── Backup codes ──
   const [backupStep, setBackupStep] = useState<ModalStep | null>(null);
-  const [backupIsNew, setBackupIsNew] = useState(false);
   const [backupCodes, setBackupCodes] = useState<Array<{ code: string; used: boolean }> | null>(null);
 
-  const openBackup = (isNew: boolean) => { setBackupIsNew(isNew); setBackupStep({ kind: 'password' }); };
+  const openBackup = () => { setBackupStep({ kind: 'password' }); };
   const closeBackupModal = () => setBackupStep(null);
   const closeCodesModal = async () => { setBackupCodes(null); await loadMfa(); };
 
   const handleBackupPw = async (pw: string) => {
-    setBackupStep({ kind: 'loading', message: backupIsNew ? 'Generating codes…' : 'Fetching codes…' });
+    setBackupStep({ kind: 'loading', message: 'Generating codes…' });
     try {
       const identity = await onVerifyPassword(pw);
-      if (backupIsNew) {
-        const result = await onGenerateBackupCodes(identity.verificationRecordId);
-        setBackupCodes(result.codes.map(code => ({ code, used: false })));
-        onSuccess(t.mfa.backupCodesGenerated);
-      } else {
-        const result = await onGetBackupCodes(identity.verificationRecordId);
-        setBackupCodes(result.codes.map(c => ({ code: c.code, used: !!c.usedAt })));
-      }
+      const result = await onGenerateBackupCodes(identity.verificationRecordId);
+      setBackupCodes(result.codes.map(code => ({ code, used: false })));
+      onSuccess(t.mfa.backupCodesGenerated);
       closeBackupModal();
     } catch (err) { onError(err instanceof Error ? err.message : t.mfa.verificationFailed); closeBackupModal(); }
   };
@@ -846,8 +839,8 @@ export function SecurityTab({
       {/* Backup codes — password modal */}
       {backupStep && (
         <FlowModal
-          title={backupIsNew ? t.security.generateBackupCodesTitle : t.security.viewBackupCodesTitle}
-          subtitle={backupIsNew ? t.mfa.verifyPasswordToGenerateBackupCodes : t.mfa.verifyPasswordToViewBackupCodes}
+          title={t.security.generateBackupCodesTitle}
+          subtitle={t.mfa.verifyPasswordToGenerateBackupCodes}
           step={backupStep}
           onPasswordSubmit={handleBackupPw}
           onClose={closeBackupModal}
@@ -860,7 +853,7 @@ export function SecurityTab({
       {backupCodes && (
         <BackupCodesModal
           codes={backupCodes}
-          isNew={backupIsNew}
+          isNew={true}
           onDone={closeCodesModal}
           onSuccess={onSuccess}
           t={t}
@@ -1036,14 +1029,9 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 2 }}>
-              <Btn size="sm" onClick={() => openBackup(true)} tc={tc}>
+              <Btn size="sm" onClick={() => openBackup()} tc={tc}>
                 <RefreshCw size={11} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
               </Btn>
-              {backupFactor && (
-                <Btn size="sm" variant="ghost" onClick={() => openBackup(false)} tc={tc}>
-                  <Eye size={11} strokeWidth={1.5} /> {t.mfa.viewExisting}
-                </Btn>
-              )}
             </div>
           </div>
         </div>

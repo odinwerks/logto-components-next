@@ -132,7 +132,6 @@ interface DashboardClientProps {
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
-  onGetBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: Array<{ code: string; usedAt: string | null }> }>;
   onSignOut: () => Promise<void>;
   onRefresh: () => Promise<{ success: boolean; redirect?: string }>;
 }
@@ -166,7 +165,6 @@ export function DashboardClient({
   onAddMfaVerification,
   onDeleteMfaVerification,
   onGenerateBackupCodes,
-  onGetBackupCodes,
   onSignOut,
   onRefresh,
 }: DashboardClientProps) {
@@ -556,7 +554,6 @@ export function DashboardClient({
               onAddMfaVerification={onAddMfaVerification}
               onDeleteMfaVerification={onDeleteMfaVerification}
               onGenerateBackupCodes={onGenerateBackupCodes}
-              onGetBackupCodes={onGetBackupCodes}
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
             />
