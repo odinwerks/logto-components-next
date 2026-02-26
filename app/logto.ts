@@ -15,7 +15,6 @@ const SCOPE_MAP: Record<string, string> = {
 
 // AGGRESSIVE whitespace and validation
 function getEnvVar(name: string, required = true): string {
-  // Check multiple fallbacks in order
   const valueRaw =
     process.env[name] || process.env[`NEXT_PUBLIC_${name}`] || process.env[`NEXT_PUBLIC_${name.toUpperCase()}`];
 
@@ -35,12 +34,10 @@ function getEnvVar(name: string, required = true): string {
 }
 
 function buildAccountApiResource(endpoint: string): string {
-  // Verify URL protocol
   if (!endpoint.startsWith('http')) {
     throw new Error(`ENDPOINT must start with http:// or https://. Got: "${endpoint}"`);
   }
 
-  // Remove trailing slashes and ensure clean format
   const cleanEndpoint = endpoint.replace(/\/+$/, '');
   const resource = `${cleanEndpoint}/api`;
 
@@ -49,11 +46,8 @@ function buildAccountApiResource(endpoint: string): string {
 }
 
 function parseScopes(scopeString: string): string[] {
-  if (!scopeString) {
-    return [];
-  }
+  if (!scopeString) return [];
 
-  // Handle comma-separated or space-separated
   const scopes = scopeString
     .split(/[,\s]+/)
     .map((s) => s.trim())
@@ -78,10 +72,8 @@ export const logtoConfig = (() => {
 
     const nodeEnv = process.env.NODE_ENV || 'development';
 
-    // Build resources
     const resources = [buildAccountApiResource(endpoint)];
 
-    // Build scopes
     const defaultScopes = [
       UserScope.Profile,
       UserScope.CustomData,
@@ -113,7 +105,6 @@ export const logtoConfig = (() => {
       scopes: allScopes,
     };
 
-    // CRITICAL: Validate resources are present
     if (!config.resources || config.resources.length === 0) {
       throw new Error('Resources array is empty - Account API will fail');
     }
@@ -124,3 +115,65 @@ export const logtoConfig = (() => {
     throw error;
   }
 })();
+
+// ============================================================================
+// Management API Token Helper
+// ============================================================================
+
+/**
+ * Fetches a short-lived Management API access token via the client-credentials
+ * grant using a dedicated M2M application.
+ *
+ * Required env vars (add to your .env):
+ *   LOGTO_M2M_APP_ID     — App ID of the M2M application in Logto Console
+ *   LOGTO_M2M_APP_SECRET — App Secret of the M2M application
+ *
+ * The M2M app must have the "User data" → Write permission assigned under
+ * Management API access in the Logto Console.
+ */
+export async function getManagementApiToken(): Promise<string> {
+  const appId = process.env.LOGTO_M2M_APP_ID?.trim();
+  const appSecret = process.env.LOGTO_M2M_APP_SECRET?.trim();
+
+  if (!appId || !appSecret) {
+    throw new Error(
+      'LOGTO_M2M_APP_ID and LOGTO_M2M_APP_SECRET must be set for Management API access. ' +
+        'Create an M2M application in the Logto Console and add these env vars.'
+    );
+  }
+
+  const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
+  const resource = `${cleanEndpoint}/api`;
+  const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
+
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    resource,
+    scope: 'all',
+  });
+
+  const res = await fetch(tokenEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
+    },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(
+      `Management API token request failed ${res.status}: ${errorText.substring(0, 200)}`
+    );
+  }
+
+  const data = await res.json();
+  if (!data.access_token) {
+    throw new Error(
+      `Management API token response missing access_token. Got: ${JSON.stringify(data)}`
+    );
+  }
+
+  return data.access_token as string;
+}

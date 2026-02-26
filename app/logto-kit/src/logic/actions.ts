@@ -1,8 +1,8 @@
 'use server';
 
 import { getAccessToken, getLogtoContext } from '@logto/next/server-actions';
-import { logtoConfig } from '../../../logto';
-import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
+import { logtoConfig, getManagementApiToken } from '../../../logto';
+import type { DashboardResult, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
 
 // ============================================================================
 // Environment Configuration
@@ -402,4 +402,105 @@ export async function getBackupCodes(
   }
 
   return res.json();
+}
+
+// ============================================================================
+// Password Management Actions
+// ============================================================================
+
+/**
+ * Changes the authenticated user's password.
+ *
+ * Flow:
+ *   1. Obtain a verificationRecordId via `verifyPasswordForIdentity` (current
+ *      password) or the email/phone verification code flow.
+ *   2. Pass that ID + the desired new password here.
+ *
+ * The new password must satisfy the policy configured in
+ * Console > Security > Password policy. Logto returns structured validation
+ * errors on failure — the thrown message is UI-safe.
+ */
+export async function updateUserPassword(
+  newPassword: string,
+  identityVerificationRecordId: string
+): Promise<void> {
+  const res = await makeRequest('/api/my-account/password', {
+    method: 'POST',
+    body: { password: newPassword },
+    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    let detail = errorText.substring(0, 400);
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed?.message) detail = parsed.message;
+    } catch {
+      // not JSON, use raw text
+    }
+    throw new Error(`Password update failed ${res.status}: ${detail}`);
+  }
+}
+
+// ============================================================================
+// Account Deletion Actions
+// ============================================================================
+
+/**
+ * Permanently deletes the currently authenticated user's account.
+ *
+ * The Logto Account API has no self-delete endpoint — deletion goes through
+ * the Management API. `getManagementApiToken` in logto.ts handles the
+ * client-credentials grant so this action stays clean.
+ *
+ * Flow:
+ *   1. Confirms the session is valid and reads `userId` from claims.
+ *   2. Verifies the Account API still accepts the bearer token.
+ *   3. Calls `getManagementApiToken()` from logto.ts.
+ *   4. Deletes the user via `DELETE /api/users/{userId}`.
+ *   5. Signs the user out — session is now invalid.
+ *
+ * The caller should redirect to a public page after this resolves.
+ */
+export async function deleteUserAccount(
+  identityVerificationRecordId: string
+): Promise<void> {
+  // ── Step 1: confirm session and get userId ───────────────────────────────
+  const { isAuthenticated, claims } = await getLogtoContext(logtoConfig);
+
+  if (!isAuthenticated || !claims?.sub) {
+    throw new Error('User is not authenticated.');
+  }
+
+  const userId = claims.sub;
+
+  // ── Step 2: confirm the Account API still accepts the bearer token ───────
+  const accountCheck = await makeRequest('/api/my-account');
+  if (!accountCheck.ok) {
+    throw new Error('Could not verify account session before deletion.');
+  }
+
+  // ── Step 3: get Management API token (M2M, lives in logto.ts) ────────────
+  const mgmtToken = await getManagementApiToken();
+  const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
+
+  // ── Step 4: delete via Management API ────────────────────────────────────
+  const deleteRes = await fetch(`${cleanEndpoint}/api/users/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${mgmtToken}`,
+    },
+  });
+
+  if (!deleteRes.ok) {
+    const errorText = await deleteRes.text();
+    throw new Error(
+      `Account deletion failed ${deleteRes.status}: ${errorText.substring(0, 200)}`
+    );
+  }
+
+  // ── Step 5: sign out ─────────────────────────────────────────────────────
+  const { signOut } = await import('@logto/next/server-actions');
+  await signOut(logtoConfig);
 }
