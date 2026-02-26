@@ -61,7 +61,11 @@ export const kaGE: Translations = {
     removeAuthenticatorDesc: 'შეიყვანეთ პაროლი ორფაქტორიანი აუთენტიფიკაციის წასაშლელად.',
     generateBackupCodesTitle: 'სარეზერვო კოდების გენერაცია',
     viewBackupCodesTitle: 'სარეზერვო კოდების ნახვა',
-    enterCurrentPassword: 'შეიყვანეთ მიმდინარე პაროლი ახლის დასაყენებლად.',
+    enterCurrentPassword: 'შეიყვანეთ მიმდინარე პაროლი თქვენი ვერიფიკაციისთვის.',
+    enterNewPassword: 'შეიყვანეთ ახალი პაროლი ქვემოთ.',
+    passwordChanged: 'პაროლი წარმატებით შეიცვალა.',
+    confirmDeleteAccount: 'შეიყვანეთ პაროლი თქვენი ანგარიშის სამუდამოდ წასაშლელად.',
+    accountDeleted: 'თქვენი ანგარიში წაიშალა.',
   },
   
   // Sidebar
@@ -236,6 +240,7 @@ export const kaGE: Translations = {
     verifyPasswordToViewBackupCodes: 'დაადასტურეთ პაროლი სარეზერვო კოდების სანახავად',
     verifying: 'შემოწმება…',
     sendingCode: 'კოდის გამოგზავნა…',
+    changingPassword: 'პაროლის შეცვლა…',
     verifyingCode: 'კოდის შემოწმება…',
     removingOldAuth: 'ძველი აუთენტიფიკატორის წაშლა…',
     generatingSecret: 'საიდუმლოს გენერაცია…',

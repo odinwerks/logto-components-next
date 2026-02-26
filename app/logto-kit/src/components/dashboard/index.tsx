@@ -18,6 +18,8 @@ import {
   addMfaVerification,
   deleteMfaVerification,
   generateBackupCodes,
+  updateUserPassword,
+  deleteUserAccount,
   getBackupCodes,
   signOutUser,
 } from '../../logic/actions';
@@ -120,6 +122,8 @@ export async function Dashboard() {
       onAddMfaVerification={addMfaVerification}
       onDeleteMfaVerification={deleteMfaVerification}
       onGenerateBackupCodes={generateBackupCodes}
+      onUpdatePassword={updateUserPassword}
+      onDeleteAccount={deleteUserAccount}
       onSignOut={signOutUser}
       onRefresh={handleRefresh}
     />

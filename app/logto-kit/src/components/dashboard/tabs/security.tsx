@@ -26,6 +26,8 @@ interface SecurityTabProps {
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -240,11 +242,12 @@ type ModalStep =
   | { kind: 'password' }
   | { kind: 'loading'; message: string }
   | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
-  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string };
+  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
+  | { kind: 'new-password'; verificationRecordId: string };
 
 function FlowModal({
-  title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onClose,
-  passwordError, extra, tc, t,
+  title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onClose,
+  passwordError, extra, tc, t, danger,
 }: {
   title: string;
   subtitle: string;
@@ -252,12 +255,14 @@ function FlowModal({
   onPasswordSubmit: (password: string) => void;
   onCodeSubmit?: (code: string) => void;
   onTotpSubmit?: (code: string, secret: string, identityVerificationId: string) => void;
+  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string) => void;
   onClose: () => void;
   passwordError?: string;
   /** Rendered above the password field when step === 'password' */
   extra?: React.ReactNode;
   tc: ThemeColors;
   t: Translations;
+  danger?: boolean;
 }) {
   const T = tk(tc);
   const [pw, setPw] = useState('');
@@ -265,6 +270,8 @@ function FlowModal({
   const [code, setCode] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const dangerColor = T.red;
 
   const copySecret = () => {
     if (step.kind !== 'totp-scan') return;
@@ -286,11 +293,11 @@ function FlowModal({
       }}>
         {/* Header */}
         <div style={{
-          padding: '18px 22px 16px', borderBottom: `1px solid ${T.borderFaint}`,
+          padding: '18px 22px 16px', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
         }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 15, color: T.text, marginBottom: 3, letterSpacing: '-0.02em' }}>
+            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 15, color: danger ? dangerColor : T.text, marginBottom: 3, letterSpacing: '-0.02em' }}>
               {title}
             </p>
             <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
@@ -446,6 +453,38 @@ function FlowModal({
                   disabled={code.length !== 6} tc={tc}
                 >
                   Activate <Check size={12} color="#fff" strokeWidth={1.5} />
+                </Btn>
+              </div>
+            </>
+          )}
+
+          {/* New password step */}
+          {step.kind === 'new-password' && (
+            <>
+              <Lbl tc={tc}>New password</Lbl>
+              <Inp
+                type={showPw ? 'text' : 'password'}
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="Enter new password"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && pw) onNewPasswordSubmit?.(pw, step.verificationRecordId); }}
+                tc={tc}
+                suffix={
+                  <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
+                    {showPw ? <EyeOff size={14} color={T.muted} strokeWidth={1.5} /> : <Eye size={14} color={T.muted} strokeWidth={1.5} />}
+                  </button>
+                }
+              />
+              {passwordError && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontFamily: T.font, fontSize: 12, color: T.redText }}>
+                  <AlertTriangle size={13} color={T.redText} strokeWidth={1.5} /> {passwordError}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+                <Btn onClick={onClose} tc={tc}>Cancel</Btn>
+                <Btn variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} tc={tc}>
+                  {danger ? 'Confirm' : 'Change password'} <ChevronRight size={12} color={danger ? '#fff' : '#fff'} strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -705,6 +744,8 @@ export function SecurityTab({
   onGetMfaVerifications, onGenerateTotpSecret,
   onAddMfaVerification, onDeleteMfaVerification,
   onGenerateBackupCodes,
+  onUpdatePassword,
+  onDeleteAccount,
   onSuccess, onError,
 }: SecurityTabProps) {
   const T = tk(tc);
@@ -806,6 +847,22 @@ export function SecurityTab({
   // ── Password change modal ──
   const [pwStep, setPwStep] = useState<ModalStep | null>(null);
 
+  // ── Delete account modal ──
+  const [deleteStep, setDeleteStep] = useState<ModalStep | null>(null);
+
+  const handleDeleteAccount = async (pw: string) => {
+    setDeleteStep({ kind: 'loading', message: t.mfa.verifying });
+    try {
+      const { verificationRecordId } = await onVerifyPassword(pw);
+      await onDeleteAccount(verificationRecordId);
+      onSuccess(t.security.accountDeleted || 'Account deleted successfully');
+      window.location.href = '/';
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+      setDeleteStep(null);
+    }
+  };
+
   return (
     <div>
       {/* TOTP setup modal */}
@@ -865,15 +922,44 @@ export function SecurityTab({
       {pwStep && (
         <FlowModal
           title={t.security.changePassword}
-          subtitle={t.security.enterCurrentPassword}
+          subtitle={pwStep.kind === 'new-password' ? t.security.enterNewPassword : t.security.enterCurrentPassword}
           step={pwStep}
           onPasswordSubmit={async (pw) => {
             setPwStep({ kind: 'loading', message: t.mfa.verifying });
-            await new Promise(r => setTimeout(r, 500));
-            onSuccess('Password change — connect your handler here.');
-            setPwStep(null);
+            try {
+              const { verificationRecordId } = await onVerifyPassword(pw);
+              setPwStep({ kind: 'new-password', verificationRecordId });
+            } catch (err) {
+              onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+              setPwStep(null);
+            }
+          }}
+          onNewPasswordSubmit={async (newPw, verificationRecordId) => {
+            setPwStep({ kind: 'loading', message: t.mfa.changingPassword || 'Changing password...' });
+            try {
+              await onUpdatePassword(newPw, verificationRecordId);
+              onSuccess(t.security.passwordChanged || 'Password changed successfully');
+              setPwStep(null);
+            } catch (err) {
+              onError(err instanceof Error ? err.message : 'Password change failed');
+              setPwStep(null);
+            }
           }}
           onClose={() => setPwStep(null)}
+          tc={tc}
+          t={t}
+        />
+      )}
+
+      {/* Delete account modal */}
+      {deleteStep && (
+        <FlowModal
+          title={t.security.deleteAccount}
+          subtitle={t.security.confirmDeleteAccount}
+          step={deleteStep}
+          onPasswordSubmit={handleDeleteAccount}
+          onClose={() => setDeleteStep(null)}
+          danger
           tc={tc}
           t={t}
         />
@@ -1051,7 +1137,7 @@ export function SecurityTab({
               </p>
             </div>
             <Btn variant="danger" size="sm" style={{ flexShrink: 0 }}
-              onClick={() => onSuccess('Delete account — connect your handler here.')} tc={tc}>
+              onClick={() => setDeleteStep({ kind: 'password' })} tc={tc}>
               {t.security.deleteAccount}
             </Btn>
           </div>

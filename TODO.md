@@ -7,14 +7,17 @@
   - Removed from security.tsx, client.tsx, and index.tsx
 
 ## Account Delete (High Priority)
-- [ ] Implement account delete feature
-  - Location: `security.tsx:1065-1068` (danger zone)
-  - Currently just a placeholder: `onSuccess('Delete account — connect your handler here.')`
+- [x] Implement account delete feature
+  - Added `deleteUserAccount` action in actions.ts
+  - Added delete modal with danger styling in security.tsx
+  - Requires M2M credentials (LOGTO_M2M_APP_ID, LOGTO_M2M_APP_SECRET)
+  - Fixed M2M resource URL from `${endpoint}/api` to `https://default.logto.app/api`
 
 ## Password Change (Medium Priority)
-- [ ] Implement password change feature
-  - Location: `security.tsx:877-881`
-  - Currently just a placeholder: `onSuccess('Password change — connect your handler here.')`
+- [x] Implement password change feature
+  - Added `updateUserPassword` action in actions.ts
+  - Added new-password step to FlowModal
+  - Two-step flow: verify current password → enter new password
 
 ## Custom Data Tab (Low Priority)
 - [ ] Remove duplicate theme/language settings

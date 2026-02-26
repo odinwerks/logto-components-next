@@ -76,6 +76,10 @@ export interface Translations {
     generateBackupCodesTitle: string;
     viewBackupCodesTitle: string;
     enterCurrentPassword: string;
+    enterNewPassword: string;
+    passwordChanged: string;
+    confirmDeleteAccount: string;
+    accountDeleted: string;
   };
 
   // Sidebar
@@ -250,6 +254,7 @@ export interface Translations {
     verifyPasswordToViewBackupCodes: string;
     verifying: string;
     sendingCode: string;
+    changingPassword: string;
     verifyingCode: string;
     removingOldAuth: string;
     generatingSecret: string;

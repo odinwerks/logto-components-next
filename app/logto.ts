@@ -143,7 +143,7 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
-  const resource = `${cleanEndpoint}/api`;
+  const resource = 'https://default.logto.app/api';
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
   const body = new URLSearchParams({

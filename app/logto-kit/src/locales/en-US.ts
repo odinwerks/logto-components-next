@@ -61,7 +61,11 @@ export const enUS: Translations = {
     removeAuthenticatorDesc: 'Enter your password to remove two-factor authentication from your account.',
     generateBackupCodesTitle: 'Generate backup codes',
     viewBackupCodesTitle: 'View backup codes',
-    enterCurrentPassword: 'Enter your current password to set a new one.',
+    enterCurrentPassword: 'Enter your current password to verify your identity.',
+    enterNewPassword: 'Enter your new password below.',
+    passwordChanged: 'Password changed successfully',
+    confirmDeleteAccount: 'Enter your password to permanently delete your account.',
+    accountDeleted: 'Your account has been deleted.',
   },
   
   // Sidebar
@@ -236,6 +240,7 @@ export const enUS: Translations = {
     verifyPasswordToViewBackupCodes: 'Verify your password to view backup codes',
     verifying: 'Verifying…',
     sendingCode: 'Sending code…',
+    changingPassword: 'Changing password…',
     verifyingCode: 'Verifying code…',
     removingOldAuth: 'Removing old authenticator…',
     generatingSecret: 'Generating secret…',
