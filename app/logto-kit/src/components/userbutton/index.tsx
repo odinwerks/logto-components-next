@@ -21,7 +21,7 @@ const getInitials = (data: UserData): string => {
 export interface UserBadgeProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  Border?: string;
+  shape?: 'circle' | 'sq' | 'rsq';
   userData: UserData;
   themeColors: ThemeColors;
 }
@@ -29,7 +29,7 @@ export interface UserBadgeProps {
 export function UserBadge({
   Canvas,
   Size = '6.25rem',
-  Border = '50%',
+  shape,
   userData,
   themeColors,
 }: UserBadgeProps) {
@@ -50,7 +50,7 @@ export function UserBadge({
   const containerStyle: React.CSSProperties = {
     width: Size,
     height: Size,
-    borderRadius: Border,
+    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
     border: `2px solid ${themeColors.borderColor}`,
     background: isShowingAvatar ? 'transparent' : themeColors.bgTertiary,
     display: 'flex',
