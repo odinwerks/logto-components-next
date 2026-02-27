@@ -459,9 +459,15 @@ export async function updateUserPassword(
  *   2. Verifies the Account API still accepts the bearer token.
  *   3. Calls `getManagementApiToken()` from logto.ts.
  *   4. Deletes the user via `DELETE /api/users/{userId}`.
- *   5. Signs the user out — session is now invalid.
  *
- * The caller should redirect to a public page after this resolves.
+ * IMPORTANT: This action deliberately does NOT call signOut() or redirect().
+ * Calling signOut() inside a server action fires Next.js redirect() which races
+ * with AuthWatcher's router.refresh() interval — the result is a cascade of
+ * "failed to fetch" errors as AuthWatcher keeps hitting a torn-down session.
+ *
+ * Instead, this action returns cleanly and the CLIENT navigates to
+ * /api/auth/sign-out via window.location.href. That route handler calls
+ * signOut() in isolation, with no concurrent RSC re-renders in flight.
  */
 export async function deleteUserAccount(
   identityVerificationRecordId: string
@@ -500,7 +506,6 @@ export async function deleteUserAccount(
     );
   }
 
-  // ── Step 5: sign out ─────────────────────────────────────────────────────
-  const { signOut } = await import('@logto/next/server-actions');
-  await signOut(logtoConfig);
+  // Return cleanly. The client (security.tsx handleDeleteAccount) is
+  // responsible for navigating to /api/auth/sign-out after this resolves.
 }

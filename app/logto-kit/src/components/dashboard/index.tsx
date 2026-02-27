@@ -24,18 +24,10 @@ import {
   signOutUser,
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
 import { getDefaultThemeMode } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
-
-// Server action for refresh
-async function handleRefresh() {
-  'use server';
-  revalidatePath('/');
-  return { success: true, redirect: '/' };
-}
 
 export async function Dashboard() {
   // ── Locale & translations ──────────────────────────────────────────────────
@@ -125,7 +117,6 @@ export async function Dashboard() {
       onUpdatePassword={updateUserPassword}
       onDeleteAccount={deleteUserAccount}
       onSignOut={signOutUser}
-      onRefresh={handleRefresh}
     />
   );
 }

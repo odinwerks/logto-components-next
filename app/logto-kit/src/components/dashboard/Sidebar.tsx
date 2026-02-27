@@ -99,7 +99,7 @@ export function Sidebar({
     return (userData.username?.[0] ?? userData.name?.[0] ?? '?').toUpperCase();
   })();
 
-  const displayName  = userData.name ?? userData.username ?? userData.primaryEmail ?? '—';
+  const displayName  = userData.profile?.givenName ?? userData.name ?? userData.username ?? userData.primaryEmail ?? '—';
   const displayEmail = userData.primaryEmail ?? userData.username ?? '';
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
@@ -749,6 +750,7 @@ export function SecurityTab({
   onSuccess, onError,
 }: SecurityTabProps) {
   const T = tk(tc);
+  const router = useRouter();
 
   // ── MFA list ──
   const [mfaList, setMfaList] = useState<MfaVerification[]>([]);
@@ -854,9 +856,20 @@ export function SecurityTab({
     setDeleteStep({ kind: 'loading', message: t.mfa.verifying });
     try {
       const { verificationRecordId } = await onVerifyPassword(pw);
+
+      // Server action deletes the account and returns cleanly.
+      // It no longer calls signOut()/redirect() internally — doing so raced
+      // with AuthWatcher's router.refresh() interval and caused a flood of
+      // "failed to fetch" errors as the session was torn down mid-flight.
       await onDeleteAccount(verificationRecordId);
-      onSuccess(t.security.accountDeleted || 'Account deleted successfully');
-      window.location.href = '/';
+
+      // Navigate client-side to the sign-out route handler.
+      // window.location.href (not router.push) because:
+      //   - It performs a full page navigation, unloading AuthWatcher so no
+      //     more router.refresh() calls fire against a dead session.
+      //   - router.push would do a client-side RSC fetch which won't follow
+      //     the Logto redirect chain correctly.
+      window.location.href = '/api/auth/sign-out';
     } catch (err) {
       onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
       setDeleteStep(null);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
 import type { ThemeColors } from '../../themes';
@@ -135,7 +136,6 @@ interface DashboardClientProps {
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
   onSignOut: () => Promise<void>;
-  onRefresh: () => Promise<{ success: boolean; redirect?: string }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,7 +170,6 @@ export function DashboardClient({
   onUpdatePassword,
   onDeleteAccount,
   onSignOut,
-  onRefresh,
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
@@ -214,18 +213,21 @@ export function DashboardClient({
   }, []);
 
   // ── Refresh ────────────────────────────────────────────────────────────────
+  // router.refresh() re-fetches the RSC payload for the current route,
+  // bypassing the Data Cache. This re-runs Dashboard (which calls fetchDashboardData)
+  // and all server components, giving the client fresh user data.
+  // No server action needed — onRefresh/revalidatePath was redundant here.
+  const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await onRefresh();
-    } catch {
-      showToast('error', t.dashboard.refreshFailed);
+      router.refresh();
     } finally {
       setIsRefreshing(false);
     }
-  }, [onRefresh, showToast, t]);
+  }, [router]);
 
   // ── Preferences persistence ────────────────────────────────────────────────
   const prefSyncedRef = useRef(false);
@@ -287,20 +289,20 @@ export function DashboardClient({
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     await persistPreferences({ theme: next });
-    await onRefresh();
-  }, [theme, persistPreferences, onRefresh]);
+    router.refresh();
+  }, [theme, persistPreferences, router]);
 
   const handleThemeChange = useCallback(async (newTheme: 'dark' | 'light') => {
     setTheme(newTheme);
     await persistPreferences({ theme: newTheme });
-    await onRefresh();
-  }, [persistPreferences, onRefresh]);
+    router.refresh();
+  }, [persistPreferences, router]);
 
   const handleLangChange = useCallback(async (code: string) => {
     setLang(code);
     await persistPreferences({ lang: code });
-    await onRefresh();
-  }, [persistPreferences, onRefresh]);
+    router.refresh();
+  }, [persistPreferences, router]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
@@ -399,7 +401,7 @@ export function DashboardClient({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {userData.name || 'User'}
+                  {userData.profile?.givenName ?? 'User'}
                 </p>
                 <p
                   style={{
