@@ -20,13 +20,12 @@ export const enUS: Translations = {
   // Tabs
   tabs: {
     profile: 'USER',
-    customData: 'CUSTOM',
+    preferences: 'PREFS',
     security: 'SECURITY',
     identities: 'IDENTITIES',
     organizations: 'ORGS',
     mfa: 'MFA',
     raw: 'RAW',
-    preferences: 'PREFS',
   },
   
   // Security tab
@@ -146,8 +145,8 @@ export const enUS: Translations = {
     unknownError: 'Unknown error',
   },
   
-  // Custom Data tab
-  customData: {
+  // Preferences tab
+  preferences: {
     title: 'CUSTOM DATA',
     editing: 'EDITING CUSTOM DATA',
     jsonData: 'JSON DATA',

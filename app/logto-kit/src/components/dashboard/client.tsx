@@ -10,12 +10,11 @@ import { darkColors, lightColors } from '../../themes';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
-import { CustomDataTab } from './tabs/custom-data';
+import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { RawDataTab } from './tabs/raw-data';
-import { PreferencesTab } from './tabs/preferences';
 import { getPreferencesFromUserData, buildUpdatedCustomData } from '../../logic/preferences';
 import { UserBadge } from '../userbutton';
 
@@ -37,7 +36,7 @@ const TAB_ICON = '›';
 function getTabLabel(id: TabId, t: Translations): string {
   switch (id) {
     case 'profile': return t.tabs.profile;
-    case 'custom-data': return t.tabs.customData;
+    case 'preferences': return t.tabs.preferences;
     case 'security': return t.tabs.security;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
@@ -525,14 +524,14 @@ export function DashboardClient({
             />
           )}
 
-          {activeTab === 'custom-data' && (
-            <CustomDataTab
+          {activeTab === 'preferences' && (
+            <PreferencesTab
               userData={userData}
               themeColors={themeColors}
               t={t}
               onUpdateCustomData={onUpdateCustomData}
-              onSuccess={(msg) => showToast('success', msg)}
-              onError={(msg) => showToast('error', msg)}
+              onSuccess={(msg: string) => showToast('success', msg)}
+              onError={(msg: string) => showToast('error', msg)}
               refreshData={refreshData}
               theme={theme}
               lang={lang}
@@ -579,17 +578,6 @@ export function DashboardClient({
             <RawDataTab userData={userData} themeColors={themeColors} t={t} />
           )}
 
-          {activeTab === 'preferences' && (
-            <PreferencesTab
-              theme={theme}
-              lang={lang}
-              supportedLangs={supportedLangs}
-              themeColors={themeColors}
-              t={t}
-              onThemeChange={handleThemeChange}
-              onLangChange={handleLangChange}
-            />
-          )}
         </div>
       </div>
 

@@ -34,13 +34,12 @@ export interface Translations {
   // Tabs
   tabs: {
     profile: string;
-    customData: string;
+    preferences: string;
     security: string;
     identities: string;
     organizations: string;
     mfa: string;
     raw: string;
-    preferences: string;
   };
   
   // Security tab
@@ -160,8 +159,8 @@ export interface Translations {
     unknownError: string;
   };
   
-  // Custom Data tab
-  customData: {
+  // Preferences tab
+  preferences: {
     title: string;
     editing: string;
     jsonData: string;

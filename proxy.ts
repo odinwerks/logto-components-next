@@ -5,7 +5,7 @@ import { logtoConfig } from './app/logto';
 const publicPaths = ['/', '/callback', '/api/public', '/_next', '/favicon.ico'];
 const client = new LogtoClient(logtoConfig);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip public paths

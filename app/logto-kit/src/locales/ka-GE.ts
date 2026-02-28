@@ -20,13 +20,12 @@ export const kaGE: Translations = {
   // Tabs
   tabs: {
     profile: 'მომხმარებელი',
-    customData: 'საკუთარი მონაცემები',
+    preferences: 'პარამეტრები',
     security: 'უსაფრთხოება',
     identities: 'იდენტიტეტები',
     organizations: 'ორგანიზაციები',
     mfa: 'მრავალფაქტორული აუთენტიფიკაცია',
     raw: 'ნედლი',
-    preferences: 'პარამეტრები',
   },
   
   // Security tab
@@ -146,8 +145,8 @@ export const kaGE: Translations = {
     unknownError: 'უცნობი შეცდომა',
   },
   
-  // Custom Data tab
-  customData: {
+  // Preferences tab
+  preferences: {
     title: 'საკუთარი მონაცემები',
     editing: 'საკუთარი მონაცემების რედაქტირება',
     jsonData: 'JSON მონაცემები',

@@ -5,17 +5,16 @@
 
 // TabId is defined here (logic layer) so that components/dashboard/types.ts
 // can import it from logic — not the other way around.
-export type TabId = 'profile' | 'custom-data' | 'security' | 'identities' | 'organizations' | 'raw' | 'preferences';
+export type TabId = 'profile' | 'preferences' | 'security' | 'identities' | 'organizations' | 'raw';
 
 // All valid tab IDs and their display labels (used as fallback)
 export const ALL_TABS: TabId[] = [
   'profile',
-  'custom-data',
+  'preferences',
   'security',
   'identities',
   'organizations',
   'raw',
-  'preferences',
 ];
 
 // ENV value aliases — lets operators use friendly names
@@ -25,10 +24,12 @@ const TAB_ALIASES: Record<string, TabId> = {
   personal: 'profile',
   user: 'profile',
 
-  // custom-data aliases
-  'custom-data': 'custom-data',
-  custom: 'custom-data',
-  customdata: 'custom-data',
+  // preferences aliases (formerly custom-data)
+  preferences: 'preferences',
+  prefs: 'preferences',
+  'custom-data': 'preferences',
+  custom: 'preferences',
+  customdata: 'preferences',
 
   // identities aliases
   identities: 'identities',
@@ -49,10 +50,6 @@ const TAB_ALIASES: Record<string, TabId> = {
   raw: 'raw',
   debug: 'raw',
   data: 'raw',
-
-  // preferences aliases
-  preferences: 'preferences',
-  prefs: 'preferences',
 };
 
 function readEnv(name: string): string | undefined {
