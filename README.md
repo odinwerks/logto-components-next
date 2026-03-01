@@ -241,7 +241,15 @@ npm run build
 
 ## Todo
 
-I need to add a workable, multi-state, multi-function user button. Once this is fully polished, repackage the logto-kit folder as a components library, enabling Logto usage in a way similar to Clerk (a great and easyto use SaaS but I am too broke).
+### Convert JSON Views to Full Pretty UI (Except Security Tab)
+- [ ] Convert all tabs to use edit UI instead of JSON display
+- [ ] Exclude security tab for now
+- [ ] Tabs to update: profile, preferences, custom-data, identities, raw-data, organizations
+- [ ] Start with tabs that have edit capability
+- [ ] Create proper form UI for each tab type
+- [ ] Maintain existing functionality while improving UX
+
+Once this is fully polished, repackage the logto-kit folder as a components library, enabling Logto usage in a way similar to Clerk (a great and easy to use SaaS but I am too broke).
 
 ## License
 If you cause the decadence of Earth running this horrid code, I am not liable. Also take care <3
