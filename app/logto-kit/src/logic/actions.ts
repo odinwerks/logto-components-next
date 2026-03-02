@@ -159,7 +159,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
 export async function updateAvatarUrl(avatarUrl: string): Promise<void> {
   const res = await makeRequest('/api/my-account', {
     method: 'PATCH',
-    body: { avatar: avatarUrl },
+    body: { avatar: avatarUrl || null },
   });
   
   if (!res.ok) {

@@ -510,14 +510,6 @@ export function DashboardClient({
               onUpdateBasicInfo={onUpdateBasicInfo}
               onUpdateAvatarUrl={onUpdateAvatarUrl}
               onUpdateProfile={onUpdateProfile}
-              onVerifyPassword={onVerifyPassword}
-              onSendEmailVerification={onSendEmailVerification}
-              onSendPhoneVerification={onSendPhoneVerification}
-              onVerifyCode={onVerifyCode}
-              onUpdateEmail={onUpdateEmail}
-              onUpdatePhone={onUpdatePhone}
-              onRemoveEmail={onRemoveEmail}
-              onRemovePhone={onRemovePhone}
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
               refreshData={refreshData}
