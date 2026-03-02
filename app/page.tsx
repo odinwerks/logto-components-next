@@ -1,8 +1,3 @@
-// ▼ THIS IS PART OF THE FIX FOR THE MAIN BUG ▼
-// 'force-dynamic' tells Next.js to NEVER statically render or cache this route.
-// Every request to this page re-runs the full RSC tree on the server, which means
-// SignedIn/SignedOut always get fresh data. Without this, Next.js may serve a
-// cached RSC payload that says the user is authenticated even after deletion.
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from 'react';

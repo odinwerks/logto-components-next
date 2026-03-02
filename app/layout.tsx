@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark">
       <body className={ibmPlexMono.variable}>
-        <AuthWatcher />
+       <AuthWatcher />
         {children}
       </body>
     </html>
