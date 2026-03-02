@@ -9,14 +9,8 @@
  * and on an interval, which re-runs these server components without a full reload.
  */
 
-import { getLogtoContext } from '@logto/next/server-actions';
-// ▼ THIS IS THE FIX FOR THE MAIN BUG ▼
-// noStore() tells Next.js to NEVER cache any fetch() call made during this
-// server component's render, including Logto's internal call to /oidc/userinfo.
-// Without this, router.refresh() re-runs the component on the server but hits
-// the Data Cache and gets the stale "user exists" response — so SignedIn keeps
-// rendering the dashboard even after the account is deleted.
 import { unstable_noStore as noStore } from 'next/cache';
+import { safeGetLogtoContext } from '../../logic/logto-context';
 import { logtoConfig } from '../../../../logto';
 
 export { logtoConfig };
@@ -55,9 +49,7 @@ export async function SignedIn({
   noStore();
 
   try {
-    const { isAuthenticated, userInfo } = await getLogtoContext(logtoConfig, {
-      fetchUserInfo: true,
-    });
+    const { isAuthenticated, userInfo } = await safeGetLogtoContext(true);
 
     if (!isAuthenticated || !userInfo) {
       return <>{fallback}</>;
@@ -85,9 +77,7 @@ export async function SignedOut({ children }: { children: React.ReactNode }) {
   noStore();
 
   try {
-    const { isAuthenticated, userInfo } = await getLogtoContext(logtoConfig, {
-      fetchUserInfo: true,
-    });
+    const { isAuthenticated, userInfo } = await safeGetLogtoContext(true);
 
     if (isAuthenticated && userInfo) {
       return null;

@@ -1,7 +1,8 @@
 'use server';
 
-import { getAccessToken, getLogtoContext } from '@logto/next/server-actions';
+import { getAccessToken } from '@logto/next/server-actions';
 import { logtoConfig, getManagementApiToken } from '../../../logto';
+import { safeGetLogtoContext } from './logto-context';
 import type { DashboardResult, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
 
 // ============================================================================
@@ -65,7 +66,7 @@ async function makeRequest(
 
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
-    const { isAuthenticated } = await getLogtoContext(logtoConfig);
+    const { isAuthenticated } = await safeGetLogtoContext();
     if (!isAuthenticated) {
       return { success: false, needsAuth: true };
     }
@@ -473,7 +474,7 @@ export async function deleteUserAccount(
   identityVerificationRecordId: string
 ): Promise<void> {
   // ── Step 1: confirm session and get userId ───────────────────────────────
-  const { isAuthenticated, claims } = await getLogtoContext(logtoConfig);
+  const { isAuthenticated, claims } = await safeGetLogtoContext();
 
   if (!isAuthenticated || !claims?.sub) {
     throw new Error('User is not authenticated.');
