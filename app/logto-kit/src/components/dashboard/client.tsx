@@ -518,13 +518,8 @@ export function DashboardClient({
 
           {activeTab === 'preferences' && (
             <PreferencesTab
-              userData={userData}
               themeColors={themeColors}
               t={t}
-              onUpdateCustomData={onUpdateCustomData}
-              onSuccess={(msg: string) => showToast('success', msg)}
-              onError={(msg: string) => showToast('error', msg)}
-              refreshData={refreshData}
               theme={theme}
               lang={lang}
               supportedLangs={supportedLangs}
