@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { logtoConfig } from './app/logto';
-import { wipeCookiesInMiddleware } from './app/logto-kit/src/logic/cookie-killer';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified in a Server Action or Route Handler';
 
-const publicPaths = ['/', '/callback', '/api/public', '/_next', '/favicon.ico'];
+const publicPaths = ['/', '/callback', '/api/public', '/_next', '/favicon.ico', '/api/wipe'];
 const client = new LogtoClient(logtoConfig);
 
 function wipeAndRetry(request: NextRequest) {
-  console.log('[CookieKiller] Detected stale cookies, wiping and retrying...');
-  const response = NextResponse.next();
-  wipeCookiesInMiddleware(request, response);
-  return response;
+  console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
+  return NextResponse.redirect(new URL('/api/wipe', request.url));
 }
 
 export async function proxy(request: NextRequest) {
