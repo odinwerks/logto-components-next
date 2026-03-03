@@ -105,11 +105,11 @@ COOKIE_SECRET=your-random-secret
 ```env
 # Theme folder name (default: default)
 THEME=default
-NEXT_THEME=default
+# Also reads: NEXT_PUBLIC_THEME
 
-# Available themes
-THEMES_AVAILABLE=default
-NEXT_THEMES_AVAILABLE=default
+# Default theme mode: dark or light (default: dark)
+DEFAULT_THEME_MODE=dark
+# Also reads: NEXT_PUBLIC_DEFAULT_THEME_MODE
 ```
 
 ### Optional - i18n Configuration
@@ -166,24 +166,24 @@ Available tab IDs with their display aliases:
 | Tab ID | Aliases | Description |
 |--------|---------|-------------|
 | `profile` | `personal`, `user` | User profile and basic info |
-| `custom-data` | `custom`, `customdata` | Custom JSON data editor |
+| `preferences` | `prefs`, `custom-data`, `custom`, `customdata` | User preferences and settings |
+| `security` | `mfa`, `2fa`, `totp` | Multi-factor authentication management |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
-| `mfa` | `2fa`, `totp` | Multi-factor authentication management |
 | `raw` | `debug`, `data` | Raw user data view |
 
 ### Configuration Examples
 
 ```env
 # Show all tabs in default order
-LOAD_TABS=profile,custom-data,identities,organizations,mfa,raw
+LOAD_TABS=profile,preferences,security,identities,organizations,raw
 
-# Show only profile, MFA, and custom data (in that order)
-LOAD_TABS=profile,mfa,custom-data
+# Show only profile, security, and preferences (in that order)
+LOAD_TABS=profile,security,preferences
 
 # Use aliases - these are all equivalent to the first example
-LOAD_TABS=personal,custom,identity,orgs,2fa,debug
-LOAD_TABS=user,customdata,identities,organization,totp,data
+LOAD_TABS=personal,prefs,mfa,identity,orgs,debug
+LOAD_TABS=user,custom-data,2fa,identities,organization,data
 
 # If not set or empty, shows all tabs in default order
 ```
@@ -251,8 +251,7 @@ This is the main use case - drop it into your app wherever you need it.
 ### Adding a Custom Tab
 
 1. Create your tab component in `app/logto-kit/src/components/dashboard/tabs/`
-2. Export it from `app/logto-kit/src/components/dashboard/tabs/index.ts`
-3. Add to `LOAD_TABS` in your `.env`
+2. Add to `LOAD_TABS` in your `.env`
 
 The tab system is pretty simple - look at existing tabs for examples.
 
