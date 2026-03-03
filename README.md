@@ -25,39 +25,66 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   ├── api/
 │   │   ├── auth/
 │   │   │   ├── sign-in/
+│   │   │   │   └── route.ts
 │   │   │   └── sign-out/
+│   │   │       └── route.ts
 │   │   └── wipe/
+│   │       └── route.ts
 │   ├── callback/
+│   │   └── route.ts
+│   ├── globals.css
+│   ├── layout.tsx
 │   ├── logto-kit/
 │   │   └── src/
 │   │       ├── components/
 │   │       │   ├── auth-watcher.tsx
-│   │       │   └── dashboard/
-│   │       │       ├── shared/
-│   │       │       │   ├── CodeBlock.tsx
-│   │       │       │   └── Toast.tsx
-│   │       │       ├── tabs/
-│   │       │       │   ├── custom-data.tsx
-│   │       │       │   ├── identities.tsx
-│   │       │       │   ├── mfa.tsx
-│   │       │       │   ├── organizations.tsx
-│   │       │       │   ├── profile.tsx
-│   │       │       │   └── raw-data.tsx
-│   │       │       ├── client.tsx
-│   │       │       ├── index.tsx
-│   │       │       └── types.ts
+│   │       │   ├── dashboard/
+│   │       │   │   ├── client.tsx
+│   │       │   │   ├── index.tsx
+│   │       │   │   ├── Sidebar.tsx
+│   │       │   │   ├── types.ts
+│   │       │   │   ├── shared/
+│   │       │   │   │   ├── CodeBlock.tsx
+│   │       │   │   │   ├── design.tsx
+│   │       │   │   │   └── Toast.tsx
+│   │       │   │   └── tabs/
+│   │       │   │       ├── identities.tsx
+│   │       │   │       ├── organizations.tsx
+│   │       │   │       ├── preferences.tsx
+│   │       │   │       ├── profile.tsx
+│   │       │   │       ├── raw-data.tsx
+│   │       │   │       └── security.tsx
+│   │       │   └── userbutton/
+│   │       │       └── index.tsx
+│   │       ├── index.ts
 │   │       ├── locales/
+│   │       │   ├── en-US.ts
+│   │       │   ├── index.ts
+│   │       │   └── ka-GE.ts
 │   │       ├── logic/
-│   │       ├── themes/
-│   │       └── index.ts
-│   ├── globals.css
-│   ├── layout.tsx
+│   │       │   ├── actions.ts
+│   │       │   ├── errors.ts
+│   │       │   ├── i18n.ts
+│   │       │   ├── index.ts
+│   │       │   ├── preferences.ts
+│   │       │   ├── tabs.ts
+│   │       │   ├── types.ts
+│   │       │   └── validation.ts
+│   │       └── themes/
+│   │           ├── default/
+│   │           │   ├── dark.css
+│   │           │   ├── index.ts
+│   │           │   └── light.css
+│   │           └── index.ts
 │   ├── logto.ts
 │   └── page.tsx
 ├── proxy.ts
 ├── .env
 ├── .env.example
+├── next.config.ts
+├── next-env.d.ts
 ├── package.json
+├── README.md
 └── tsconfig.json
 ```
 
