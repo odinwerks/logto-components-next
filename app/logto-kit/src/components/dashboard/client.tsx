@@ -305,12 +305,8 @@ export function DashboardClient({
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
-    try {
-      await onSignOut();
-    } catch {
-      showToast('error', t.dashboard.signOutFailed);
-    }
-  }, [onSignOut, showToast, t]);
+    await onSignOut();
+  }, [onSignOut]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const formatDate = useCallback((timestamp?: number | string) => {

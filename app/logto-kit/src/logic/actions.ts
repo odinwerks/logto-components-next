@@ -1,9 +1,9 @@
 'use server';
 
 import { getAccessToken } from '@logto/next/server-actions';
+import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../../logto';
-import { safeGetLogtoContext } from './logto-context';
-import type { DashboardResult, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
+import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
 
 // ============================================================================
 // Environment Configuration
@@ -64,34 +64,59 @@ async function makeRequest(
 // Dashboard Data Fetching (Used in RSC)
 // ============================================================================
 
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+
+async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+  let lastError: Error | unknown;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (i < retries - 1) {
+        const delay = BASE_DELAY_MS * (i + 1);
+        console.log(`[fetchWithRetry] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
-    const { isAuthenticated } = await safeGetLogtoContext();
-    if (!isAuthenticated) {
-      return { success: false, needsAuth: true };
-    }
+    const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
+      const token = await getTokenForServerAction();
+      const res = await makeRequest('/api/my-account');
 
-    const token = await getTokenForServerAction();
-    const res = await makeRequest('/api/my-account');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Logto API ${res.status}: ${errorText.substring(0, 200)}`);
+      }
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Logto API ${res.status}: ${errorText.substring(0, 200)}`);
-    }
+      return {
+        success: true,
+        userData: await res.json() as UserData,
+        accessToken: token,
+      };
+    });
 
-    const userData: UserData = await res.json();
-
-    return {
-      success: true,
-      userData,
-      accessToken: token,
-    };
+    return result;
   } catch (error) {
     console.error('Dashboard data fetch error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    
+    // Stale cookie error → wipe cookies and let user retry (real session is still valid)
+    if (errorMsg.includes('Cookies can only be modified')) {
+      redirect('/api/wipe');
+    }
+    
+    // All other errors → redirect to sign-in
+    redirect('/api/auth/sign-in');
   }
 }
 
@@ -473,26 +498,25 @@ export async function updateUserPassword(
 export async function deleteUserAccount(
   identityVerificationRecordId: string
 ): Promise<void> {
-  // ── Step 1: confirm session and get userId ───────────────────────────────
-  const { isAuthenticated, claims } = await safeGetLogtoContext();
-
-  if (!isAuthenticated || !claims?.sub) {
-    throw new Error('User is not authenticated.');
-  }
-
-  const userId = claims.sub;
-
-  // ── Step 2: confirm the Account API still accepts the bearer token ───────
+  // This is a server action - proxy handles auth, we just need user ID from API
+  // ── Step 1: get user data to find userId ────────────────────────────────
   const accountCheck = await makeRequest('/api/my-account');
   if (!accountCheck.ok) {
     throw new Error('Could not verify account session before deletion.');
   }
 
-  // ── Step 3: get Management API token (M2M, lives in logto.ts) ────────────
+  const userData = await accountCheck.json();
+  const userId = userData.id;
+
+  if (!userId) {
+    throw new Error('User ID not found.');
+  }
+
+  // ── Step 2: get Management API token (M2M, lives in logto.ts) ────────────
   const mgmtToken = await getManagementApiToken();
   const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
 
-  // ── Step 4: delete via Management API ────────────────────────────────────
+  // ── Step 3: delete via Management API ────────────────────────────────────
   const deleteRes = await fetch(`${cleanEndpoint}/api/users/${userId}`, {
     method: 'DELETE',
     headers: {

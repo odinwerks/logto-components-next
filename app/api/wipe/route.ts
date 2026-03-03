@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { signOut } from '@logto/next/server-actions';
+import { logtoConfig } from '../../logto';
 
 export async function GET(request: NextRequest) {
-  console.log('[CookieKiller] Wiping cookies via API route...');
-
   const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+  const force = request.nextUrl.searchParams.get('force') === 'true';
+
+  console.log('[CookieKiller] Wiping cookies via API route...', { force });
+
+  // If force=true, sign out from Logto first (invalidates real session)
+  if (force) {
+    console.log('[CookieKiller] Force flag set, signing out from Logto...');
+    try {
+      await signOut(logtoConfig);
+    } catch (error) {
+      console.error('[CookieKiller] Sign-out error:', error);
+    }
+  }
+
+  // Clear cookies and redirect to home
   const response = NextResponse.redirect(new URL('/', baseUrl));
 
   // Dynamically clear ALL cookies that start with "logto_"

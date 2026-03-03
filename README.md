@@ -14,6 +14,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs (profile, custom-data, raw) automatically refresh to display the latest data from the server
 - **Tab Configuration**: Select which tabs to display and their order via ENV variable
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route
+- **Proxy-Based Auth**: Route protection happens in middleware before page rendering
 - **Translation-First Validation**: All validation messages use translation strings for full i18n coverage
 
 ## Project Structure
@@ -21,11 +22,16 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 ```
 ./
 ├── app/
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── sign-in/
+│   │   │   └── sign-out/
+│   │   └── wipe/
 │   ├── callback/
-│   │   └── route.ts
 │   ├── logto-kit/
 │   │   └── src/
 │   │       ├── components/
+│   │       │   ├── auth-watcher.tsx
 │   │       │   └── dashboard/
 │   │       │       ├── shared/
 │   │       │       │   ├── CodeBlock.tsx
@@ -41,30 +47,16 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │       │       ├── index.tsx
 │   │       │       └── types.ts
 │   │       ├── locales/
-│   │       │   ├── en-US.ts
-│   │       │   ├── index.ts
-│   │       │   └── ka-GE.ts
 │   │       ├── logic/
-│   │       │   ├── actions.ts
-│   │       │   ├── errors.ts
-│   │       │   ├── index.ts
-│   │       │   ├── types.ts
-│   │       │   └── validation.ts
 │   │       ├── themes/
-│   │       │   ├── default/
-│   │       │   │   ├── dark.css
-│   │       │   │   ├── index.ts
-│   │       │   │   └── light.css
-│   │       │   └── index.ts
 │   │       └── index.ts
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto.ts
 │   └── page.tsx
+├── proxy.ts
 ├── .env
 ├── .env.example
-├── middleware.ts
-├── package-lock.json
 ├── package.json
 └── tsconfig.json
 ```
@@ -177,13 +169,105 @@ LOAD_TABS=user,customdata,identities,organization,totp,data
 4. **Deduplication**: Duplicate tabs are removed while preserving order
 5. **Fallback**: If no valid tabs remain, all tabs are shown in default order
 
+## Implementation Patterns
+
+This section explains how to integrate and extend the dashboard. The whole point of this app is that you can drop the Dashboard component into any part of your app and it just works.
+
+### Where Auth Happens
+
+All route protection happens in `proxy.ts` (which acts as middleware). This runs BEFORE the page renders, so unauthenticated users never even see the page - they get redirected to sign-in first.
+
+Here's the basic flow:
+```
+Request → proxy.ts → Check auth via Logto SDK →
+  → Not authenticated → Redirect to /api/auth/sign-in
+  → Authenticated → Render page
+```
+
+### Making Routes Public
+
+By default, all routes require authentication. To add public routes (like a landing page), edit the `PUBLIC_PATHS` array in `proxy.ts`:
+
+```typescript
+// proxy.ts
+const PUBLIC_PATHS = [
+  '/callback',           // OAuth callback - must be public
+  '/api/auth/sign-in',   // Sign-in endpoint - must be public
+  '/api/auth/sign-out', // Sign-out endpoint - must be public
+  '/api/wipe',          // Cookie wipe - useful for debugging
+  '/landing',           // Your public landing page
+  '/about',             // Another public page
+];
+```
+
+Note: This requires a code change. ENV-based configuration would be nice but doesn't exist yet.
+
+### Using the Dashboard Component
+
+The Dashboard is just a React component. You can import it anywhere:
+
+```tsx
+import { Dashboard } from './logto-kit/src';
+
+export default function AdminPage() {
+  return (
+    <div>
+      <h1>Admin Panel</h1>
+      <Dashboard />
+    </div>
+  );
+}
+```
+
+This is the main use case - drop it into your app wherever you need it.
+
+### Adding a Custom Tab
+
+1. Create your tab component in `app/logto-kit/src/components/dashboard/tabs/`
+2. Export it from `app/logto-kit/src/components/dashboard/tabs/index.ts`
+3. Add to `LOAD_TABS` in your `.env`
+
+The tab system is pretty simple - look at existing tabs for examples.
+
+### Adding a Theme
+
+1. Create a folder in `app/logto-kit/src/themes/{your-theme}/`
+2. Add `dark.css` and `light.css` with your CSS variables
+3. Set `THEME=your-theme` in `.env`
+
+### Adding a Language
+
+1. Create `app/logto-kit/src/locales/{locale-code}.ts`
+2. Follow the pattern in existing locale files
+3. Add to `LANG_AVAILABLE` in `.env`
+
+## Cookie & Session Management
+
+The dashboard handles stale cookies automatically. When the Logto access token goes stale:
+
+1. Request to fetch data fails
+2. System detects "stale cookie" error
+3. Redirects to `/api/wipe` which clears the stale cookie
+4. User is redirected home - fresh token is obtained from valid session
+5. Dashboard loads normally
+
+This means users don't need to re-authenticate just because their access token expired - the system handles it transparently.
+
+### Manual Cookie Wipe
+
+Visit `/api/wipe` to manually clear cookies. Useful for debugging.
+
+### Force Sign-Out
+
+Visit `/api/wipe?force=true` to completely sign out - clears both app cookies AND the Logto session.
+
 ## User Preferences & JSON Schema
 
 The dashboard automatically stores user preferences (theme mode and language selection) in Logto's `customData` field under a `Preferences` key. This allows preferences to persist across sessions and devices.
 
 ### JSON Schema Update (Important!)
 
-To ensure type safety and proper validation in your Logto application, update your Logto application's JSON schema to include the `Preferences` key:
+To ensure type safety and proper validation in your Logto application, update your Logto applications JSON schema to include the `Preferences` key:
 
 ```json
 {
@@ -241,15 +325,23 @@ npm run build
 
 ## Todo
 
-### Convert JSON Views to Full Pretty UI (Except Security Tab)
-- [ ] Convert all tabs to use edit UI instead of JSON display
-- [ ] Exclude security tab for now
-- [ ] Tabs to update: profile, preferences, custom-data, identities, raw-data, organizations
-- [ ] Start with tabs that have edit capability
-- [ ] Create proper form UI for each tab type
-- [ ] Maintain existing functionality while improving UX
+### Convert JSON Views to Full Pretty UI
+- [x] Profile tab - redesigned with proper edit UI
+- [x] Preferences tab - removed JSON editor
+- [ ] Some tabs still need love - check which ones and polish them
 
-Once this is fully polished, repackage the logto-kit folder as a components library, enabling Logto usage in a way similar to Clerk (a great and easy to use SaaS but I am too broke).
+### Theme Context Provider
+- [ ] Currently theme handling is internal to the dashboard
+- [ ] Need to export theme context so consuming apps can sync theme
+- [ ] For now: simple "is dark / is light" hook
+- [ ] Later: full context provider that pulls theme from dashboard
+
+### UserButton
+- [ ] UserBadge exists but could use finishing touches
+- [ ] Make it properly reusable as a standalone component
+
+### Conquer the World
+- [ ] DOMINATE. ABSOLUTELY. EVERYTHING.
 
 ## License
 If you cause the decadence of Earth running this horrid code, I am not liable. Also take care <3

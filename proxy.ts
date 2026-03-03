@@ -2,57 +2,53 @@ import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { logtoConfig } from './app/logto';
 
-const STALE_COOKIE_ERROR = 'Cookies can only be modified in a Server Action or Route Handler';
+const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 
-const publicPaths = ['/', '/callback', '/api/public', '/_next', '/favicon.ico', '/api/wipe'];
+const PUBLIC_PATHS = [
+  '/callback',
+  '/api/auth/sign-in',
+  '/api/auth/sign-out',
+  '/api/wipe',
+];
+
 const client = new LogtoClient(logtoConfig);
-
-function wipeAndRetry(request: NextRequest) {
-  console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
-  return NextResponse.redirect(new URL('/api/wipe', request.url));
-}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip public paths
-  if (publicPaths.some((path) => pathname.startsWith(path))) {
+  if (PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // Skip API routes for now (except auth-related)
-  if (pathname.startsWith('/api/')) {
+  // Skip Next.js internals
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
     return NextResponse.next();
   }
 
   try {
-    // Get authentication context
-    const context = await client.getLogtoContext(request);
+    // Auth check - use fetchUserInfo to detect deleted accounts
+    const context = await client.getLogtoContext(request, { fetchUserInfo: true });
 
-    // If authenticated, proceed
-    if (context.isAuthenticated) {
-      return NextResponse.next();
+    if (!context.isAuthenticated) {
+      // Not authenticated - redirect to sign-in
+      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
     }
 
-    // Not authenticated - initiate sign-in
-    const signInHandler = client.handleSignIn({
-      redirectUri: `${logtoConfig.baseUrl}/callback`,
-    });
-    return await signInHandler(request);
+    // Authenticated - proceed
+    return NextResponse.next();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Only wipe cookies on the specific stale cookie error
+    // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
-      return wipeAndRetry(request);
+      console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
+      return NextResponse.redirect(new URL('/api/wipe', request.url));
     }
 
-    // All other errors - don't touch cookies, fallback to sign-in
-    console.error('Authentication error:', errorMessage);
-    const signInHandler = client.handleSignIn({
-      redirectUri: `${logtoConfig.baseUrl}/callback`,
-    });
-    return await signInHandler(request);
+    // Any other error - redirect to sign-in
+    console.error('[Proxy] Auth error:', errorMessage);
+    return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
   }
 }
 
