@@ -367,8 +367,8 @@ npm run build
 - [ ] UserBadge exists but could use finishing touches
 - [ ] Make it properly reusable as a standalone component
 
-### Conquer the World
-- [ ] DOMINATE. ABSOLUTELY. EVERYTHING.
+### Conquer All.
+- [ ] [DOMINATE. ABSOLUTELY. EVERYTHING.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
 
 ## License
 If you cause the decadence of Earth running this horrid code, I am not liable. Also take care <3
