@@ -23,13 +23,13 @@ export const enUS: Translations = {
   
   // Tabs
   tabs: {
-    profile: 'USER',
-    preferences: 'PREFS',
+    profile: 'PERSONAL',
+    preferences: 'PREFERENCES',
     security: 'SECURITY',
     identities: 'IDENTITIES',
-    organizations: 'ORGS',
+    organizations: 'ORGANIZATIONS',
     mfa: 'MFA',
-    raw: 'RAW',
+    dev: 'DEVELOPMENT',
   },
   
   // Security tab
@@ -282,11 +282,18 @@ export const enUS: Translations = {
     singleUseCodes: 'Single-use codes for account recovery.',
   },
   
-  // Raw tab
+  // Dev tab
   raw: {
-    title: 'RAW',
-    rawUserData: 'RAW USER DATA',
+    title: 'DEV',
+    rawUserData: 'Raw Json Object',
     dataTitle: 'userData',
+    accessToken: 'Access Token',
+    tokenType: 'token',
+    cookieActions: 'Cookie Actions',
+    clearCookies: 'Clear Cookies',
+    clearCookiesLabel: 'Clear Cookies (/api/wipe)',
+    invalidateSession: 'Invalidate session & cookie (/api/wipe?force=true)',
+    invalidateSessionDescription: 'First logs out via Logto end session endpoint, then clears cookies (redundant but thorough)',
   },
   
   // Common

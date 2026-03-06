@@ -92,11 +92,11 @@ function Btn({
   const T = tk(tc);
   const sz = size === 'sm' ? { padding: '5px 13px', fontSize: 11, gap: 5 } : { padding: '8px 18px', fontSize: 13, gap: 7 };
   const V = {
-    primary:        { bg: T.blue,    color: '#fff',    border: T.blueEdge,  shadow: '0 1px 3px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.12)' },
-    secondary:      { bg: T.raised,  color: T.sub,     border: T.border,    shadow: '0 1px 2px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05)' },
+    primary:        { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
+    secondary:      { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
     ghost:          { bg: 'transparent', color: T.muted, border: 'transparent', shadow: 'none' },
     danger:         { bg: T.redDim,  color: T.redText, border: T.redBorder, shadow: 'none' },
-    'danger-solid': { bg: T.red,     color: '#fff',    border: adj(tc.accentRed, -25), shadow: 'inset 0 1px 0 rgba(255,255,255,0.1)' },
+    'danger-solid': { bg: T.red,     color: '#fff',    border: adj(tc.accentRed, -25), shadow: 'none' },
   };
   const v = V[variant];
   return (
@@ -1040,7 +1040,7 @@ export function SecurityTab({
       <SL tc={tc}>Two-factor authentication</SL>
       <Card tc={tc}>
         <div style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
               <IconBox tc={tc} color={totpFactor ? 'blue' : undefined}>
                 <Shield size={16} color={totpFactor ? T.blueText : T.muted} strokeWidth={1.5} />
@@ -1071,7 +1071,7 @@ export function SecurityTab({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 2 }}>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               {totpFactor ? (
                 <>
                   <Btn size="sm" variant="ghost" onClick={openTotp} tc={tc}>
@@ -1101,8 +1101,8 @@ export function SecurityTab({
       <SL tc={tc}>Backup codes</SL>
       <Card tc={tc}>
         <div style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
               <IconBox tc={tc} color={backupFactor ? 'green' : undefined}>
                 <Key size={15} color={backupFactor ? T.greenText : T.muted} strokeWidth={1.5} />
               </IconBox>
@@ -1127,7 +1127,7 @@ export function SecurityTab({
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 2 }}>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               <Btn size="sm" onClick={() => openBackup()} tc={tc}>
                 <RefreshCw size={11} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
               </Btn>

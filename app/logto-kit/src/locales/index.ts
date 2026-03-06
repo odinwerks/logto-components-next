@@ -43,7 +43,7 @@ export interface Translations {
     identities: string;
     organizations: string;
     mfa: string;
-    raw: string;
+    dev: string;
   };
   
   // Security tab
@@ -296,11 +296,18 @@ export interface Translations {
     singleUseCodes: string;
   };
   
-  // Raw tab
+  // Dev tab
   raw: {
     title: string;
     rawUserData: string;
     dataTitle: string;
+    accessToken: string;
+    tokenType: string;
+    cookieActions: string;
+    clearCookies: string;
+    clearCookiesLabel: string;
+    invalidateSession: string;
+    invalidateSessionDescription: string;
   };
   
   // Common

@@ -14,12 +14,13 @@ import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
-import { RawDataTab } from './tabs/raw-data';
+import { DevTab } from './tabs/dev';
 import { getPreferencesFromUserData, buildUpdatedCustomData } from '../../logic/preferences';
 import { UserBadge } from '../userbutton';
 
 // Import MfaVerification type
 import type { MfaVerification } from '../../logic/types';
+import { Terminal } from 'lucide-react';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -40,7 +41,7 @@ function getTabLabel(id: TabId, t: Translations): string {
     case 'security': return t.tabs.security;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
-    case 'raw': return t.tabs.raw;
+    case 'dev': return t.tabs.dev;
     case 'preferences': return t.tabs.preferences;
     default: return (id as string).toUpperCase();
   }
@@ -98,6 +99,7 @@ function getTabIcon(id: TabId) {
     case 'identities': return LinkIcon;
     case 'organizations': return BuildingIcon;
     case 'preferences': return SettingsIcon;
+    case 'dev': return Terminal;
     default: return UserIcon;
   }
 }
@@ -557,8 +559,8 @@ export function DashboardClient({
             <OrganizationsTab userData={userData} themeColors={themeColors} t={t} />
           )}
 
-          {activeTab === 'raw' && (
-            <RawDataTab userData={userData} themeColors={themeColors} t={t} />
+          {activeTab === 'dev' && (
+            <DevTab userData={userData} themeColors={themeColors} t={t} accessToken={accessToken} />
           )}
 
         </div>

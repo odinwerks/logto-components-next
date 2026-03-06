@@ -496,7 +496,7 @@ export async function updateUserPassword(
  * signOut() in isolation, with no concurrent RSC re-renders in flight.
  */
 export async function deleteUserAccount(
-  identityVerificationRecordId: string
+  _identityVerificationRecordId: string
 ): Promise<void> {
   // This is a server action - proxy handles auth, we just need user ID from API
   // ── Step 1: get user data to find userId ────────────────────────────────

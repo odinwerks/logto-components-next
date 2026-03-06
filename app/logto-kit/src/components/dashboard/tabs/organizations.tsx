@@ -22,7 +22,6 @@ export function OrganizationsTab({ userData, themeColors, t }: OrganizationsTabP
         style={{
           background: themeColors.bgSecondary,
           border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '6px',
           padding: '16px',
           marginBottom: '16px',
         }}
@@ -110,7 +109,6 @@ export function OrganizationsTab({ userData, themeColors, t }: OrganizationsTabP
         style={{
           background: themeColors.bgSecondary,
           border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '6px',
           padding: '16px',
           marginBottom: '16px',
         }}
@@ -206,7 +204,6 @@ export function OrganizationsTab({ userData, themeColors, t }: OrganizationsTabP
         style={{
           background: themeColors.bgSecondary,
           border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '6px',
           padding: '16px',
         }}
       >

@@ -182,12 +182,12 @@ export function ProfileTab({
     color: tc.textPrimary, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
   };
   const btnBase: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12,
-    fontFamily: 'inherit', fontWeight: 500, border: `1px solid ${tc.borderColor}`,
-    background: tc.bgTertiary, color: tc.textSecondary, cursor: 'pointer', flexShrink: 0,
+    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', fontSize: 11,
+    fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, border: `1px solid ${tc.borderColor}`,
+    background: tc.bgTertiary, color: tc.textPrimary, cursor: 'pointer', flexShrink: 0, transition: 'opacity 0.15s ease',
   };
-  const btnPrimary: React.CSSProperties = { ...btnBase, background: accentBlue, color: '#fff', border: 'none' };
-  const btnDanger: React.CSSProperties = { ...btnBase, background: 'transparent', color: accentRed, border: `1px solid ${accentRed}`, padding: '8px 10px' };
+  const btnPrimary: React.CSSProperties = { ...btnBase };
+  const btnDanger: React.CSSProperties = { ...btnBase, background: 'transparent', color: accentRed, border: `1px solid ${accentRed}`, padding: '7px 11px' };
   const card: React.CSSProperties = { background: tc.bgSecondary, border: `1px solid ${tc.borderColor}`, padding: '20px 22px', marginBottom: 20 };
 
   return (

@@ -1,25 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 
-// Simple Copy Icon SVG
-const CopyIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-  </svg>
-);
-
 interface CodeBlockProps {
-  title: string;
+  title?: string;
   data: unknown;
   themeColors: ThemeColors;
   maxHeight?: string;
   copyKey?: string;
   onCopy?: (text: string, key: string) => void;
   t: Translations;
+  badge?: string;
 }
 
 export function CodeBlock({
@@ -30,69 +24,112 @@ export function CodeBlock({
   copyKey = 'default',
   onCopy,
   t,
+  badge,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
   const handleCopy = async () => {
-    const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      if (onCopy) {
-        onCopy(text, copyKey);
-      }
-      setTimeout(() => setCopied(false), 1200);
+      if (onCopy) onCopy(text, copyKey);
+      setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error('Copy failed:', err);
     }
   };
 
   return (
-    <div style={{ marginBottom: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {(title || badge) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {title && (
+            <span
+              style={{
+                color: themeColors.textTertiary,
+                fontSize: '10px',
+                fontFamily: 'var(--font-ibm-plex-mono)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                fontWeight: 600,
+              }}
+            >
+              {title}
+            </span>
+          )}
+          {badge && (
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-ibm-plex-mono)',
+                color: themeColors.accentBlue,
+                background: themeColors.accentBlue + '18',
+                border: `1px solid ${themeColors.accentBlue}30`,
+                borderRadius: '3px',
+                padding: '1px 5px',
+                letterSpacing: '0.04em',
+                fontWeight: 600,
+              }}
+            >
+              {badge}
+            </span>
+          )}
+        </div>
+      )}
+
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '6px',
-          fontFamily: 'var(--font-ibm-plex-mono)',
-        }}
+        style={{ position: 'relative' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <span style={{ color: themeColors.textTertiary, fontSize: '11px' }}>{title}</span>
-        <button
-          onClick={handleCopy}
+        <pre
           style={{
-            padding: '3px 8px',
-            background: themeColors.bgTertiary,
-            color: copied ? themeColors.accentGreen : themeColors.textPrimary,
+            background: themeColors.bgPrimary,
             border: `1px solid ${themeColors.borderColor}`,
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontSize: '10px',
+            borderRadius: '6px',
+            padding: '12px 14px',
+            margin: 0,
+            overflow: 'auto',
+            fontSize: '11.5px',
+            lineHeight: '1.6',
+            maxHeight,
+            color: themeColors.textPrimary,
             fontFamily: 'var(--font-ibm-plex-mono)',
-            transition: 'color 0.2s',
           }}
         >
-          {copied ? t.common.copied : t.common.copy}
+          {text}
+        </pre>
+
+        {/* GitHub-style hover copy button */}
+        <button
+          onClick={handleCopy}
+          title={t.common.copy}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            background: themeColors.bgSecondary,
+            border: `1px solid ${themeColors.borderColor}`,
+            borderRadius: '5px',
+            cursor: 'pointer',
+            color: copied ? themeColors.accentGreen : themeColors.textSecondary,
+            opacity: hovered || copied ? 1 : 0,
+            transform: hovered || copied ? 'scale(1)' : 'scale(0.9)',
+            transition: 'opacity 0.15s ease, transform 0.15s ease, color 0.2s ease',
+            pointerEvents: hovered ? 'auto' : 'none',
+          }}
+        >
+          {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2} />}
         </button>
       </div>
-      <pre
-        style={{
-          background: themeColors.bgPrimary,
-          border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '5px',
-          padding: '10px',
-          margin: 0,
-          overflow: 'auto',
-          fontSize: '11px',
-          lineHeight: '1.4',
-          maxHeight,
-          color: themeColors.textPrimary,
-          fontFamily: 'var(--font-ibm-plex-mono)',
-        }}
-      >
-        {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
-      </pre>
     </div>
   );
 }
@@ -105,12 +142,13 @@ interface TruncatedTokenProps {
 
 export function TruncatedToken({ token, themeColors, t }: TruncatedTokenProps) {
   const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(token);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error('Copy failed:', err);
     }
@@ -118,50 +156,59 @@ export function TruncatedToken({ token, themeColors, t }: TruncatedTokenProps) {
 
   return (
     <div
-      style={{
-        padding: '10px 14px',
-        background: themeColors.bgPrimary,
-        border: `1px solid ${themeColors.borderColor}`,
-        borderRadius: '5px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+      style={{ position: 'relative' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <pre
+      <div
         style={{
-          margin: 0,
-          color: themeColors.textPrimary,
-          fontSize: '11px',
-          fontFamily: 'var(--font-ibm-plex-mono)',
+          padding: '10px 44px 10px 14px',
+          background: themeColors.bgPrimary,
+          border: `1px solid ${themeColors.borderColor}`,
+          borderRadius: '6px',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          paddingRight: '30px',
-          lineHeight: '1.2',
         }}
       >
-        {token}
-      </pre>
+        <pre
+          style={{
+            margin: 0,
+            color: themeColors.textPrimary,
+            fontSize: '11.5px',
+            fontFamily: 'var(--font-ibm-plex-mono)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            lineHeight: '1.4',
+          }}
+        >
+          {token}
+        </pre>
+      </div>
+
       <button
         onClick={handleCopy}
+        title={t.common.copy}
         style={{
           position: 'absolute',
-          right: '6px',
           top: '50%',
-          transform: 'translateY(-50%)',
-          background: 'transparent',
-          border: 'none',
-          color: copied ? themeColors.accentGreen : themeColors.textSecondary,
-          cursor: 'pointer',
-          padding: '4px',
+          right: '8px',
+          transform: `translateY(-50%) scale(${hovered || copied ? 1 : 0.9})`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'color 0.2s',
+          width: '28px',
+          height: '28px',
+          background: themeColors.bgSecondary,
+          border: `1px solid ${themeColors.borderColor}`,
+          borderRadius: '5px',
+          cursor: 'pointer',
+          color: copied ? themeColors.accentGreen : themeColors.textSecondary,
+          opacity: hovered || copied ? 1 : 0,
+          transition: 'opacity 0.15s ease, transform 0.15s ease, color 0.2s ease',
+          pointerEvents: hovered ? 'auto' : 'none',
         }}
-        title={t.common.copy}
       >
-        <CopyIcon />
+        {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2} />}
       </button>
     </div>
   );

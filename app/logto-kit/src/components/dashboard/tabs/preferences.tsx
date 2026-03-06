@@ -136,16 +136,16 @@ export function PreferencesTab({
                     flexDirection: 'column',
                     padding: 0,
                     cursor: 'pointer',
-                    background: isSelected ? '#0c1422' : themeColors.bgSecondary,
-                    border: `1px solid ${isSelected ? '#223a62' : themeColors.borderColor}`,
-                    transition: 'background 0.15s, border-color 0.15s',
+                    background: isSelected ? themeColors.bgSecondary : themeColors.bgTertiary,
+                    border: `1px solid ${isSelected ? themeColors.textTertiary : themeColors.borderColor}`,
+                    transition: 'opacity 0.15s ease',
                     overflow: 'hidden',
                   }}
                 >
                   <div
                     style={{
                       width: '100%',
-                      borderBottom: `1px solid ${isSelected ? '#1c3050' : themeColors.borderColor}`,
+                      borderBottom: `1px solid ${themeColors.borderColor}`,
                       overflow: 'hidden',
                     }}
                   >
@@ -160,32 +160,18 @@ export function PreferencesTab({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <opt.Icon size={12} color={isSelected ? '#6a9af4' : themeColors.textTertiary} />
+                      <opt.Icon size={12} color={isSelected ? themeColors.textPrimary : themeColors.textTertiary} />
                       <span
                         style={{
                           fontFamily: 'var(--font-ibm-plex-mono)',
                           fontWeight: 500,
                           fontSize: 12,
-                          color: isSelected ? '#6a9af4' : themeColors.textSecondary,
+                          color: isSelected ? themeColors.textPrimary : themeColors.textSecondary,
                         }}
                       >
                         {opt.label}
                       </span>
                     </div>
-                    {isSelected && (
-                      <div
-                        style={{
-                          width: 14,
-                          height: 14,
-                          background: '#3060e0',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <CheckIcon />
-                      </div>
-                    )}
                   </div>
                 </button>
               );
@@ -211,7 +197,6 @@ export function PreferencesTab({
                 style={{
                   background: themeColors.bgSecondary,
                   border: `1px solid ${themeColors.borderColor}`,
-                  borderRadius: '6px',
                   padding: '14px 16px',
                 }}
               >
