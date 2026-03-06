@@ -29,6 +29,10 @@ export interface Translations {
     loadFailed: string;
     signInPrompt: string;
     signInButton: string;
+    jwtToken: string;
+    opaqueToken: string;
+    defaultUserName: string;
+    account: string;
   };
   
   // Tabs
@@ -204,6 +208,10 @@ export interface Translations {
     detailsLabel: string;
     rawTitle: string;
     rawHeading: string;
+    linkedAccounts: string;
+    connected: string;
+    idWithUserId: string;
+    unknownDetail: string;
   };
   
   // Organizations tab

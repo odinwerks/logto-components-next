@@ -15,6 +15,10 @@ export const kaGE: Translations = {
     loadFailed: 'დაშბორდის მონაცემების ჩატვირთვა ვერ მოხერხდა',
     signInPrompt: 'შედით სისტემაში, რომ ნახოთ და შეცვალოთ თქვენი პროფილის მონაცემები',
     signInButton: '[შესვლა]',
+    jwtToken: 'JWT',
+    opaqueToken: 'OPAQUE',
+    defaultUserName: 'მომხმარებელი',
+    account: 'ანგარიში',
   },
   
   // Tabs
@@ -190,6 +194,10 @@ export const kaGE: Translations = {
     detailsLabel: 'დეტალები',
     rawTitle: 'იდენტიტეტები',
     rawHeading: 'იდენტიტეტების ნედლი მონაცემები',
+    linkedAccounts: 'დაკავშირებული ანგარიშები',
+    connected: 'დაკავშირებული',
+    idWithUserId: 'ID · {userId}',
+    unknownDetail: '—',
   },
   
   // Organizations tab

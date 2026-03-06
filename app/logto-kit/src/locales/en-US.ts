@@ -15,6 +15,10 @@ export const enUS: Translations = {
     loadFailed: 'Failed to load dashboard data',
     signInPrompt: 'Sign in to view and edit your profile data',
     signInButton: '[SIGN IN]',
+    jwtToken: 'JWT',
+    opaqueToken: 'OPAQUE',
+    defaultUserName: 'User',
+    account: 'Account',
   },
   
   // Tabs
@@ -190,6 +194,10 @@ export const enUS: Translations = {
     detailsLabel: 'DETAILS',
     rawTitle: 'identities',
     rawHeading: 'RAW IDENTITIES DATA',
+    linkedAccounts: 'Linked accounts',
+    connected: 'Connected',
+    idWithUserId: 'ID · {userId}',
+    unknownDetail: '—',
   },
   
   // Organizations tab

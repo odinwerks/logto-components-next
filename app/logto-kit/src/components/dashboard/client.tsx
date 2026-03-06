@@ -333,7 +333,7 @@ export function DashboardClient({
   }, [t]);
 
   const isJwt = accessToken.split('.').length === 3;
-  const tokenPrefix = isJwt ? 'JWT' : 'OPAQUE';
+  const tokenPrefix = isJwt ? t.dashboard.jwtToken : t.dashboard.opaqueToken;
   const hasMultipleLangs = supportedLangs.length > 1;
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ export function DashboardClient({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {userData.profile?.givenName ?? 'User'}
+                  {userData.profile?.givenName ?? t.dashboard.defaultUserName}
                 </p>
                 <p
                   style={{
@@ -428,7 +428,7 @@ export function DashboardClient({
                 padding: '4px 10px 8px',
               }}
             >
-              Account
+              {t.dashboard.account}
             </p>
             {loadedTabs.map((tabId) => {
               const Icon = getTabIcon(tabId);
