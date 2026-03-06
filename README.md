@@ -4,14 +4,15 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 
 ## Features
 
-- **Terminal/Hacker Aesthetic**: OG styling with bracketed buttons, monospace fonts, and dark/light themes
+- **Clean Production UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Two-Column Layout**: Sidebar with avatar, token, and user info; main content area with tabs
-- **Full User Management**: Profile, custom data, identities, organizations, MFA, and raw data views
+- **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
+- **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
 - **Theme System**: User-created themes with ENV-selected activation and default theme mode
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering
 - **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn support
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData
-- **Auto-Refresh on Preference Change**: When theme or language is changed, tabs (profile, custom-data, raw) automatically refresh to display the latest data from the server
+- **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server
 - **Tab Configuration**: Select which tabs to display and their order via ENV variable
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route
 - **Proxy-Based Auth**: Route protection happens in middleware before page rendering
@@ -52,7 +53,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │       │   │       ├── organizations.tsx
 │   │       │   │       ├── preferences.tsx
 │   │       │   │       ├── profile.tsx
-│   │       │   │       ├── raw-data.tsx
+│   │       │   │       ├── dev.tsx
 │   │       │   │       └── security.tsx
 │   │       │   └── userbutton/
 │   │       │       └── index.tsx
@@ -170,13 +171,13 @@ Available tab IDs with their display aliases:
 | `security` | `mfa`, `2fa`, `totp` | Multi-factor authentication management |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
-| `raw` | `debug`, `data` | Raw user data view |
+| `dev` | `debug`, `data`, `raw` | Developer tools: access tokens, ID tokens, cookies, session management |
 
 ### Configuration Examples
 
 ```env
 # Show all tabs in default order
-LOAD_TABS=profile,preferences,security,identities,organizations,raw
+LOAD_TABS=profile,preferences,security,identities,organizations,dev
 
 # Show only profile, security, and preferences (in that order)
 LOAD_TABS=profile,security,preferences
@@ -351,10 +352,13 @@ npm run build
 
 ## Todo
 
-### Convert JSON Views to Full Pretty UI
+### UI Polish
 - [x] Profile tab - redesigned with proper edit UI
 - [x] Preferences tab - removed JSON editor
-- [ ] Some tabs still need love - check which ones and polish them
+- [x] Security tab - button styling unified across all tabs
+- [x] Dev tab - new developer tools tab for tokens and session management
+- [x] Identities tab - reviewed, looks good
+- [ ] Organizations - system needs to be built from scratch
 
 ### Theme Context Provider
 - [ ] Currently theme handling is internal to the dashboard
