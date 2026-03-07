@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { Dashboard } from './logto-kit/src';
+import { Dashboard } from './logto-kit';
 
 export default function HomePage() {
   return (

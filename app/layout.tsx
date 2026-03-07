@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
-import AuthWatcher from './logto-kit/src/components/auth-watcher';
+import AuthWatcher from './logto-kit/components/auth-watcher';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],

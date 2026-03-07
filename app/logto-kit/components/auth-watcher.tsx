@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * logto-kit/src/components/auth-watcher.tsx
+ * logto-kit/components/auth-watcher.tsx
  *
  * <AuthWatcher /> — the "live update by force" engine.
  *

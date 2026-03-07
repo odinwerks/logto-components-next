@@ -36,47 +36,46 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
-│   │   └── src/
-│   │       ├── components/
-│   │       │   ├── auth-watcher.tsx
-│   │       │   ├── dashboard/
-│   │       │   │   ├── client.tsx
-│   │       │   │   ├── index.tsx
-│   │       │   │   ├── Sidebar.tsx
-│   │       │   │   ├── types.ts
-│   │       │   │   ├── shared/
-│   │       │   │   │   ├── CodeBlock.tsx
-│   │       │   │   │   ├── design.tsx
-│   │       │   │   │   └── Toast.tsx
-│   │       │   │   └── tabs/
-│   │       │   │       ├── identities.tsx
-│   │       │   │       ├── organizations.tsx
-│   │       │   │       ├── preferences.tsx
-│   │       │   │       ├── profile.tsx
-│   │       │   │       ├── dev.tsx
-│   │       │   │       └── security.tsx
-│   │       │   └── userbutton/
-│   │       │       └── index.tsx
-│   │       ├── index.ts
-│   │       ├── locales/
-│   │       │   ├── en-US.ts
+│   │   ├── components/
+│   │   │   ├── auth-watcher.tsx
+│   │   │   ├── dashboard/
+│   │   │   │   ├── client.tsx
+│   │   │   │   ├── index.tsx
+│   │   │   │   ├── Sidebar.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   ├── shared/
+│   │   │   │   │   ├── CodeBlock.tsx
+│   │   │   │   │   ├── design.tsx
+│   │   │   │   │   └── Toast.tsx
+│   │   │   │   └── tabs/
+│   │   │   │       ├── identities.tsx
+│   │   │   │       ├── organizations.tsx
+│   │   │   │       ├── preferences.tsx
+│   │   │   │       ├── profile.tsx
+│   │   │   │       ├── dev.tsx
+│   │   │   │       └── security.tsx
+│   │   │   └── userbutton/
+│   │   │       └── index.tsx
+│   │   ├── index.ts
+│   │   ├── locales/
+│   │   │   ├── en-US.ts
+│   │   │   ├── index.ts
+│   │   │   └── ka-GE.ts
+│   │   ├── logic/
+│   │   │   ├── actions.ts
+│   │   │   ├── errors.ts
+│   │   │   ├── i18n.ts
+│   │   │   ├── index.ts
+│   │   │   ├── preferences.ts
+│   │   │   ├── tabs.ts
+│   │   │   ├── types.ts
+│   │   │   └── validation.ts
+│   │   └── themes/
+│   │       ├── default/
+│   │       │   ├── dark.css
 │   │       │   ├── index.ts
-│   │       │   └── ka-GE.ts
-│   │       ├── logic/
-│   │       │   ├── actions.ts
-│   │       │   ├── errors.ts
-│   │       │   ├── i18n.ts
-│   │       │   ├── index.ts
-│   │       │   ├── preferences.ts
-│   │       │   ├── tabs.ts
-│   │       │   ├── types.ts
-│   │       │   └── validation.ts
-│   │       └── themes/
-│   │           ├── default/
-│   │           │   ├── dark.css
-│   │           │   ├── index.ts
-│   │           │   └── light.css
-│   │           └── index.ts
+│   │       │   └── light.css
+│   │       └── index.ts
 │   ├── logto.ts
 │   └── page.tsx
 ├── proxy.ts
@@ -127,9 +126,9 @@ NEXT_LANG_AVAILABLE=en-US,ka-GE
 
 ## Theme System
 
-Themes are user-created and ENV-selected. Each theme lives in its own folder under `app/logto-kit/src/themes/` and is activated by setting the `THEME` environment variable.
+Themes are user-created and ENV-selected. Each theme lives in its own folder under `app/logto-kit/themes/` and is activated by setting the `THEME` environment variable.
 
-Themes are loaded from `app/logto-kit/src/themes/{THEME}/`:
+Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 
 - `dark.css` - Dark theme variables
 - `light.css` - Light theme variables
@@ -137,21 +136,21 @@ Themes are loaded from `app/logto-kit/src/themes/{THEME}/`:
 
 ### Adding a New Theme
 
-1. Create a new folder in `app/logto-kit/src/themes/{your-theme}/`
+1. Create a new folder in `app/logto-kit/themes/{your-theme}/`
 2. Add `dark.css` and `light.css` with CSS variables
 3. Add `index.ts` with theme metadata
 4. Set `THEME=your-theme` in your `.env`
 
 ## i18n System
 
-Translations are loaded from `app/logto-kit/src/locales/`:
+Translations are loaded from `app/logto-kit/locales/`:
 
 - `index.ts` - Locale loader and registry
 - `{locale-code}.ts` - Translation files (e.g., `en-US.ts`, `ka-GE.ts`)
 
 ### Adding a New Language
 
-1. Create a new file in `app/logto-kit/src/locales/{locale-code}.ts`
+1. Create a new file in `app/logto-kit/locales/{locale-code}.ts`
 2. Export a `Translations` object matching the interface
 3. Register in `locales/index.ts`
 4. Add to `LANG_AVAILABLE` in your `.env`
@@ -235,7 +234,7 @@ Note: This requires a code change. ENV-based configuration would be nice but doe
 The Dashboard is just a React component. You can import it anywhere:
 
 ```tsx
-import { Dashboard } from './logto-kit/src';
+import { Dashboard } from './logto-kit';
 
 export default function AdminPage() {
   return (
@@ -251,20 +250,20 @@ This is the main use case - drop it into your app wherever you need it.
 
 ### Adding a Custom Tab
 
-1. Create your tab component in `app/logto-kit/src/components/dashboard/tabs/`
+1. Create your tab component in `app/logto-kit/components/dashboard/tabs/`
 2. Add to `LOAD_TABS` in your `.env`
 
 The tab system is pretty simple - look at existing tabs for examples.
 
 ### Adding a Theme
 
-1. Create a folder in `app/logto-kit/src/themes/{your-theme}/`
+1. Create a folder in `app/logto-kit/themes/{your-theme}/`
 2. Add `dark.css` and `light.css` with your CSS variables
 3. Set `THEME=your-theme` in `.env`
 
 ### Adding a Language
 
-1. Create `app/logto-kit/src/locales/{locale-code}.ts`
+1. Create `app/logto-kit/locales/{locale-code}.ts`
 2. Follow the pattern in existing locale files
 3. Add to `LANG_AVAILABLE` in `.env`
 
