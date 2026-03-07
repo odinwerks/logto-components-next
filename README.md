@@ -141,6 +141,45 @@ Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 3. Add `index.ts` with theme metadata
 4. Set `THEME=your-theme` in your `.env`
 
+### Theme Mode Provider
+
+The dashboard provides a `ThemeModeProvider` and `useThemeMode()` hook for theme management anywhere in your app.
+
+#### useThemeMode Hook
+
+Any component can use the theme context:
+
+```tsx
+import { useThemeMode } from './logto-kit';
+
+function MyComponent() {
+  const { theme, themeColors, setTheme, toggleTheme } = useThemeMode();
+  
+  return (
+    <button onClick={toggleTheme}>
+      Current: {theme}
+    </button>
+  );
+}
+```
+
+The hook returns:
+- `theme` - `'dark' | 'light'`
+- `themeColors` - ThemeColors object with all color values
+- `setTheme(theme)` - Set specific theme
+- `toggleTheme()` - Toggle between dark/light
+
+#### Theme Persistence
+
+Theme is stored in sessionStorage for instant switching, then synced to Logto customData for cross-device persistence.
+
+**Priority:**
+1. sessionStorage (current session - instant)
+2. Logto customData.Preferences.theme (cross-device)
+3. ENV DEFAULT_THEME_MODE (fallback)
+
+This ensures instant theme switching without race conditions, even when rapidly toggling themes.
+
 ## i18n System
 
 Translations are loaded from `app/logto-kit/locales/`:
