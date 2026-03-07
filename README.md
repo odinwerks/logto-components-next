@@ -402,7 +402,7 @@ npm run build
 ### Theme Context Provider
 - [ ] Currently theme handling is internal to the dashboard
 - [ ] Need to export theme context so consuming apps can sync theme
-- [ ] For now: simple "is dark / is light" hook
+- [x] For now: simple "is dark / is light" hook
 - [ ] Later: full context provider that pulls theme from dashboard
 
 ### UserButton
