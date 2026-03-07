@@ -1,6 +1,7 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { DashboardClient, UserProfile } from './client';
 import { ThemeModeProvider } from '../theme-mode';
+import { UserDataProvider } from '../user-data-context';
 import {
   updateUserBasicInfo,
   updateUserProfile,
@@ -93,8 +94,9 @@ export async function Dashboard() {
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
 
   return (
-    <ThemeModeProvider initialTheme={resolvedTheme}>
-      <DashboardClient
+    <UserDataProvider userData={result.userData}>
+      <ThemeModeProvider initialTheme={resolvedTheme}>
+        <DashboardClient
         initialData={{
           userData: result.userData,
           accessToken: result.accessToken,
@@ -126,6 +128,7 @@ export async function Dashboard() {
         onSignOut={signOutUser}
       />
     </ThemeModeProvider>
+    </UserDataProvider>
   );
 }
 

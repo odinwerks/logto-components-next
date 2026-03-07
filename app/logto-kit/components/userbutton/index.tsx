@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { UserData } from '../../logic/types';
 import { useThemeMode } from '../theme-mode';
+import { useUserDataContext } from '../user-data-context';
 import { fetchUserBadgeData } from '../../logic/actions';
 import { Dashboard } from '../dashboard';
 import { User } from 'lucide-react';
@@ -258,19 +259,29 @@ export function UserButton({
   const { themeColors: contextThemeColors } = useThemeMode();
   const themeColors = providedThemeColors ?? contextThemeColors;
   
-  const [userData, setUserData] = useState<UserData | null>(providedUserData ?? null);
-  const [loading, setLoading] = useState(!providedUserData);
+  const contextUserData = useUserDataContext();
+  
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
+    // Priority: 1. Prop, 2. Context, 3. Fetch
     if (providedUserData) {
       setUserData(providedUserData);
       setLoading(false);
       return;
     }
 
+    if (contextUserData) {
+      setUserData(contextUserData);
+      setLoading(false);
+      return;
+    }
+
+    // No prop and no context - fetch from server
     const timeout = setTimeout(() => {
       setShowFallback(true);
     }, 1500);
@@ -290,7 +301,7 @@ export function UserButton({
       });
 
     return () => clearTimeout(timeout);
-  }, [providedUserData]);
+  }, [providedUserData, contextUserData]);
 
   const handleClick = useCallback(() => {
     if (typeof customAction === 'function') {
@@ -382,18 +393,28 @@ export function UserBadge({
   const { themeColors: contextThemeColors } = useThemeMode();
   const themeColors = providedThemeColors ?? contextThemeColors;
   
-  const [userData, setUserData] = useState<UserData | null>(providedUserData ?? null);
-  const [loading, setLoading] = useState(!providedUserData);
+  const contextUserData = useUserDataContext();
+  
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
+    // Priority: 1. Prop, 2. Context, 3. Fetch
     if (providedUserData) {
       setUserData(providedUserData);
       setLoading(false);
       return;
     }
 
+    if (contextUserData) {
+      setUserData(contextUserData);
+      setLoading(false);
+      return;
+    }
+
+    // No prop and no context - fetch from server
     const timeout = setTimeout(() => {
       setShowFallback(true);
     }, 1500);
@@ -413,7 +434,7 @@ export function UserBadge({
       });
 
     return () => clearTimeout(timeout);
-  }, [providedUserData]);
+  }, [providedUserData, contextUserData]);
 
   const containerStyle: React.CSSProperties = {
     display: 'inline-flex',
