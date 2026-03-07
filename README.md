@@ -181,6 +181,68 @@ Theme is stored in sessionStorage for instant switching, then synced to Logto cu
 
 This ensures instant theme switching without race conditions, even when rapidly toggling themes.
 
+### UserDataProvider
+
+The dashboard provides a `UserDataProvider` and `useUserDataContext()` hook for centralized user data management.
+
+```tsx
+import { useUserDataContext } from './logto-kit';
+
+function MyComponent() {
+  const userData = useUserDataContext();
+  // Returns UserData or null if not available
+}
+```
+
+#### Priority
+
+1. **Prop** - if `userData` prop passed to component, use it
+2. **Context** - if inside Dashboard, use context (auto-updates when profile changes!)
+3. **Fetch** - standalone button outside Dashboard, fetch from server on mount
+
+Data is cached in sessionStorage for instant access across components.
+
+### UserButton & UserBadge
+
+The dashboard exports two components for displaying user avatars:
+
+- **UserButton** - clickable, opens Dashboard modal on click
+- **UserBadge** - non-interactive display only
+
+Both support optional props but work fully standalone:
+
+```tsx
+import { UserButton, UserBadge } from './logto-kit';
+
+// Fully automatic (standalone - fetches its own data)
+<UserButton />
+
+// With options
+<UserButton Size="48px" Canvas="Avatar" shape="circle" />
+
+// With custom click handler
+<UserButton do={() => console.log('clicked!')} />
+
+// Non-interactive badge
+<UserBadge Size="32px" Canvas="Avatar" shape="sq" />
+
+// Inside Dashboard - no props needed, uses context automatically
+<UserBadge Size="32px" Canvas="Avatar" shape="sq" />
+```
+
+#### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `Canvas` | `'Avatar' \| 'Initials'` | `'Initials'` | Display mode |
+| `Size` | `string` | `'6.25rem'` | CSS size (e.g., `'48px'`, `'3rem'`) |
+| `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape |
+| `userData` | `UserData` | - | User data (optional, auto-fetched if not provided) |
+| `themeColors` | `ThemeColors` | - | Theme colors (optional, auto-detected if not provided) |
+| `do` | `() => void` | - | UserButton only: custom click handler |
+
+If no user data is available for 1.5 seconds, displays a fallback user icon.
+
 ## i18n System
 
 Translations are loaded from `app/logto-kit/locales/`:
@@ -400,14 +462,14 @@ npm run build
 - [ ] Organizations - system needs to be built from scratch
 
 ### Theme Context Provider
-- [ ] Currently theme handling is internal to the dashboard
-- [ ] Need to export theme context so consuming apps can sync theme
+- [x] Currently theme handling is internal to the dashboard
+- [x] Need to export theme context so consuming apps can sync theme
 - [x] For now: simple "is dark / is light" hook
-- [ ] Later: full context provider that pulls theme from dashboard
+- [x] Later: full context provider that pulls theme from dashboard
 
 ### UserButton
-- [ ] UserBadge exists but could use finishing touches
-- [ ] Make it properly reusable as a standalone component
+- [x] UserBadge exists but could use finishing touches
+- [x] Make it properly reusable as a standalone component
 
 ### Conquer All.
 - [ ] [DOMINATE. ABSOLUTELY. EVERYTHING.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
