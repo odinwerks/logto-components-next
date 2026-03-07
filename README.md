@@ -4,7 +4,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 
 ## Features
 
-- **Clean Production UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
+- **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Two-Column Layout**: Sidebar with avatar, token, and user info; main content area with tabs
 - **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
 - **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
