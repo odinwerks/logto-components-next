@@ -2,7 +2,7 @@
 
 import { getAccessToken } from '@logto/next/server-actions';
 import { redirect } from 'next/navigation';
-import { logtoConfig, getManagementApiToken } from '../../../logto';
+import { logtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
 
 // ============================================================================
