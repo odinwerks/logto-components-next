@@ -4,9 +4,8 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
-import type { ThemeColors } from '../../themes';
 import type { Translations } from '../../locales';
-import { darkColors, lightColors } from '../../themes';
+import { useThemeMode } from '../theme-mode';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
@@ -15,7 +14,7 @@ import { SecurityTab } from './tabs/security';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
-import { getPreferencesFromUserData, buildUpdatedCustomData } from '../../logic/preferences';
+import { buildUpdatedCustomData } from '../../logic/preferences';
 import { UserBadge } from '../userbutton';
 
 // Import MfaVerification type
@@ -115,7 +114,6 @@ interface DashboardClientProps {
   supportedLangs: string[];
   initialLang: string;
   loadedTabs: TabId[];
-  initialTheme?: 'dark' | 'light';
 
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
@@ -150,7 +148,6 @@ export function DashboardClient({
   supportedLangs,
   initialLang,
   loadedTabs,
-  initialTheme = 'dark',
   onUpdateBasicInfo,
   onUpdateAvatarUrl,
   onUpdateProfile,
@@ -174,8 +171,7 @@ export function DashboardClient({
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState<'dark' | 'light'>(initialTheme);
-  const themeColors = useMemo<ThemeColors>(() => (theme === 'dark' ? darkColors : lightColors), [theme]);
+  const { theme, themeColors, setTheme } = useThemeMode();
 
   // ── Language ───────────────────────────────────────────────────────────────
   const [lang, setLang] = useState<string>(initialLang);
@@ -231,19 +227,17 @@ export function DashboardClient({
   }, [router]);
 
   // ── Preferences persistence ────────────────────────────────────────────────
-  const prefSyncedRef = useRef(false);
+  // Theme is handled by provider (sessionStorage), we just sync to Logto for cross-device
   const userDataRef = useRef(userData);
   userDataRef.current = userData;
 
-  const themeRef = useRef<'dark' | 'light'>(initialTheme);
   const langRef = useRef<string>(initialLang);
-  themeRef.current = theme;
   langRef.current = lang;
 
   const persistPreferences = useCallback(
     async (updates: Partial<{ theme: 'dark' | 'light'; lang: string }>) => {
       const complete = {
-        theme: updates.theme ?? themeRef.current,
+        theme: updates.theme ?? theme,
         lang:  updates.lang  ?? langRef.current,
       };
       try {
@@ -253,51 +247,19 @@ export function DashboardClient({
         console.error('[preferences] Failed to persist:', err);
       }
     },
-    [onUpdateCustomData]
+    [onUpdateCustomData, theme]
   );
 
-  useEffect(() => {
-    if (prefSyncedRef.current) return;
-    prefSyncedRef.current = true;
-
-    const prefs = getPreferencesFromUserData(userData);
-
-    if (prefs) {
-      let shouldPersist = false;
-
-      if (prefs.theme && prefs.theme !== initialTheme) {
-        setTheme(prefs.theme);
-      }
-
-      if (prefs.lang && supportedLangs.includes(prefs.lang) && prefs.lang !== initialLang) {
-        setLang(prefs.lang);
-      }
-
-      if (prefs.lang && !supportedLangs.includes(prefs.lang)) {
-        shouldPersist = true;
-      }
-
-      if (shouldPersist) {
-        persistPreferences({ theme: prefs.theme, lang: supportedLangs[0] });
-      }
-    } else {
-      persistPreferences({ theme: initialTheme, lang: initialLang });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const toggleTheme = useCallback(async () => {
+  const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    await persistPreferences({ theme: next });
-    router.refresh();
-  }, [theme, persistPreferences, router]);
+    persistPreferences({ theme: next });
+  }, [theme, setTheme, persistPreferences]);
 
-  const handleThemeChange = useCallback(async (newTheme: 'dark' | 'light') => {
+  const handleThemeChange = useCallback((newTheme: 'dark' | 'light') => {
     setTheme(newTheme);
-    await persistPreferences({ theme: newTheme });
-    router.refresh();
-  }, [persistPreferences, router]);
+    persistPreferences({ theme: newTheme });
+  }, [setTheme, persistPreferences]);
 
   const handleLangChange = useCallback(async (code: string) => {
     setLang(code);

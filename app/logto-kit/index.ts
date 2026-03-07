@@ -1,6 +1,9 @@
 
 export { Dashboard } from './components/dashboard';
 
+export { ThemeModeProvider, useThemeMode } from './components/theme-mode';
+export type { ThemeColors } from './components/theme-mode';
+
 export * from './logic';
 
 export * from './components/dashboard';

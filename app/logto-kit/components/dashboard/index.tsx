@@ -1,5 +1,6 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { DashboardClient, UserProfile } from './client';
+import { ThemeModeProvider } from '../theme-mode';
 import {
   updateUserBasicInfo,
   updateUserProfile,
@@ -28,6 +29,7 @@ import { getTranslations, getMainLocale, getAllTranslations } from '../../locale
 import { getDefaultThemeMode } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
+import { getPreferencesFromUserData } from '../../logic/preferences';
 
 export async function Dashboard() {
   // ── Locale & translations ──────────────────────────────────────────────────
@@ -85,39 +87,45 @@ export async function Dashboard() {
     );
   }
 
+  // ── Resolve theme from user preferences or default ─────────────────────────
+  // Provider checks sessionStorage first, falls back to this value
+  const userPrefs = getPreferencesFromUserData(result.userData);
+  const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
+
   return (
-    <DashboardClient
-      initialData={{
-        userData: result.userData,
-        accessToken: result.accessToken,
-      }}
-      translations={translations}
-      allTranslations={allTranslations}
-      supportedLangs={supportedLangs}
-      initialLang={locale}
-      loadedTabs={loadedTabs}
-      initialTheme={defaultThemeMode}
-      onUpdateBasicInfo={updateUserBasicInfo}
-      onUpdateAvatarUrl={updateAvatarUrl}
-      onUpdateProfile={updateUserProfile}
-      onUpdateCustomData={updateUserCustomData}
-      onVerifyPassword={verifyPasswordForIdentity}
-      onSendEmailVerification={sendEmailVerificationCode}
-      onSendPhoneVerification={sendPhoneVerificationCode}
-      onVerifyCode={verifyVerificationCode}
-      onUpdateEmail={updateEmailWithVerification}
-      onUpdatePhone={updatePhoneWithVerification}
-      onRemoveEmail={removeUserEmail}
-      onRemovePhone={removeUserPhone}
-      onGetMfaVerifications={getMfaVerifications}
-      onGenerateTotpSecret={generateTotpSecret}
-      onAddMfaVerification={addMfaVerification}
-      onDeleteMfaVerification={deleteMfaVerification}
-      onGenerateBackupCodes={generateBackupCodes}
-      onUpdatePassword={updateUserPassword}
-      onDeleteAccount={deleteUserAccount}
-      onSignOut={signOutUser}
-    />
+    <ThemeModeProvider initialTheme={resolvedTheme}>
+      <DashboardClient
+        initialData={{
+          userData: result.userData,
+          accessToken: result.accessToken,
+        }}
+        translations={translations}
+        allTranslations={allTranslations}
+        supportedLangs={supportedLangs}
+        initialLang={locale}
+        loadedTabs={loadedTabs}
+        onUpdateBasicInfo={updateUserBasicInfo}
+        onUpdateAvatarUrl={updateAvatarUrl}
+        onUpdateProfile={updateUserProfile}
+        onUpdateCustomData={updateUserCustomData}
+        onVerifyPassword={verifyPasswordForIdentity}
+        onSendEmailVerification={sendEmailVerificationCode}
+        onSendPhoneVerification={sendPhoneVerificationCode}
+        onVerifyCode={verifyVerificationCode}
+        onUpdateEmail={updateEmailWithVerification}
+        onUpdatePhone={updatePhoneWithVerification}
+        onRemoveEmail={removeUserEmail}
+        onRemovePhone={removeUserPhone}
+        onGetMfaVerifications={getMfaVerifications}
+        onGenerateTotpSecret={generateTotpSecret}
+        onAddMfaVerification={addMfaVerification}
+        onDeleteMfaVerification={deleteMfaVerification}
+        onGenerateBackupCodes={generateBackupCodes}
+        onUpdatePassword={updateUserPassword}
+        onDeleteAccount={deleteUserAccount}
+        onSignOut={signOutUser}
+      />
+    </ThemeModeProvider>
   );
 }
 
