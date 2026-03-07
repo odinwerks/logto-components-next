@@ -3,8 +3,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { UserData } from '../../logic/types';
-import type { ThemeColors } from '../../themes';
+import { useThemeMode } from '../theme-mode';
+import { fetchUserBadgeData } from '../../logic/actions';
 import { Dashboard } from '../dashboard';
+import { User } from 'lucide-react';
 
 // ============================================================================
 // Helpers
@@ -35,8 +37,10 @@ export interface UserButtonProps {
   Size?: string;
   /** Shape of the avatar container. */
   shape?: 'circle' | 'sq' | 'rsq';
-  userData: UserData;
-  themeColors: ThemeColors;
+  /** User data - fetches automatically if not provided */
+  userData?: UserData;
+  /** Theme colors - uses ThemeModeProvider if not provided */
+  themeColors?: ReturnType<typeof useThemeMode>['themeColors'];
   /**
    * Optional custom click handler. When provided, this function is called
    * instead of opening the Dashboard modal. Useful for custom integrations.
@@ -48,8 +52,8 @@ export interface UserBadgeProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
   shape?: 'circle' | 'sq' | 'rsq';
-  userData: UserData;
-  themeColors: ThemeColors;
+  userData?: UserData;
+  themeColors?: ReturnType<typeof useThemeMode>['themeColors'];
   // NOTE: `do` is intentionally omitted — the badge is non-interactive.
 }
 
@@ -59,13 +63,12 @@ export interface UserBadgeProps {
 
 interface DashboardModalProps {
   onClose: () => void;
-  themeColors: ThemeColors;
+  themeColors: ReturnType<typeof useThemeMode>['themeColors'];
 }
 
 function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape key
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -74,7 +77,6 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // Prevent body scroll while modal is open
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -144,7 +146,6 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
 
   return createPortal(
     <>
-      {/* Keyframe injection — only rendered once per mount */}
       <style>{`
         @keyframes ub-fade-in {
           from { opacity: 0; }
@@ -158,7 +159,6 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
 
       <div ref={overlayRef} style={overlayStyle} onClick={handleOverlayClick}>
         <div style={dialogStyle} role="dialog" aria-modal="true">
-          {/* Close button */}
           <button
             style={closeBtnStyle}
             onClick={onClose}
@@ -175,7 +175,6 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
             ✕
           </button>
 
-          {/* Dashboard content */}
           <div style={innerStyle}>
             <Dashboard />
           </div>
@@ -195,7 +194,7 @@ interface AvatarCoreProps {
   Size: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData: UserData;
-  themeColors: ThemeColors;
+  themeColors: ReturnType<typeof useThemeMode>['themeColors'];
   imageFailed: boolean;
   onImageError: () => void;
 }
@@ -252,12 +251,46 @@ export function UserButton({
   Canvas,
   Size = '6.25rem',
   shape,
-  userData,
-  themeColors,
+  userData: providedUserData,
+  themeColors: providedThemeColors,
   do: customAction,
 }: UserButtonProps) {
+  const { themeColors: contextThemeColors } = useThemeMode();
+  const themeColors = providedThemeColors ?? contextThemeColors;
+  
+  const [userData, setUserData] = useState<UserData | null>(providedUserData ?? null);
+  const [loading, setLoading] = useState(!providedUserData);
+  const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (providedUserData) {
+      setUserData(providedUserData);
+      setLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setShowFallback(true);
+    }, 1500);
+
+    fetchUserBadgeData()
+      .then((result) => {
+        if (result.success) {
+          setUserData(result.userData);
+        }
+      })
+      .catch(() => {
+        setShowFallback(true);
+      })
+      .finally(() => {
+        setLoading(false);
+        clearTimeout(timeout);
+      });
+
+    return () => clearTimeout(timeout);
+  }, [providedUserData]);
 
   const handleClick = useCallback(() => {
     if (typeof customAction === 'function') {
@@ -278,6 +311,42 @@ export function UserButton({
     transition: 'opacity 0.15s, transform 0.15s',
   };
 
+  const renderAvatar = () => {
+    if (loading || !userData) {
+      if (showFallback) {
+        const sizeNum = parseFloat(Size);
+        return (
+          <div style={{
+            width: Size,
+            height: Size,
+            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
+            border: `2px solid ${themeColors.borderColor}`,
+            background: themeColors.bgTertiary,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: themeColors.textTertiary,
+          }}>
+            <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
+          </div>
+        );
+      }
+      return null;
+    }
+
+    return (
+      <AvatarCore
+        Canvas={Canvas}
+        Size={Size}
+        shape={shape}
+        userData={userData}
+        themeColors={themeColors}
+        imageFailed={imageFailed}
+        onImageError={() => setImageFailed(true)}
+      />
+    );
+  };
+
   return (
     <>
       <button
@@ -289,15 +358,7 @@ export function UserButton({
         onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.95)'; }}
         onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
       >
-        <AvatarCore
-          Canvas={Canvas}
-          Size={Size}
-          shape={shape}
-          userData={userData}
-          themeColors={themeColors}
-          imageFailed={imageFailed}
-          onImageError={() => setImageFailed(true)}
-        />
+        {renderAvatar()}
       </button>
 
       {modalOpen && (
@@ -315,20 +376,76 @@ export function UserBadge({
   Canvas,
   Size = '6.25rem',
   shape,
-  userData,
-  themeColors,
+  userData: providedUserData,
+  themeColors: providedThemeColors,
 }: UserBadgeProps) {
+  const { themeColors: contextThemeColors } = useThemeMode();
+  const themeColors = providedThemeColors ?? contextThemeColors;
+  
+  const [userData, setUserData] = useState<UserData | null>(providedUserData ?? null);
+  const [loading, setLoading] = useState(!providedUserData);
+  const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    if (providedUserData) {
+      setUserData(providedUserData);
+      setLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setShowFallback(true);
+    }, 1500);
+
+    fetchUserBadgeData()
+      .then((result) => {
+        if (result.success) {
+          setUserData(result.userData);
+        }
+      })
+      .catch(() => {
+        setShowFallback(true);
+      })
+      .finally(() => {
+        setLoading(false);
+        clearTimeout(timeout);
+      });
+
+    return () => clearTimeout(timeout);
+  }, [providedUserData]);
 
   const containerStyle: React.CSSProperties = {
     display: 'inline-flex',
     cursor: 'default',
     userSelect: 'none',
-    pointerEvents: 'none', // fully non-interactive
+    pointerEvents: 'none',
   };
 
-  return (
-    <div style={containerStyle} aria-hidden="true">
+  const renderAvatar = () => {
+    if (loading || !userData) {
+      if (showFallback) {
+        const sizeNum = parseFloat(Size);
+        return (
+          <div style={{
+            width: Size,
+            height: Size,
+            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
+            border: `2px solid ${themeColors.borderColor}`,
+            background: themeColors.bgTertiary,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: themeColors.textTertiary,
+          }}>
+            <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
+          </div>
+        );
+      }
+      return null;
+    }
+
+    return (
       <AvatarCore
         Canvas={Canvas}
         Size={Size}
@@ -338,6 +455,12 @@ export function UserBadge({
         imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
       />
+    );
+  };
+
+  return (
+    <div style={containerStyle} aria-hidden="true">
+      {renderAvatar()}
     </div>
   );
 }

@@ -347,7 +347,7 @@ export function DashboardClient({
           {/* User Block */}
           <div style={{ padding: '16px 14px 15px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <UserBadge userData={userData} themeColors={themeColors} Size="32px" Canvas="Avatar" shape="sq" />
+              <UserBadge Size="32px" Canvas="Avatar" shape="sq" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
                   style={{

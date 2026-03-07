@@ -116,6 +116,42 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
     }
     
     // All other errors → redirect to sign-in
+      redirect('/api/auth/sign-in');
+  }
+}
+
+// ============================================================================
+// Lightweight User Data Fetch (For UserButton/UserBadge standalone usage)
+// ============================================================================
+
+export async function fetchUserBadgeData(): Promise<DashboardResult> {
+  try {
+    const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
+      const token = await getTokenForServerAction();
+      const res = await makeRequest('/api/my-account');
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Logto API ${res.status}: ${errorText.substring(0, 200)}`);
+      }
+
+      return {
+        success: true,
+        userData: await res.json() as UserData,
+        accessToken: token,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    console.error('UserBadge data fetch error:', error);
+    
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    
+    if (errorMsg.includes('Cookies can only be modified')) {
+      redirect('/api/wipe');
+    }
+    
     redirect('/api/auth/sign-in');
   }
 }
