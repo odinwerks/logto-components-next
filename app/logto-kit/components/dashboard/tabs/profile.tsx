@@ -199,7 +199,14 @@ export function ProfileTab({
             <UserBadge
               Canvas={badgeDisplayUrl ? 'Avatar' : 'Initials'}
               Size="72px" shape="sq"
-              userData={{ ...userData, avatar: badgeDisplayUrl || undefined }}
+              userData={{
+                ...userData,
+                profile: {
+                  givenName: givenName,
+                  familyName: familyName,
+                },
+                avatar: badgeDisplayUrl || undefined
+              }}
             />
             {localPreview && !avatarLoading && (
               <div style={{ position: 'absolute', bottom: -6, left: 0, right: 0, textAlign: 'center', fontSize: 9, fontFamily: 'var(--font-ibm-plex-mono)', color: accentBlue, letterSpacing: '0.04em' }}>
