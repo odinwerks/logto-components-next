@@ -2,6 +2,8 @@
 
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
+import { useThemeMode } from '../../handlers/theme-mode';
+import { useLangMode } from '../../handlers/lang-mode';
 
 function SunIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
@@ -86,52 +88,46 @@ function ThemeSVG({ mode }: { mode: 'light' | 'dark' }) {
 interface PreferencesTabProps {
   themeColors: ThemeColors;
   t: Translations;
-  theme?: 'dark' | 'light';
-  lang?: string;
   supportedLangs?: string[];
-  onThemeChange?: (theme: 'dark' | 'light') => void;
-  onLangChange?: (lang: string) => void;
 }
 
 export function PreferencesTab({
   themeColors,
   t,
-  theme,
-  lang,
   supportedLangs,
-  onThemeChange,
-  onLangChange,
 }: PreferencesTabProps) {
+  const { theme, setTheme } = useThemeMode();
+  const { lang, setLang } = useLangMode();
+
   return (
     <div>
       {/* Theme & Language Settings */}
-      {(onThemeChange || onLangChange) && (
-        <div style={{ marginBottom: 24 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-ibm-plex-mono)',
-              fontWeight: 600,
-              fontSize: 10.5,
-              color: themeColors.textTertiary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.09em',
-              marginBottom: 12,
-            }}
-          >
-            {t.common.appearance}
-          </div>
+      <div style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-ibm-plex-mono)',
+            fontWeight: 600,
+            fontSize: 10.5,
+            color: themeColors.textTertiary,
+            textTransform: 'uppercase',
+            letterSpacing: '0.09em',
+            marginBottom: 12,
+          }}
+        >
+          {t.common.appearance}
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 26 }}>
-            {[
-              { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
-              { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
-            ].map((opt) => {
-              const isSelected = theme === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => onThemeChange?.(opt.id as 'dark' | 'light')}
-                  style={{
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 26 }}>
+          {[
+            { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
+            { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
+          ].map((opt) => {
+            const isSelected = theme === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => setTheme(opt.id as 'dark' | 'light')}
+                style={{
                     display: 'flex',
                     flexDirection: 'column',
                     padding: 0,
@@ -178,7 +174,7 @@ export function PreferencesTab({
             })}
           </div>
 
-          {onLangChange && supportedLangs && supportedLangs.length > 0 && (
+          {supportedLangs && supportedLangs.length > 0 && (
             <>
               <div
                 style={{
@@ -203,7 +199,7 @@ export function PreferencesTab({
                 <div style={{ position: 'relative' }}>
                   <select
                     value={lang}
-                    onChange={(e) => onLangChange(e.target.value)}
+                    onChange={(e) => setLang(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '9px 36px 9px 12px',
@@ -242,7 +238,6 @@ export function PreferencesTab({
             </>
           )}
         </div>
-      )}
     </div>
   );
 }

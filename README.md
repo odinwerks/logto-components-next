@@ -39,6 +39,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   ├── components/
 │   │   │   ├── handlers/
 │   │   │   │   ├── auth-watcher.tsx
+│   │   │   │   ├── lang-mode.tsx
 │   │   │   │   ├── theme-mode.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
@@ -172,16 +173,69 @@ The hook returns:
 - `setTheme(theme)` - Set specific theme
 - `toggleTheme()` - Toggle between dark/light
 
-#### Theme Persistence
+#### ThemeModeProvider Props
 
-Theme is stored in sessionStorage for instant switching, then synced to Logto customData for cross-device persistence.
+```tsx
+<ThemeModeProvider 
+  initialTheme="dark" 
+  onUpdateCustomData={async (data) => { /* save to Logto */ }}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
+| `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist theme to Logto customData |
+
+When `onUpdateCustomData` is provided, theme changes are automatically synced to Logto for cross-device persistence.
+
+### LangModeProvider
+
+The dashboard provides a `LangModeProvider` and `useLangMode()` hook for language management anywhere in your app.
+
+#### useLangMode Hook
+
+```tsx
+import { useLangMode } from './logto-kit';
+
+function MyComponent() {
+  const { lang, setLang } = useLangMode();
+  
+  return (
+    <select value={lang} onChange={(e) => setLang(e.target.value)}>
+      <option value="en-US">English</option>
+      <option value="ka-GE">Georgian</option>
+    </select>
+  );
+}
+```
+
+The hook returns:
+- `lang` - Current language code (e.g., `'en-US'`, `'ka-GE'`)
+- `setLang(lang)` - Set specific language
+
+#### LangModeProvider Props
+
+```tsx
+<LangModeProvider 
+  initialLang="en-US"
+  onUpdateCustomData={async (data) => { /* save to Logto */ }}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
+| `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist lang to Logto customData |
+
+#### Lang Persistence
+
+Language is stored in sessionStorage for instant switching, then synced to Logto customData for cross-device persistence.
 
 **Priority:**
 1. sessionStorage (current session - instant)
-2. Logto customData.Preferences.theme (cross-device)
-3. ENV DEFAULT_THEME_MODE (fallback)
-
-This ensures instant theme switching without race conditions, even when rapidly toggling themes.
+2. Logto customData.Preferences.lang (cross-device)
+3. ENV LANG_MAIN (fallback)
 
 ### UserDataProvider
 
@@ -196,13 +250,32 @@ function MyComponent() {
 }
 ```
 
-#### Priority
+#### UserDataProvider Props
+
+```tsx
+<UserDataProvider userData={userData}>
+  {children}
+</UserDataProvider>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `userData` | `UserData` | The user data object to provide |
+
+#### SessionStorage Caching
+
+User data is automatically cached in sessionStorage under the key `user-data`. This enables:
+- Instant access across components without re-fetching
+- Persistence across page navigations within the same session
+- Automatic hydration on component mount
+
+#### Data Priority
+
+When using components like `UserButton` or `UserBadge`:
 
 1. **Prop** - if `userData` prop passed to component, use it
 2. **Context** - if inside Dashboard, use context (auto-updates when profile changes!)
 3. **Fetch** - standalone button outside Dashboard, fetch from server on mount
-
-Data is cached in sessionStorage for instant access across components.
 
 ### UserButton & UserBadge
 
@@ -211,7 +284,7 @@ The dashboard exports two components for displaying user avatars:
 - **UserButton** - clickable, opens Dashboard modal on click
 - **UserBadge** - non-interactive display only
 
-Both support optional props but work fully standalone:
+Both components work **fully standalone** - they automatically fetch user data if not provided via props or context:
 
 ```tsx
 import { UserButton, UserBadge } from './logto-kit';
@@ -231,6 +304,19 @@ import { UserButton, UserBadge } from './logto-kit';
 // Inside Dashboard - no props needed, uses context automatically
 <UserBadge Size="32px" Canvas="Avatar" shape="sq" />
 ```
+
+#### How Auto-Fetching Works
+
+When used outside the Dashboard:
+
+1. **1.5s timeout** - Waits up to 1.5 seconds for data
+2. **Fallback icon** - If no data arrives, shows a user icon placeholder
+3. **Internal fetch** - Calls `fetchUserBadgeData()` to get user info from `/api/my-account`
+
+The component uses the priority system:
+1. **Prop** - if `userData` prop passed, use it
+2. **Context** - if inside Dashboard, use `UserDataProvider` context
+3. **Fetch** - standalone, fetch from server automatically
 
 #### Props
 
@@ -352,6 +438,32 @@ export default function AdminPage() {
 
 This is the main use case - drop it into your app wherever you need it.
 
+### Dashboard Provider Structure
+
+The Dashboard component automatically wraps your app with three context providers:
+
+```tsx
+<UserDataProvider userData={userData}>
+  <ThemeModeProvider initialTheme={theme} onUpdateCustomData={updateCustomData}>
+    <LangModeProvider initialLang={lang} onUpdateCustomData={updateCustomData}>
+      <DashboardClient ... />
+    </LangModeProvider>
+  </ThemeModeProvider>
+</UserDataProvider>
+```
+
+This means:
+- **UserDataProvider** - Provides user data to all child components
+- **ThemeModeProvider** - Manages theme state with automatic persistence to Logto
+- **LangModeProvider** - Manages language state with automatic persistence to Logto
+
+All three providers expose hooks that child components can use:
+- `useUserDataContext()` - Access user data
+- `useThemeMode()` - Access theme and themeColors
+- `useLangMode()` - Access current language
+
+The preferences tab no longer needs props passed to it - it uses the hooks directly!
+
 ### Adding a Custom Tab
 
 1. Create your tab component in `app/logto-kit/components/dashboard/tabs/`
@@ -468,10 +580,25 @@ npm run build
 - [x] Need to export theme context so consuming apps can sync theme
 - [x] For now: simple "is dark / is light" hook
 - [x] Later: full context provider that pulls theme from dashboard
+- [x] Added onUpdateCustomData prop for Logto sync
+- [x] Exported from handlers/ folder
+
+### Lang Context Provider
+- [x] New LangModeProvider for language management
+- [x] Exports useLangMode hook
+- [x] Persists to sessionStorage and Logto customData
+
+### UserData Context
+- [x] New UserDataProvider for user data management
+- [x] Exports useUserDataContext hook
+- [x] Caches in sessionStorage
 
 ### UserButton
 - [x] UserBadge exists but could use finishing touches
 - [x] Make it properly reusable as a standalone component
+- [x] Auto-fetch user data when used outside Dashboard
+- [x] Priority system: prop → context → fetch
+- [x] Fallback user icon after 1.5s timeout
 
 ### Conquer All.
 - [ ] [DOMINATE. ABSOLUTELY. EVERYTHING.](https://music.youtube.com/watch?v=l6t4gx8vCMI)

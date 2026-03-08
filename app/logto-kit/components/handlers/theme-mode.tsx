@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { darkColors, lightColors, type ThemeColors } from '../../themes';
 
 export type { ThemeColors };
@@ -62,9 +62,11 @@ function getInitialTheme(serverDefault: 'dark' | 'light'): 'dark' | 'light' {
 export function ThemeModeProvider({
   children,
   initialTheme = 'dark',
+  onUpdateCustomData,
 }: {
   children: ReactNode;
   initialTheme?: 'dark' | 'light';
+  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
 }) {
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
 
@@ -93,15 +95,25 @@ export function ThemeModeProvider({
     [theme]
   );
 
-  const setTheme = (newTheme: 'dark' | 'light') => {
+  const persistToApi = useCallback(async (newTheme: 'dark' | 'light') => {
+    if (!onUpdateCustomData) return;
+    try {
+      await onUpdateCustomData({ Preferences: { theme: newTheme, lang: '' } });
+    } catch (err) {
+      console.error('[ThemeModeProvider] Failed to persist:', err);
+    }
+  }, [onUpdateCustomData]);
+
+  const setTheme = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-  };
+    persistToApi(newTheme);
+  }, [persistToApi]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-  };
+  }, [theme, setTheme]);
 
   return (
     <ThemeModeContext.Provider value={{ theme, themeColors, setTheme, toggleTheme }}>

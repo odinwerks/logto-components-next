@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { UserData } from '../../logic/types';
-import { useThemeMode } from '../theme-mode';
-import { useUserDataContext } from '../user-data-context';
+import { useThemeMode } from '../handlers/theme-mode';
+import { useUserDataContext } from '../handlers/user-data-context';
 import { fetchUserBadgeData } from '../../logic/actions';
 import { Dashboard } from '../dashboard';
 import { User } from 'lucide-react';

@@ -1,7 +1,8 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { DashboardClient, UserProfile } from './client';
-import { ThemeModeProvider } from '../theme-mode';
-import { UserDataProvider } from '../user-data-context';
+import { ThemeModeProvider } from '../handlers/theme-mode';
+import { LangModeProvider } from '../handlers/lang-mode';
+import { UserDataProvider } from '../handlers/user-data-context';
 import {
   updateUserBasicInfo,
   updateUserProfile,
@@ -92,11 +93,13 @@ export async function Dashboard() {
   // Provider checks sessionStorage first, falls back to this value
   const userPrefs = getPreferencesFromUserData(result.userData);
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
+  const resolvedLang = userPrefs?.lang ?? locale;
 
   return (
     <UserDataProvider userData={result.userData}>
-      <ThemeModeProvider initialTheme={resolvedTheme}>
-        <DashboardClient
+      <ThemeModeProvider initialTheme={resolvedTheme} onUpdateCustomData={updateUserCustomData}>
+        <LangModeProvider initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
+          <DashboardClient
         initialData={{
           userData: result.userData,
           accessToken: result.accessToken,
@@ -104,12 +107,10 @@ export async function Dashboard() {
         translations={translations}
         allTranslations={allTranslations}
         supportedLangs={supportedLangs}
-        initialLang={locale}
         loadedTabs={loadedTabs}
         onUpdateBasicInfo={updateUserBasicInfo}
         onUpdateAvatarUrl={updateAvatarUrl}
         onUpdateProfile={updateUserProfile}
-        onUpdateCustomData={updateUserCustomData}
         onVerifyPassword={verifyPasswordForIdentity}
         onSendEmailVerification={sendEmailVerificationCode}
         onSendPhoneVerification={sendPhoneVerificationCode}
@@ -126,9 +127,10 @@ export async function Dashboard() {
         onUpdatePassword={updateUserPassword}
         onDeleteAccount={deleteUserAccount}
         onSignOut={signOutUser}
-      />
-    </ThemeModeProvider>
-    </UserDataProvider>
+        />
+        </LangModeProvider>
+      </ThemeModeProvider>
+      </UserDataProvider>
   );
 }
 

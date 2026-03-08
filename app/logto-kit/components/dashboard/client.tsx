@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
 import type { Translations } from '../../locales';
-import { useThemeMode } from '../theme-mode';
+import { useThemeMode } from '../handlers/theme-mode';
+import { useLangMode } from '../handlers/lang-mode';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
@@ -14,7 +15,6 @@ import { SecurityTab } from './tabs/security';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
-import { buildUpdatedCustomData } from '../../logic/preferences';
 import { UserBadge } from '../userbutton';
 
 // Import MfaVerification type
@@ -112,13 +112,11 @@ interface DashboardClientProps {
   translations: Translations;
   allTranslations: Record<string, Translations>;
   supportedLangs: string[];
-  initialLang: string;
   loadedTabs: TabId[];
 
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<void>;
-  onUpdateCustomData: (customData: Record<string, unknown>) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
   onSendEmailVerification: (email: string) => Promise<{ verificationId: string }>;
   onSendPhoneVerification: (phone: string) => Promise<{ verificationId: string }>;
@@ -146,12 +144,10 @@ export function DashboardClient({
   translations: serverTranslations,
   allTranslations,
   supportedLangs,
-  initialLang,
   loadedTabs,
   onUpdateBasicInfo,
   onUpdateAvatarUrl,
   onUpdateProfile,
-  onUpdateCustomData,
   onVerifyPassword,
   onSendEmailVerification,
   onSendPhoneVerification,
@@ -174,7 +170,7 @@ export function DashboardClient({
   const { theme, themeColors, setTheme } = useThemeMode();
 
   // ── Language ───────────────────────────────────────────────────────────────
-  const [lang, setLang] = useState<string>(initialLang);
+  const { lang, setLang } = useLangMode();
   const t = useMemo<Translations>(
     () => allTranslations[lang] ?? serverTranslations,
     [lang, allTranslations, serverTranslations]
@@ -226,46 +222,15 @@ export function DashboardClient({
     }
   }, [router]);
 
-  // ── Preferences persistence ────────────────────────────────────────────────
-  // Theme is handled by provider (sessionStorage), we just sync to Logto for cross-device
-  const userDataRef = useRef(userData);
-  userDataRef.current = userData;
-
-  const langRef = useRef<string>(initialLang);
-  langRef.current = lang;
-
-  const persistPreferences = useCallback(
-    async (updates: Partial<{ theme: 'dark' | 'light'; lang: string }>) => {
-      const complete = {
-        theme: updates.theme ?? theme,
-        lang:  updates.lang  ?? langRef.current,
-      };
-      try {
-        const updated = buildUpdatedCustomData(userDataRef.current, complete);
-        await onUpdateCustomData(updated);
-      } catch (err) {
-        console.error('[preferences] Failed to persist:', err);
-      }
-    },
-    [onUpdateCustomData, theme]
-  );
-
-  const toggleTheme = useCallback(() => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    persistPreferences({ theme: next });
-  }, [theme, setTheme, persistPreferences]);
-
+  // ── Theme handlers (providers handle persistence) ───────────────────────────
   const handleThemeChange = useCallback((newTheme: 'dark' | 'light') => {
     setTheme(newTheme);
-    persistPreferences({ theme: newTheme });
-  }, [setTheme, persistPreferences]);
+  }, [setTheme]);
 
   const handleLangChange = useCallback(async (code: string) => {
     setLang(code);
-    await persistPreferences({ lang: code });
     router.refresh();
-  }, [persistPreferences, router]);
+  }, [router, setLang]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
@@ -480,11 +445,7 @@ export function DashboardClient({
             <PreferencesTab
               themeColors={themeColors}
               t={t}
-              theme={theme}
-              lang={lang}
               supportedLangs={supportedLangs}
-              onThemeChange={handleThemeChange}
-              onLangChange={handleLangChange}
             />
           )}
 

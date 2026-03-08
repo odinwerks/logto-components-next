@@ -1,10 +1,12 @@
 
 export { Dashboard } from './components/dashboard';
 
-export { ThemeModeProvider, useThemeMode } from './components/theme-mode';
-export type { ThemeColors } from './components/theme-mode';
+export { ThemeModeProvider, useThemeMode } from './components/handlers/theme-mode';
+export type { ThemeColors } from './components/handlers/theme-mode';
 
-export { UserDataProvider, useUserDataContext } from './components/user-data-context';
+export { LangModeProvider, useLangMode } from './components/handlers/lang-mode';
+
+export { UserDataProvider, useUserDataContext } from './components/handlers/user-data-context';
 
 export * from './logic';
 
