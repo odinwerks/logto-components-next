@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { UserData } from '../logic/types';
+import type { UserData } from '../../logic/types';
 
 const STORAGE_KEY = 'user-data';
 

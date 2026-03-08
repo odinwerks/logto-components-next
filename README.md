@@ -37,8 +37,10 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   ├── layout.tsx
 │   ├── logto-kit/
 │   │   ├── components/
-│   │   │   ├── auth-watcher.tsx
-│   │   │   ├── theme-mode.tsx
+│   │   │   ├── handlers/
+│   │   │   │   ├── auth-watcher.tsx
+│   │   │   │   ├── theme-mode.tsx
+│   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.tsx
 │   │   │   │   ├── index.tsx
