@@ -38,20 +38,20 @@ const SunIcon = () => (
 function InfoRow({ label, value, themeColors }: { label: string; value: string; themeColors: ThemeColors }) {
   return (
     <div style={{
-      padding: '10px 12px',
+      padding: '0.625rem 0.75rem',
       background: themeColors.bgPrimary,
       border: `1px solid ${themeColors.borderColor}`,
-      borderRadius: '4px',
+      borderRadius: '0.25rem',
     }}>
       <p style={{
-        fontFamily: css.sans, fontWeight: 500, fontSize: 10,
+        fontFamily: css.sans, fontWeight: 500, fontSize: '0.625rem',
         color: themeColors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.6,
-        marginBottom: 4,
+        marginBottom: '0.25rem',
       }}>
         {label}
       </p>
       <p style={{
-        fontFamily: css.mono, fontSize: 11,
+        fontFamily: css.mono, fontSize: '0.6875rem',
         color: themeColors.textSecondary, wordBreak: 'break-all', lineHeight: 1.4,
       }}>
         {value}
@@ -104,26 +104,26 @@ export function Sidebar({
 
   return (
     <div style={{
-      width: 230,
+      width: '14.375rem',
       background: themeColors.bgSecondary,
       borderRight: `1px solid ${themeColors.borderColor}`,
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
-      borderRadius: '6px',
+      borderRadius: '0.375rem',
     }}>
 
-      <div style={{ padding: '16px 14px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '1rem 0.875rem', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
 
           {userData.avatar ? (
             <img
               src={userData.avatar}
               alt={displayName}
               style={{
-                width: 32, height: 32, objectFit: 'cover', flexShrink: 0,
+                width: '2rem', height: '2rem', objectFit: 'cover', flexShrink: 0,
                 border: `1px solid ${themeColors.borderColor}`,
-                borderRadius: '4px',
+                borderRadius: '0.25rem',
               }}
               onError={e => {
                 (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -134,14 +134,14 @@ export function Sidebar({
           ) : null}
 
           <div style={{
-            width: 32, height: 32,
+            width: '2rem', height: '2rem',
             background: themeColors.bgTertiary, border: `1px solid ${themeColors.borderColor}`,
             display: userData.avatar ? 'none' : 'flex',
             alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            borderRadius: '4px',
+            borderRadius: '0.25rem',
           }}>
             <span style={{
-              fontFamily: css.sans, fontWeight: 700, fontSize: 12, color: themeColors.accentBlue,
+              fontFamily: css.sans, fontWeight: 700, fontSize: '0.75rem', color: themeColors.accentBlue,
             }}>
               {initials}
             </span>
@@ -149,14 +149,14 @@ export function Sidebar({
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
-              fontFamily: css.sans, fontWeight: 600, fontSize: 13, color: themeColors.textPrimary,
+              fontFamily: css.sans, fontWeight: 600, fontSize: '0.8125rem', color: themeColors.textPrimary,
               lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {displayName}
             </p>
             {displayEmail && (
               <p style={{
-                fontFamily: css.mono, fontSize: 10, color: themeColors.textTertiary, marginTop: 1,
+                fontFamily: css.mono, fontSize: '0.625rem', color: themeColors.textTertiary, marginTop: '0.0625rem',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {displayEmail}
@@ -166,7 +166,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <div style={{ padding: '12px 12px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ padding: '0.75rem 0.75rem 0', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
 
         <InfoRow label={t.sidebar?.userId ?? 'User ID'} value={userData.id} themeColors={themeColors} />
 
@@ -178,9 +178,9 @@ export function Sidebar({
 
         <div>
           <p style={{
-            fontFamily: css.sans, fontWeight: 500, fontSize: 10,
+            fontFamily: css.sans, fontWeight: 500, fontSize: '0.625rem',
             color: themeColors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.6,
-            marginBottom: 4, paddingLeft: 0,
+            marginBottom: '0.25rem', paddingLeft: 0,
           }}>
             {tokenLabel}
           </p>
@@ -189,19 +189,19 @@ export function Sidebar({
       </div>
 
       {hasMultipleLangs && (
-        <div style={{ padding: '12px 12px 0' }}>
+        <div style={{ padding: '0.75rem 0.75rem 0' }}>
           <p style={{
-            fontFamily: css.sans, fontWeight: 500, fontSize: 10,
+            fontFamily: css.sans, fontWeight: 500, fontSize: '0.625rem',
             color: themeColors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.6,
-            marginBottom: 6,
+            marginBottom: '0.375rem',
           }}>
             {t.dashboard?.availableLangs ?? 'Language'}
           </p>
 
           <div style={{
             background: themeColors.bgPrimary, border: `1px solid ${themeColors.borderColor}`,
-            padding: '4px 6px',
-            borderRadius: '4px',
+            padding: '0.25rem 0.375rem',
+            borderRadius: '0.25rem',
           }}>
             {supportedLangs.map(code => {
               const active = code === lang;
@@ -210,25 +210,25 @@ export function Sidebar({
                   key={code}
                   onClick={() => !active && onChangeLang(code)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    width: '100%', padding: '5px 6px',
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    width: '100%', padding: '0.3125rem 0.375rem',
                     background: 'transparent', border: 'none',
-                    borderLeft: `2px solid ${active ? themeColors.accentBlue : 'transparent'}`,
+                    borderLeft: `0.125rem solid ${active ? themeColors.accentBlue : 'transparent'}`,
                     color: active ? themeColors.accentBlue : themeColors.textTertiary,
-                    fontFamily: css.sans, fontWeight: 500, fontSize: 12,
+                    fontFamily: css.sans, fontWeight: 500, fontSize: '0.75rem',
                     cursor: active ? 'default' : 'pointer', textAlign: 'left',
                     transition: 'color 0.1s, border-color 0.1s',
-                    borderRadius: '2px',
+                    borderRadius: '0.125rem',
                   }}
                   onMouseEnter={e => { if (!active) e.currentTarget.style.color = themeColors.textSecondary; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.color = themeColors.textTertiary; }}
                 >
                   {active && (
-                    <span style={{ fontSize: 8, color: themeColors.accentBlue }}>●</span>
+                    <span style={{ fontSize: '0.5rem', color: themeColors.accentBlue }}>●</span>
                   )}
                   <span style={{ flex: 1 }}>{code.toUpperCase()}</span>
                   {active && (
-                    <span style={{ marginLeft: 'auto', fontSize: 9, color: themeColors.textTertiary, fontFamily: css.mono }}>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.5625rem', color: themeColors.textTertiary, fontFamily: css.mono }}>
                       {t.sidebar?.active ?? 'active'}
                     </span>
                   )}
@@ -241,20 +241,20 @@ export function Sidebar({
 
       <div style={{ flex: 1 }} />
 
-      <div style={{ padding: '8px 10px 12px', borderTop: `1px solid ${themeColors.borderColor}` }}>
+      <div style={{ padding: '0.5rem 0.625rem 0.75rem', borderTop: `1px solid ${themeColors.borderColor}` }}>
 
         <button
           onClick={onToggleTheme}
           style={{
-            display: 'flex', alignItems: 'center', gap: 9,
-            width: '100%', padding: '7px 9px',
+            display: 'flex', alignItems: 'center', gap: '0.5625rem',
+            width: '100%', padding: '0.4375rem 0.5625rem',
             background: 'transparent', border: 'none',
-            borderLeft: '2px solid transparent',
+            borderLeft: '0.125rem solid transparent',
             color: themeColors.textTertiary,
-            fontFamily: css.sans, fontWeight: 500, fontSize: 13,
+            fontFamily: css.sans, fontWeight: 500, fontSize: '0.8125rem',
             cursor: 'pointer', textAlign: 'left',
-            transition: 'all 0.1s', marginBottom: 1,
-            borderRadius: '4px',
+            transition: 'all 0.1s', marginBottom: '0.0625rem',
+            borderRadius: '0.25rem',
           }}
           onMouseEnter={e => {
             e.currentTarget.style.color = themeColors.textSecondary;
@@ -275,15 +275,15 @@ export function Sidebar({
         <button
           onClick={onSignOut}
           style={{
-            display: 'flex', alignItems: 'center', gap: 9,
-            width: '100%', padding: '7px 9px',
+            display: 'flex', alignItems: 'center', gap: '0.5625rem',
+            width: '100%', padding: '0.4375rem 0.5625rem',
             background: 'transparent', border: 'none',
-            borderLeft: '2px solid transparent',
+            borderLeft: '0.125rem solid transparent',
             color: themeColors.textTertiary,
-            fontFamily: css.sans, fontWeight: 500, fontSize: 13,
+            fontFamily: css.sans, fontWeight: 500, fontSize: '0.8125rem',
             cursor: 'pointer', textAlign: 'left',
             transition: 'all 0.1s',
-            borderRadius: '4px',
+            borderRadius: '0.25rem',
           }}
           onMouseEnter={e => {
             e.currentTarget.style.color = themeColors.accentRed;
