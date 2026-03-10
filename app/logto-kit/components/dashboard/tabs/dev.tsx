@@ -34,8 +34,8 @@ function Section({ icon, label, children, themeColors, danger }: SectionProps) {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '7px',
-          padding: '9px 14px',
+          gap: '0.4375rem',
+          padding: '0.5625rem 0.875rem',
           background: danger
             ? themeColors.accentRed + '0c'
             : themeColors.bgSecondary,
@@ -54,7 +54,7 @@ function Section({ icon, label, children, themeColors, danger }: SectionProps) {
         <span
           style={{
             color: danger ? themeColors.accentRed : themeColors.textSecondary,
-            fontSize: '10px',
+            fontSize: '0.625rem',
             fontFamily: 'var(--font-ibm-plex-mono)',
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
@@ -68,7 +68,7 @@ function Section({ icon, label, children, themeColors, danger }: SectionProps) {
       {/* Section body */}
       <div
         style={{
-          padding: '14px',
+          padding: '0.875rem',
           background: themeColors.bgSecondary,
         }}
       >
@@ -90,10 +90,10 @@ export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
   const actionButtonBase: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '7px 13px',
+    gap: '0.375rem',
+    padding: '0.4375rem 0.8125rem',
     cursor: 'pointer',
-    fontSize: '11px',
+    fontSize: '0.6875rem',
     fontFamily: 'var(--font-ibm-plex-mono)',
     fontWeight: 500,
     border: `1px solid ${themeColors.borderColor}`,
@@ -103,7 +103,7 @@ export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', overflow: 'hidden', height: '100%' }}>
 
       {/* Access Token */}
       <Section
@@ -114,7 +114,7 @@ export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
         <CodeBlock
           data={accessToken}
           themeColors={themeColors}
-          maxHeight="120px"
+          maxHeight="7.5rem"
           t={t}
 
         />
@@ -129,7 +129,7 @@ export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
         <CodeBlock
           data={userData}
           themeColors={themeColors}
-          maxHeight="320px"
+          maxHeight="20rem"
           t={t}
         />
       </Section>
@@ -140,7 +140,7 @@ export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
         label={t.raw.cookieActions}
         themeColors={themeColors}
       >
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             onClick={handleClearCookies}
             style={{
