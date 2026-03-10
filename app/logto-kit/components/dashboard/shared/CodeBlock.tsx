@@ -20,7 +20,7 @@ export function CodeBlock({
   title,
   data,
   themeColors,
-  maxHeight = '400px',
+  maxHeight = '25rem',
   copyKey = 'default',
   onCopy,
   t,
@@ -43,14 +43,14 @@ export function CodeBlock({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
       {(title || badge) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {title && (
             <span
               style={{
                 color: themeColors.textTertiary,
-                fontSize: '10px',
+                fontSize: '0.625rem',
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
@@ -63,13 +63,13 @@ export function CodeBlock({
           {badge && (
             <span
               style={{
-                fontSize: '9px',
+                fontSize: '0.5625rem',
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 color: themeColors.accentBlue,
                 background: themeColors.accentBlue + '18',
                 border: `1px solid ${themeColors.accentBlue}30`,
-                borderRadius: '3px',
-                padding: '1px 5px',
+                borderRadius: '0.1875rem',
+                padding: '0.0625rem 0.3125rem',
                 letterSpacing: '0.04em',
                 fontWeight: 600,
               }}
@@ -89,11 +89,11 @@ export function CodeBlock({
           style={{
             background: themeColors.bgPrimary,
             border: `1px solid ${themeColors.borderColor}`,
-            borderRadius: '6px',
-            padding: '12px 14px',
+            borderRadius: '0.375rem',
+            padding: '0.75rem 0.875rem',
             margin: 0,
             overflow: 'auto',
-            fontSize: '11.5px',
+            fontSize: '0.71875rem',
             lineHeight: '1.6',
             maxHeight,
             color: themeColors.textPrimary,
@@ -109,16 +109,16 @@ export function CodeBlock({
           title={t.common.copy}
           style={{
             position: 'absolute',
-            top: '8px',
-            right: '8px',
+            top: '0.5rem',
+            right: '0.5rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '28px',
-            height: '28px',
+            width: '1.75rem',
+            height: '1.75rem',
             background: themeColors.bgSecondary,
             border: `1px solid ${themeColors.borderColor}`,
-            borderRadius: '5px',
+            borderRadius: '0.3125rem',
             cursor: 'pointer',
             color: copied ? themeColors.accentGreen : themeColors.textSecondary,
             opacity: hovered || copied ? 1 : 0,
@@ -162,10 +162,10 @@ export function TruncatedToken({ token, themeColors, t }: TruncatedTokenProps) {
     >
       <div
         style={{
-          padding: '10px 44px 10px 14px',
+          padding: '0.625rem 2.75rem 0.625rem 0.875rem',
           background: themeColors.bgPrimary,
           border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '6px',
+          borderRadius: '0.375rem',
           overflow: 'hidden',
         }}
       >
@@ -173,7 +173,7 @@ export function TruncatedToken({ token, themeColors, t }: TruncatedTokenProps) {
           style={{
             margin: 0,
             color: themeColors.textPrimary,
-            fontSize: '11.5px',
+            fontSize: '0.71875rem',
             fontFamily: 'var(--font-ibm-plex-mono)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -191,16 +191,16 @@ export function TruncatedToken({ token, themeColors, t }: TruncatedTokenProps) {
         style={{
           position: 'absolute',
           top: '50%',
-          right: '8px',
+          right: '0.5rem',
           transform: `translateY(-50%) scale(${hovered || copied ? 1 : 0.9})`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '28px',
-          height: '28px',
+          width: '1.75rem',
+          height: '1.75rem',
           background: themeColors.bgSecondary,
           border: `1px solid ${themeColors.borderColor}`,
-          borderRadius: '5px',
+          borderRadius: '0.3125rem',
           cursor: 'pointer',
           color: copied ? themeColors.accentGreen : themeColors.textSecondary,
           opacity: hovered || copied ? 1 : 0,
