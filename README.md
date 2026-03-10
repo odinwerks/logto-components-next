@@ -40,6 +40,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   ├── handlers/
 │   │   │   │   ├── auth-watcher.tsx
 │   │   │   │   ├── lang-mode.tsx
+│   │   │   │   ├── logto-provider.tsx
 │   │   │   │   ├── theme-mode.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
@@ -261,6 +262,51 @@ function MyComponent() {
 | Prop | Type | Description |
 |------|------|-------------|
 | `userData` | `UserData` | The user data object to provide |
+
+### LogtoProvider
+
+LogtoProvider is a convenience wrapper that combines `UserDataProvider`, `ThemeModeProvider`, and `LangModeProvider` into a single component. It also provides a `useLogto()` hook for accessing user data and access token anywhere in your app.
+
+```tsx
+import { LogtoProvider, useLogto } from './logto-kit';
+
+function MyComponent() {
+  const { userData, accessToken } = useLogto();
+  // ...
+}
+
+<LogtoProvider 
+  userData={userData} 
+  accessToken={token}
+  initialTheme="dark"
+  initialLang="en"
+  onUpdateCustomData={updateCustomData}
+>
+  <MyComponent />
+</LogtoProvider>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `userData` | `UserData` | The user data object |
+| `accessToken` | `string` | JWT or opaque access token |
+| `initialTheme` | `'dark' \| 'light'` | Initial theme (default: 'dark') |
+| `initialLang` | `string` | Initial language code |
+| `onUpdateCustomData` | `(data) => Promise<void>` | Callback for updating user custom data |
+| `onLangChange` | `() => void` | Callback fired when language changes |
+
+#### useLogto Hook
+
+The `useLogto()` hook returns:
+
+```tsx
+{
+  userData: UserData;
+  accessToken: string;
+}
+```
+
+Use this hook to access user data and access token in any component nested within `LogtoProvider`.
 
 #### SessionStorage Caching
 
