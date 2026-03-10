@@ -43,19 +43,19 @@ export function Toast({ message, onDismiss, themeColors }: ToastProps) {
   return (
     <div
       style={{
-        padding: '10px',
+        padding: '0.625rem',
         background: bgColor,
         border: `1px solid ${borderColor}`,
-        borderRadius: '5px',
-        fontSize: '12px',
+        borderRadius: '0.3125rem',
+        fontSize: '0.75rem',
         fontFamily: 'var(--font-ibm-plex-mono)',
         zIndex: 9999,
-        maxWidth: '400px',
+        maxWidth: '25rem',
         color: textColor,
         animation: 'slideIn 0.2s ease-out',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
         <span>{message.message}</span>
         <button
           onClick={() => onDismiss(message.id)}
@@ -64,7 +64,7 @@ export function Toast({ message, onDismiss, themeColors }: ToastProps) {
             border: 'none',
             color: textColor,
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: '0.875rem',
             padding: '0',
             lineHeight: '1',
           }}
@@ -90,8 +90,8 @@ export function ToastContainer({ messages, onDismiss, themeColors }: ToastContai
           key={message.id}
           style={{
             position: 'fixed',
-            top: `${20 + index * 70}px`,
-            right: '20px',
+            top: `${1.25 + index * 4.375}rem`,
+            right: '1.25rem',
             zIndex: 9999,
           }}
         >
