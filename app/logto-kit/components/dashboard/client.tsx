@@ -277,7 +277,7 @@ export function DashboardClient({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 32,
+        padding: '2rem',
         backgroundColor: themeColors.bgPage,
         color: themeColors.textPrimary,
         boxSizing: 'border-box',
@@ -288,19 +288,19 @@ export function DashboardClient({
       <div
         style={{
           width: '100%',
-          maxWidth: 990,
-          height: 660,
+          maxWidth: '61.875rem',
+          height: '41.25rem',
           display: 'flex',
           background: themeColors.bgSecondary,
           border: `1px solid ${themeColors.borderColor}`,
-          boxShadow: '0 32px 90px rgba(0,0,0,0.65)',
+          boxShadow: '0 2rem 5.625rem rgba(0,0,0,0.65)',
           overflow: 'hidden',
         }}
       >
         {/* Sidebar */}
         <div
           style={{
-            width: 224,
+            width: '14rem',
             height: '100%',
             background: themeColors.bgPage,
             borderRight: `1px solid ${themeColors.borderColor}`,
@@ -310,15 +310,15 @@ export function DashboardClient({
           }}
         >
           {/* User Block */}
-          <div style={{ padding: '16px 14px 15px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <UserBadge Size="32px" Canvas="Avatar" shape="sq" />
+          <div style={{ padding: '1rem 0.875rem 0.9375rem', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <UserBadge Size="2rem" Canvas="Avatar" shape="sq" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
                   style={{
                     fontFamily: 'var(--font-ibm-plex-mono)',
                     fontWeight: 600,
-                    fontSize: 13,
+                    fontSize: '0.8125rem',
                     color: themeColors.textPrimary,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -330,9 +330,9 @@ export function DashboardClient({
                 <p
                   style={{
                     fontFamily: 'var(--font-ibm-plex-mono)',
-                    fontSize: 10,
+                    fontSize: '0.625rem',
                     color: themeColors.textTertiary,
-                    marginTop: 1,
+                    marginTop: '0.0625rem',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -345,16 +345,16 @@ export function DashboardClient({
           </div>
 
           {/* Nav */}
-          <nav style={{ flex: 1, padding: '10px 8px 6px', overflowY: 'auto' }}>
+          <nav style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}>
             <p
               style={{
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 600,
-                fontSize: 10,
+                fontSize: '0.625rem',
                 color: themeColors.textTertiary,
                 textTransform: 'uppercase',
                 letterSpacing: '0.09em',
-                padding: '4px 10px 8px',
+                padding: '0.25rem 0.625rem 0.5rem',
               }}
             >
               {t.dashboard.account}
@@ -369,19 +369,19 @@ export function DashboardClient({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 9,
+                    gap: '0.5625rem',
                     width: '100%',
-                    padding: '7px 10px',
+                    padding: '0.4375rem 0.625rem',
                     background: isActive ? themeColors.bgSecondary : 'transparent',
                     border: 'none',
-                    borderLeft: `2px solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
+                    borderLeft: `0.125rem solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
                     color: isActive ? themeColors.textPrimary : themeColors.textTertiary,
                     fontFamily: 'var(--font-ibm-plex-mono)',
                     fontWeight: 500,
-                    fontSize: 13,
+                    fontSize: '0.8125rem',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    marginBottom: 2,
+                    marginBottom: '0.125rem',
                   }}
                 >
                   <Icon size={13} color={isActive ? themeColors.accentBlue : themeColors.textTertiary} />
@@ -392,22 +392,22 @@ export function DashboardClient({
           </nav>
 
           {/* Sign Out */}
-          <div style={{ padding: '6px 8px 12px', borderTop: `1px solid ${themeColors.borderColor}` }}>
+          <div style={{ padding: '0.375rem 0.5rem 0.75rem', borderTop: `1px solid ${themeColors.borderColor}` }}>
             <button
               onClick={handleSignOut}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 9,
+                gap: '0.5625rem',
                 width: '100%',
-                padding: '7px 10px',
+                padding: '0.4375rem 0.625rem',
                 background: 'transparent',
                 border: 'none',
-                borderLeft: '2px solid transparent',
+                borderLeft: '0.125rem solid transparent',
                 color: themeColors.textTertiary,
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 500,
-                fontSize: 13,
+                fontSize: '0.8125rem',
                 cursor: 'pointer',
                 textAlign: 'left',
               }}
@@ -422,9 +422,10 @@ export function DashboardClient({
         <div
           style={{
             flex: 1,
-            padding: '28px 32px',
+            padding: '1.75rem 2rem',
             overflowY: 'auto',
             height: '100%',
+            boxSizing: 'border-box',
           }}
         >
           {activeTab === 'profile' && (
