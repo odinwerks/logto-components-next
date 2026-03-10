@@ -99,8 +99,8 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    backdropFilter: 'blur(4px)',
-    WebkitBackdropFilter: 'blur(4px)',
+    backdropFilter: 'blur(0.25rem)',
+    WebkitBackdropFilter: 'blur(0.25rem)',
     padding: '1.5rem',
     animation: 'ub-fade-in 0.18s ease',
   };
@@ -108,9 +108,9 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
   const dialogStyle: React.CSSProperties = {
     position: 'relative',
     width: '100%',
-    maxWidth: '960px',
+    maxWidth: '60rem',
     maxHeight: 'calc(100vh - 3rem)',
-    borderRadius: '10px',
+    borderRadius: '0.625rem',
     overflow: 'hidden',
     boxShadow: `0 24px 64px rgba(0,0,0,0.45), 0 0 0 1px ${themeColors.borderColor}`,
     display: 'flex',
@@ -126,7 +126,7 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
     width: '2rem',
     height: '2rem',
     border: `1px solid ${themeColors.borderColor}`,
-    borderRadius: '4px',
+    borderRadius: '0.25rem',
     background: themeColors.bgSecondary,
     color: themeColors.textSecondary,
     cursor: 'pointer',
@@ -153,7 +153,7 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
           to   { opacity: 1; }
         }
         @keyframes ub-slide-up {
-          from { opacity: 0; transform: translateY(12px) scale(0.98); }
+          from { opacity: 0; transform: translateY(0.75rem) scale(0.98); }
           to   { opacity: 1; transform: translateY(0)   scale(1);    }
         }
       `}</style>
@@ -217,7 +217,7 @@ function AvatarCore({
   const containerStyle: React.CSSProperties = {
     width: Size,
     height: Size,
-    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
+    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
     border: `2px solid ${themeColors.borderColor}`,
     background: isShowingAvatar ? 'transparent' : themeColors.bgTertiary,
     display: 'flex',
@@ -318,7 +318,7 @@ export function UserButton({
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '10px' : '50%',
+    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.625rem' : '50%',
     transition: 'opacity 0.15s, transform 0.15s',
   };
 
@@ -330,7 +330,7 @@ export function UserButton({
           <div style={{
             width: Size,
             height: Size,
-            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
+            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
             border: `2px solid ${themeColors.borderColor}`,
             background: themeColors.bgTertiary,
             display: 'flex',
@@ -451,7 +451,7 @@ export function UserBadge({
           <div style={{
             width: Size,
             height: Size,
-            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '8px' : '50%',
+            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
             border: `2px solid ${themeColors.borderColor}`,
             background: themeColors.bgTertiary,
             display: 'flex',
