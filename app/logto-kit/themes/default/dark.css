@@ -20,8 +20,8 @@
   
   /* Border */
   --ldd-border-color: #374151;
-  --ldd-border-radius: 6px;
-  --ldd-border-radius-sm: 4px;
+  --ldd-border-radius: 0.375rem;
+  --ldd-border-radius-sm: 0.25rem;
   
   /* Accents */
   --ldd-accent-green: #86efac;
@@ -41,32 +41,19 @@
   
   /* Typography */
   --ldd-font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  --ldd-font-size-xs: 9px;
-  --ldd-font-size-sm: 10px;
-  --ldd-font-size-base: 11px;
-  --ldd-font-size-md: 12px;
-  --ldd-font-size-lg: 14px;
-  --ldd-font-size-xl: 16px;
   --ldd-font-weight: 400;
   
-  /* Spacing */
-  --ldd-spacing-xs: 4px;
-  --ldd-spacing-sm: 8px;
-  --ldd-spacing-md: 12px;
-  --ldd-spacing-lg: 16px;
-  --ldd-spacing-xl: 20px;
-  
   /* Layout */
-  --ldd-sidebar-width: 320px;
+  --ldd-sidebar-width: 20rem;
   --ldd-header-height: auto;
-  --ldd-max-content-width: 1400px;
+  --ldd-max-content-width: 87.5rem;
 }
 
 /* Dark mode scrollbar */
 [data-theme="dark"] ::-webkit-scrollbar,
 :root[data-theme="dark"] ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;
+  height: 0.5rem;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-track,
@@ -77,7 +64,7 @@
 [data-theme="dark"] ::-webkit-scrollbar-thumb,
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: var(--ldd-border-color);
-  border-radius: 4px;
+  border-radius: 0.25rem;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
