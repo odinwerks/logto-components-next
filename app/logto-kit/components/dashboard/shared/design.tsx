@@ -43,7 +43,7 @@ export function Badge({
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      padding: '2px 8px', fontSize: 11, fontFamily: css.mono,
+      padding: '0.125rem 0.5rem', fontSize: '0.6875rem', fontFamily: css.mono,
       background: s.bg, border: `1px solid ${s.border}`,
       color: s.color, letterSpacing: 0.2, flexShrink: 0,
     }}>
@@ -72,8 +72,8 @@ export function Btn({
   style?:    React.CSSProperties;
   themeColors: ThemeColors;
 }) {
-  const pad = size === 'sm' ? '5px 11px' : '8px 15px';
-  const fz  = size === 'sm' ? 12 : 13;
+  const pad = size === 'sm' ? '0.3125rem 0.6875rem' : '0.5rem 0.9375rem';
+  const fz  = size === 'sm' ? '0.75rem' : '0.8125rem';
   const map: Record<BtnVariant, { bg: string; color: string; border: string; hover: string }> = {
     primary:   { bg: themeColors.accentBlue, color: '#fff', border: themeColors.accentBlue, hover: '#2563eb' },
     secondary: { bg: themeColors.bgTertiary, color: themeColors.textSecondary, border: themeColors.borderColor, hover: themeColors.bgSecondary },
@@ -92,10 +92,10 @@ export function Btn({
         cursor: disabled ? 'not-allowed' : 'pointer',
         border: `1px solid ${s.border}`,
         background: s.bg, color: s.color,
-        display: 'inline-flex', alignItems: 'center', gap: 6,
+        display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
         transition: 'background 0.1s', flexShrink: 0,
         opacity: disabled ? 0.5 : 1,
-        borderRadius: '4px',
+        borderRadius: '0.25rem',
         ...extra,
       }}
       onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = s.hover; }}
@@ -133,14 +133,14 @@ export function Input({
   themeColors: ThemeColors;
 }) {
   const base: React.CSSProperties = {
-    width: '100%', padding: '8px 11px',
+    width: '100%', padding: '0.5rem 0.6875rem',
     background: disabled ? themeColors.bgPage : themeColors.bgPrimary,
     border: `1px solid ${themeColors.borderColor}`,
     color: disabled ? themeColors.textTertiary : themeColors.textPrimary,
-    fontFamily: css.sans, fontSize: 13, outline: 'none',
+    fontFamily: css.sans, fontSize: '0.8125rem', outline: 'none',
     boxSizing: 'border-box', transition: 'border-color 0.15s',
     opacity: disabled ? 0.7 : 1,
-    borderRadius: '4px',
+    borderRadius: '0.25rem',
     ...extra,
   };
 
@@ -170,8 +170,8 @@ export function Well({ children, danger, themeColors }: { children: React.ReactN
     <div style={{
       background: danger ? themeColors.errorBg : themeColors.bgPrimary,
       border: `1px solid ${danger ? themeColors.accentRed : themeColors.borderColor}`,
-      padding: '16px 18px',
-      borderRadius: '6px',
+      padding: '1rem 1.125rem',
+      borderRadius: '0.375rem',
     }}>
       {children}
     </div>
@@ -192,25 +192,25 @@ export function Row({
     <div style={{
       display: 'flex', alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '13px 0',
+      padding: '0.8125rem 0',
       borderBottom: noBorder ? 'none' : `1px solid ${themeColors.borderColor}`,
-      gap: 16,
+      gap: '1rem',
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          fontFamily: css.sans, fontWeight: 500, fontSize: 13,
-          color: themeColors.textSecondary, marginBottom: description ? 2 : 0,
+          fontFamily: css.sans, fontWeight: 500, fontSize: '0.8125rem',
+          color: themeColors.textSecondary, marginBottom: description ? '0.125rem' : 0,
         }}>
           {label}
         </p>
         {description && (
-          <p style={{ fontFamily: css.sans, fontSize: 12, color: themeColors.textTertiary }}>
+          <p style={{ fontFamily: css.sans, fontSize: '0.75rem', color: themeColors.textTertiary }}>
             {description}
           </p>
         )}
       </div>
       {children && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {children}
         </div>
       )}
@@ -222,9 +222,9 @@ export function Row({
 export function SectionLabel({ children, themeColors }: { children: React.ReactNode; themeColors: ThemeColors }) {
   return (
     <p style={{
-      fontFamily: css.sans, fontWeight: 500, fontSize: 11,
+      fontFamily: css.sans, fontWeight: 500, fontSize: '0.6875rem',
       color: themeColors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.7,
-      marginBottom: 12,
+      marginBottom: '0.75rem',
     }}>
       {children}
     </p>
@@ -244,27 +244,27 @@ export function PageHeader({
     <div style={{
       display: 'flex', alignItems: 'flex-start',
       justifyContent: 'space-between',
-      marginBottom: 26,
+      marginBottom: '1.625rem',
     }}>
       <div>
         <h2 style={{
-          fontFamily: css.sans, fontWeight: 600, fontSize: 17,
-          color: themeColors.textPrimary, marginBottom: 4,
+          fontFamily: css.sans, fontWeight: 600, fontSize: '1.0625rem',
+          color: themeColors.textPrimary, marginBottom: '0.25rem',
         }}>
           {title}
         </h2>
-        <p style={{ fontFamily: css.sans, fontSize: 13, color: themeColors.textTertiary }}>
+        <p style={{ fontFamily: css.sans, fontSize: '0.8125rem', color: themeColors.textTertiary }}>
           {description}
         </p>
       </div>
-      {action && <div style={{ flexShrink: 0, marginTop: 2 }}>{action}</div>}
+      {action && <div style={{ flexShrink: 0, marginTop: '0.125rem' }}>{action}</div>}
     </div>
   );
 }
 
 // ── Divider ────────────────────────────────────────────────────────────────
 export function Divider({ themeColors }: { themeColors: ThemeColors }) {
-  return <div style={{ height: 1, background: themeColors.borderColor, margin: '24px 0' }} />;
+  return <div style={{ height: '0.0625rem', background: themeColors.borderColor, margin: '1.5rem 0' }} />;
 }
 
 // ── PasswordModal ──────────────────────────────────────────────────────────
@@ -315,30 +315,30 @@ export function PasswordModal({
       position: 'fixed', inset: 0,
       background: 'rgba(0,0,0,0.72)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
+      backdropFilter: 'blur(0.25rem)',
     }}>
       <div style={{
-        width: 420, background: themeColors.bgSecondary,
+        width: '26.25rem', background: themeColors.bgSecondary,
         border: `1px solid ${themeColors.borderColor}`,
-        boxShadow: '0 32px 80px rgba(0,0,0,0.65)',
-        borderRadius: '8px',
+        boxShadow: '0 2rem 5rem rgba(0,0,0,0.65)',
+        borderRadius: '0.5rem',
       }}>
-        <div style={{ padding: '18px 20px 15px', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+        <div style={{ padding: '1.125rem 1.25rem 0.9375rem', borderBottom: `1px solid ${themeColors.borderColor}` }}>
           <h3 style={{
-            fontFamily: css.sans, fontWeight: 600, fontSize: 14,
-            color: themeColors.textPrimary, marginBottom: subtitle ? 3 : 0,
+            fontFamily: css.sans, fontWeight: 600, fontSize: '0.875rem',
+            color: themeColors.textPrimary, marginBottom: subtitle ? '0.1875rem' : 0,
           }}>
             {title}
           </h3>
           {subtitle && (
-            <p style={{ fontFamily: css.sans, fontSize: 12, color: themeColors.textTertiary }}>{subtitle}</p>
+            <p style={{ fontFamily: css.sans, fontSize: '0.75rem', color: themeColors.textTertiary }}>{subtitle}</p>
           )}
         </div>
 
-        <div style={{ padding: '18px 20px' }}>
+        <div style={{ padding: '1.125rem 1.25rem' }}>
           <label style={{
             display: 'block', fontFamily: css.sans, fontWeight: 500,
-            fontSize: 12, color: themeColors.textSecondary, marginBottom: 6,
+            fontSize: '0.75rem', color: themeColors.textSecondary, marginBottom: '0.375rem',
           }}>
             Current password
           </label>
@@ -351,24 +351,24 @@ export function PasswordModal({
             onKeyDown={e => { if (e.key === 'Enter' && !loading) attempt(); }}
             autoFocus
             themeColors={themeColors}
-            style={{ marginBottom: 8 }}
+            style={{ marginBottom: '0.5rem' }}
           />
 
-          <div style={{ minHeight: 32, marginBottom: 14 }}>
+          <div style={{ minHeight: '2rem', marginBottom: '0.875rem' }}>
             {errMsg && (
               <p style={{
-                fontFamily: css.sans, fontSize: 11, color: themeColors.accentRed,
-                padding: '6px 10px',
+                fontFamily: css.sans, fontSize: '0.6875rem', color: themeColors.accentRed,
+                padding: '0.375rem 0.625rem',
                 background: themeColors.errorBg,
                 border: `1px solid ${themeColors.accentRed}`,
-                borderRadius: '4px',
+                borderRadius: '0.25rem',
               }}>
                 {errMsg}
               </p>
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <Btn onClick={onClose} disabled={loading} themeColors={themeColors}>Cancel</Btn>
             <Btn variant={confirmVariant} onClick={attempt} disabled={loading} themeColors={themeColors}>
               {loading ? 'Verifying…' : confirmLabel}
