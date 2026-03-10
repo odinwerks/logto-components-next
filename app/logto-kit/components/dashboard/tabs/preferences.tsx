@@ -5,7 +5,7 @@ import type { Translations } from '../../../locales';
 import { useThemeMode } from '../../handlers/theme-mode';
 import { useLangMode } from '../../handlers/lang-mode';
 
-function SunIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+function SunIcon({ size = 0.75, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5}>
       <circle cx="12" cy="12" r="5" />
@@ -21,7 +21,7 @@ function SunIcon({ size = 12, color = 'currentColor' }: { size?: number; color?:
   );
 }
 
-function MoonIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) {
+function MoonIcon({ size = 0.75, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5}>
       <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
@@ -29,7 +29,7 @@ function MoonIcon({ size = 12, color = 'currentColor' }: { size?: number; color?
   );
 }
 
-function CheckIcon({ size = 9, color = '#fff' }: { size?: number; color?: string }) {
+function CheckIcon({ size = 0.5625, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3}>
       <polyline points="20 6 9 17 4 12" />
@@ -102,22 +102,22 @@ export function PreferencesTab({
   return (
     <div>
       {/* Theme & Language Settings */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: '1.5rem' }}>
         <div
           style={{
             fontFamily: 'var(--font-ibm-plex-mono)',
             fontWeight: 600,
-            fontSize: 10.5,
+            fontSize: '0.65625rem',
             color: themeColors.textTertiary,
             textTransform: 'uppercase',
             letterSpacing: '0.09em',
-            marginBottom: 12,
+            marginBottom: '0.75rem',
           }}
         >
           {t.common.appearance}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 26 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', marginBottom: '1.625rem' }}>
           {[
             { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
             { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
@@ -152,16 +152,16 @@ export function PreferencesTab({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '9px 12px',
+                      padding: '0.5625rem 0.75rem',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <opt.Icon size={12} color={isSelected ? themeColors.textPrimary : themeColors.textTertiary} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4375rem' }}>
+                      <opt.Icon size={0.75} color={isSelected ? themeColors.textPrimary : themeColors.textTertiary} />
                       <span
                         style={{
                           fontFamily: 'var(--font-ibm-plex-mono)',
                           fontWeight: 500,
-                          fontSize: 12,
+                          fontSize: '0.75rem',
                           color: isSelected ? themeColors.textPrimary : themeColors.textSecondary,
                         }}
                       >
@@ -180,11 +180,11 @@ export function PreferencesTab({
                 style={{
                   fontFamily: 'var(--font-ibm-plex-mono)',
                   fontWeight: 600,
-                  fontSize: 10.5,
+                  fontSize: '0.65625rem',
                   color: themeColors.textTertiary,
                   textTransform: 'uppercase',
                   letterSpacing: '0.09em',
-                  marginBottom: 12,
+                  marginBottom: '0.75rem',
                 }}
               >
                 {t.common.language}
@@ -193,7 +193,7 @@ export function PreferencesTab({
                 style={{
                   background: themeColors.bgSecondary,
                   border: `1px solid ${themeColors.borderColor}`,
-                  padding: '14px 16px',
+                  padding: '0.875rem 1rem',
                 }}
               >
                 <div style={{ position: 'relative' }}>
@@ -202,12 +202,12 @@ export function PreferencesTab({
                     onChange={(e) => setLang(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '9px 36px 9px 12px',
+                      padding: '0.5625rem 2.25rem 0.5625rem 0.75rem',
                       background: themeColors.bgPage,
                       border: `1px solid ${themeColors.borderColor}`,
                       color: themeColors.textPrimary,
                       fontFamily: 'var(--font-ibm-plex-mono)',
-                      fontSize: 13,
+                      fontSize: '0.8125rem',
                       outline: 'none',
                       cursor: 'pointer',
                       appearance: 'none',
@@ -223,12 +223,12 @@ export function PreferencesTab({
                   <span
                     style={{
                       position: 'absolute',
-                      right: 12,
+                      right: '0.75rem',
                       top: '50%',
                       transform: 'translateY(-50%) rotate(90deg)',
                       color: themeColors.textTertiary,
                       pointerEvents: 'none',
-                      fontSize: 10,
+                      fontSize: '0.625rem',
                     }}
                   >
                     ▶
