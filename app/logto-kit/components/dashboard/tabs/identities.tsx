@@ -52,8 +52,8 @@ function SL({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) {
   const T = tk(tc);
   return (
     <p style={{
-      fontFamily: T.font, fontWeight: 600, fontSize: 10, color: T.muted,
-      textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8,
+      fontFamily: T.font, fontWeight: 600, fontSize: '0.625rem', color: T.muted,
+      textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem',
     }}>
       {children}
     </p>
@@ -65,7 +65,7 @@ function Card({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) 
   return (
     <div style={{
       background: T.surface, border: `1px solid ${T.border}`,
-      marginBottom: 16, overflow: 'hidden',
+      marginBottom: '1rem', overflow: 'hidden',
       boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
     }}>
       {children}
@@ -162,7 +162,7 @@ function ProviderIcon({ target, textColor }: { target: string; textColor: string
   const icon = PROVIDER_ICONS[target];
   if (icon) {
     return (
-      <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {icon(textColor)}
       </div>
     );
@@ -170,9 +170,9 @@ function ProviderIcon({ target, textColor }: { target: string; textColor: string
   // Letter avatar for unknown providers
   return (
     <div style={{
-      width: 22, height: 22,
+      width: '1.375rem', height: '1.375rem',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 700, fontSize: 10,
+      fontWeight: 700, fontSize: '0.625rem',
     }}>
       {target.charAt(0).toUpperCase()}
     </div>
@@ -191,8 +191,8 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
   return (
     <div>
       {/* Description */}
-      <div style={{ marginBottom: 26 }}>
-        <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.65 }}>
+      <div style={{ marginBottom: '1.625rem' }}>
+        <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65 }}>
           {t.identities.description}
         </p>
       </div>
@@ -202,8 +202,8 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
       <Card tc={tc}>
         {identityEntries.length === 0 ? (
 
-          <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-            <p style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>
+          <div style={{ padding: '1.75rem 1.25rem', textAlign: 'center' }}>
+            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>
               {t.identities.noIdentities}
             </p>
           </div>
@@ -218,13 +218,13 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
               <div style={{
                 display: 'flex', alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '14px 20px', gap: 16,
+                padding: '0.875rem 1.25rem', gap: '1rem',
               }}>
 
                 {/* Left — icon box + name + detail */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                   <div style={{
-                    width: 36, height: 36, flexShrink: 0,
+                    width: '2.25rem', height: '2.25rem', flexShrink: 0,
                     background: T.greenDim,
                     border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -234,25 +234,25 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
 
                   <div style={{ minWidth: 0 }}>
                     {/* Name + badge */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                      <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.1875rem' }}>
+                      <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
                         {name}
                       </p>
                       <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        padding: '2px 7px', fontSize: 10, fontFamily: T.mono,
+                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                        padding: '0.125rem 0.4375rem', fontSize: '0.625rem', fontFamily: T.mono,
                         background: T.greenDim, color: T.greenText,
                         border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
                         letterSpacing: 0.2,
                       }}>
-                        <Check size={9} color={T.greenText} strokeWidth={2} />
+                        <Check size={0.5625} color={T.greenText} strokeWidth={2} />
                         {t.identities.connected}
                       </span>
                     </div>
 
                     {/* Account detail */}
                     <p style={{
-                      fontFamily: T.mono, fontSize: 11, color: T.muted,
+                      fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {detail}
@@ -264,12 +264,12 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
                 {identity.userId && (
                   <div style={{
                     flexShrink: 0,
-                    padding: '4px 10px',
+                    padding: '0.25rem 0.625rem',
                     background: T.raised,
                     border: `1px solid ${T.border}`,
-                    fontFamily: T.mono, fontSize: 10, color: T.muted,
+                    fontFamily: T.mono, fontSize: '0.625rem', color: T.muted,
                     letterSpacing: '0.03em',
-                    maxWidth: 160,
+                    maxWidth: '10rem',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {identity.userId}
