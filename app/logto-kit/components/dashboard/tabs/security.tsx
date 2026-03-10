@@ -90,7 +90,7 @@ function Btn({
   tc: ThemeColors;
 }) {
   const T = tk(tc);
-  const sz = size === 'sm' ? { padding: '5px 13px', fontSize: 11, gap: 5 } : { padding: '8px 18px', fontSize: 13, gap: 7 };
+  const sz = size === 'sm' ? { padding: '0.3125rem 0.8125rem', fontSize: 0.6875, gap: 0.3125 } : { padding: '0.5rem 1.125rem', fontSize: 0.8125, gap: 0.4375 };
   const V = {
     primary:        { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
     secondary:      { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
@@ -131,10 +131,10 @@ function Inp({
     <input type={type} value={value} onChange={onChange} placeholder={placeholder}
       autoFocus={autoFocus} onKeyDown={onKeyDown} disabled={disabled} maxLength={maxLength}
       style={{
-        width: '100%', padding: suffix ? '9px 42px 9px 12px' : '9px 12px',
+        width: '100%', padding: suffix ? '0.5625rem 2.625rem 0.5625rem 0.75rem' : '0.5625rem 0.75rem',
         background: hasError ? T.redDim : disabled ? T.raised : T.bg,
         border: `1px solid ${hasError ? T.red : T.border}`,
-        color: T.text, fontFamily: T.font, fontSize: 13,
+        color: T.text, fontFamily: T.font, fontSize: 0.8125,
         boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.2)',
         boxSizing: 'border-box', outline: 'none',
         opacity: disabled ? 0.55 : 1,
@@ -149,7 +149,7 @@ function Inp({
       {el}
       <div style={{
         position: 'absolute', right: 0, top: 0, bottom: 0,
-        width: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {suffix}
       </div>
@@ -162,7 +162,7 @@ function Lbl({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) {
   return (
     <label style={{
       display: 'block', fontFamily: T.font, fontWeight: 500,
-      fontSize: 11, color: T.muted, marginBottom: 7, letterSpacing: '0.02em',
+      fontSize: '0.6875rem', color: T.muted, marginBottom: '0.4375rem', letterSpacing: '0.02em',
     }}>
       {children}
     </label>
@@ -173,8 +173,8 @@ function SL({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) {
   const T = tk(tc);
   return (
     <p style={{
-      fontFamily: T.font, fontWeight: 600, fontSize: 10, color: T.muted,
-      textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8,
+      fontFamily: T.font, fontWeight: 600, fontSize: '0.625rem', color: T.muted,
+      textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem',
     }}>
       {children}
     </p>
@@ -187,7 +187,7 @@ function Card({ children, danger, style, tc }: { children: React.ReactNode; dang
     <div style={{
       background: danger ? T.redDim : T.surface,
       border: `1px solid ${danger ? T.redBorder : T.border}`,
-      marginBottom: 16, overflow: 'hidden',
+      marginBottom: '1rem', overflow: 'hidden',
       boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
       ...style,
     }}>
@@ -210,7 +210,7 @@ function IconBox({ children, active, color, tc }: { children: React.ReactNode; a
   const s = color ? colors[color] : { bg: T.raised, border: T.border };
   return (
     <div style={{
-      width: 36, height: 36, background: s.bg, border: `1px solid ${s.border}`,
+        width: '2.5rem', height: '2.5rem', background: s.bg, border: `1px solid ${s.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       {children}
@@ -226,8 +226,8 @@ function Overlay({ onDismiss, children }: { onDismiss: () => void; children: Rea
       style={{
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'rgba(0,0,0,0.65)',
-        backdropFilter: 'blur(6px) saturate(0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        backdropFilter: 'blur(0.375rem) saturate(0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}
     >
@@ -287,29 +287,29 @@ function FlowModal({
   return (
     <Overlay onDismiss={onClose}>
       <div style={{
-        width: '100%', maxWidth: wide ? 560 : 440,
+        width: '100%', maxWidth: wide ? '35rem' : '27.5rem',
         background: T.surface, border: `1px solid ${T.border}`,
-        boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+        boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
         overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{
-          padding: '18px 22px 16px', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+          padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
         }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 15, color: danger ? dangerColor : T.text, marginBottom: 3, letterSpacing: '-0.02em' }}>
+            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
               {title}
             </p>
-            <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
+            <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: 2, display: 'flex', flexShrink: 0 }}>
-            <X size={14} color={T.muted} strokeWidth={1.5} />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
+            <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '20px 22px' }}>
+        <div style={{ padding: '1.25rem 1.375rem' }}>
 
           {/* Password step */}
           {step.kind === 'password' && (
@@ -327,19 +327,19 @@ function FlowModal({
                 tc={tc}
                 suffix={
                   <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
-                    {showPw ? <EyeOff size={14} color={T.muted} strokeWidth={1.5} /> : <Eye size={14} color={T.muted} strokeWidth={1.5} />}
+                    {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
               />
               {passwordError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontFamily: T.font, fontSize: 12, color: T.redText }}>
-                  <AlertTriangle size={13} color={T.redText} strokeWidth={1.5} /> {passwordError}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
+                  <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Btn onClick={onClose} tc={tc}>{t.common.close}</Btn>
                 <Btn variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} tc={tc}>
-                  {t.verification.verifyPassword} <ChevronRight size={12} color="#fff" strokeWidth={1.5} />
+                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color="#fff" strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -347,21 +347,21 @@ function FlowModal({
 
           {/* Loading step */}
           {step.kind === 'loading' && (
-            <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
               <div style={{
-                width: 30, height: 30, border: `2px solid ${T.border}`,
+                width: '1.875rem', height: '1.875rem', border: `2px solid ${T.border}`,
                 borderTopColor: T.blue, borderRadius: '50%',
                 animation: 'spin 0.7s linear infinite',
               }} />
-              <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub }}>{step.message}</p>
+              <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}
 
           {/* Code verification step */}
           {step.kind === 'code' && (
             <>
-              <div style={{ padding: '10px 14px', background: T.bg, border: `1px solid ${T.border}`, marginBottom: 16 }}>
-                <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.5 }}>
+              <div style={{ padding: '0.625rem 0.875rem', background: T.bg, border: `1px solid ${T.border}`, marginBottom: '1rem' }}>
+                <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.5 }}>
                   A 6-digit code was sent to{' '}
                   <span style={{ fontFamily: T.mono, color: T.text }}>{step.destination}</span>.
                 </p>
@@ -375,12 +375,12 @@ function FlowModal({
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) onCodeSubmit?.(code); }}
                 tc={tc}
-                style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: 18 }}
+                style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Btn onClick={onClose} tc={tc}>Cancel</Btn>
                 <Btn variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} tc={tc}>
-                  Verify <Check size={12} color="#fff" strokeWidth={1.5} />
+                  Verify <Check size={'0.75rem'} color="#fff" strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -389,20 +389,20 @@ function FlowModal({
           {/* TOTP scan step */}
           {step.kind === 'totp-scan' && (
             <>
-              <div style={{ display: 'flex', gap: 20, marginBottom: 18 }}>
-                <div style={{ background: '#fff', padding: 12, border: `1px solid ${T.border}`, flexShrink: 0, alignSelf: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '1.125rem' }}>
+                <div style={{ background: '#fff', padding: '0.75rem', border: `1px solid ${T.border}`, flexShrink: 0, alignSelf: 'flex-start' }}>
                   <QRCodeSVG value={step.totpUri} size={140} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.6, marginBottom: 12 }}>
+                  <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.6, marginBottom: '0.75rem' }}>
                     Scan this QR code with your authenticator app, then enter the 6-digit code below to confirm.
                   </p>
-                  <p style={{ fontFamily: T.font, fontSize: 11, color: T.muted, marginBottom: 5 }}>
+                  <p style={{ fontFamily: T.font, fontSize: '0.6875rem', color: T.muted, marginBottom: '0.3125rem' }}>
                     Can't scan? Enter this key manually:
                   </p>
                   <div style={{ display: 'flex', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
                     <div style={{
-                      flex: 1, padding: '7px 10px', fontFamily: T.mono, fontSize: 11,
+                      flex: 1, padding: '0.4375rem 0.625rem', fontFamily: T.mono, fontSize: '0.6875rem',
                       background: T.bg, color: showSecret ? T.text : T.muted,
                       filter: showSecret ? 'none' : 'blur(3px)',
                       userSelect: showSecret ? 'text' : 'none',
@@ -412,26 +412,26 @@ function FlowModal({
                       {step.secret}
                     </div>
                     <button onClick={() => setShowSecret(s => !s)} style={{
-                      padding: '0 10px', background: T.raised, border: 'none',
+                      padding: '0 0.625rem', background: T.raised, border: 'none',
                       borderLeft: `1px solid ${T.border}`, cursor: 'pointer',
                       color: T.muted, display: 'flex', alignItems: 'center',
                     }}>
-                      {showSecret ? <EyeOff size={13} color={T.muted} strokeWidth={1.5} /> : <Eye size={13} color={T.muted} strokeWidth={1.5} />}
+                      {showSecret ? <EyeOff size={'0.8125rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.8125rem'} color={T.muted} strokeWidth={1.5} />}
                     </button>
                     <button onClick={copySecret} style={{
-                      padding: '0 10px', background: T.raised, border: 'none',
+                      padding: '0 0.625rem', background: T.raised, border: 'none',
                       borderLeft: `1px solid ${T.border}`, cursor: 'pointer',
                       color: copied ? T.greenText : T.muted,
                       display: 'flex', alignItems: 'center', transition: 'color .2s',
                     }}>
-                      {copied ? <Check size={13} color={T.greenText} strokeWidth={1.5} /> : <Copy size={13} color={T.muted} strokeWidth={1.5} />}
+                      {copied ? <Check size={'0.8125rem'} color={T.greenText} strokeWidth={1.5} /> : <Copy size={'0.8125rem'} color={T.muted} strokeWidth={1.5} />}
                     </button>
                   </div>
                 </div>
               </div>
 
               <HR tc={tc} />
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: '1rem' }}>
                 <Lbl tc={tc}>6-digit code from your app</Lbl>
                 <Inp
                   value={code}
@@ -444,16 +444,16 @@ function FlowModal({
                       onTotpSubmit?.(code, step.secret, step.identityVerificationId);
                   }}
                   tc={tc}
-                  style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: 18 }}
+                  style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Btn onClick={onClose} tc={tc}>Cancel</Btn>
                 <Btn variant="primary"
                   onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
                   disabled={code.length !== 6} tc={tc}
                 >
-                  Activate <Check size={12} color="#fff" strokeWidth={1.5} />
+                  Activate <Check size={'0.75rem'} color="#fff" strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -473,19 +473,19 @@ function FlowModal({
                 tc={tc}
                 suffix={
                   <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
-                    {showPw ? <EyeOff size={14} color={T.muted} strokeWidth={1.5} /> : <Eye size={14} color={T.muted} strokeWidth={1.5} />}
+                    {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
               />
               {passwordError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontFamily: T.font, fontSize: 12, color: T.redText }}>
-                  <AlertTriangle size={13} color={T.redText} strokeWidth={1.5} /> {passwordError}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
+                  <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Btn onClick={onClose} tc={tc}>Cancel</Btn>
                 <Btn variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} tc={tc}>
-                  {danger ? 'Confirm' : 'Change password'} <ChevronRight size={12} color={danger ? '#fff' : '#fff'} strokeWidth={1.5} />
+                  {danger ? 'Confirm' : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? '#fff' : '#fff'} strokeWidth={1.5} />
                 </Btn>
               </div>
             </>
@@ -536,51 +536,51 @@ function BackupCodesModal({
   return (
     <Overlay onDismiss={onDone}>
       <div style={{
-        width: '100%', maxWidth: 500, background: T.surface,
+        width: '100%', maxWidth: '31.25rem', background: T.surface,
         border: `1px solid ${T.border}`,
-        boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+        boxShadow: '0 2rem 5rem rgba(0,0,0,0.6)',
         overflow: 'hidden',
       }}>
         <div style={{
-          padding: '18px 22px 16px', borderBottom: `1px solid ${T.borderFaint}`,
+          padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 15, color: T.text, marginBottom: 3, letterSpacing: '-0.02em' }}>
+            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
               {isNew ? 'Save your backup codes' : 'Backup codes'}
             </p>
-            <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub }}>
+            <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>
               {isNew ? t.mfa.saveTheseCodes : t.mfa.existingCodes}
             </p>
           </div>
-          <button onClick={onDone} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: 2, display: 'flex' }}>
-            <X size={14} color={T.muted} strokeWidth={1.5} />
+          <button onClick={onDone} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex' }}>
+            <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
           </button>
         </div>
 
-        <div style={{ padding: '18px 22px' }}>
+        <div style={{ padding: '1.125rem 1.375rem' }}>
           {isNew && (
             <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 10,
-              padding: '10px 14px', background: T.amberDim,
+              display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
+              padding: '0.625rem 0.875rem', background: T.amberDim,
               border: `1px solid ${adj(tc.accentYellow, -40) + '44'}`,
-              marginBottom: 16,
+              marginBottom: '1rem',
             }}>
-              <AlertTriangle size={14} color={T.amberText} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontFamily: T.font, fontSize: 12, color: T.amberText, lineHeight: 1.5 }}>
+              <AlertTriangle size={'0.875rem'} color={T.amberText} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: '0.0625rem' }} />
+              <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.amberText, lineHeight: 1.5 }}>
                 These codes won't be shown again. Download or copy them now.
               </p>
             </div>
           )}
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            gap: 6, marginBottom: 16,
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(9.375rem, 1fr))',
+            gap: '0.375rem', marginBottom: '1rem',
           }}>
             {codes.map((c, i) => (
               <div key={i} style={{
-                fontFamily: T.mono, fontSize: 12, color: c.used ? T.muted : T.text,
-                padding: '8px 11px', background: T.bg,
+                fontFamily: T.mono, fontSize: '0.75rem', color: c.used ? T.muted : T.text,
+                padding: '0.5rem 0.6875rem', background: T.bg,
                 border: `1px solid ${T.border}`, letterSpacing: '0.06em',
                 textDecoration: c.used ? 'line-through' : 'none',
               }}>
@@ -589,10 +589,10 @@ function BackupCodesModal({
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Btn size="sm" onClick={() => dl('txt')} tc={tc}><Download size={11} strokeWidth={1.5} /> .txt</Btn>
-              <Btn size="sm" onClick={() => dl('html')} tc={tc}><Download size={11} strokeWidth={1.5} /> .html</Btn>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Btn size="sm" onClick={() => dl('txt')} tc={tc}><Download size={'0.6875rem'} strokeWidth={1.5} /> .txt</Btn>
+              <Btn size="sm" onClick={() => dl('html')} tc={tc}><Download size={'0.6875rem'} strokeWidth={1.5} /> .html</Btn>
             </div>
             <Btn variant={isNew ? 'primary' : 'secondary'} onClick={onDone} tc={tc}>
               {isNew ? t.mfa.finishAndSave : t.mfa.hide}
@@ -690,7 +690,7 @@ function ContactRow({
           tc={tc}
           t={t}
           extra={modalKind === 'edit' && step.kind === 'password' ? (
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: '1rem' }}>
               <Lbl tc={tc}>{currentValue ? `New ${label.toLowerCase()}` : label}</Lbl>
               <Inp
                 type={type === 'email' ? 'email' : 'tel'}
@@ -705,19 +705,19 @@ function ContactRow({
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
           <IconBox tc={tc}>
-            <Icon size={15} color={T.muted} strokeWidth={1.5} />
+            <Icon size={'0.9375rem'} color={T.muted} strokeWidth={1.5} />
           </IconBox>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 1 }}>{label}</p>
-            <p style={{ fontFamily: T.mono, fontSize: 11, color: currentValue ? T.sub : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem' }}>{label}</p>
+            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: currentValue ? T.sub : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentValue || t.profile.notSet}
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
           {currentValue ? (
             <>
               <Btn size="sm" onClick={openEdit} tc={tc}>{t.profile.edit}</Btn>
@@ -725,7 +725,7 @@ function ContactRow({
             </>
           ) : (
             <Btn size="sm" variant="primary" onClick={openEdit} tc={tc}>
-              <Plus size={11} color="#fff" strokeWidth={1.5} /> {t.profile.add}
+              <Plus size={'0.6875rem'} color="#fff" strokeWidth={1.5} /> {t.profile.add}
             </Btn>
           )}
         </div>
@@ -979,8 +979,8 @@ export function SecurityTab({
       )}
 
       {/* ── Page description ── */}
-      <div style={{ marginBottom: 26 }}>
-        <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.65 }}>
+      <div style={{ marginBottom: '1.625rem' }}>
+        <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65 }}>
           {t.security.description}
         </p>
       </div>
@@ -1020,14 +1020,14 @@ export function SecurityTab({
           onSuccess={onSuccess} onError={onError} t={t} tc={tc}
         />
         <HR tc={tc} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <IconBox tc={tc}><Lock size={15} color={T.muted} strokeWidth={1.5} /></IconBox>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <IconBox tc={tc}><Lock size={'0.9375rem'} color={T.muted} strokeWidth={1.5} /></IconBox>
             <div>
-              <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text, marginBottom: 1 }}>
+              <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem' }}>
                 {t.security.password || 'Password'}
               </p>
-              <p style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>••••••••••••</p>
+              <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>••••••••••••</p>
             </div>
           </div>
           <Btn size="sm" onClick={() => setPwStep({ kind: 'password' })} tc={tc}>
@@ -1039,31 +1039,31 @@ export function SecurityTab({
       {/* ── Two-factor authentication ── */}
       <SL tc={tc}>Two-factor authentication</SL>
       <Card tc={tc}>
-        <div style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'flex-start' }}>
               <IconBox tc={tc} color={totpFactor ? 'blue' : undefined}>
-                <Shield size={16} color={totpFactor ? T.blueText : T.muted} strokeWidth={1.5} />
+                <Shield size={'1rem'} color={totpFactor ? T.blueText : T.muted} strokeWidth={1.5} />
               </IconBox>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
-                  <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5625rem', marginBottom: '0.1875rem' }}>
+                  <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
                     Authenticator app
                   </p>
                   {totpFactor && (
                     <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '2px 8px', fontSize: 10, fontFamily: T.mono,
+                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                      padding: '0.125rem 0.5rem', fontSize: '0.625rem', fontFamily: T.mono,
                       background: T.greenDim, color: T.greenText,
                       border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
                       letterSpacing: 0.2,
                     }}>
-                      <Check size={9} color={T.greenText} strokeWidth={1.5} /> Active
+                      <Check size={'0.5625rem'} color={T.greenText} strokeWidth={1.5} /> Active
                     </span>
                   )}
                 </div>
                 {totpFactor && (
-                  <p style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginTop: 5 }}>
+                  <p style={{ fontFamily: T.mono, fontSize: '0.625rem', color: T.muted, marginTop: '0.3125rem' }}>
                     {t.mfa.created}: {fmt(totpFactor.createdAt)}
                     {totpFactor.lastUsedAt && ` · ${t.mfa.lastUsed}: ${fmt(totpFactor.lastUsedAt)}`}
                   </p>
@@ -1071,19 +1071,19 @@ export function SecurityTab({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {totpFactor ? (
                 <>
                   <Btn size="sm" variant="ghost" onClick={openTotp} tc={tc}>
-                    <RefreshCw size={11} strokeWidth={1.5} /> Reconfigure
+                    <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> Reconfigure
                   </Btn>
                   <Btn size="sm" variant="danger" onClick={openDelTotp} tc={tc}>
-                    <Trash2 size={11} strokeWidth={1.5} /> {t.mfa.remove}
+                    <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
                   </Btn>
                 </>
               ) : (
                 <Btn size="sm" variant="primary" onClick={openTotp} tc={tc}>
-                  <Plus size={11} color="#fff" strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
+                  <Plus size={'0.6875rem'} color="#fff" strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
                 </Btn>
               )}
             </div>
@@ -1091,7 +1091,7 @@ export function SecurityTab({
         </div>
 
         {mfaLoading && (
-          <div style={{ padding: '8px 20px 14px', borderTop: `1px solid ${T.borderFaint}`, fontFamily: T.font, fontSize: 12, color: T.muted }}>
+          <div style={{ padding: '0.5rem 1.25rem 0.875rem', borderTop: `1px solid ${T.borderFaint}`, fontFamily: T.font, fontSize: '0.75rem', color: T.muted }}>
             {t.common.loading}
           </div>
         )}
@@ -1100,21 +1100,21 @@ export function SecurityTab({
       {/* ── Backup codes ── */}
       <SL tc={tc}>Backup codes</SL>
       <Card tc={tc}>
-        <div style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'center' }}>
               <IconBox tc={tc} color={backupFactor ? 'green' : undefined}>
-                <Key size={15} color={backupFactor ? T.greenText : T.muted} strokeWidth={1.5} />
+                <Key size={'0.9375rem'} color={backupFactor ? T.greenText : T.muted} strokeWidth={1.5} />
               </IconBox>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
-                  <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: 13, color: T.text }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5625rem', marginBottom: '0.1875rem' }}>
+                  <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
                     Recovery codes
                   </p>
                   {backupFactor?.remainCodes !== undefined && (
                     <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '2px 8px', fontSize: 10, fontFamily: T.mono,
+                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                      padding: '0.125rem 0.5rem', fontSize: '0.625rem', fontFamily: T.mono,
                       background: T.raised, color: T.sub,
                       border: `1px solid ${T.border}`, letterSpacing: 0.2,
                     }}>
@@ -1122,14 +1122,14 @@ export function SecurityTab({
                     </span>
                   )}
                 </div>
-                <p style={{ fontFamily: T.font, fontSize: 12, color: T.muted, lineHeight: 1.55 }}>
+                <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.muted, lineHeight: 1.55 }}>
                   Single-use codes for account recovery.
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               <Btn size="sm" onClick={() => openBackup()} tc={tc}>
-                <RefreshCw size={11} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
+                <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
               </Btn>
             </div>
           </div>
@@ -1137,15 +1137,15 @@ export function SecurityTab({
       </Card>
 
       {/* ── Danger zone ── */}
-      <div style={{ marginTop: 6 }}>
+      <div style={{ marginTop: '0.375rem' }}>
         <SL tc={tc}>{t.security.dangerZone}</SL>
         <Card danger tc={tc}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', gap: '1.25rem' }}>
             <div>
-              <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: 13, color: T.text, marginBottom: 2 }}>
+              <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.8125rem', color: T.text, marginBottom: '0.125rem' }}>
                 {t.security.deleteAccount}
               </p>
-              <p style={{ fontFamily: T.font, fontSize: 12, color: T.sub, lineHeight: 1.55 }}>
+              <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>
                 {t.security.deleteAccountDescription}
               </p>
             </div>
