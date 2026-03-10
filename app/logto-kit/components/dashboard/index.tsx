@@ -65,23 +65,23 @@ export async function Dashboard() {
           background: '#050505',
           color: '#e5e7eb',
           fontFamily: 'monospace',
-          padding: '20px',
+          padding: '1.25rem',
         }}
       >
         <div
           style={{
             background: '#121212',
             border: '1px solid #374151',
-            borderRadius: '8px',
-            padding: '30px',
-            maxWidth: '500px',
+            borderRadius: '0.5rem',
+            padding: '1.875rem',
+            maxWidth: '31.25rem',
             textAlign: 'center',
           }}
         >
-          <h1 style={{ fontSize: '16px', marginBottom: '12px' }}>
+          <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
             {translations.dashboard.error}
           </h1>
-          <p style={{ fontSize: '12px', color: '#9ca3af' }}>
+          <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
             {'error' in result ? result.error : translations.dashboard.loadFailed}
           </p>
         </div>
