@@ -1,6 +1,7 @@
 'use server';
 
 import { getAccessToken } from '@logto/next/server-actions';
+import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
@@ -569,4 +570,196 @@ export async function deleteUserAccount(
 
   // Return cleanly. The client (security.tsx handleDeleteAccount) is
   // responsible for navigating to /api/auth/sign-out after this resolves.
+}
+
+// ============================================================================
+// Avatar Upload Functions
+// ============================================================================
+
+interface OidcIntrospectionResponse {
+  active: boolean
+  sub?: string
+  client_id?: string
+  exp?: number
+  iat?: number
+  iss?: string
+  scope?: string
+  token_type?: string
+}
+
+async function uploadViaSupabase(
+  bucket: string,
+  key: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const rawEndpoint = process.env.S3_ENDPOINT
+
+  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.')
+
+  const restBase = rawEndpoint.replace(/\/s3\/?$/, '')
+  const uploadUrl = `${restBase}/object/${bucket}/${key}`
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${serviceRoleKey}`,
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'x-upsert': 'true',
+    },
+    body: bytes as unknown as BodyInit,
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText)
+    throw new Error(`Supabase upload failed (HTTP ${res.status}): ${body}`)
+  }
+}
+
+async function uploadViaMinIO(
+  bucket: string,
+  key: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  const accessKey = process.env.S3_ACCESS_KEY_ID
+  const secretKey = process.env.S3_SECRET_ACCESS_KEY
+  const rawEndpoint = process.env.S3_ENDPOINT
+
+  if (!accessKey || !secretKey) {
+    throw new Error('Set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY.')
+  }
+  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.')
+
+  const parsed = new URL(rawEndpoint)
+  const useSSL = parsed.protocol === 'https:'
+  const endPoint = parsed.hostname
+  const port = parsed.port ? parseInt(parsed.port, 10) : useSSL ? 443 : 80
+
+  const minio = new Minio.Client({
+    endPoint,
+    port,
+    useSSL,
+    accessKey,
+    secretKey,
+    region: process.env.S3_REGION ?? 'auto',
+  })
+
+  await minio.putObject(bucket, key, bytes, bytes.length, {
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=0, must-revalidate',
+  })
+}
+
+async function introspectToken(
+  token: string,
+): Promise<OidcIntrospectionResponse> {
+  const url = process.env.LOGTO_INTROSPECTION_URL
+  const clientId = process.env.APP_ID
+  const clientSecret = process.env.APP_SECRET
+
+  if (!url || !clientId || !clientSecret) {
+    throw new Error(
+      'Logto introspection not configured — set LOGTO_INTROSPECTION_URL, ' +
+        'APP_ID and APP_SECRET.',
+    )
+  }
+
+  const body = new URLSearchParams({ token, client_id: clientId, client_secret: clientSecret })
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const errBody = await res.json() as { error?: string; error_description?: string }
+      detail = errBody.error_description ?? errBody.error ?? ''
+    } catch {
+      detail = await res.text().catch(() => '')
+    }
+    throw new Error(
+      `Introspection endpoint returned HTTP ${res.status}` +
+        (detail ? `: ${detail}` : '. Check LOGTO_INTROSPECTION_URL.'),
+    )
+  }
+
+  try {
+    return (await res.json()) as OidcIntrospectionResponse
+  } catch {
+    throw new Error(
+      'Introspection endpoint returned a non-JSON body. ' +
+        'Check LOGTO_INTROSPECTION_URL points to the correct endpoint.',
+    )
+  }
+}
+
+function assertSafeUserId(id: string): void {
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+    throw new Error('UNAUTHORIZED: userId contains invalid characters.')
+  }
+}
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
+const MAX_BYTES = 2 * 1024 * 1024
+
+export async function uploadAvatar(
+  formData: FormData,
+): Promise<{ url: string }> {
+  const file = formData.get('file') as File | null
+  const accessToken = formData.get('accessToken') as string | null
+  const userId = formData.get('userId') as string | null
+
+  if (!file || !accessToken || !userId) {
+    throw new Error('Bad request — file, accessToken, and userId are all required.')
+  }
+
+  if (!(ALLOWED_MIME as readonly string[]).includes(file.type)) {
+    throw new Error(`Invalid file type "${file.type}". Allowed: ${ALLOWED_MIME.join(', ')}.`)
+  }
+
+  if (file.size > MAX_BYTES) {
+    throw new Error(`File is ${(file.size / 1024 / 1024).toFixed(2)} MB — limit is 2 MB.`)
+  }
+
+  assertSafeUserId(userId)
+
+  const introspection = await introspectToken(accessToken)
+
+  if (!introspection.active) {
+    throw new Error('UNAUTHORIZED: token is not active or has been revoked.')
+  }
+
+  if (introspection.sub !== userId) {
+    throw new Error('UNAUTHORIZED: token subject does not match the provided userId.')
+  }
+
+  const bucket = process.env.S3_BUCKET_NAME
+  if (!bucket) throw new Error('S3_BUCKET_NAME is not set.')
+
+  const key = `${userId}/you.png`
+  const bytes = Buffer.from(await file.arrayBuffer())
+
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    await uploadViaSupabase(bucket, key, bytes, file.type)
+  } else {
+    await uploadViaMinIO(bucket, key, bytes, file.type)
+  }
+
+  const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, '')
+  if (!publicBase) {
+    throw new Error(
+      'S3_PUBLIC_URL is not set. It must be the public-facing base URL for ' +
+        'reading objects — NOT the S3 API endpoint.',
+    )
+  }
+
+  return { url: `${publicBase}/${key}?v=${Date.now()}` }
 }
