@@ -2,8 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import type { UserData } from '../../logic/types';
-import { ThemeModeProvider } from './theme-mode';
-import { LangModeProvider } from './lang-mode';
+import { PreferencesProvider } from './preferences';
 import { UserDataProvider } from './user-data-context';
 
 interface LogtoContextValue {
@@ -43,11 +42,9 @@ export function LogtoProvider({
   return (
     <LogtoContext.Provider value={{ userData, accessToken }}>
       <UserDataProvider userData={userData}>
-        <ThemeModeProvider initialTheme={initialTheme} onUpdateCustomData={onUpdateCustomData}>
-          <LangModeProvider initialLang={initialLang} onUpdateCustomData={onUpdateCustomData} onLangChange={onLangChange}>
-            {children}
-          </LangModeProvider>
-        </ThemeModeProvider>
+        <PreferencesProvider initialTheme={initialTheme} initialLang={initialLang} onUpdateCustomData={onUpdateCustomData} onLangChange={onLangChange}>
+          {children}
+        </PreferencesProvider>
       </UserDataProvider>
     </LogtoContext.Provider>
   );
