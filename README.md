@@ -41,10 +41,9 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   ├── components/
 │   │   │   ├── handlers/
 │   │   │   │   ├── auth-watcher.tsx
-│   │   │   │   ├── lang-mode.tsx
+│   │   │   │   ├── preferences.tsx
 │   │   │   │   ├── logto-provider.tsx
 │   │   │   │   ├── theme-helpers.ts
-│   │   │   │   ├── theme-mode.tsx
 │   │   │   │   ├── use-avatar-upload.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
@@ -149,9 +148,9 @@ Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 3. Add `index.ts` with theme metadata
 4. Set `THEME=your-theme` in your `.env`
 
-### Theme Mode Provider
+### PreferencesProvider
 
-The dashboard provides a `ThemeModeProvider` and `useThemeMode()` hook for theme management anywhere in your app.
+The dashboard provides a `PreferencesProvider` that combines theme and language management. It exports both `useThemeMode()` and `useLangMode()` hooks.
 
 #### useThemeMode Hook
 
@@ -177,26 +176,6 @@ The hook returns:
 - `setTheme(theme)` - Set specific theme
 - `toggleTheme()` - Toggle between dark/light
 
-#### ThemeModeProvider Props
-
-```tsx
-<ThemeModeProvider 
-  initialTheme="dark" 
-  onUpdateCustomData={async (data) => { /* save to Logto */ }}
-/>
-```
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
-| `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist theme to Logto customData |
-
-When `onUpdateCustomData` is provided, theme changes are automatically synced to Logto for cross-device persistence.
-
-### LangModeProvider
-
-The dashboard provides a `LangModeProvider` and `useLangMode()` hook for language management anywhere in your app.
-
 #### useLangMode Hook
 
 ```tsx
@@ -218,25 +197,36 @@ The hook returns:
 - `lang` - Current language code (e.g., `'en-US'`, `'ka-GE'`)
 - `setLang(lang)` - Set specific language
 
-#### LangModeProvider Props
+#### PreferencesProvider Props
 
 ```tsx
-<LangModeProvider 
+<PreferencesProvider 
+  initialTheme="dark" 
   initialLang="en-US"
   onUpdateCustomData={async (data) => { /* save to Logto */ }}
+  onLangChange={() => { /* called when language changes */ }}
 />
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
+| `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
-| `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist lang to Logto customData |
+| `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist preferences to Logto customData |
+| `onLangChange` | `() => void` | - | Optional callback fired when language changes |
 
-#### Lang Persistence
+When `onUpdateCustomData` is provided, theme and language changes are automatically synced to Logto for cross-device persistence.
 
-Language is stored in sessionStorage for instant switching, then synced to Logto customData for cross-device persistence.
+#### Preference Persistence
 
-**Priority:**
+Theme and language are stored in sessionStorage for instant switching, then synced to Logto customData for cross-device persistence.
+
+**Theme Priority:**
+1. sessionStorage (current session - instant)
+2. Logto customData.Preferences.theme (cross-device)
+3. ENV DEFAULT_THEME_MODE (fallback)
+
+**Language Priority:**
 1. sessionStorage (current session - instant)
 2. Logto customData.Preferences.lang (cross-device)
 3. ENV LANG_MAIN (fallback)
@@ -268,7 +258,7 @@ function MyComponent() {
 
 ### LogtoProvider
 
-LogtoProvider is a convenience wrapper that combines `UserDataProvider`, `ThemeModeProvider`, and `LangModeProvider` into a single component. It also provides a `useLogto()` hook for accessing user data and access token anywhere in your app.
+LogtoProvider is a convenience wrapper that combines `UserDataProvider` and `PreferencesProvider` into a single component. It also provides a `useLogto()` hook for accessing user data and access token anywhere in your app.
 
 ```tsx
 import { LogtoProvider, useLogto } from './logto-kit';
@@ -489,24 +479,21 @@ This is the main use case - drop it into your app wherever you need it.
 
 ### Dashboard Provider Structure
 
-The Dashboard component automatically wraps your app with three context providers:
+The Dashboard component automatically wraps your app with two context providers:
 
 ```tsx
 <UserDataProvider userData={userData}>
-  <ThemeModeProvider initialTheme={theme} onUpdateCustomData={updateCustomData}>
-    <LangModeProvider initialLang={lang} onUpdateCustomData={updateCustomData}>
-      <DashboardClient ... />
-    </LangModeProvider>
-  </ThemeModeProvider>
+  <PreferencesProvider initialTheme={theme} initialLang={lang} onUpdateCustomData={updateCustomData}>
+    <DashboardClient ... />
+  </PreferencesProvider>
 </UserDataProvider>
 ```
 
 This means:
 - **UserDataProvider** - Provides user data to all child components
-- **ThemeModeProvider** - Manages theme state with automatic persistence to Logto
-- **LangModeProvider** - Manages language state with automatic persistence to Logto
+- **PreferencesProvider** - Manages theme and language state with automatic persistence to Logto
 
-All three providers expose hooks that child components can use:
+Both providers expose hooks that child components can use:
 - `useUserDataContext()` - Access user data
 - `useThemeMode()` - Access theme and themeColors
 - `useLangMode()` - Access current language
