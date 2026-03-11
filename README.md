@@ -603,16 +603,16 @@ The dashboard supports user avatar uploads. When a user uploads an image, it's s
 ### Architecture
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌──────────┐
-│   Client    │────▶│  API Route        │────▶│  Server Action  │────▶│  S3       │
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌───────────┐
+│   Client    │────▶│  API Route       │────▶│  Server Action  │────▶│  S3       │
 │             │     │  /api/upload-    │     │  uploadAvatar   │     │  Storage  │
 │ 1. Select   │     │    avatar        │     │                 │     │           │
-│ 2. Get      │     │ 1. Receive       │     │ 1. Validate    │     │ {userId}/ │
-│    token     │     │    FormData      │     │    token        │     │   you.png │
-│ 3. POST      │     │ 2. Call action   │     │ 2. Upload to   │     │           │
-│ 4. Get URL  │◀────│ 3. Return URL    │◀────│    S3          │◀────│           │
-│ 5. Push to  │      │                  │     │                 │     │           │
-│    Logto     │      └──────────────────┘     └─────────────────┘     └──────────┘
+│ 2. Get      │     │ 1. Receive       │     │ 1. Validate     │     │ {userId}/ │
+│    token    │     │    FormData      │     │    token        │     │   you.png │
+│ 3. POST     │     │ 2. Call action   │     │ 2. Upload to    │     │           │
+│ 4. Get URL  │◀────│ 3. Return URL    │◀────│    S3           │◀────│           │
+│ 5. Push to  │     │                  │     │                 │     │           │
+│    Logto    │     └──────────────────┘     └─────────────────┘     └───────────┘
 └─────────────┘
 ```
 
