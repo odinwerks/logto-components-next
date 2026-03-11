@@ -90,7 +90,7 @@ function Btn({
   tc: ThemeColors;
 }) {
   const T = tk(tc);
-  const sz = size === 'sm' ? { padding: '0.3125rem 0.8125rem', fontSize: 0.6875, gap: 0.3125 } : { padding: '0.5rem 1.125rem', fontSize: 0.8125, gap: 0.4375 };
+  const sz = size === 'sm' ? { padding: '0.3125rem 0.8125rem', fontSize: '0.6875rem', gap: '0.3125rem' } : { padding: '0.5rem 1.125rem', fontSize: '0.8125rem', gap: '0.4375rem' };
   const V = {
     primary:        { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
     secondary:      { bg: T.raised,  color: T.text,    border: T.border,    shadow: 'none' },
@@ -134,7 +134,7 @@ function Inp({
         width: '100%', padding: suffix ? '0.5625rem 2.625rem 0.5625rem 0.75rem' : '0.5625rem 0.75rem',
         background: hasError ? T.redDim : disabled ? T.raised : T.bg,
         border: `1px solid ${hasError ? T.red : T.border}`,
-        color: T.text, fontFamily: T.font, fontSize: 0.8125,
+        color: T.text, fontFamily: T.font, fontSize: '0.8125rem',
         boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.2)',
         boxSizing: 'border-box', outline: 'none',
         opacity: disabled ? 0.55 : 1,
