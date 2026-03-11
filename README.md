@@ -29,6 +29,8 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │   └── route.ts
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
+│   │   ├── upload-avatar/
+│   │   │   └── route.ts
 │   │   └── wipe/
 │   │       └── route.ts
 │   ├── callback/
@@ -41,7 +43,9 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │   ├── auth-watcher.tsx
 │   │   │   │   ├── lang-mode.tsx
 │   │   │   │   ├── logto-provider.tsx
+│   │   │   │   ├── theme-helpers.ts
 │   │   │   │   ├── theme-mode.tsx
+│   │   │   │   ├── use-avatar-upload.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.tsx
@@ -84,7 +88,6 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   ├── logto.ts
 │   └── page.tsx
 ├── proxy.ts
-├── .env
 ├── .env.example
 ├── next.config.ts
 ├── next-env.d.ts
