@@ -22,4 +22,4 @@ export { getPreferencesFromUserData, buildUpdatedCustomData, hasPreferences } fr
 export { getDefaultThemeMode } from './themes';
 export { getAllTranslations } from './locales';
 
-export { useAvatarUpload } from './hooks/use-avatar-upload';
+export { useAvatarUpload } from './components/handlers/use-avatar-upload';
