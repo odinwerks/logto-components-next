@@ -1,10 +1,8 @@
 
 export { Dashboard } from './components/dashboard';
 
-export { ThemeModeProvider, useThemeMode } from './components/handlers/theme-mode';
-export type { ThemeColors } from './components/handlers/theme-mode';
-
-export { LangModeProvider, useLangMode } from './components/handlers/lang-mode';
+export { PreferencesProvider, useThemeMode, useLangMode } from './components/handlers/preferences';
+export type { ThemeColors } from './components/handlers/preferences';
 
 export { UserDataProvider, useUserDataContext } from './components/handlers/user-data-context';
 
