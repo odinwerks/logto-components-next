@@ -21,3 +21,5 @@ export { getLoadedTabs, ALL_TABS } from './logic/tabs';
 export { getPreferencesFromUserData, buildUpdatedCustomData, hasPreferences } from './logic/preferences';
 export { getDefaultThemeMode } from './themes';
 export { getAllTranslations } from './locales';
+
+export { useAvatarUpload } from './hooks/use-avatar-upload';
