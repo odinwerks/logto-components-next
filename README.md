@@ -593,6 +593,152 @@ This ensures that:
 3. **Subsequent Visits**: Preferences are read from `customData` and override ENV defaults
 4. **ENV Changes**: If supported languages change (ENV `LANG_AVAILABLE`), preferences are validated and normalized
 
+## Avatar Upload
+
+The dashboard supports user avatar uploads. When a user uploads an image, it's stored in S3-compatible storage and the URL is automatically saved to their Logto profile.
+
+### Architecture
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌──────────┐
+│   Client    │────▶│  API Route        │────▶│  Server Action  │────▶│  S3       │
+│             │     │  /api/upload-    │     │  uploadAvatar   │     │  Storage  │
+│ 1. Select   │     │    avatar        │     │                 │     │           │
+│ 2. Get      │     │ 1. Receive       │     │ 1. Validate    │     │ {userId}/ │
+│    token     │     │    FormData      │     │    token        │     │   you.png │
+│ 3. POST      │     │ 2. Call action   │     │ 2. Upload to   │     │           │
+│ 4. Get URL  │◀────│ 3. Return URL    │◀────│    S3          │◀────│           │
+│ 5. Push to  │      │                  │     │                 │     │           │
+│    Logto     │      └──────────────────┘     └─────────────────┘     └──────────┘
+└─────────────┘
+```
+
+### Security
+
+The upload is protected by two-layer validation:
+
+1. **Token Validation**: Calls Logto's OIDC introspection endpoint to verify the token is `active: true`
+2. **User ID Match**: Verifies the token's `sub` claim matches the submitted `userId`
+
+This prevents users from uploading avatars for other users. If user A tries to upload with userId = "userB", the request is rejected with `UNAUTHORIZED: token subject does not match the provided userId.`
+
+### Environment Variables
+
+Add these to your `.env` file:
+
+```env
+# ===============================================
+# AVATAR UPLOAD STORAGE CONFIGURATION
+# ===============================================
+
+# S3-Compatible Storage (Supabase, AWS S3, MinIO, DigitalOcean Spaces)
+
+# Bucket name for storing avatars
+S3_BUCKET_NAME=avatars
+
+# Public-facing URL for reading stored avatars
+# This is what gets saved to Logto and displayed to users
+S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars
+
+# S3 API Endpoint
+# For Supabase: https://your-project.supabase.co/storage/v1/s3
+# For AWS S3: https://s3.amazonaws.com
+# For MinIO: http://localhost:9000
+S3_ENDPOINT=https://your-project.supabase.co/storage/v1/s3
+
+# S3 Credentials
+S3_ACCESS_KEY_ID=your_access_key
+S3_SECRET_ACCESS_KEY=your_secret_key
+S3_REGION=auto
+
+# ===============================================
+# OPTIONAL: Supabase Storage REST API
+# ===============================================
+# If using Supabase Storage, you can use their REST API directly
+# instead of S3 compatibility. Get the service role key from:
+# Supabase Dashboard → Settings → API → Service role key
+#
+# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+#
+# When set, the system uses Supabase's REST API (more reliable).
+# When unset, uses MinIO client (works with AWS S3, DO Spaces, MinIO).
+```
+
+### Supported Storage Backends
+
+| Storage | S3_ENDPOINT | Notes |
+|---------|-------------|-------|
+| **Supabase** | `https://{project}.supabase.co/storage/v1/s3` | Use REST API with `SUPABASE_SERVICE_ROLE_KEY` for best results |
+| **AWS S3** | `https://s3.amazonaws.com` | Standard AWS S3 |
+| **DigitalOcean Spaces** | `https://{region}.digitaloceanspaces.com` | S3-compatible |
+| **MinIO** | `http://localhost:9000` | Self-hosted S3-compatible |
+
+### File Requirements
+
+- **Allowed types**: JPEG, PNG, WebP, GIF
+- **Max size**: 2 MB
+- **Storage path**: `{userId}/you.png` (always overwrites previous)
+
+### Setup Steps
+
+1. **Create S3 Bucket**:
+   - Create a new bucket named `avatars`
+   - Set it to **Public** (for avatar viewing)
+   - Or configure appropriate bucket policies
+
+2. **Configure Credentials**:
+   - Add the environment variables to `.env`
+   - Ensure credentials have `s3:PutObject` permission on the bucket
+
+3. **Test**:
+   - Go to the Profile tab in the dashboard
+   - Try uploading an avatar image
+   - The image should appear and persist to your Logto profile
+
+### Implementation Details
+
+The avatar upload system consists of:
+
+| File | Purpose |
+|------|---------|
+| `app/api/upload-avatar/route.ts` | API route that handles HTTP requests |
+| `app/logto-kit/hooks/use-avatar-upload.ts` | React hook for client-side upload logic |
+| `app/logto-kit/logic/actions.ts` | Server action with `uploadAvatar()` function |
+
+The hook (`useAvatarUpload`) is already integrated into the Profile tab component. It:
+1. Fetches the user's access token via `fetchUserBadgeData()`
+2. Sends the file + token + userId to the API route
+3. On success, automatically updates the avatar in Logto via `updateAvatarUrl()`
+
+### Usage in Custom Components
+
+You can use the avatar upload hook in your own components:
+
+```tsx
+import { useAvatarUpload } from './logto-kit/hooks/use-avatar-upload';
+
+function MyAvatarUploader({ userId }: { userId: string }) {
+  const { upload, isUploading, error } = useAvatarUpload({
+    userId,
+    onSuccess: (url) => console.log('Uploaded to:', url),
+    onError: (msg) => console.error('Failed:', msg),
+  });
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+        disabled={isUploading}
+      />
+      {isUploading && <p>Uploading...</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+    </div>
+  );
+}
+```
+
 ## Installation
 
 ```bash
@@ -645,6 +791,13 @@ npm run build
 - [x] Auto-fetch user data when used outside Dashboard
 - [x] Priority system: prop → context → fetch
 - [x] Fallback user icon after 1.5s timeout
+
+### Avatar Upload
+- [x] Profile tab - image upload via drag-and-drop
+- [x] S3-compatible storage (Supabase, AWS S3, MinIO, DO Spaces)
+- [x] OIDC token introspection for security
+- [x] User ID matching prevents cross-user uploads
+- [x] Automatic URL update to Logto profile
 
 ### Conquer All.
 - [ ] [DOMINATE. ABSOLUTELY. EVERYTHING.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
