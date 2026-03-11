@@ -2,8 +2,7 @@
 
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { useThemeMode } from '../../handlers/theme-mode';
-import { useLangMode } from '../../handlers/lang-mode';
+import { useThemeMode, useLangMode } from '../../handlers/preferences';
 
 function SunIcon({ size = 0.75, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
