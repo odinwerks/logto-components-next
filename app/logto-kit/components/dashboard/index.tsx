@@ -97,37 +97,37 @@ export async function Dashboard() {
   return (
     <UserDataProvider userData={result.userData}>
       <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
-          <DashboardClient
-        initialData={{
-          userData: result.userData,
-          accessToken: result.accessToken,
-        }}
-        translations={translations}
-        allTranslations={allTranslations}
-        supportedLangs={supportedLangs}
-        loadedTabs={loadedTabs}
-        onUpdateBasicInfo={updateUserBasicInfo}
-        onUpdateAvatarUrl={updateAvatarUrl}
-        onUpdateProfile={updateUserProfile}
-        onVerifyPassword={verifyPasswordForIdentity}
-        onSendEmailVerification={sendEmailVerificationCode}
-        onSendPhoneVerification={sendPhoneVerificationCode}
-        onVerifyCode={verifyVerificationCode}
-        onUpdateEmail={updateEmailWithVerification}
-        onUpdatePhone={updatePhoneWithVerification}
-        onRemoveEmail={removeUserEmail}
-        onRemovePhone={removeUserPhone}
-        onGetMfaVerifications={getMfaVerifications}
-        onGenerateTotpSecret={generateTotpSecret}
-        onAddMfaVerification={addMfaVerification}
-        onDeleteMfaVerification={deleteMfaVerification}
-        onGenerateBackupCodes={generateBackupCodes}
-        onUpdatePassword={updateUserPassword}
-        onDeleteAccount={deleteUserAccount}
-        onSignOut={signOutUser}
+        <DashboardClient
+          initialData={{
+            userData: result.userData,
+            accessToken: result.accessToken,
+          }}
+          translations={translations}
+          allTranslations={allTranslations}
+          supportedLangs={supportedLangs}
+          loadedTabs={loadedTabs}
+          onUpdateBasicInfo={updateUserBasicInfo}
+          onUpdateAvatarUrl={updateAvatarUrl}
+          onUpdateProfile={updateUserProfile}
+          onVerifyPassword={verifyPasswordForIdentity}
+          onSendEmailVerification={sendEmailVerificationCode}
+          onSendPhoneVerification={sendPhoneVerificationCode}
+          onVerifyCode={verifyVerificationCode}
+          onUpdateEmail={updateEmailWithVerification}
+          onUpdatePhone={updatePhoneWithVerification}
+          onRemoveEmail={removeUserEmail}
+          onRemovePhone={removeUserPhone}
+          onGetMfaVerifications={getMfaVerifications}
+          onGenerateTotpSecret={generateTotpSecret}
+          onAddMfaVerification={addMfaVerification}
+          onDeleteMfaVerification={deleteMfaVerification}
+          onGenerateBackupCodes={generateBackupCodes}
+          onUpdatePassword={updateUserPassword}
+          onDeleteAccount={deleteUserAccount}
+          onSignOut={signOutUser}
         />
-        </PreferencesProvider>
-      </UserDataProvider>
+      </PreferencesProvider>
+    </UserDataProvider>
   );
 }
 
