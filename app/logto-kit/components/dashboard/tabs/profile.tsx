@@ -5,6 +5,8 @@ import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { UserBadge } from '../../userbutton';
+import { useAvatarUpload } from '../../../hooks/use-avatar-upload';
+import { updateAvatarUrl } from '../../../logic/actions';
 
 interface ProfileTabProps {
   userData: UserData;
@@ -98,6 +100,21 @@ export function ProfileTab({
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  const { upload, isUploading, error: uploadError, clearError } = useAvatarUpload({
+    userId: userData.id,
+    onSuccess: async (url: string) => {
+      setAvatarUrl(url);
+      setLocalPreview(null);
+      await updateAvatarUrl(url);
+      onSuccess(t.profile.avatarUpdated || 'Avatar updated.');
+      refreshData();
+    },
+    onError: (message: string) => {
+      setLocalPreview(null);
+      onError(message);
+    },
+  });
+
   const savedAvatarUrl = userData.avatar ?? '';
   const badgeDisplayUrl = localPreview ?? savedAvatarUrl;
   const urlChanged = avatarUrl.trim() !== savedAvatarUrl;
@@ -108,21 +125,10 @@ export function ProfileTab({
     if (file.size > 2 * 1024 * 1024) { onError(t.profile.avatarTooLarge || 'File must be under 2 MB.'); return; }
 
     setLocalPreview(URL.createObjectURL(file));
+    clearError();
 
-    setAvatarLoading(true);
-    try {
-      const remoteUrl = await uploadAvatarToStorage(file);
-      setAvatarUrl(remoteUrl);
-      setLocalPreview(null);
-      await onUpdateAvatarUrl(remoteUrl);
-      onSuccess(t.profile.avatarUpdated || 'Avatar updated.');
-      refreshData();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Upload failed.');
-    } finally {
-      setAvatarLoading(false);
-    }
-  }, [onUpdateAvatarUrl, onSuccess, onError, refreshData, t]);
+    await upload(file);
+  }, [upload, onError, t, clearError]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,12 +214,12 @@ export function ProfileTab({
                 avatar: badgeDisplayUrl || undefined
               }}
             />
-            {localPreview && !avatarLoading && (
+            {localPreview && !isUploading && (
               <div style={{ position: 'absolute', bottom: '-0.375rem', left: 0, right: 0, textAlign: 'center', fontSize: '0.5625rem', fontFamily: 'var(--font-ibm-plex-mono)', color: accentBlue, letterSpacing: '0.04em' }}>
                 PREVIEW
               </div>
             )}
-            {avatarLoading && (
+            {isUploading && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)' }}>
                 <SpinnerIcon size={1.25} color="#fff"/>
               </div>
@@ -225,7 +231,7 @@ export function ProfileTab({
               onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) handleFileSelected(f); }}
-              onClick={() => !avatarLoading && fileInputRef.current?.click()}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
               style={{
                 border: `1px dashed ${isDragging ? accentBlue : tc.borderColor}`,
                 padding: '0.8125rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -260,15 +266,15 @@ export function ProfileTab({
                   />
                 </div>
                 <button
-                  style={{ ...btnPrimary, opacity: (!urlChanged || avatarLoading) ? 0.4 : 1, cursor: (!urlChanged || avatarLoading) ? 'not-allowed' : 'pointer' }}
+                  style={{ ...btnPrimary, opacity: (!urlChanged || isUploading) ? 0.4 : 1, cursor: (!urlChanged || isUploading) ? 'not-allowed' : 'pointer' }}
                   onClick={handleSaveAvatarUrl}
-                  disabled={!urlChanged || avatarLoading}
+                  disabled={!urlChanged || isUploading}
                 >
-                  {avatarLoading ? <SpinnerIcon size={0.75} color="#fff"/> : <CheckIcon size={0.75} color="#fff"/>}
+                  {isUploading ? <SpinnerIcon size={0.75} color="#fff"/> : <CheckIcon size={0.75} color="#fff"/>}
                   {' '}{t.profile.saveUrl || 'Save URL'}
                 </button>
                 {savedAvatarUrl && (
-                  <button style={{ ...btnDanger, opacity: avatarLoading ? 0.4 : 1 }} disabled={avatarLoading} onClick={handleRemoveAvatar} title={t.profile.removeAvatar || 'Remove avatar'}>
+                  <button style={{ ...btnDanger, opacity: isUploading ? 0.4 : 1 }} disabled={isUploading} onClick={handleRemoveAvatar} title={t.profile.removeAvatar || 'Remove avatar'}>
                     <TrashIcon size={0.75} color={accentRed}/>
                   </button>
                 )}
