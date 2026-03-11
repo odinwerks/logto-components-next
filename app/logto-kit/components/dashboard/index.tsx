@@ -1,7 +1,6 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { DashboardClient, UserProfile } from './client';
-import { ThemeModeProvider } from '../handlers/theme-mode';
-import { LangModeProvider } from '../handlers/lang-mode';
+import { PreferencesProvider } from '../handlers/preferences';
 import { UserDataProvider } from '../handlers/user-data-context';
 import {
   updateUserBasicInfo,
@@ -97,8 +96,7 @@ export async function Dashboard() {
 
   return (
     <UserDataProvider userData={result.userData}>
-      <ThemeModeProvider initialTheme={resolvedTheme} onUpdateCustomData={updateUserCustomData}>
-        <LangModeProvider initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
+      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
           <DashboardClient
         initialData={{
           userData: result.userData,
@@ -128,8 +126,7 @@ export async function Dashboard() {
         onDeleteAccount={deleteUserAccount}
         onSignOut={signOutUser}
         />
-        </LangModeProvider>
-      </ThemeModeProvider>
+        </PreferencesProvider>
       </UserDataProvider>
   );
 }
