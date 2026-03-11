@@ -5,7 +5,7 @@ import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { UserBadge } from '../../userbutton';
-import { useAvatarUpload } from '../../../hooks/use-avatar-upload';
+import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 import { updateAvatarUrl } from '../../../logic/actions';
 
 interface ProfileTabProps {
