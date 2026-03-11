@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { UserData } from '../../logic/types';
-import { useThemeMode } from '../handlers/theme-mode';
+import { useThemeMode } from '../handlers/preferences';
 import { useUserDataContext } from '../handlers/user-data-context';
 import { fetchUserBadgeData } from '../../logic/actions';
 import { Dashboard } from '../dashboard';
