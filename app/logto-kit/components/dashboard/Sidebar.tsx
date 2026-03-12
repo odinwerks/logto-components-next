@@ -9,9 +9,22 @@
 
 import type { UserData } from '../../logic/types';
 import type { Translations } from '../../locales';
-import type { ThemeColors } from '../../themes';
+import type { ThemeSpec } from '../../themes';
 import { TruncatedToken } from './shared/CodeBlock';
-import { css, Btn } from './shared/design';
+
+const css = {
+  mono: "var(--font-ibm-plex-mono)",
+  sans: "'DM Sans', system-ui, sans-serif",
+} as const;
+
+function Btn({ children, variant = 'secondary', onClick, disabled = false }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; disabled?: boolean }) {
+  const base = { padding: '0.5rem 0.9375rem', fontSize: '0.8125rem', fontFamily: css.sans, fontWeight: 500, border: '1px solid', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', borderRadius: '0.25rem', opacity: disabled ? 0.5 : 1 };
+  const styles = {
+    primary: { ...base, background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' },
+    secondary: { ...base, background: '#1a1a1a', color: '#9ca3af', borderColor: '#374151' },
+  };
+  return <button onClick={onClick} disabled={disabled} style={styles[variant]}>{children}</button>;
+}
 
 const SignOutIcon = () => (
   <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -35,7 +48,8 @@ const SunIcon = () => (
   </svg>
 );
 
-function InfoRow({ label, value, themeColors }: { label: string; value: string; themeColors: ThemeColors }) {
+function InfoRow({ label, value, theme }: { label: string; value: string; theme: ThemeSpec }) {
+  const themeColors = theme.colors;
   return (
     <div style={{
       padding: '0.625rem 0.75rem',
@@ -65,8 +79,7 @@ export interface SidebarProps {
   accessToken:    string;
   lang:           string;
   supportedLangs: string[];
-  theme:          'dark' | 'light';
-  themeColors:    ThemeColors;
+  theme:          ThemeSpec;
   t:              Translations;
   formatDate:     (timestamp?: number | string) => string;
   onSignOut:      () => void;
@@ -80,13 +93,13 @@ export function Sidebar({
   lang,
   supportedLangs,
   theme,
-  themeColors,
   t,
   formatDate,
   onSignOut,
   onToggleTheme,
   onChangeLang,
 }: SidebarProps) {
+  const themeColors = theme.colors;
 
   const hasMultipleLangs = supportedLangs.length > 1;
   const isJwt            = accessToken.split('.').length === 3;
@@ -168,12 +181,12 @@ export function Sidebar({
 
       <div style={{ padding: '0.75rem 0.75rem 0', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
 
-        <InfoRow label={t.sidebar?.userId ?? 'User ID'} value={userData.id} themeColors={themeColors} />
+        <InfoRow label={t.sidebar?.userId ?? 'User ID'} value={userData.id} theme={theme} />
 
         <InfoRow
           label={t.sidebar?.lastLogin ?? 'Last sign-in'}
           value={formatDate(userData.lastSignInAt)}
-          themeColors={themeColors}
+          theme={theme}
         />
 
         <div>
@@ -184,7 +197,7 @@ export function Sidebar({
           }}>
             {tokenLabel}
           </p>
-          <TruncatedToken token={accessToken} t={t} themeColors={themeColors} />
+          <TruncatedToken token={accessToken} t={t} theme={theme} />
         </div>
       </div>
 
@@ -265,8 +278,8 @@ export function Sidebar({
             e.currentTarget.style.background = 'transparent';
           }}
         >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          {theme === 'dark'
+          {theme.mode === 'dark' ? <SunIcon /> : <MoonIcon />}
+          {theme.mode === 'dark'
             ? (t.sidebar?.lightMode ?? 'Light mode')
             : (t.sidebar?.darkMode  ?? 'Dark mode')
           }
