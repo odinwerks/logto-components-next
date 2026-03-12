@@ -3,7 +3,7 @@ import { logtoConfig } from '../../logto';
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-  const force = request.nextUrl.searchParams.has('force') || request.nextUrl.searchParams.get('force') === 'true';
+  const force = request.nextUrl.searchParams.get('force') === 'true';
 
   console.log('[CookieKiller] Wiping cookies via API route...', { force });
 
