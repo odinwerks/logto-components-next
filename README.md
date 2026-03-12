@@ -53,7 +53,6 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │   ├── types.ts
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx
-│   │   │   │   │   ├── design.tsx
 │   │   │   │   │   └── Toast.tsx
 │   │   │   │   └── tabs/
 │   │   │   │       ├── identities.tsx
@@ -172,6 +171,7 @@ function MyComponent() {
 
 The hook returns:
 - `theme` - `'dark' | 'light'`
+- `themeSpec` - Full ThemeSpec object with colors, components, tokens
 - `themeColors` - ThemeColors object with all color values
 - `setTheme(theme)` - Set specific theme
 - `toggleTheme()` - Toggle between dark/light
@@ -696,7 +696,7 @@ The avatar upload system consists of:
 | File | Purpose |
 |------|---------|
 | `app/api/upload-avatar/route.ts` | API route that handles HTTP requests |
-| `app/logto-kit/hooks/use-avatar-upload.ts` | React hook for client-side upload logic |
+| `app/logto-kit/components/handlers/use-avatar-upload.tsx` | React hook for client-side upload logic |
 | `app/logto-kit/logic/actions.ts` | Server action with `uploadAvatar()` function |
 
 The hook (`useAvatarUpload`) is already integrated into the Profile tab component. It:
@@ -709,7 +709,7 @@ The hook (`useAvatarUpload`) is already integrated into the Profile tab componen
 You can use the avatar upload hook in your own components:
 
 ```tsx
-import { useAvatarUpload } from './logto-kit/hooks/use-avatar-upload';
+import { useAvatarUpload } from './logto-kit/components/handlers/use-avatar-upload';
 
 function MyAvatarUploader({ userId }: { userId: string }) {
   const { upload, isUploading, error } = useAvatarUpload({
@@ -759,7 +759,7 @@ npm run build
 - [x] Security tab - button styling unified across all tabs
 - [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
-- [ ] Organizations tab while exists, all code to make it usable is still yet to be written.
+- [x] Organizations tab - implemented with org memberships and roles display
 
 ### Theme Context Provider
 - [x] Currently theme handling is internal to the dashboard
