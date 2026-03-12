@@ -5,7 +5,7 @@ import type { UserData } from '../../logic/types';
 
 const STORAGE_KEY = 'user-data';
 
-function getStoredUserData(): UserData | null {
+export function getStoredUserData(): UserData | null {
   if (typeof window === 'undefined') return null;
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -14,6 +14,11 @@ function getStoredUserData(): UserData | null {
     console.warn('[UserDataContext] Failed to parse stored user data:', error);
     return null;
   }
+}
+
+export function clearStoredUserData(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(STORAGE_KEY);
 }
 
 function setStoredUserData(userData: UserData) {
@@ -34,17 +39,32 @@ export function UserDataProvider({
   children: ReactNode;
   userData: UserData;
 }) {
-  const [cachedUserData, setCachedUserData] = useState<UserData>(() => 
-    getStoredUserData() ?? userData
+  const [cachedUserData, setCachedUserData] = useState<UserData | null>(() => 
+    getStoredUserData()
   );
 
+  const hasInitialCache = cachedUserData !== null;
+
   useEffect(() => {
-    setCachedUserData(userData);
-    setStoredUserData(userData);
-  }, [userData]);
+    if (!hasInitialCache) {
+      setCachedUserData(userData);
+      setStoredUserData(userData);
+      return;
+    }
+
+    const cached = getStoredUserData();
+    const isDifferent = cached && JSON.stringify(cached) !== JSON.stringify(userData);
+    
+    if (isDifferent) {
+      setCachedUserData(userData);
+      setStoredUserData(userData);
+    }
+  }, [userData, hasInitialCache]);
+
+  const displayData = cachedUserData ?? userData;
 
   return (
-    <UserDataContext.Provider value={cachedUserData}>
+    <UserDataContext.Provider value={displayData}>
       {children}
     </UserDataContext.Provider>
   );

@@ -1,10 +1,10 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { darkColors, lightColors, type ThemeColors } from '../../themes';
+import { darkTheme, lightTheme, lightColors, type ThemeSpec, type ThemeColors } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 
-export type { ThemeColors, LocaleCode };
+export type { ThemeColors, ThemeSpec, LocaleCode };
 
 const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
@@ -31,6 +31,7 @@ function setStoredLang(lang: string) {
 
 interface ThemeModeContextValue {
   theme: 'dark' | 'light';
+  themeSpec: ThemeSpec;
   themeColors: ThemeColors;
   setTheme: (theme: 'dark' | 'light') => void;
   toggleTheme: () => void;
@@ -128,7 +129,12 @@ export function PreferencesProvider({
   }, []);
 
   const themeColors = useMemo(
-    () => (theme === 'dark' ? darkColors : lightColors),
+    () => (theme === 'dark' ? darkTheme.colors : lightColors),
+    [theme]
+  );
+
+  const themeSpec = useMemo(
+    () => (theme === 'dark' ? darkTheme : lightTheme),
     [theme]
   );
 
@@ -172,10 +178,10 @@ export function PreferencesProvider({
 
   const value = useMemo(
     () => ({
-      theme: { theme, themeColors, setTheme, toggleTheme },
+      theme: { theme, themeSpec, themeColors, setTheme, toggleTheme },
       lang: { lang, setLang },
     }),
-    [theme, themeColors, setTheme, toggleTheme, lang, setLang]
+    [theme, themeSpec, themeColors, setTheme, toggleTheme, lang, setLang]
   );
 
   return (
@@ -195,7 +201,8 @@ export function useThemeMode(): ThemeModeContextValue {
   if (typeof window === 'undefined') {
     return {
       theme: 'dark',
-      themeColors: darkColors,
+      themeSpec: darkTheme,
+      themeColors: darkTheme.colors,
       setTheme: () => {},
       toggleTheme: () => {},
     };
@@ -204,7 +211,8 @@ export function useThemeMode(): ThemeModeContextValue {
   const autoTheme = getAutoDetectedTheme();
   return {
     theme: autoTheme,
-    themeColors: autoTheme === 'dark' ? darkColors : lightColors,
+    themeSpec: autoTheme === 'dark' ? darkTheme : lightTheme,
+    themeColors: autoTheme === 'dark' ? darkTheme.colors : lightColors,
     setTheme: () => {},
     toggleTheme: () => {},
   };
