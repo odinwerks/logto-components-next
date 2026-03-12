@@ -10,7 +10,8 @@ function getStoredUserData(): UserData | null {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
-  } catch {
+  } catch (error) {
+    console.warn('[UserDataContext] Failed to parse stored user data:', error);
     return null;
   }
 }
@@ -19,8 +20,8 @@ function setStoredUserData(userData: UserData) {
   if (typeof window === 'undefined') return;
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-  } catch {
-    // Storage might be full or disabled
+  } catch (error) {
+    console.warn('[UserDataContext] Failed to store user data:', error);
   }
 }
 
