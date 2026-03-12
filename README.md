@@ -585,7 +585,9 @@ This ensures that:
 
 ## Avatar Upload
 
-The dashboard supports user avatar uploads. When a user uploads an image, it's stored in S3-compatible storage and the URL is automatically saved to their Logto profile.
+The dashboard supports user avatar uploads via drag-and-drop or file browser. When a user uploads an image, it's stored in S3-compatible storage and the URL is automatically saved to their Logto profile.
+
+> **Security Note**: The previous URL input box has been removed. Users can only upload images via drag-and-drop or file browser. This prevents malicious URL injection attacks. If storage is not configured in production, uploads will fail with a clear error message.
 
 ### Architecture
 
@@ -611,6 +613,8 @@ The upload is protected by two-layer validation:
 2. **User ID Match**: Verifies the token's `sub` claim matches the submitted `userId`
 
 This prevents users from uploading avatars for other users. If user A tries to upload with userId = "userB", the request is rejected with `UNAUTHORIZED: token subject does not match the provided userId.`
+
+> **Note**: This same security pattern is also used for account deletion - the user's token must be valid and belong to the account being deleted.
 
 ### Environment Variables
 
@@ -755,7 +759,7 @@ npm run build
 - [x] Security tab - button styling unified across all tabs
 - [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
-- [ ] Organizations - system needs to be built from scratch
+- [x] Organizations tab - now implemented
 
 ### Theme Context Provider
 - [x] Currently theme handling is internal to the dashboard
