@@ -20,10 +20,6 @@ interface ProfileTabProps {
   refreshData: () => void;
 }
 
-async function uploadAvatarToStorage(_file: File): Promise<string> {
-  throw new Error('Storage not configured yet. Paste a hosted URL below to save your avatar.');
-}
-
 const UploadIcon = ({ size = 0.875, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -96,14 +92,12 @@ export function ProfileTab({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState(userData.avatar ?? '');
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const { upload, isUploading, error: uploadError, clearError } = useAvatarUpload({
     userId: userData.id,
     onSuccess: async (url: string) => {
-      setAvatarUrl(url);
       setLocalPreview(null);
       await updateAvatarUrl(url);
       onSuccess(t.profile.avatarUpdated || 'Avatar updated.');
@@ -117,7 +111,6 @@ export function ProfileTab({
 
   const savedAvatarUrl = userData.avatar ?? '';
   const badgeDisplayUrl = localPreview ?? savedAvatarUrl;
-  const urlChanged = avatarUrl.trim() !== savedAvatarUrl;
 
   useEffect(() => {
     return () => {
@@ -144,32 +137,10 @@ export function ProfileTab({
     e.target.value = '';
   }, [handleFileSelected]);
 
-  const handleSaveAvatarUrl = useCallback(async () => {
-    const trimmed = avatarUrl.trim();
-    if (!trimmed) return;
-    try { new URL(trimmed); } catch { onError(t.profile.invalidUrl || 'Please enter a valid URL.'); return; }
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      onError(t.profile.urlMustBeHttp || 'URL must start with http:// or https://');
-      return;
-    }
-    setAvatarLoading(true);
-    try {
-      await onUpdateAvatarUrl(trimmed);
-      setLocalPreview(null);
-      onSuccess(t.profile.avatarUpdated || 'Avatar updated.');
-      refreshData();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to update avatar.');
-    } finally {
-      setAvatarLoading(false);
-    }
-  }, [avatarUrl, onUpdateAvatarUrl, onSuccess, onError, refreshData, t]);
-
   const handleRemoveAvatar = useCallback(async () => {
     setAvatarLoading(true);
     try {
       await onUpdateAvatarUrl('');
-      setAvatarUrl('');
       setLocalPreview(null);
       onSuccess(t.profile.avatarRemoved || 'Avatar removed.');
       refreshData();
@@ -257,42 +228,18 @@ export function ProfileTab({
                 </p>
               </div>
             </div>
+            {savedAvatarUrl && (
+              <button 
+                style={{ ...btnDanger, marginTop: '0.5rem', opacity: isUploading ? 0.4 : 1 }} 
+                disabled={isUploading} 
+                onClick={handleRemoveAvatar} 
+                title={t.profile.removeAvatar || 'Remove avatar'}
+              >
+                <TrashIcon size={0.75} color={accentRed}/>
+                {' '}{t.profile.removeAvatar || 'Remove avatar'}
+              </button>
+            )}
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} onChange={handleFileInputChange}/>
-
-            <div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <div style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.35 }}>
-                    <LinkIcon size={0.75} color={tc.textSecondary}/>
-                  </div>
-                  <input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={e => setAvatarUrl(e.target.value)}
-                    placeholder="https://your-bucket.com/avatar.png"
-                    style={{ ...inputStyle, paddingLeft: '1.75rem', fontSize: '0.75rem' }}
-                  />
-                </div>
-                <button
-                  style={{ ...btnPrimary, opacity: (!urlChanged || isUploading) ? 0.4 : 1, cursor: (!urlChanged || isUploading) ? 'not-allowed' : 'pointer' }}
-                  onClick={handleSaveAvatarUrl}
-                  disabled={!urlChanged || isUploading}
-                >
-                  {isUploading ? <SpinnerIcon size={0.75} color="#fff"/> : <CheckIcon size={0.75} color="#fff"/>}
-                  {' '}{t.profile.saveUrl || 'Save URL'}
-                </button>
-                {savedAvatarUrl && (
-                  <button style={{ ...btnDanger, opacity: isUploading ? 0.4 : 1 }} disabled={isUploading} onClick={handleRemoveAvatar} title={t.profile.removeAvatar || 'Remove avatar'}>
-                    <TrashIcon size={0.75} color={accentRed}/>
-                  </button>
-                )}
-              </div>
-              <p style={{ margin: '0.375rem 0 0', fontSize: '0.6875rem', color: tc.textTertiary, fontFamily: 'var(--font-ibm-plex-mono)', lineHeight: 1.55 }}>
-                {localPreview
-                  ? (t.profile.avatarPreviewHint || 'File selected for preview. Wire uploadAvatarToStorage() to auto-fill, or paste a hosted URL.')
-                  : (t.profile.avatarUrlHint || 'Logto requires a public https:// URL. Wire uploadAvatarToStorage() to fill this automatically.')}
-              </p>
-            </div>
           </div>
         </div>
       </div>
