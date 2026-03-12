@@ -593,10 +593,13 @@ async function uploadViaSupabase(
   bytes: Buffer,
   contentType: string,
 ): Promise<void> {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  const rawEndpoint = process.env.S3_ENDPOINT
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const rawEndpoint = process.env.S3_ENDPOINT;
 
-  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.')
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.');
+  }
+  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.');
 
   const restBase = rawEndpoint.replace(/\/s3\/?$/, '')
   const uploadUrl = `${restBase}/object/${bucket}/${key}`
