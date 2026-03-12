@@ -759,7 +759,7 @@ npm run build
 - [x] Security tab - button styling unified across all tabs
 - [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
-- [x] Organizations tab - now implemented
+- [ ] Organizations tab while exists, all code to make it usable is still yet to be written.
 
 ### Theme Context Provider
 - [x] Currently theme handling is internal to the dashboard
