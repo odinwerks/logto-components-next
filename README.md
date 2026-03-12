@@ -753,6 +753,13 @@ npm run build
 
 ## Todo
 
+
+### Functions
+
+- [ ] Org switcher - Nope.
+- [ ] Org permission (by role and logto perm) wrappers - Noope.
+- [ ] Protected action runner for special permission graced users - Super nope.  
+
 ### UI Polish
 - [x] Profile tab - redesigned with proper edit UI
 - [x] Preferences tab - removed JSON editor
@@ -760,6 +767,7 @@ npm run build
 - [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
 - [x] Organizations tab - implemented with org memberships and roles display
+- [ ] All UI to cover full Org and RBAC things - Noooooooope. 
 
 ### Theme Context Provider
 - [x] Currently theme handling is internal to the dashboard
@@ -794,7 +802,7 @@ npm run build
 - [x] Automatic URL update to Logto profile
 
 ### Conquer All.
-- [ ] [DOMINATE. ABSOLUTELY. EVERYTHING.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
+- [ ] [Conquer All.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
 
 ## License
 If you cause the decadence of Earth running this horrid code, I am not liable. Also take care <3
