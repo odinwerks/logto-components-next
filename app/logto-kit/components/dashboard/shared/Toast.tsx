@@ -2,70 +2,60 @@
 
 import React, { useEffect } from 'react';
 import type { ToastMessage } from '../types';
-import type { ThemeColors } from '../../../themes';
+import type { ThemeSpec } from '../../../themes';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Single Toast
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface ToastProps {
-  message: ToastMessage;
+  message:   ToastMessage;
   onDismiss: (id: string) => void;
-  themeColors: ThemeColors;
+  theme:     ThemeSpec;
 }
 
-export function Toast({ message, onDismiss, themeColors }: ToastProps) {
+export function Toast({ message, onDismiss, theme }: ToastProps) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onDismiss(message.id);
-    }, message.duration || 3000);
-
+    const timer = setTimeout(
+      () => onDismiss(message.id),
+      message.duration || 3000,
+    );
     return () => clearTimeout(timer);
   }, [message.id, message.duration, onDismiss]);
 
-  const bgColor =
-    message.type === 'success'
-      ? themeColors.successBg
-      : message.type === 'error'
-      ? themeColors.errorBg
-      : themeColors.warningBg;
+  const cs = theme.components;
+  const styleMap = {
+    success: cs.toasts.success,
+    error:   cs.toasts.error,
+    info:    cs.toasts.info,
+    warning: cs.toasts.warning,
+  } as const;
 
-  const borderColor =
-    message.type === 'success'
-      ? themeColors.accentGreen
-      : message.type === 'error'
-      ? themeColors.accentRed
-      : themeColors.accentYellow;
-
-  const textColor =
-    message.type === 'success'
-      ? themeColors.accentGreen
-      : message.type === 'error'
-      ? themeColors.accentRed
-      : themeColors.accentYellow;
+  const toastStyle: React.CSSProperties = {
+    ...styleMap[message.type],
+    zIndex:    9999,
+    maxWidth:  '25rem',
+    animation: 'slideIn 0.2s ease-out',
+  };
 
   return (
-    <div
-      style={{
-        padding: '0.625rem',
-        background: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: '0.3125rem',
-        fontSize: '0.75rem',
-        fontFamily: 'var(--font-ibm-plex-mono)',
-        zIndex: 9999,
-        maxWidth: '25rem',
-        color: textColor,
-        animation: 'slideIn 0.2s ease-out',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+    <div style={toastStyle}>
+      <div style={{
+        display:     'flex',
+        justifyContent: 'space-between',
+        alignItems:  'center',
+        gap:         '0.75rem',
+      }}>
         <span>{message.message}</span>
         <button
           onClick={() => onDismiss(message.id)}
           style={{
             background: 'transparent',
-            border: 'none',
-            color: textColor,
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            padding: '0',
+            border:     'none',
+            color:      'inherit',
+            cursor:     'pointer',
+            fontSize:   '0.875rem',
+            padding:    '0',
             lineHeight: '1',
           }}
         >
@@ -76,13 +66,17 @@ export function Toast({ message, onDismiss, themeColors }: ToastProps) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ToastContainer
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface ToastContainerProps {
-  messages: ToastMessage[];
+  messages:  ToastMessage[];
   onDismiss: (id: string) => void;
-  themeColors: ThemeColors;
+  theme:     ThemeSpec;
 }
 
-export function ToastContainer({ messages, onDismiss, themeColors }: ToastContainerProps) {
+export function ToastContainer({ messages, onDismiss, theme }: ToastContainerProps) {
   return (
     <>
       {messages.map((message, index) => (
@@ -90,12 +84,12 @@ export function ToastContainer({ messages, onDismiss, themeColors }: ToastContai
           key={message.id}
           style={{
             position: 'fixed',
-            top: `${1.25 + index * 4.375}rem`,
-            right: '1.25rem',
-            zIndex: 9999,
+            top:      `${1.25 + index * 4.375}rem`,
+            right:    '1.25rem',
+            zIndex:   9999,
           }}
         >
-          <Toast message={message} onDismiss={onDismiss} themeColors={themeColors} />
+          <Toast message={message} onDismiss={onDismiss} theme={theme} />
         </div>
       ))}
     </>
