@@ -181,7 +181,7 @@ export function DashboardClient({
   useEffect(() => {
     setUserData(initialData.userData);
     setAccessToken(initialData.accessToken);
-  }, [initialData]);
+  }, [initialData.userData, initialData.accessToken]);
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
