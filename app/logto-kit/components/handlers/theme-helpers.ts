@@ -1,42 +1,99 @@
-import type { ThemeColors } from '../../themes';
+// =============================================================================
+// components/handlers/theme-helpers.ts
+//
+// Shorthand aliases used heavily by security.tsx and identities.tsx.
+// Both ThemeColors and ThemeSpec are accepted — ThemeSpec is preferred.
+// =============================================================================
 
-export function adj(hex: string, n: number): string {
-  const c = hex.replace('#', '');
-  if (c.length !== 6) return hex;
-  const v = parseInt(c, 16);
-  const r = Math.min(255, Math.max(0, (v >> 16) + n));
-  const g = Math.min(255, Math.max(0, ((v >> 8) & 0xff) + n));
-  const b = Math.min(255, Math.max(0, (v & 0xff) + n));
-  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+import type { ThemeColors } from '../../themes';
+import { alpha, adj as _adj } from '../../themes/default';
+
+// Re-export adj so callers can import it from here
+export { _adj as adj, alpha };
+
+// The shape returned by tk()
+export interface TK {
+  // Fonts
+  font:  string;
+  mono:  string;
+
+  // Text colours
+  text:  string; // textPrimary
+  sub:   string; // textSecondary
+  muted: string; // textTertiary
+
+  // Surface colours
+  bg:      string; // bgPrimary
+  surface: string; // bgSecondary
+  raised:  string; // bgTertiary
+
+  // Borders
+  border:      string;
+  borderFaint: string; // borderColor @50% alpha
+
+  // Green family
+  greenDim:  string; // alpha bg for green surfaces
+  greenText: string; // accentGreen
+
+  // Blue family
+  blueDim:  string;
+  blueText: string; // accentBlue
+  blue:     string; // accentBlue (alias)
+
+  // Red family
+  redDim:    string;
+  redText:   string; // accentRed
+  redBorder: string; // alpha(accentRed, 0.3)
+  red:       string; // accentRed
+
+  // Amber / yellow family
+  amberDim:  string;
+  amberText: string; // accentYellow
 }
 
-export function tk(tc: ThemeColors) {
+type Acceptable = ThemeColors | { colors: ThemeColors; mode?: string };
+
+function extractColors(tc: Acceptable): ThemeColors {
+  if ('colors' in tc && tc.colors && typeof tc.colors === 'object') {
+    return tc.colors as ThemeColors;
+  }
+  return tc as ThemeColors;
+}
+
+/**
+ * Returns a compact alias object from a ThemeColors or ThemeSpec.
+ * Security.tsx and other heavy consumers use this to keep inline styles terse.
+ */
+export function tk(tc: Acceptable): TK {
+  const c = extractColors(tc);
   return {
-    bg: tc.bgPrimary,
-    surface: tc.bgSecondary,
-    raised: tc.bgTertiary,
-    border: tc.borderColor,
-    borderFaint: tc.borderColor + '55',
-    text: tc.textPrimary,
-    sub: tc.textSecondary,
-    muted: tc.textTertiary,
-    blue: tc.accentBlue,
-    blueEdge: adj(tc.accentBlue, -20),
-    blueDim: tc.accentBlue + '1a',
-    blueText: tc.accentBlue,
-    red: tc.accentRed,
-    redDim: tc.accentRed + '1a',
-    redBorder: adj(tc.accentRed, -30) + '55',
-    redText: tc.accentRed,
-    green: tc.accentGreen,
-    greenDim: tc.accentGreen + '1a',
-    greenText: adj(tc.accentGreen, 30),
-    amber: tc.accentYellow,
-    amberDim: tc.accentYellow + '1a',
-    amberText: adj(tc.accentYellow, -20),
-    font: "'Sora', system-ui, sans-serif",
-    mono: "'IBM Plex Mono', monospace",
+    font:  "'DM Sans', system-ui, sans-serif",
+    mono:  "'IBM Plex Mono', 'Courier New', monospace",
+
+    text:  c.textPrimary,
+    sub:   c.textSecondary,
+    muted: c.textTertiary,
+
+    bg:      c.bgPrimary,
+    surface: c.bgSecondary,
+    raised:  c.bgTertiary,
+
+    border:      c.borderColor,
+    borderFaint: alpha(c.borderColor, 0.5),
+
+    greenDim:  alpha(c.accentGreen, 0.1),
+    greenText: c.accentGreen,
+
+    blueDim:  alpha(c.accentBlue, 0.1),
+    blueText: c.accentBlue,
+    blue:     c.accentBlue,
+
+    redDim:    c.errorBg,
+    redText:   c.accentRed,
+    redBorder: alpha(c.accentRed, 0.3),
+    red:       c.accentRed,
+
+    amberDim:  c.warningBg,
+    amberText: c.accentYellow,
   };
 }
-
-export type ThemeHelper = ReturnType<typeof tk>;
