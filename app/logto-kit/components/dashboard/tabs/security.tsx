@@ -7,6 +7,7 @@ import type { UserData, MfaVerification, MfaVerificationPayload } from '../../..
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { adj, tk } from '../../handlers/theme-helpers';
+import { fetchUserBadgeData } from '../../../logic/actions';
 import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Download, Phone, Mail, Shield, Lock, Copy, LucideIcon } from 'lucide-react';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ interface SecurityTabProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -819,11 +820,16 @@ export function SecurityTab({
     try {
       const { verificationRecordId } = await onVerifyPassword(pw);
 
+      const badgeData = await fetchUserBadgeData();
+      if (!badgeData.success || !badgeData.accessToken) {
+        throw new Error('Could not retrieve session token for account deletion.');
+      }
+
       // Server action deletes the account and returns cleanly.
       // It no longer calls signOut()/redirect() internally — doing so raced
       // with AuthWatcher's router.refresh() interval and caused a flood of
       // "failed to fetch" errors as the session was torn down mid-flight.
-      await onDeleteAccount(verificationRecordId);
+      await onDeleteAccount(verificationRecordId, badgeData.accessToken);
 
       // Navigate client-side to the sign-out route handler.
       // window.location.href (not router.push) because:
