@@ -27,9 +27,9 @@ export function useAvatarUpload({
   const onSuccessRef = useRef(onSuccess)
   const onErrorRef = useRef(onError)
   useEffect(() => {
-    onSuccessRef.current = onSuccess
-    onErrorRef.current = onError
-  })
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+  }, [onSuccess, onError]);
 
   const upload = useCallback(
     async (file: File): Promise<string | null> => {
