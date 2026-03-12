@@ -29,7 +29,6 @@ function getEnvVar(name: string, required = true): string {
     throw new Error(`Environment variable ${name} is empty after aggressive trimming`);
   }
 
-  console.log(`[Logto Config] Loaded ${name}: ${value.slice(0, 10)}...`);
   return value;
 }
 
@@ -41,7 +40,6 @@ function buildAccountApiResource(endpoint: string): string {
   const cleanEndpoint = endpoint.replace(/\/+$/, '');
   const resource = `${cleanEndpoint}/api`;
 
-  console.log(`[Logto Config] Built resource: ${resource}`);
   return resource;
 }
 
@@ -55,14 +53,11 @@ function parseScopes(scopeString: string): string[] {
     .map((s) => SCOPE_MAP[s] || s)
     .filter(Boolean);
 
-  console.log(`[Logto Config] Parsed scopes: ${scopes.join(', ')}`);
   return scopes;
 }
 
 export const logtoConfig = (() => {
   try {
-    console.log('[Logto Config] ==== INITIALIZING ====');
-
     const appId = getEnvVar('APP_ID');
     const appSecret = getEnvVar('APP_SECRET');
     const endpoint = getEnvVar('ENDPOINT');
@@ -84,15 +79,6 @@ export const logtoConfig = (() => {
 
     const customScopes = parseScopes(scopeString || '');
     const allScopes = [...new Set([...defaultScopes, ...customScopes])];
-
-    console.log('[Logto Config] Final config:', {
-      appId: appId.slice(0, 8) + '...',
-      endpoint,
-      baseUrl,
-      resources,
-      scopesCount: allScopes.length,
-      nodeEnv,
-    });
 
     const config = {
       appId,
