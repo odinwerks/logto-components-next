@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -118,6 +118,14 @@ export function ProfileTab({
   const savedAvatarUrl = userData.avatar ?? '';
   const badgeDisplayUrl = localPreview ?? savedAvatarUrl;
   const urlChanged = avatarUrl.trim() !== savedAvatarUrl;
+
+  useEffect(() => {
+    return () => {
+      if (localPreview) {
+        URL.revokeObjectURL(localPreview);
+      }
+    };
+  }, [localPreview]);
 
   const handleFileSelected = useCallback(async (file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
