@@ -135,10 +135,6 @@ export interface Translations {
     avatarRemoved: string;
     avatarInvalidType: string;
     avatarTooLarge: string;
-    invalidUrl: string;
-    urlMustBeHttp: string;
-    avatarPreviewHint: string;
-    avatarUrlHint: string;
     passwordRequired: string;
     emailRemoved: string;
     phoneRemoved: string;
