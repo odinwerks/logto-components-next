@@ -239,6 +239,8 @@ function FlowModal({
     navigator.clipboard.writeText(step.secret).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Clipboard write failed - silently ignore
     });
   };
 
