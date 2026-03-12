@@ -2,72 +2,133 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData } from '../../../logic/types';
-import type { ThemeColors } from '../../../themes';
+import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
+import { Trash2 } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 import { updateAvatarUrl } from '../../../logic/actions';
 
-interface ProfileTabProps {
-  userData: UserData;
-  themeColors: ThemeColors;
-  t: Translations;
-  onUpdateBasicInfo: (updates: { name?: string }) => Promise<void>;
-  onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
-  onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<void>;
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
-  refreshData: () => void;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Icons
+// ─────────────────────────────────────────────────────────────────────────────
 
-const UploadIcon = ({ size = 0.875, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
+const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
+  <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
+    stroke={color} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
     <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
   </svg>
 );
-const TrashIcon = ({ size = 0.875, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-  </svg>
-);
+
 const CheckIcon = ({ size = 0.875, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+  <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
+    stroke={color} strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
     <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
-const LinkIcon = ({ size = 0.75, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-  </svg>
-);
+
 const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+  <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
+    stroke={color} strokeWidth="2" strokeLinecap="round">
     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/>
+      <animateTransform attributeName="transform" type="rotate"
+        from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/>
     </path>
   </svg>
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Primitive sub-components (assembled from theme)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SectionLabel({ children, theme }: { children: React.ReactNode; theme: ThemeSpec }) {
+  return <p style={theme.components.text.sectionLabel}>{children}</p>;
+}
+
+function Well({ children, theme }: { children: React.ReactNode; theme: ThemeSpec }) {
+  return <div style={theme.components.surfaces.well}>{children}</div>;
+}
+
+function FieldInput({
+  value, onChange, placeholder, type = 'text', theme,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  type?: string;
+  theme: ThemeSpec;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={theme.components.inputs.text}
+    />
+  );
+}
+
+function Btn({
+  children, variant = 'secondary', onClick, disabled = false, theme,
+}: {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  onClick?: () => void;
+  disabled?: boolean;
+  theme: ThemeSpec;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const s = theme.components.buttons[variant];
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...s.base,
+        ...(hovered && !disabled ? s.hover : {}),
+        ...(disabled ? s.disabled : {}),
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ProfileTab
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ProfileTabProps {
+  userData:          UserData;
+  theme:             ThemeSpec;
+  t:                 Translations;
+  onUpdateBasicInfo: (updates: { name?: string }) => Promise<void>;
+  onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
+  onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<void>;
+  onSuccess:         (message: string) => void;
+  onError:           (message: string) => void;
+  refreshData:       () => void;
+}
+
 export function ProfileTab({
-  userData,
-  themeColors: tc,
-  t,
-  onUpdateBasicInfo,
-  onUpdateAvatarUrl,
-  onUpdateProfile,
-  onSuccess,
-  onError,
-  refreshData,
+  userData, theme, t,
+  onUpdateBasicInfo, onUpdateAvatarUrl, onUpdateProfile,
+  onSuccess, onError, refreshData,
 }: ProfileTabProps) {
-  const [givenName, setGivenName] = useState(userData.profile?.givenName ?? '');
-  const [familyName, setFamilyName] = useState(userData.profile?.familyName ?? '');
+  const cs = theme.components;
+  const c  = theme.colors;
+  const ty = theme.tokens.typography;
+
+  const [givenName,   setGivenName]   = useState(userData.profile?.givenName  ?? '');
+  const [familyName,  setFamilyName]  = useState(userData.profile?.familyName ?? '');
   const [nameLoading, setNameLoading] = useState(false);
 
   const nameChanged =
-    givenName !== (userData.profile?.givenName ?? '') ||
+    givenName  !== (userData.profile?.givenName  ?? '') ||
     familyName !== (userData.profile?.familyName ?? '');
 
   const handleSaveName = useCallback(async () => {
@@ -86,16 +147,17 @@ export function ProfileTab({
   }, [givenName, familyName, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
 
   const handleDiscardName = useCallback(() => {
-    setGivenName(userData.profile?.givenName ?? '');
+    setGivenName(userData.profile?.givenName  ?? '');
     setFamilyName(userData.profile?.familyName ?? '');
   }, [userData]);
 
+  // ── Avatar handling ─────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging]       = useState(false);
 
-  const { upload, isUploading, error: uploadError, clearError } = useAvatarUpload({
+  const { upload, isUploading, clearError } = useAvatarUpload({
     userId: userData.id,
     onSuccess: async (url: string) => {
       setLocalPreview(null);
@@ -109,25 +171,25 @@ export function ProfileTab({
     },
   });
 
-  const savedAvatarUrl = userData.avatar ?? '';
+  const savedAvatarUrl  = userData.avatar ?? '';
   const badgeDisplayUrl = localPreview ?? savedAvatarUrl;
 
   useEffect(() => {
-    return () => {
-      if (localPreview) {
-        URL.revokeObjectURL(localPreview);
-      }
-    };
+    return () => { if (localPreview) URL.revokeObjectURL(localPreview); };
   }, [localPreview]);
 
   const handleFileSelected = useCallback(async (file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowed.includes(file.type)) { onError(t.profile.avatarInvalidType || 'Only JPEG, PNG, WebP, or GIF images are allowed.'); return; }
-    if (file.size > 2 * 1024 * 1024) { onError(t.profile.avatarTooLarge || 'File must be under 2 MB.'); return; }
-
+    if (!allowed.includes(file.type)) {
+      onError(t.profile.avatarInvalidType || 'Only JPEG, PNG, WebP, or GIF images are allowed.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      onError(t.profile.avatarTooLarge || 'File must be under 2 MB.');
+      return;
+    }
     setLocalPreview(URL.createObjectURL(file));
     clearError();
-
     await upload(file);
   }, [upload, onError, t, clearError]);
 
@@ -151,125 +213,166 @@ export function ProfileTab({
     }
   }, [onUpdateAvatarUrl, onSuccess, onError, refreshData, t]);
 
-  const displayName = [givenName, familyName].filter(Boolean).join(' ') || userData.name || userData.username || '—';
+  // ── Render ───────────────────────────────────────────────────────────────
 
-  const accentBlue = tc.accentBlue ?? '#3060e0';
-  const accentRed = tc.accentRed ?? '#bf3a3a';
-
-  const sectionLabel = (text: string) => (
-    <p style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: tc.textTertiary, marginBottom: '0.75rem', fontFamily: 'var(--font-ibm-plex-mono)' }}>{text}</p>
-  );
-  const fieldLabel = (text: string) => (
-    <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 500, color: tc.textTertiary, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '0.4375rem', fontFamily: 'var(--font-ibm-plex-mono)' }}>{text}</label>
-  );
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '0.5625rem 0.75rem', background: tc.bgPrimary, border: `1px solid ${tc.borderColor}`,
-    color: tc.textPrimary, fontSize: '0.8125rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+  const dropZoneStyle: React.CSSProperties = {
+    ...cs.surfaces.dropZone,
+    ...(isDragging ? cs.surfaces.dropZoneActive : {}),
+    opacity: isUploading ? 0.7 : 1,
   };
-  const btnBase: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4375rem 0.8125rem', fontSize: '0.6875rem',
-    fontFamily: 'var(--font-ibm-plex-mono)', fontWeight: 500, border: `1px solid ${tc.borderColor}`,
-    background: tc.bgTertiary, color: tc.textPrimary, cursor: 'pointer', flexShrink: 0, transition: 'opacity 0.15s ease',
-  };
-  const btnPrimary: React.CSSProperties = { ...btnBase };
-  const btnDanger: React.CSSProperties = { ...btnBase, background: 'transparent', color: accentRed, border: `1px solid ${accentRed}`, padding: '0.4375rem 0.6875rem' };
-  const card: React.CSSProperties = { background: tc.bgSecondary, border: `1px solid ${tc.borderColor}`, padding: '1.25rem 1.375rem', marginBottom: '1.25rem' };
 
   return (
-    <div style={{ fontFamily: 'inherit' }}>
-      {sectionLabel(t.profile.profilePhoto || 'Profile photo')}
-      <div style={card}>
+    <div>
+      {/* Profile photo */}
+      <SectionLabel theme={theme}>{t.profile.profilePhoto || 'Profile photo'}</SectionLabel>
+      <Well theme={theme}>
         <div style={{ display: 'flex', gap: '1.125rem', alignItems: 'flex-start' }}>
+
+          {/* Avatar preview */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <UserBadge
               Canvas={badgeDisplayUrl ? 'Avatar' : 'Initials'}
-              Size="72px" shape="sq"
+              Size="72px"
+              shape="sq"
               userData={{
                 ...userData,
-                profile: {
-                  givenName: givenName,
-                  familyName: familyName,
-                },
-                avatar: badgeDisplayUrl || undefined
+                profile: { givenName, familyName },
+                avatar: badgeDisplayUrl || undefined,
               }}
             />
             {localPreview && !isUploading && (
-              <div style={{ position: 'absolute', bottom: '-0.375rem', left: 0, right: 0, textAlign: 'center', fontSize: '0.5625rem', fontFamily: 'var(--font-ibm-plex-mono)', color: accentBlue, letterSpacing: '0.04em' }}>
+              <div style={{
+                position:  'absolute', bottom: '-0.375rem',
+                left:      0, right: 0, textAlign: 'center',
+                fontSize:  ty.size.micro,
+                fontFamily:ty.fontMono,
+                color:     c.accentBlue,
+                letterSpacing: '0.04em',
+              }}>
                 PREVIEW
               </div>
             )}
             {isUploading && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)' }}>
-                <SpinnerIcon size={1.25} color="#fff"/>
+              <div style={{
+                position:        'absolute', inset: 0,
+                display:         'flex',
+                alignItems:      'center',
+                justifyContent:  'center',
+                background:      'rgba(0,0,0,0.55)',
+              }}>
+                <SpinnerIcon size={1.25} color="#fff" />
               </div>
             )}
           </div>
 
+          {/* Drop zone */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div
-              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+              onDragOver={e  => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
-              onDrop={e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) handleFileSelected(f); }}
-              onClick={() => !isUploading && fileInputRef.current?.click()}
-              style={{
-                border: `1px dashed ${isDragging ? accentBlue : tc.borderColor}`,
-                padding: '0.8125rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-                background: isDragging ? tc.bgTertiary : 'transparent',
-                transition: 'border-color 0.15s, background 0.15s', cursor: 'pointer',
+              onDrop={e => {
+                e.preventDefault();
+                setIsDragging(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) handleFileSelected(f);
               }}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              style={dropZoneStyle}
             >
-              <UploadIcon size={1} color={tc.textTertiary}/>
-              <div>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: tc.textSecondary }}>
-                  {t.profile.dragDrop || 'Drag & drop or'} <span style={{ color: accentBlue, textDecoration: 'underline' }}>{t.profile.browse || 'browse'}</span>
+              <UploadIcon size={1} color={c.textTertiary} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: ty.size.base, color: c.textSecondary, fontFamily: ty.fontSans }}>
+                  {t.profile.dragDrop || 'Drag & drop or'}{' '}
+                  <span style={{ color: c.accentBlue, textDecoration: 'underline' }}>
+                    {t.profile.browse || 'browse'}
+                  </span>
                 </p>
-                <p style={{ margin: '0.1875rem 0 0', fontSize: '0.6875rem', color: tc.textTertiary, fontFamily: 'var(--font-ibm-plex-mono)' }}>
+                <p style={{ margin: '0.1875rem 0 0', ...cs.text.mutedMono }}>
                   PNG · JPEG · WebP · GIF · max 2 MB
                 </p>
               </div>
+
+              {savedAvatarUrl && (
+                <button
+                  style={{
+                    position:        'absolute',
+                    right:           '0.5rem',
+                    top:             '50%',
+                    transform:       'translateY(-50%)',
+                    background:      'transparent',
+                    border:          'none',
+                    cursor:          isUploading ? 'not-allowed' : 'pointer',
+                    padding:         '0.5rem',
+                    opacity:         isUploading ? 0.4 : 1,
+                    display:         'flex',
+                    alignItems:      'center',
+                    justifyContent:  'center',
+                    width:           '3rem',
+                    height:          '3rem',
+                  }}
+                  disabled={isUploading}
+                  onClick={e => { e.stopPropagation(); handleRemoveAvatar(); }}
+                  title={t.profile.removeAvatar || 'Remove avatar'}
+                >
+                  <Trash2 size={48} color={c.accentRed} />
+                </button>
+              )}
             </div>
-            {savedAvatarUrl && (
-              <button 
-                style={{ ...btnDanger, marginTop: '0.5rem', opacity: isUploading ? 0.4 : 1 }} 
-                disabled={isUploading} 
-                onClick={handleRemoveAvatar} 
-                title={t.profile.removeAvatar || 'Remove avatar'}
-              >
-                <TrashIcon size={0.75} color={accentRed}/>
-                {' '}{t.profile.removeAvatar || 'Remove avatar'}
-              </button>
-            )}
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} onChange={handleFileInputChange}/>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handleFileInputChange}
+            />
           </div>
         </div>
-      </div>
+      </Well>
 
-      {sectionLabel(t.profile.changeName || 'Change your name here')}
-      <div style={card}>
+      {/* Name section */}
+      <SectionLabel theme={theme}>{t.profile.changeName || 'Change your name'}</SectionLabel>
+      <Well theme={theme}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem', marginBottom: '1.125rem' }}>
           <div>
-            {fieldLabel(t.profile.firstName || 'First name')}
-            <input type="text" value={givenName} onChange={e => setGivenName(e.target.value)} placeholder={t.profile.firstNamePlaceholder || 'First name'} style={inputStyle}/>
+            <label style={cs.inputs.label}>{t.profile.firstName || 'First name'}</label>
+            <FieldInput
+              value={givenName}
+              onChange={e => setGivenName(e.target.value)}
+              placeholder={t.profile.firstNamePlaceholder || 'First name'}
+              theme={theme}
+            />
           </div>
           <div>
-            {fieldLabel(t.profile.lastName || 'Last name')}
-            <input type="text" value={familyName} onChange={e => setFamilyName(e.target.value)} placeholder={t.profile.lastNamePlaceholder || 'Last name'} style={inputStyle}/>
+            <label style={cs.inputs.label}>{t.profile.lastName || 'Last name'}</label>
+            <FieldInput
+              value={familyName}
+              onChange={e => setFamilyName(e.target.value)}
+              placeholder={t.profile.lastNamePlaceholder || 'Last name'}
+              theme={theme}
+            />
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           {nameChanged && (
-            <button style={btnBase} onClick={handleDiscardName} disabled={nameLoading}>{t.profile.discard || 'Discard'}</button>
+            <Btn variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme}>
+              {t.profile.discard || 'Discard'}
+            </Btn>
           )}
-          <button
-            style={{ ...btnPrimary, opacity: (!nameChanged || nameLoading) ? 0.4 : 1, cursor: (!nameChanged || nameLoading) ? 'not-allowed' : 'pointer' }}
+          <Btn
+            variant="primary"
             onClick={handleSaveName}
             disabled={!nameChanged || nameLoading}
+            theme={theme}
           >
-            {nameLoading ? <><SpinnerIcon size={0.8125} color="#fff"/> {t.profile.saving || 'Saving…'}</> : <><CheckIcon size={0.8125} color="#fff"/> {t.profile.saveChanges || 'Save changes'}</>}
-          </button>
+            {nameLoading
+              ? <><SpinnerIcon size={0.8125} color="#fff" /> {t.profile.saving || 'Saving…'}</>
+              : <><CheckIcon   size={0.8125} color="#fff" /> {t.profile.saveChanges || 'Save changes'}</>
+            }
+          </Btn>
         </div>
-      </div>
+      </Well>
     </div>
   );
 }
