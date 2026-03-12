@@ -2,172 +2,85 @@
 
 import { KeyRound, Braces, Cookie, LogOut } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
-import type { ThemeColors } from '../../../themes';
+import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
 
 interface DevTabProps {
-  userData: UserData;
-  themeColors: ThemeColors;
-  t: Translations;
+  userData:    UserData;
+  theme:       ThemeSpec;
+  t:           Translations;
   accessToken: string;
 }
 
-interface SectionProps {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-  themeColors: ThemeColors;
-  danger?: boolean;
-}
+export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
+  const cs = theme.components;
+  const c  = theme.colors;
+  const ty = theme.tokens.typography;
 
-function Section({ icon, label, children, themeColors, danger }: SectionProps) {
-  return (
-    <div
-      style={{
-        overflow: 'hidden',
-        border: `1px solid ${danger ? themeColors.accentRed + '40' : themeColors.borderColor}`,
-      }}
-    >
-      {/* Section header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.4375rem',
-          padding: '0.5625rem 0.875rem',
-          background: danger
-            ? themeColors.accentRed + '0c'
-            : themeColors.bgSecondary,
-          borderBottom: `1px solid ${danger ? themeColors.accentRed + '30' : themeColors.borderColor}`,
-        }}
-      >
-        <span
-          style={{
-            color: danger ? themeColors.accentRed : themeColors.textTertiary,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          {icon}
-        </span>
-        <span
-          style={{
-            color: danger ? themeColors.accentRed : themeColors.textSecondary,
-            fontSize: '0.625rem',
-            fontFamily: 'var(--font-ibm-plex-mono)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontWeight: 600,
-          }}
-        >
-          {label}
-        </span>
+  // ── Section wrapper (card with icon+label header) ───────────────────────
+  function Section({
+    icon, label, children, danger,
+  }: {
+    icon:     React.ReactNode;
+    label:    string;
+    children: React.ReactNode;
+    danger?:  boolean;
+  }) {
+    return (
+      <div style={{
+        ...cs.code.sectionWrapper,
+        borderColor: danger ? `${c.accentRed}40` : c.borderColor,
+        marginBottom:'0.625rem',
+      }}>
+        <div style={{
+          ...cs.code.sectionHeader,
+          background:   danger ? `${c.accentRed}0c` : c.bgSecondary,
+          borderBottom: `1px solid ${danger ? `${c.accentRed}30` : c.borderColor}`,
+        }}>
+          <span style={{ color: danger ? c.accentRed : c.textTertiary, display: 'flex', alignItems: 'center' }}>
+            {icon}
+          </span>
+          <span style={{ ...cs.text.microMono, color: danger ? c.accentRed : c.textSecondary, margin: 0 }}>
+            {label}
+          </span>
+        </div>
+        <div style={{ padding: '0.875rem', background: c.bgSecondary }}>
+          {children}
+        </div>
       </div>
+    );
+  }
 
-      {/* Section body */}
-      <div
-        style={{
-          padding: '0.875rem',
-          background: themeColors.bgSecondary,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export function DevTab({ userData, themeColors, t, accessToken }: DevTabProps) {
-  const handleClearCookies = () => {
-    window.location.href = '/api/wipe';
-  };
-
-  const handleInvalidateSession = () => {
-    window.location.href = '/api/wipe?force=true';
-  };
-
-  const actionButtonBase: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.375rem',
-    padding: '0.4375rem 0.8125rem',
-    cursor: 'pointer',
-    fontSize: '0.6875rem',
-    fontFamily: 'var(--font-ibm-plex-mono)',
-    fontWeight: 500,
-    border: `1px solid ${themeColors.borderColor}`,
-    background: themeColors.bgTertiary,
-    color: themeColors.textPrimary,
-    transition: 'opacity 0.15s ease',
-  };
+  const handleClearCookies       = () => { window.location.href = '/api/wipe'; };
+  const handleInvalidateSession  = () => { window.location.href = '/api/wipe?force=true'; };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', overflow: 'hidden', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
 
       {/* Access Token */}
-      <Section
-        icon={<KeyRound size={12} strokeWidth={2} />}
-        label={t.raw.tokenType}
-        themeColors={themeColors}
-      >
-        <CodeBlock
-          data={accessToken}
-          themeColors={themeColors}
-          maxHeight="7.5rem"
-          t={t}
-
-        />
+      <Section icon={<KeyRound size={12} strokeWidth={2} />} label={t.raw.tokenType}>
+        <CodeBlock data={accessToken} theme={theme} maxHeight="7.5rem" t={t} />
       </Section>
 
       {/* Raw JSON */}
-      <Section
-        icon={<Braces size={12} strokeWidth={2} />}
-        label={t.raw.dataTitle}
-        themeColors={themeColors}
-      >
-        <CodeBlock
-          data={userData}
-          themeColors={themeColors}
-          maxHeight="20rem"
-          t={t}
-        />
+      <Section icon={<Braces size={12} strokeWidth={2} />} label={t.raw.dataTitle}>
+        <CodeBlock data={userData} theme={theme} maxHeight="20rem" t={t} />
       </Section>
 
-      {/* Cookie Actions */}
-      <Section
-        icon={<Cookie size={12} strokeWidth={2} />}
-        label={t.raw.cookieActions}
-        themeColors={themeColors}
-      >
+      {/* Cookie actions */}
+      <Section icon={<Cookie size={12} strokeWidth={2} />} label={t.raw.cookieActions}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleClearCookies}
-            style={{
-              ...actionButtonBase,
-              background: themeColors.accentBlue + '15',
-              borderColor: themeColors.accentBlue + '40',
-              color: themeColors.accentBlue,
-            }}
-          >
+          <button onClick={handleClearCookies} style={cs.buttons.chipBlue}>
             <Cookie size={11} strokeWidth={2} />
             {t.raw.clearCookiesLabel}
           </button>
-          <button
-            onClick={handleInvalidateSession}
-            style={{
-              ...actionButtonBase,
-              background: themeColors.accentGreen + '15',
-              borderColor: themeColors.accentGreen + '40',
-              color: themeColors.accentGreen,
-            }}
-          >
+          <button onClick={handleInvalidateSession} style={cs.buttons.chipGreen}>
             <LogOut size={11} strokeWidth={2} />
             {t.raw.invalidateSession}
           </button>
         </div>
       </Section>
-
     </div>
   );
 }

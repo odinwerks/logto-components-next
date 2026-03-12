@@ -1,52 +1,14 @@
 'use client';
 
-import type { UserData } from '../../../logic/types';
-import type { ThemeColors } from '../../../themes';
-import type { Translations } from '../../../locales';
-import { adj, tk } from '../../handlers/theme-helpers';
 import { Check } from 'lucide-react';
+import type { UserData } from '../../../logic/types';
+import type { ThemeSpec } from '../../../themes';
+import type { Translations } from '../../../locales';
+import { alpha, adj } from '../../handlers/theme-helpers';
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface IdentitiesTabProps {
-  userData: UserData;
-  themeColors: ThemeColors;
-  t: Translations;
-}
-
-// ─── Primitives (verbatim from security.tsx) ──────────────────────────────────
-
-function SL({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) {
-  const T = tk(tc);
-  return (
-    <p style={{
-      fontFamily: T.font, fontWeight: 600, fontSize: '0.625rem', color: T.muted,
-      textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem',
-    }}>
-      {children}
-    </p>
-  );
-}
-
-function Card({ children, tc }: { children: React.ReactNode; tc: ThemeColors }) {
-  const T = tk(tc);
-  return (
-    <div style={{
-      background: T.surface, border: `1px solid ${T.border}`,
-      marginBottom: '1rem', overflow: 'hidden',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function HR({ tc }: { tc: ThemeColors }) {
-  return <div style={{ height: 1, background: tk(tc).borderFaint }} />;
-}
-
-// ─── Provider icons ───────────────────────────────────────────────────────────
-// Inline SVGs — no external dep, no network, no img onError dance.
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider icon map (inline SVGs — no network, no external dep)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
   google: () => (
@@ -98,21 +60,15 @@ const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
 };
 
 const PROVIDER_NAMES: Record<string, string> = {
-  google:    'Google',
-  github:    'GitHub',
-  discord:   'Discord',
-  facebook:  'Facebook',
-  twitter:   'Twitter / X',
-  apple:     'Apple',
-  microsoft: 'Microsoft',
-  linkedin:  'LinkedIn',
+  google: 'Google', github: 'GitHub', discord: 'Discord',
+  facebook: 'Facebook', twitter: 'Twitter / X', apple: 'Apple',
+  microsoft: 'Microsoft', linkedin: 'LinkedIn',
 };
 
 function providerName(target: string): string {
   return PROVIDER_NAMES[target] ?? target.charAt(0).toUpperCase() + target.slice(1);
 }
 
-// Best human-readable string from the identity details object
 function identityDetail(t: Translations, identity: {
   userId?: string;
   details?: Record<string, unknown>;
@@ -122,35 +78,38 @@ function identityDetail(t: Translations, identity: {
   if (typeof d.username === 'string' && d.username) return d.username;
   if (typeof d.name     === 'string' && d.name)     return d.name;
   if (typeof d.login    === 'string' && d.login)    return d.login;
-  if (identity.userId)                               return t.identities.idWithUserId.replace('{userId}', identity.userId);
+  if (identity.userId) return t.identities.idWithUserId.replace('{userId}', identity.userId);
   return t.identities.unknownDetail;
 }
 
 function ProviderIcon({ target, textColor }: { target: string; textColor: string }) {
   const icon = PROVIDER_ICONS[target];
-  if (icon) {
-    return (
-      <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {icon(textColor)}
-      </div>
-    );
-  }
-  // Letter avatar for unknown providers
+  if (icon) return (
+    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {icon(textColor)}
+    </div>
+  );
   return (
-    <div style={{
-      width: '1.375rem', height: '1.375rem',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 700, fontSize: '0.625rem',
-    }}>
+    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.625rem' }}>
       {target.charAt(0).toUpperCase()}
     </div>
   );
 }
 
-// ─── IdentitiesTab ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// IdentitiesTab
+// ─────────────────────────────────────────────────────────────────────────────
 
-export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabProps) {
-  const T = tk(tc);
+interface IdentitiesTabProps {
+  userData:    UserData;
+  theme:       ThemeSpec;
+  t:           Translations;
+}
+
+export function IdentitiesTab({ userData, theme, t }: IdentitiesTabProps) {
+  const cs = theme.components;
+  const c  = theme.colors;
+  const ty = theme.tokens.typography;
 
   const identityEntries = Object.entries(
     (userData.identities as Record<string, { userId?: string; details?: Record<string, unknown> }> | undefined) ?? {}
@@ -158,24 +117,15 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
 
   return (
     <div>
-      {/* Description */}
-      <div style={{ marginBottom: '1.625rem' }}>
-        <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65 }}>
-          {t.identities.description}
-        </p>
-      </div>
+      <p style={cs.text.description}>{t.identities.description}</p>
 
-      {/* ── Linked accounts ── */}
-      <SL tc={tc}>{t.identities.linkedAccounts}</SL>
-      <Card tc={tc}>
+      <p style={cs.text.sectionLabel}>{t.identities.linkedAccounts}</p>
+
+      <div style={cs.surfaces.card}>
         {identityEntries.length === 0 ? (
-
-          <div style={{ padding: '1.75rem 1.25rem', textAlign: 'center' }}>
-            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>
-              {t.identities.noIdentities}
-            </p>
+          <div style={cs.surfaces.emptyState}>
+            <p style={cs.text.mutedMono}>{t.identities.noIdentities}</p>
           </div>
-
         ) : identityEntries.map(([target, identity], i) => {
           const detail = identityDetail(t, identity);
           const name   = providerName(target);
@@ -184,45 +134,36 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
           return (
             <div key={target}>
               <div style={{
-                display: 'flex', alignItems: 'center',
+                display:        'flex',
+                alignItems:     'center',
                 justifyContent: 'space-between',
-                padding: '0.875rem 1.25rem', gap: '1rem',
+                padding:        '0.875rem 1.25rem',
+                gap:            '1rem',
               }}>
-
-                {/* Left — icon box + name + detail */}
+                {/* Left — icon + name + detail */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                   <div style={{
-                    width: '2.25rem', height: '2.25rem', flexShrink: 0,
-                    background: T.greenDim,
-                    border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width:          '2.25rem',
+                    height:         '2.25rem',
+                    flexShrink:     0,
+                    background:     alpha(c.accentGreen, 0.1),
+                    border:         `1px solid ${adj(c.accentGreen, -40)}44`,
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'center',
                   }}>
-                    <ProviderIcon target={target} textColor={T.text} />
+                    <ProviderIcon target={target} textColor={c.textPrimary} />
                   </div>
 
                   <div style={{ minWidth: 0 }}>
-                    {/* Name + badge */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.1875rem' }}>
-                      <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
-                        {name}
-                      </p>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                        padding: '0.125rem 0.4375rem', fontSize: '0.625rem', fontFamily: T.mono,
-                        background: T.greenDim, color: T.greenText,
-                        border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
-                        letterSpacing: 0.2,
-                      }}>
-                        <Check size={0.5625} color={T.greenText} strokeWidth={2} />
+                      <p style={{ ...cs.text.body, fontWeight: ty.weight.medium, margin: 0 }}>{name}</p>
+                      <span style={cs.badges.success}>
+                        <Check size={9} strokeWidth={2} />
                         {t.identities.connected}
                       </span>
                     </div>
-
-                    {/* Account detail */}
-                    <p style={{
-                      fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
+                    <p style={{ ...cs.text.mutedMono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {detail}
                     </p>
                   </div>
@@ -230,26 +171,15 @@ export function IdentitiesTab({ userData, themeColors: tc, t }: IdentitiesTabPro
 
                 {/* Right — external user ID chip */}
                 {identity.userId && (
-                  <div style={{
-                    flexShrink: 0,
-                    padding: '0.25rem 0.625rem',
-                    background: T.raised,
-                    border: `1px solid ${T.border}`,
-                    fontFamily: T.mono, fontSize: '0.625rem', color: T.muted,
-                    letterSpacing: '0.03em',
-                    maxWidth: '10rem',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {identity.userId}
-                  </div>
+                  <div style={cs.surfaces.chip}>{identity.userId}</div>
                 )}
-
               </div>
-              {!isLast && <HR tc={tc} />}
+
+              {!isLast && <div style={cs.divider} />}
             </div>
           );
         })}
-      </Card>
+      </div>
     </div>
   );
 }
