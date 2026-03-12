@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { UserData } from '../../logic/types';
+import type { ThemeSpec } from '../../themes';
 import { useThemeMode } from '../handlers/preferences';
 import { useUserDataContext } from '../handlers/user-data-context';
 import { fetchUserBadgeData } from '../../logic/actions';
@@ -32,21 +33,30 @@ const getInitials = (data: UserData): string => {
 // ============================================================================
 
 export interface UserButtonProps {
-  /** Render mode: show avatar image or initials fallback. Defaults to 'Initials'. */
+  /** Canvas type - Avatar or Initials */
   Canvas?: 'Avatar' | 'Initials';
-  /** CSS size string for both width and height. Defaults to '6.25rem'. */
+  /** Size of the avatar */
   Size?: string;
   /** Shape of the avatar container. */
   shape?: 'circle' | 'sq' | 'rsq';
   /** User data - fetches automatically if not provided */
   userData?: UserData;
-  /** Theme colors - uses ThemeModeProvider if not provided */
-  themeColors?: ReturnType<typeof useThemeMode>['themeColors'];
+  /** Theme - uses ThemeModeProvider if not provided */
+  theme?: ThemeSpec;
   /**
    * Optional custom click handler. When provided, this function is called
    * instead of opening the Dashboard modal. Useful for custom integrations.
    */
   do?: () => void;
+}
+
+export interface UserBadgeProps {
+  Canvas?: 'Avatar' | 'Initials';
+  Size?: string;
+  shape?: 'circle' | 'sq' | 'rsq';
+  userData?: UserData;
+  theme?: ThemeSpec;
+  // NOTE: `do` is intentionally omitted — the badge is non-interactive.
 }
 
 export interface UserBadgeProps {
@@ -64,10 +74,11 @@ export interface UserBadgeProps {
 
 interface DashboardModalProps {
   onClose: () => void;
-  themeColors: ReturnType<typeof useThemeMode>['themeColors'];
+  theme: ThemeSpec;
 }
 
-function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
+function DashboardModal({ onClose, theme }: DashboardModalProps) {
+  const themeColors = theme.colors;
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -112,7 +123,7 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
     maxHeight: 'calc(100vh - 3rem)',
     borderRadius: '0.625rem',
     overflow: 'hidden',
-    boxShadow: `0 24px 64px rgba(0,0,0,0.45), 0 0 0 1px ${themeColors.borderColor}`,
+    boxShadow: `0 24px 64px rgba(0,0,0,0.45), 0 0 0 1px ${theme.colors.borderColor}`,
     display: 'flex',
     flexDirection: 'column',
     animation: 'ub-slide-up 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
@@ -125,10 +136,10 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
     zIndex: 10,
     width: '2rem',
     height: '2rem',
-    border: `1px solid ${themeColors.borderColor}`,
+    border: `1px solid ${theme.colors.borderColor}`,
     borderRadius: '0.25rem',
-    background: themeColors.bgSecondary,
-    color: themeColors.textSecondary,
+    background: theme.colors.bgSecondary,
+    color: theme.colors.textSecondary,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -165,12 +176,12 @@ function DashboardModal({ onClose, themeColors }: DashboardModalProps) {
             onClick={onClose}
             aria-label="Close dashboard"
             onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.color = themeColors.textPrimary;
-              (e.currentTarget as HTMLButtonElement).style.background = themeColors.bgTertiary;
+              (e.currentTarget as HTMLButtonElement).style.color = theme.colors.textPrimary;
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.bgTertiary;
             }}
             onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.color = themeColors.textSecondary;
-              (e.currentTarget as HTMLButtonElement).style.background = themeColors.bgSecondary;
+              (e.currentTarget as HTMLButtonElement).style.color = theme.colors.textSecondary;
+              (e.currentTarget as HTMLButtonElement).style.background = theme.colors.bgSecondary;
             }}
           >
             ✕
@@ -195,7 +206,7 @@ interface AvatarCoreProps {
   Size: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData: UserData;
-  themeColors: ReturnType<typeof useThemeMode>['themeColors'];
+  theme: ThemeSpec;
   imageFailed: boolean;
   onImageError: () => void;
 }
@@ -205,10 +216,11 @@ function AvatarCore({
   Size,
   shape,
   userData,
-  themeColors,
+  theme,
   imageFailed,
   onImageError,
 }: AvatarCoreProps) {
+  const themeColors = theme.colors;
   const mode: 'Avatar' | 'Initials' =
     Canvas === 'Avatar' || Canvas === 'Initials' ? Canvas : 'Initials';
 
@@ -218,13 +230,13 @@ function AvatarCore({
     width: Size,
     height: Size,
     borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
-    border: `2px solid ${themeColors.borderColor}`,
-    background: isShowingAvatar ? 'transparent' : themeColors.bgTertiary,
+    border: `2px solid ${theme.colors.borderColor}`,
+    background: isShowingAvatar ? 'transparent' : theme.colors.bgTertiary,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    color: themeColors.textTertiary,
+    color: theme.colors.textTertiary,
     fontSize: `calc(${Size} * 0.36)`,
   };
 
@@ -253,11 +265,11 @@ export function UserButton({
   Size = '6.25rem',
   shape,
   userData: providedUserData,
-  themeColors: providedThemeColors,
+  theme: providedTheme,
   do: customAction,
 }: UserButtonProps) {
-  const { themeColors: contextThemeColors } = useThemeMode();
-  const themeColors = providedThemeColors ?? contextThemeColors;
+  const { themeSpec: contextTheme } = useThemeMode();
+  const theme = providedTheme ?? contextTheme;
   
   const contextUserData = useUserDataContext();
   
@@ -343,12 +355,12 @@ export function UserButton({
             width: Size,
             height: Size,
             borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
-            border: `2px solid ${themeColors.borderColor}`,
-            background: themeColors.bgTertiary,
+            border: `2px solid ${theme.colors.borderColor}`,
+            background: theme.colors.bgTertiary,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: themeColors.textTertiary,
+            color: theme.colors.textTertiary,
           }}>
             <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
           </div>
@@ -363,7 +375,7 @@ export function UserButton({
         Size={Size}
         shape={shape}
         userData={userData}
-        themeColors={themeColors}
+        theme={theme}
         imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
       />
@@ -385,7 +397,7 @@ export function UserButton({
       </button>
 
       {modalOpen && (
-        <DashboardModal onClose={handleClose} themeColors={themeColors} />
+        <DashboardModal onClose={handleClose} theme={theme} />
       )}
     </>
   );
@@ -400,10 +412,10 @@ export function UserBadge({
   Size = '6.25rem',
   shape,
   userData: providedUserData,
-  themeColors: providedThemeColors,
+  theme: providedTheme,
 }: UserBadgeProps) {
-  const { themeColors: contextThemeColors } = useThemeMode();
-  const themeColors = providedThemeColors ?? contextThemeColors;
+  const { themeSpec: contextTheme } = useThemeMode();
+  const theme = providedTheme ?? contextTheme;
   
   const contextUserData = useUserDataContext();
   
@@ -476,12 +488,12 @@ export function UserBadge({
             width: Size,
             height: Size,
             borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
-            border: `2px solid ${themeColors.borderColor}`,
-            background: themeColors.bgTertiary,
+            border: `2px solid ${theme.colors.borderColor}`,
+            background: theme.colors.bgTertiary,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: themeColors.textTertiary,
+            color: theme.colors.textTertiary,
           }}>
             <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
           </div>
@@ -496,7 +508,7 @@ export function UserBadge({
         Size={Size}
         shape={shape}
         userData={userData}
-        themeColors={themeColors}
+        theme={theme}
         imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
       />
