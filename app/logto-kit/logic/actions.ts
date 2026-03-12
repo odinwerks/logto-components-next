@@ -533,7 +533,8 @@ export async function updateUserPassword(
  * signOut() in isolation, with no concurrent RSC re-renders in flight.
  */
 export async function deleteUserAccount(
-  _identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  accessToken: string,
 ): Promise<void> {
   // This is a server action - proxy handles auth, we just need user ID from API
   // ── Step 1: get user data to find userId ────────────────────────────────
@@ -549,11 +550,14 @@ export async function deleteUserAccount(
     throw new Error('User ID not found.');
   }
 
-  // ── Step 2: get Management API token (M2M, lives in logto.ts) ────────────
+  // ── Step 2: validate user token via introspection ────────────────────────
+  await validateUserToken(accessToken, userId);
+
+  // ── Step 3: get Management API token (M2M, lives in logto.ts) ────────────
   const mgmtToken = await getManagementApiToken();
   const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
 
-  // ── Step 3: delete via Management API ────────────────────────────────────
+  // ── Step 4: delete via Management API ────────────────────────────────────
   const deleteRes = await fetch(`${cleanEndpoint}/api/users/${userId}`, {
     method: 'DELETE',
     headers: {
@@ -710,6 +714,20 @@ function assertSafeUserId(id: string): void {
   }
 }
 
+async function validateUserToken(accessToken: string, userId: string): Promise<void> {
+  assertSafeUserId(userId);
+  
+  const introspection = await introspectToken(accessToken);
+  
+  if (!introspection.active) {
+    throw new Error('UNAUTHORIZED: token is not active or has been revoked.');
+  }
+  
+  if (introspection.sub !== userId) {
+    throw new Error('UNAUTHORIZED: token subject does not match the provided userId.');
+  }
+}
+
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 const MAX_BYTES = 2 * 1024 * 1024
 
@@ -732,17 +750,7 @@ export async function uploadAvatar(
     throw new Error(`File is ${(file.size / 1024 / 1024).toFixed(2)} MB — limit is 2 MB.`)
   }
 
-  assertSafeUserId(userId)
-
-  const introspection = await introspectToken(accessToken)
-
-  if (!introspection.active) {
-    throw new Error('UNAUTHORIZED: token is not active or has been revoked.')
-  }
-
-  if (introspection.sub !== userId) {
-    throw new Error('UNAUTHORIZED: token subject does not match the provided userId.')
-  }
+  await validateUserToken(accessToken, userId);
 
   const bucket = process.env.S3_BUCKET_NAME
   if (!bucket) throw new Error('S3_BUCKET_NAME is not set.')
