@@ -129,7 +129,7 @@ interface DashboardClientProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
   onSignOut: () => Promise<void>;
 }
 
