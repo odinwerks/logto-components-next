@@ -27,7 +27,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { getDefaultThemeMode } from '../../themes';
+import { getDefaultThemeMode, darkTheme } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -61,16 +61,16 @@ export async function Dashboard() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#050505',
-          color: '#e5e7eb',
+          background: darkTheme.colors.bgPage,
+          color: darkTheme.colors.textPrimary,
           fontFamily: 'monospace',
           padding: '1.25rem',
         }}
       >
         <div
           style={{
-            background: '#121212',
-            border: '1px solid #374151',
+            background: darkTheme.colors.bgSecondary,
+            border: `1px solid ${darkTheme.colors.borderColor}`,
             borderRadius: '0.5rem',
             padding: '1.875rem',
             maxWidth: '31.25rem',
@@ -80,7 +80,7 @@ export async function Dashboard() {
           <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
             {translations.dashboard.error}
           </h1>
-          <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+          <p style={{ fontSize: '0.75rem', color: darkTheme.colors.textTertiary }}>
             {'error' in result ? result.error : translations.dashboard.loadFailed}
           </p>
         </div>

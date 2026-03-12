@@ -165,7 +165,8 @@ export function DashboardClient({
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const { theme, themeColors, setTheme } = useThemeMode();
+  const { theme, themeSpec, setTheme } = useThemeMode();
+  const themeColors = themeSpec.colors;
 
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang, setLang } = useLangMode();
@@ -429,7 +430,7 @@ export function DashboardClient({
           {activeTab === 'profile' && (
             <ProfileTab
               userData={userData}
-              themeColors={themeColors}
+              theme={themeSpec}
               t={t}
               onUpdateBasicInfo={onUpdateBasicInfo}
               onUpdateAvatarUrl={onUpdateAvatarUrl}
@@ -442,7 +443,7 @@ export function DashboardClient({
 
           {activeTab === 'preferences' && (
             <PreferencesTab
-              themeColors={themeColors}
+              theme={themeSpec}
               t={t}
               supportedLangs={supportedLangs}
             />
@@ -451,7 +452,7 @@ export function DashboardClient({
           {activeTab === 'security' && (
             <SecurityTab
               userData={userData}
-              themeColors={themeColors}
+              theme={themeSpec}
               t={t}
               onVerifyPassword={onVerifyPassword}
               onSendEmailVerification={onSendEmailVerification}
@@ -474,22 +475,22 @@ export function DashboardClient({
           )}
 
           {activeTab === 'identities' && (
-            <IdentitiesTab userData={userData} themeColors={themeColors} t={t} />
+            <IdentitiesTab userData={userData} theme={themeSpec} t={t} />
           )}
 
           {activeTab === 'organizations' && (
-            <OrganizationsTab userData={userData} themeColors={themeColors} t={t} />
+            <OrganizationsTab userData={userData} theme={themeSpec} t={t} />
           )}
 
           {activeTab === 'dev' && (
-            <DevTab userData={userData} themeColors={themeColors} t={t} accessToken={accessToken} />
+            <DevTab userData={userData} theme={themeSpec} t={t} accessToken={accessToken} />
           )}
 
         </div>
       </div>
 
       {/* Toasts */}
-      <ToastContainer messages={toasts} onDismiss={dismissToast} themeColors={themeColors} />
+      <ToastContainer messages={toasts} onDismiss={dismissToast} theme={themeSpec} />
     </div>
   );
 }
