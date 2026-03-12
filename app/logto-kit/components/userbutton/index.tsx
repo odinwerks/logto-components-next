@@ -266,6 +266,12 @@ export function UserButton({
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     // Priority: 1. Prop, 2. Context, 3. Fetch
@@ -283,21 +289,27 @@ export function UserButton({
 
     // No prop and no context - fetch from server
     const timeout = setTimeout(() => {
-      setShowFallback(true);
+      if (isMountedRef.current) {
+        setShowFallback(true);
+      }
     }, 1500);
 
     fetchUserBadgeData()
       .then((result) => {
-        if (result.success) {
+        if (result.success && isMountedRef.current) {
           setUserData(result.userData);
         }
       })
       .catch(() => {
-        setShowFallback(true);
+        if (isMountedRef.current) {
+          setShowFallback(true);
+        }
       })
       .finally(() => {
-        setLoading(false);
-        clearTimeout(timeout);
+        if (isMountedRef.current) {
+          setLoading(false);
+          clearTimeout(timeout);
+        }
       });
 
     return () => clearTimeout(timeout);
@@ -399,6 +411,12 @@ export function UserBadge({
   const [loading, setLoading] = useState(true);
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     // Priority: 1. Prop, 2. Context, 3. Fetch
@@ -416,21 +434,27 @@ export function UserBadge({
 
     // No prop and no context - fetch from server
     const timeout = setTimeout(() => {
-      setShowFallback(true);
+      if (isMountedRef.current) {
+        setShowFallback(true);
+      }
     }, 1500);
 
     fetchUserBadgeData()
       .then((result) => {
-        if (result.success) {
+        if (result.success && isMountedRef.current) {
           setUserData(result.userData);
         }
       })
       .catch(() => {
-        setShowFallback(true);
+        if (isMountedRef.current) {
+          setShowFallback(true);
+        }
       })
       .finally(() => {
-        setLoading(false);
-        clearTimeout(timeout);
+        if (isMountedRef.current) {
+          setLoading(false);
+          clearTimeout(timeout);
+        }
       });
 
     return () => clearTimeout(timeout);
