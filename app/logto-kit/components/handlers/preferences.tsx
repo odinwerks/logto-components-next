@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { darkColors, lightColors, type ThemeColors } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 
@@ -144,11 +144,13 @@ export function PreferencesProvider({
   const persistLangToApi = useCallback(async (newLang: string) => {
     if (!onUpdateCustomData) return;
     try {
-      await onUpdateCustomData({ Preferences: { theme: 'dark', lang: newLang } });
+      await onUpdateCustomData({ Preferences: { theme, lang: newLang } });
     } catch (err) {
       console.error('[PreferencesProvider] Failed to persist lang:', err);
     }
-  }, [onUpdateCustomData]);
+  }, [onUpdateCustomData, theme]);
+
+  const persistLockRef = useRef<{ theme: boolean; lang: boolean }>({ theme: false, lang: false });
 
   const setTheme = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);
