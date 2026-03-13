@@ -370,6 +370,37 @@ The component uses the priority system:
 
 If no user data is available for 1.5 seconds, displays a fallback user icon.
 
+### AuthWatcher
+
+`AuthWatcher` is a zero-UI component that automatically refreshes the page when authentication state might have changed. This keeps user data in sync without requiring manual refreshes.
+
+```tsx
+import { AuthWatcher } from './logto-kit';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <AuthWatcher />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+**What it does:**
+- **Tab visibility** - When user switches back to the tab (catches "logged out in another tab")
+- **Network reconnect** - When device comes back online (catches expired sessions during offline)
+- **Periodic check** - Every 5 minutes by default (catches account deletion while idle)
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `refreshIntervalMs` | `number` | `300000` (5 min) | How often to check auth state. Set `0` to disable. |
+| `debounceMs` | `number` | `1000` | Minimum ms between refreshes to prevent spam |
+
 ## i18n System
 
 Translations are loaded from `app/logto-kit/locales/`:
@@ -709,7 +740,7 @@ The hook (`useAvatarUpload`) is already integrated into the Profile tab componen
 You can use the avatar upload hook in your own components:
 
 ```tsx
-import { useAvatarUpload } from './logto-kit/components/handlers/use-avatar-upload';
+import { useAvatarUpload } from './logto-kit';
 
 function MyAvatarUploader({ userId }: { userId: string }) {
   const { upload, isUploading, error } = useAvatarUpload({
