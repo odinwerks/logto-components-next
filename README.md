@@ -365,7 +365,7 @@ The component uses the priority system:
 | `Size` | `string` | `'6.25rem'` | CSS size (e.g., `'48px'`, `'3rem'`) |
 | `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape |
 | `userData` | `UserData` | - | User data (optional, auto-fetched if not provided) |
-| `themeColors` | `ThemeColors` | - | Theme colors (optional, auto-detected if not provided) |
+| `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected if not provided) |
 | `do` | `() => void` | - | UserButton only: custom click handler |
 
 If no user data is available for 1.5 seconds, displays a fallback user icon.
