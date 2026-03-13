@@ -25,3 +25,5 @@ export { getDefaultThemeMode } from './themes';
 export { getAllTranslations } from './locales';
 
 export { useAvatarUpload } from './components/handlers/use-avatar-upload';
+
+export { default as AuthWatcher } from './components/handlers/auth-watcher';
