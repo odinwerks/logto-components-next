@@ -733,6 +733,139 @@ function MyAvatarUploader({ userId }: { userId: string }) {
 }
 ```
 
+## Server Actions
+
+All server actions are exported from `logto-kit` and can be used in your own custom flows when the provided UI doesn't meet your needs.
+
+### Import
+
+```tsx
+import {
+  fetchDashboardData,
+  signOutUser,
+  updateUserBasicInfo,
+  updateUserProfile,
+  updateUserCustomData,
+  updateAvatarUrl,
+  updateUserPassword,
+  deleteUserAccount,
+  uploadAvatar,
+  verifyPasswordForIdentity,
+  sendEmailVerificationCode,
+  sendPhoneVerificationCode,
+  verifyVerificationCode,
+  updateEmailWithVerification,
+  updatePhoneWithVerification,
+  removeUserEmail,
+  removeUserPhone,
+  getMfaVerifications,
+  generateTotpSecret,
+  addMfaVerification,
+  deleteMfaVerification,
+  generateBackupCodes,
+  getBackupCodes,
+} from './logto-kit';
+```
+
+### Profile Updates
+
+```tsx
+// Update basic info (name, username)
+await updateUserBasicInfo({ name: 'John', username: 'johndoe' });
+
+// Update full profile
+await updateUserProfile({ name: 'John', username: 'johndoe', primaryEmail: 'john@example.com' });
+
+// Update custom data
+await updateUserCustomData({ preferences: { notifications: true } });
+
+// Update avatar URL
+await updateAvatarUrl('https://example.com/avatar.png');
+```
+
+### Password & Account
+
+```tsx
+// Update password (requires identity verification first)
+await updateUserPassword('newPassword123', 'verificationRecordId');
+
+// Delete account (requires identity verification and access token)
+await deleteUserAccount('verificationRecordId', 'accessToken');
+
+// Sign out and clear cookies
+await signOutUser();
+```
+
+### MFA Management
+
+```tsx
+// List all MFA methods
+const mfaList = await getMfaVerifications();
+
+// Generate TOTP secret for new enrollment
+const { secret, secretQrCode } = await generateTotpSecret();
+
+// Add MFA verification
+await addMfaVerification({
+  type: 'Totp',
+  code: '123456',
+  verificationId: 'verificationRecordId',
+});
+
+// Delete MFA method
+await deleteMfaVerification('mfaVerificationId', 'verificationRecordId');
+
+// Generate backup codes
+const { codes } = await generateBackupCodes('verificationRecordId');
+
+// Get existing backup codes
+const backupCodes = await getBackupCodes('verificationRecordId');
+```
+
+### Identity Verification
+
+```tsx
+// Verify password for identity operations
+const { verificationRecordId } = await verifyPasswordForIdentity('password123');
+
+// Send email verification code
+const { verificationId } = await sendEmailVerificationCode('user@example.com');
+
+// Send phone verification code  
+const { verificationId } = await sendPhoneVerificationCode('+1234567890');
+
+// Verify any code (email, phone, or backup)
+await verifyVerificationCode('123456', 'verificationId', 'email');
+
+// Update email with verification
+await updateEmailWithVerification('newemail@example.com', 'verificationId', 'verificationRecordId');
+
+// Update phone with verification
+await updatePhoneWithVerification('+1234567890', 'verificationId', 'verificationRecordId');
+
+// Remove email
+await removeUserEmail('verificationRecordId');
+
+// Remove phone
+await removeUserPhone('verificationRecordId');
+```
+
+### Avatar Upload
+
+```tsx
+// Upload avatar (returns the public URL)
+const { url } = await uploadAvatar(formData);
+
+// FormData must contain:
+// - file: File object (JPEG, PNG, WebP, GIF, max 2MB)
+// - accessToken: string
+// - userId: string
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('accessToken', accessToken);
+formData.append('userId', userId);
+```
+
 ## Installation
 
 ```bash
