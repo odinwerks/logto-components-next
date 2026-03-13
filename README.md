@@ -801,6 +801,12 @@ npm run build
 - [x] User ID matching prevents cross-user uploads
 - [x] Automatic URL update to Logto profile
 
+### Functions
+- [x] Export server actions for user management operations
+- [x] Actions for: profile updates, custom data, MFA, password, account deletion
+- [x] Avatar upload server action
+- [x] Sign out action with cookie clearing
+
 ### Conquer All.
 - [ ] [Conquer All.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
 
