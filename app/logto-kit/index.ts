@@ -6,6 +6,10 @@ export type { ThemeColors } from './components/handlers/preferences';
 
 export { UserDataProvider, useUserDataContext } from './components/handlers/user-data-context';
 
+export { LogtoProvider, useLogto } from './components/handlers/logto-provider';
+
+export { UserButton, UserBadge } from './components/userbutton';
+
 export * from './logic';
 
 export * from './components/dashboard';
