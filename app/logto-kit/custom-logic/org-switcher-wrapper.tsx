@@ -29,5 +29,5 @@ export async function OrgSwitcherWrapper({ theme, t }: OrgSwitcherWrapperProps) 
     return null;
   }
 
-  return <OrgSwitcher organizations={organizationData} theme={theme} />;
+  return <OrgSwitcher organizations={organizationData} theme={theme} t={t} />;
 }

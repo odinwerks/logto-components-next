@@ -11,9 +11,14 @@ interface OrgSwitcherProps {
   organizations: OrganizationData[];
   currentOrgId?: string;
   theme: ThemeSpec;
+  t?: {
+    organizations?: {
+      beYourself?: string;
+    };
+  };
 }
 
-export function OrgSwitcher({ organizations, currentOrgId, theme }: OrgSwitcherProps) {
+export function OrgSwitcher({ organizations, currentOrgId, theme, t }: OrgSwitcherProps) {
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
   const [selected, setSelected] = useState<string>('');
@@ -74,7 +79,7 @@ export function OrgSwitcher({ organizations, currentOrgId, theme }: OrgSwitcherP
             opacity: isLoading ? 0.5 : 1,
           }}
         >
-          <option value="">Be yourself (global)</option>
+          <option value="">{t?.organizations?.beYourself || 'Be yourself (global)'}</option>
           {organizations.map((org) => (
             <option key={org.id} value={org.id}>
               {org.name}

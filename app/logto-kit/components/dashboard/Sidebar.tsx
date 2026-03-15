@@ -17,11 +17,12 @@ const css = {
   sans: "'DM Sans', system-ui, sans-serif",
 } as const;
 
-function Btn({ children, variant = 'secondary', onClick, disabled = false }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; disabled?: boolean }) {
+function Btn({ children, variant = 'secondary', onClick, disabled = false, theme }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; disabled?: boolean; theme: ThemeSpec }) {
+  const c = theme.colors;
   const base = { padding: '0.5rem 0.9375rem', fontSize: '0.8125rem', fontFamily: css.sans, fontWeight: 500, border: '1px solid', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', borderRadius: '0.25rem', opacity: disabled ? 0.5 : 1 };
   const styles = {
-    primary: { ...base, background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' },
-    secondary: { ...base, background: '#1a1a1a', color: '#9ca3af', borderColor: '#374151' },
+    primary: { ...base, background: c.accentBlue, color: c.bgPage === '#050505' ? '#fff' : '#fff', borderColor: c.accentBlue },
+    secondary: { ...base, background: c.bgTertiary, color: c.textSecondary, borderColor: c.borderColor },
   };
   return <button onClick={onClick} disabled={disabled} style={styles[variant]}>{children}</button>;
 }
@@ -103,7 +104,7 @@ export function Sidebar({
 
   const hasMultipleLangs = supportedLangs.length > 1;
   const isJwt            = accessToken.split('.').length === 3;
-  const tokenLabel       = isJwt ? 'JWT Token' : 'Opaque Token';
+  const tokenLabel       = isJwt ? (t.sidebar?.jwtToken || 'JWT Token') : (t.sidebar?.opaqueToken || 'Opaque Token');
 
   const initials = (() => {
     const g = userData.profile?.givenName?.[0]  ?? '';

@@ -8,6 +8,8 @@ import { Trash2 } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 import { updateAvatarUrl } from '../../../logic/actions';
+import { Button } from '../../shared/Button';
+import { Input } from '../../shared/Input';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
@@ -48,54 +50,6 @@ function SectionLabel({ children, theme }: { children: React.ReactNode; theme: T
 
 function Well({ children, theme }: { children: React.ReactNode; theme: ThemeSpec }) {
   return <div style={theme.components.surfaces.well}>{children}</div>;
-}
-
-function FieldInput({
-  value, onChange, placeholder, type = 'text', theme,
-}: {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  type?: string;
-  theme: ThemeSpec;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      style={theme.components.inputs.text}
-    />
-  );
-}
-
-function Btn({
-  children, variant = 'secondary', onClick, disabled = false, theme,
-}: {
-  children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  onClick?: () => void;
-  disabled?: boolean;
-  theme: ThemeSpec;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const s = theme.components.buttons[variant];
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...s.base,
-        ...(hovered && !disabled ? s.hover : {}),
-        ...(disabled ? s.disabled : {}),
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,7 +214,7 @@ export function ProfileTab({
                 justifyContent:  'center',
                 background:      'rgba(0,0,0,0.55)',
               }}>
-                <SpinnerIcon size={1.25} color="#fff" />
+                <SpinnerIcon size={1.25} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} />
               </div>
             )}
           </div>
@@ -336,7 +290,7 @@ export function ProfileTab({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem', marginBottom: '1.125rem' }}>
           <div>
             <label style={cs.inputs.label}>{t.profile.firstName || 'First name'}</label>
-            <FieldInput
+            <Input
               value={givenName}
               onChange={e => setGivenName(e.target.value)}
               placeholder={t.profile.firstNamePlaceholder || 'First name'}
@@ -345,7 +299,7 @@ export function ProfileTab({
           </div>
           <div>
             <label style={cs.inputs.label}>{t.profile.lastName || 'Last name'}</label>
-            <FieldInput
+            <Input
               value={familyName}
               onChange={e => setFamilyName(e.target.value)}
               placeholder={t.profile.lastNamePlaceholder || 'Last name'}
@@ -356,21 +310,21 @@ export function ProfileTab({
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           {nameChanged && (
-            <Btn variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme}>
+            <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme}>
               {t.profile.discard || 'Discard'}
-            </Btn>
+            </Button>
           )}
-          <Btn
+          <Button
             variant="primary"
             onClick={handleSaveName}
             disabled={!nameChanged || nameLoading}
             theme={theme}
           >
             {nameLoading
-              ? <><SpinnerIcon size={0.8125} color="#fff" /> {t.profile.saving || 'Saving…'}</>
-              : <><CheckIcon   size={0.8125} color="#fff" /> {t.profile.saveChanges || 'Save changes'}</>
+              ? <><SpinnerIcon size={0.8125} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} /> {t.profile.saving || 'Saving…'}</>
+              : <><CheckIcon   size={0.8125} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} /> {t.profile.saveChanges || 'Save changes'}</>
             }
-          </Btn>
+          </Button>
         </div>
       </Well>
     </div>
