@@ -1,35 +1,72 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
+import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
 
 interface OrganizationsTabProps {
   userData: UserData;
+  currentOrgId?: string;
   theme:    ThemeSpec;
   t:        Translations;
 }
 
-export function OrganizationsTab({ userData, theme, t }: OrganizationsTabProps) {
+export function OrganizationsTab({ userData, currentOrgId, theme, t }: OrganizationsTabProps) {
   const cs = theme.components;
   const c  = theme.colors;
   const ty = theme.tokens.typography;
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState<string | null>(null);
 
   const organizations     = userData.organizations      || [];
   const organizationRoles = userData.organizationRoles  || [];
 
-  const OrgCard = ({ children }: { children: React.ReactNode }) => (
-    <div style={{
-      padding:         '0.625rem 0.75rem',
-      background:      c.bgPrimary,
-      border:          `1px solid ${c.borderColor}`,
-      borderRadius:    theme.tokens.radii.sm,
-      display:         'flex',
-      justifyContent:  'space-between',
-      alignItems:      'center',
-    }}>
-      {children}
+  const handleOrgClick = async (orgId: string) => {
+    if (orgId === currentOrgId) return;
+    setIsLoading(orgId);
+    try {
+      await setActiveOrg(orgId);
+      router.refresh();
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const OrgCard = ({ org, isSelected }: { org: { id: string; name: string }; isSelected: boolean }) => (
+    <div
+      onClick={() => handleOrgClick(org.id)}
+      style={{
+        padding:         '0.625rem 0.75rem',
+        background:      isSelected ? `${c.accentBlue}15` : c.bgPrimary,
+        border:          `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
+        borderRadius:    theme.tokens.radii.sm,
+        display:         'flex',
+        justifyContent:  'space-between',
+        alignItems:      'center',
+        cursor:          isLoading === org.id ? 'wait' : 'pointer',
+        opacity:         isLoading === org.id ? 0.6 : 1,
+        transition:      'all 0.15s ease',
+        boxShadow:       isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+      }}
+    >
+      <div>
+        <div style={{ 
+          color: isSelected ? c.accentBlue : c.textPrimary, 
+          fontSize: ty.size.sm, 
+          fontWeight: ty.weight.semibold, 
+          fontFamily: ty.fontMono 
+        }}>
+          {org.name}
+          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: ty.size.micro }}>(active)</span>}
+        </div>
+        <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
+          {t.organizations.idLabel}: {org.id}
+        </div>
+      </div>
     </div>
   );
 
@@ -47,16 +84,11 @@ export function OrganizationsTab({ userData, theme, t }: OrganizationsTabProps) 
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {organizations.map(org => (
-              <OrgCard key={org.id}>
-                <div>
-                  <div style={{ color: c.textPrimary, fontSize: ty.size.sm, fontWeight: ty.weight.semibold, fontFamily: ty.fontMono }}>
-                    {org.name}
-                  </div>
-                  <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
-                    {t.organizations.idLabel}: {org.id}
-                  </div>
-                </div>
-              </OrgCard>
+              <OrgCard 
+                key={org.id} 
+                org={org} 
+                isSelected={org.id === currentOrgId} 
+              />
             ))}
           </div>
         )}

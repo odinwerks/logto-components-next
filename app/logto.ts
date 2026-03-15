@@ -75,6 +75,8 @@ export const logtoConfig = (() => {
       UserScope.Email,
       UserScope.Phone,
       UserScope.Identities,
+      UserScope.Organizations,
+      UserScope.OrganizationRoles,
     ];
 
     const customScopes = parseScopes(scopeString || '');
@@ -129,7 +131,7 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
-  const resource = 'https://default.logto.app/api';
+  const resource = process.env.LOGTO_M2M_RESOURCE || `${cleanEndpoint}/api`;
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
   const body = new URLSearchParams({

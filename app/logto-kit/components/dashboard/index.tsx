@@ -94,6 +94,9 @@ export async function Dashboard() {
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang = userPrefs?.lang ?? locale;
 
+  // ── Active organization from fetchDashboardData (includes org-scoped token) ───────
+  const currentOrgId = result.activeOrgId;
+
   return (
     <UserDataProvider userData={result.userData}>
       <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
@@ -102,6 +105,7 @@ export async function Dashboard() {
             userData: result.userData,
             accessToken: result.accessToken,
           }}
+          currentOrgId={currentOrgId}
           translations={translations}
           allTranslations={allTranslations}
           supportedLangs={supportedLangs}

@@ -349,7 +349,7 @@ export function getMainLocale(): LocaleCode {
  */
 export function getAvailableLocales(): LocaleCode[] {
   const available = process.env.LANG_AVAILABLE || process.env.NEXT_LANG_AVAILABLE || 'en-US';
-  const codes = available.split(',').map(l => l.trim().toUpperCase() as LocaleCode);
+  const codes = available.split(',').map(l => l.trim() as LocaleCode);
   
   // Filter to only valid locales
   return codes.filter(code => locales[code]);

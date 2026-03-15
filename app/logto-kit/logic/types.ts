@@ -6,6 +6,7 @@ export type DashboardSuccess = {
   success: true;
   userData: UserData;
   accessToken: string;
+  activeOrgId?: string;
 };
 
 export type DashboardAuthError = {

@@ -56,16 +56,7 @@ export interface UserBadgeProps {
   shape?: 'circle' | 'sq' | 'rsq';
   userData?: UserData;
   theme?: ThemeSpec;
-  // NOTE: `do` is intentionally omitted — the badge is non-interactive.
-}
-
-export interface UserBadgeProps {
-  Canvas?: 'Avatar' | 'Initials';
-  Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
-  userData?: UserData;
   themeColors?: ReturnType<typeof useThemeMode>['themeColors'];
-  // NOTE: `do` is intentionally omitted — the badge is non-interactive.
 }
 
 // ============================================================================

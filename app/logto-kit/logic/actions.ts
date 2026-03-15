@@ -1,10 +1,19 @@
 'use server';
 
-import { getAccessToken } from '@logto/next/server-actions';
+import { cookies } from 'next/headers';
+import { getAccessToken, getOrganizationToken } from '@logto/next/server-actions';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
+
+const ACTIVE_ORG_COOKIE = 'logto-active-org';
+
+async function getActiveOrgIdFromCookie(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get(ACTIVE_ORG_COOKIE);
+  return cookie?.value;
+}
 
 // ============================================================================
 // Environment Configuration
@@ -69,7 +78,7 @@ const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 1000;
 
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
-  let lastError: Error | unknown;
+  let lastError: Error | unknown = new Error('fetchWithRetry: all retries exhausted');
   
   for (let i = 0; i < retries; i++) {
     try {
@@ -84,24 +93,70 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
     }
   }
   
-  throw lastError!;
+  throw lastError;
 }
 
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      const token = await getTokenForServerAction();
-      const res = await makeRequest('/api/my-account');
+      // Check if an organization is active
+      const activeOrgId = await getActiveOrgIdFromCookie();
+      
+      // Get the appropriate token (global or org-scoped)
+      let token: string;
+      if (activeOrgId) {
+        // Fetch organization-scoped token
+        token = await getOrganizationToken(logtoConfig, activeOrgId) as string;
+      } else {
+        // Use global token
+        token = await getTokenForServerAction();
+      }
+
+      // Use /oidc/me for reading user data (single request for all user info including orgs)
+      const cleanEndpoint = getCleanEndpoint();
+      const res = await fetch(`${cleanEndpoint}/oidc/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`Logto API ${res.status}: ${errorText.substring(0, 200)}`);
+        throw new Error(`Logto OIDC ${res.status}: ${errorText.substring(0, 200)}`);
       }
+
+      const userInfo = await res.json();
+
+      // Map OIDC response to UserData format
+      const userData: UserData = {
+        id: userInfo.sub,
+        name: userInfo.name,
+        avatar: userInfo.picture,
+        primaryEmail: userInfo.email,
+        primaryPhone: userInfo.phone_number,
+        customData: userInfo.custom_data || {},
+        identities: userInfo.identities || {},
+        profile: {
+          givenName: userInfo.given_name,
+          familyName: userInfo.family_name,
+        },
+        createdAt: userInfo.created_at || Date.now(),
+        updatedAt: userInfo.updated_at || Date.now(),
+        lastSignInAt: userInfo.last_sign_in_at,
+        // Organization data from OIDC
+        organizations: userInfo.organization_data?.map((org: { id: string; name: string }) => ({
+          id: org.id,
+          name: org.name,
+        })) || [],
+        organizationRoles: userInfo.organization_roles?.map((roleStr: string) => {
+          const [organizationId, name] = roleStr.split(':');
+          return { id: roleStr, organizationId, name: name || roleStr };
+        }) || [],
+      };
 
       return {
         success: true,
-        userData: await res.json() as UserData,
+        userData,
         accessToken: token,
+        activeOrgId,
       };
     });
 
@@ -589,6 +644,8 @@ interface OidcIntrospectionResponse {
   iss?: string
   scope?: string
   token_type?: string
+  organization_id?: string
+  organization_roles?: string[]
 }
 
 async function uploadViaSupabase(
@@ -773,4 +830,14 @@ export async function uploadAvatar(
   }
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` }
+}
+
+// ============================================================================
+// Reusable Introspection (for RBAC)
+// ============================================================================
+
+export async function introspectTokenWithOrg(
+  token: string,
+): Promise<OidcIntrospectionResponse> {
+  return introspectToken(token);
 }
