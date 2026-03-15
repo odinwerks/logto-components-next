@@ -63,6 +63,16 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │       └── security.tsx
 │   │   │   └── userbutton/
 │   │   │       └── index.tsx
+│   │   ├── custom-logic/
+│   │   │   ├── actions/
+│   │   │   │   ├── get-active-org.ts
+│   │   │   │   └── set-active-org.ts
+│   │   │   ├── OrgSwitcher.tsx
+│   │   │   ├── OrgSwitcherWrapper.tsx
+│   │   │   ├── Protected.tsx
+│   │   │   ├── run-protected.ts
+│   │   │   ├── token-validator.ts
+│   │   │   └── types.ts
 │   │   ├── index.ts
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
@@ -400,6 +410,48 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 |------|------|---------|-------------|
 | `refreshIntervalMs` | `number` | `300000` (5 min) | How often to check auth state. Set `0` to disable. |
 | `debounceMs` | `number` | `1000` | Minimum ms between refreshes to prevent spam |
+
+## Custom Logic (Organization & RBAC Support)
+
+> **⚠️ WARNING**: The custom-logic module is incomplete and not ready for production use. This is a work in progress.
+
+The `custom-logic` module provides components and utilities for organization switching and role-based access control. This is currently under active development.
+
+### Exports
+
+```tsx
+import {
+  OrgSwitcher,
+  OrgSwitcherWrapper,
+  Protected,
+  runProtected,
+  setActiveOrg,
+  getActiveOrgId,
+  introspectTokenWithOrg,
+} from './logto-kit';
+```
+
+### Components
+
+- **OrgSwitcher** - Dropdown component for selecting active organization (WIP)
+- **OrgSwitcherWrapper** - Server-side wrapper that fetches org data and renders OrgSwitcher
+- **Protected** - Higher-order component for protecting routes by organization/role (WIP)
+
+### Functions
+
+- **setActiveOrg(orgId)** - Set the active organization cookie
+- **getActiveOrgId()** - Get the current active organization ID
+- **runProtected(requirements, token)** - Validate token against org/role requirements (WIP)
+- **introspectTokenWithOrg(token)** - Introspect token with organization context
+
+### Environment Variables
+
+```env
+# Custom-logic / RBAC Configuration
+LOGTO_M2M_RESOURCE=https://your-logto-endpoint/api
+```
+
+> Note: Organization features require additional Logto configuration (organization scopes enabled in your Logto application).
 
 ## i18n System
 
@@ -917,12 +969,14 @@ npm run build
 
 ## Todo
 
+> **⚠️ Organization/RBAC features are WIP** - See custom-logic module above.
 
 ### Functions
 
-- [ ] Org switcher - Nope.
-- [ ] Org permission (by role and logto perm) wrappers - Noope.
-- [ ] Protected action runner for special permission graced users - Super nope.  
+- [x] Org switcher - Basic structure added (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg)
+- [ ] Org permission (by role and logto perm) wrappers - Not started
+- [ ] Protected action runner for special permission graced users - Not started
+- [ ] Full org-scoped token handling - Partially done (getOrganizationToken usage)
 
 ### UI Polish
 - [x] Profile tab - redesigned with proper edit UI
