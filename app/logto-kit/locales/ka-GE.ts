@@ -69,6 +69,7 @@ export const kaGE: Translations = {
     passwordChanged: 'პაროლი წარმატებით შეიცვალა.',
     confirmDeleteAccount: 'შეიყვანეთ პაროლი თქვენი ანგარიშის სამუდამოდ წასაშლელად.',
     accountDeleted: 'თქვენი ანგარიში წაიშალა.',
+    passwordChangeFailed: 'პაროლის შეცვლა ვერ მოხერხდა',
   },
   
   // Sidebar
@@ -81,6 +82,8 @@ export const kaGE: Translations = {
     lightMode: 'ნათელი რეჟიმი',
     darkMode: 'მუქი რეჟიმი',
     active: 'აქტიური',
+    jwtToken: 'JWT ტოკენი',
+    opaqueToken: 'Opaque ტოკენი',
   },
   
   // Profile tab
@@ -210,6 +213,8 @@ export const kaGE: Translations = {
     roleIdLabel: 'როლის ID',
     rawTitle: 'ორგანიზაციები & ორგანიზაციის როლები',
     rawHeading: 'ორგანიზაციების ნედლი მონაცემები',
+    active: '(აქტიური)',
+    beYourself: 'იყავი თავი (გლობალური)',
   },
   
   // MFA tab
@@ -228,6 +233,8 @@ export const kaGE: Translations = {
     enterCodeFromApp: 'შეიყვანეთ 6-ნიშნა კოდი აპლიკაციიდან',
     verifyAndEnroll: 'აქტივაცია',
     backupCodes: 'სარეზერვო კოდები',
+    saveBackupCodes: 'შეინახეთ თქვენი სარეზერვო კოდები',
+    backupCodesTitle: 'სარეზერვო კოდები',
     generateNewCodes: 'ახალი კოდების გენერაცია',
     viewExisting: 'არსებულის ნახვა',
     saveTheseCodes: 'შეინახეთ ეს კოდები - თითოეული მხოლოდ ერთხელ გამოიყენება:',

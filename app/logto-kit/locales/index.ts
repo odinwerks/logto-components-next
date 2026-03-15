@@ -83,6 +83,7 @@ export interface Translations {
     passwordChanged: string;
     confirmDeleteAccount: string;
     accountDeleted: string;
+    passwordChangeFailed: string;
   };
 
   // Sidebar
@@ -95,6 +96,8 @@ export interface Translations {
     lightMode: string;
     darkMode: string;
     active: string;
+    jwtToken: string;
+    opaqueToken: string;
   };
   
   // Profile tab
@@ -224,6 +227,8 @@ export interface Translations {
     roleIdLabel: string;
     rawTitle: string;
     rawHeading: string;
+    active: string;
+    beYourself: string;
   };
   
   // MFA tab
@@ -242,6 +247,8 @@ export interface Translations {
     enterCodeFromApp: string;
     verifyAndEnroll: string;
     backupCodes: string;
+    saveBackupCodes: string;
+    backupCodesTitle: string;
     generateNewCodes: string;
     viewExisting: string;
     saveTheseCodes: string;
