@@ -5,22 +5,13 @@ import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
+import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
 
 // ============================================================================
 // Environment Configuration
 // ============================================================================
 
-function getCleanEndpoint(): string {
-  // Use the already validated and trimmed endpoint from logtoConfig
-  const endpoint = logtoConfig.endpoint;
-  if (!endpoint) {
-    throw new Error(
-      'ENDPOINT configuration is missing! ' +
-        'Check your .env file and logto.ts configuration.'
-    );
-  }
-  return endpoint.replace(/\/$/, '');
-}
+// getCleanEndpoint is now imported from ./utils
 
 // ============================================================================
 // Token Helper - ONLY used in Server Actions
@@ -45,7 +36,7 @@ async function makeRequest(
   } = {}
 ): Promise<Response> {
   const token = await getTokenForServerAction();
-  const cleanEndpoint = getCleanEndpoint();
+  const cleanEndpoint = await getCleanEndpoint();
   const url = `${cleanEndpoint}${path.startsWith('/') ? '' : '/'}${path}`;
   
   const headers: Record<string, string> = {
@@ -94,14 +85,14 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
       const token = await getTokenForServerAction();
 
       // Use /oidc/me for reading user data (single request for all user info including orgs)
-      const cleanEndpoint = getCleanEndpoint();
+      const cleanEndpoint = await getCleanEndpoint();
       const res = await fetch(`${cleanEndpoint}/oidc/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`Logto OIDC ${res.status}: ${errorText.substring(0, 200)}`);
+        throw new Error(`Logto OIDC ${res.status}: ${await truncateError(errorText)}`);
       }
 
       const userInfo = await res.json();
@@ -174,7 +165,7 @@ export async function fetchUserBadgeData(): Promise<DashboardResult> {
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`Logto API ${res.status}: ${errorText.substring(0, 200)}`);
+        throw new Error(`Logto API ${res.status}: ${await truncateError(errorText)}`);
       }
 
       return {
@@ -229,7 +220,7 @@ export async function updateUserBasicInfo(updates: {
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Basic info update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Basic info update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -244,7 +235,7 @@ export async function updateUserProfile(profile: {
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Profile update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Profile update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -256,7 +247,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Custom data update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Custom data update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -268,7 +259,7 @@ export async function updateAvatarUrl(avatarUrl: string): Promise<void> {
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Avatar update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Avatar update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -284,7 +275,7 @@ export async function verifyPasswordForIdentity(password: string): Promise<{ ver
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Password verification failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Password verification failed ${res.status}: ${await truncateError(errorText)}`);
   }
   
   const parsed = await res.json();
@@ -303,7 +294,7 @@ export async function sendEmailVerificationCode(email: string): Promise<{ verifi
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Email verification send failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Email verification send failed ${res.status}: ${await truncateError(errorText)}`);
   }
   
   const parsed = await res.json();
@@ -322,7 +313,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<{ verifi
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Phone verification send failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Phone verification send failed ${res.status}: ${await truncateError(errorText)}`);
   }
   
   const parsed = await res.json();
@@ -346,7 +337,7 @@ export async function verifyVerificationCode(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Verification failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Verification failed ${res.status}: ${await truncateError(errorText)}`);
   }
   
   const parsed = await res.json();
@@ -374,7 +365,7 @@ export async function updateEmailWithVerification(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Email update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Email update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -391,7 +382,7 @@ export async function updatePhoneWithVerification(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Phone update failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Phone update failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -403,7 +394,7 @@ export async function removeUserEmail(identityVerificationRecordId: string): Pro
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Email removal failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Email removal failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -415,7 +406,7 @@ export async function removeUserPhone(identityVerificationRecordId: string): Pro
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Phone removal failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Phone removal failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -428,7 +419,7 @@ export async function getMfaVerifications(): Promise<MfaVerification[]> {
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Get MFA verifications failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Get MFA verifications failed ${res.status}: ${await truncateError(errorText)}`);
   }
 
   return res.json();
@@ -441,7 +432,7 @@ export async function generateTotpSecret(): Promise<{ secret: string; secretQrCo
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Generate TOTP secret failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Generate TOTP secret failed ${res.status}: ${await truncateError(errorText)}`);
   }
 
   return res.json();
@@ -460,7 +451,7 @@ export async function addMfaVerification(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Add MFA verification failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Add MFA verification failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -475,7 +466,7 @@ export async function deleteMfaVerification(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Delete MFA verification failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Delete MFA verification failed ${res.status}: ${await truncateError(errorText)}`);
   }
 }
 
@@ -487,7 +478,7 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Generate backup codes failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Generate backup codes failed ${res.status}: ${await truncateError(errorText)}`);
   }
 
   return res.json();
@@ -502,7 +493,7 @@ export async function getBackupCodes(
   
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Get backup codes failed ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error(`Get backup codes failed ${res.status}: ${await truncateError(errorText)}`);
   }
 
   return res.json();
@@ -596,7 +587,7 @@ export async function deleteUserAccount(
 
   // ── Step 3: get Management API token (M2M, lives in logto.ts) ────────────
   const mgmtToken = await getManagementApiToken();
-  const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
+  const cleanEndpoint = await getCleanEndpoint();
 
   // ── Step 4: delete via Management API ────────────────────────────────────
   const deleteRes = await fetch(`${cleanEndpoint}/api/users/${userId}`, {
@@ -609,7 +600,7 @@ export async function deleteUserAccount(
   if (!deleteRes.ok) {
     const errorText = await deleteRes.text();
     throw new Error(
-      `Account deletion failed ${deleteRes.status}: ${errorText.substring(0, 200)}`
+      `Account deletion failed ${deleteRes.status}: ${await truncateError(errorText)}`
     );
   }
 
@@ -704,61 +695,10 @@ async function uploadViaMinIO(
   })
 }
 
-async function introspectToken(
-  token: string,
-): Promise<OidcIntrospectionResponse> {
-  const url = process.env.LOGTO_INTROSPECTION_URL
-  const clientId = process.env.APP_ID
-  const clientSecret = process.env.APP_SECRET
-
-  if (!url || !clientId || !clientSecret) {
-    throw new Error(
-      'Logto introspection not configured — set LOGTO_INTROSPECTION_URL, ' +
-        'APP_ID and APP_SECRET.',
-    )
-  }
-
-  const body = new URLSearchParams({ token, client_id: clientId, client_secret: clientSecret })
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-    cache: 'no-store',
-  })
-
-  if (!res.ok) {
-    let detail = ''
-    try {
-      const errBody = await res.json() as { error?: string; error_description?: string }
-      detail = errBody.error_description ?? errBody.error ?? ''
-    } catch {
-      detail = await res.text().catch(() => '')
-    }
-    throw new Error(
-      `Introspection endpoint returned HTTP ${res.status}` +
-        (detail ? `: ${detail}` : '. Check LOGTO_INTROSPECTION_URL.'),
-    )
-  }
-
-  try {
-    return (await res.json()) as OidcIntrospectionResponse
-  } catch {
-    throw new Error(
-      'Introspection endpoint returned a non-JSON body. ' +
-        'Check LOGTO_INTROSPECTION_URL points to the correct endpoint.',
-    )
-  }
-}
-
-function assertSafeUserId(id: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
-    throw new Error('UNAUTHORIZED: userId contains invalid characters.')
-  }
-}
+// introspectToken and assertSafeUserId are now imported from ./utils
 
 async function validateUserToken(accessToken: string, userId: string): Promise<void> {
-  assertSafeUserId(userId);
+  await assertSafeUserId(userId);
   
   const introspection = await introspectToken(accessToken);
   

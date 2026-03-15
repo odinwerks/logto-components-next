@@ -130,6 +130,19 @@ export type MfaVerificationPayload =
   | { type: 'BackupCode'; payload: BackupCodeVerificationPayload };
 
 // ============================================================================
+// Token Types
+// ============================================================================
+
+export interface OidcIntrospectionResponse {
+  active: boolean;
+  sub?: string;
+  scope?: string;
+  client_id?: string;
+  exp?: number;
+  iat?: number;
+}
+
+// ============================================================================
 // Type Guards
 // ============================================================================
 

@@ -10,38 +10,49 @@ const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
 const ORG_STORAGE_KEY = 'org-mode';
 
+function createStorageHelpers<T>(key: string) {
+  return {
+    get: (): T | null => {
+      if (typeof window === 'undefined') return null;
+      return sessionStorage.getItem(key) as T | null;
+    },
+    set: (value: T) => {
+      if (typeof window === 'undefined') return;
+      if (value === null) {
+        sessionStorage.removeItem(key);
+      } else {
+        sessionStorage.setItem(key, String(value));
+      }
+    },
+  };
+}
+
+const themeStorage = createStorageHelpers<'dark' | 'light'>(THEME_STORAGE_KEY);
+const langStorage = createStorageHelpers<string>(LANG_STORAGE_KEY);
+const orgStorage = createStorageHelpers<string | null>(ORG_STORAGE_KEY);
+
 function getStoredTheme(): 'dark' | 'light' | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem(THEME_STORAGE_KEY) as 'dark' | 'light' | null;
+  return themeStorage.get();
 }
 
 function setStoredTheme(theme: 'dark' | 'light') {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(THEME_STORAGE_KEY, theme);
+  themeStorage.set(theme);
 }
 
 function getStoredLang(): string | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem(LANG_STORAGE_KEY);
+  return langStorage.get();
 }
 
 function setStoredLang(lang: string) {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(LANG_STORAGE_KEY, lang);
+  langStorage.set(lang);
 }
 
 function getStoredOrg(): string | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem(ORG_STORAGE_KEY);
+  return orgStorage.get();
 }
 
 function setStoredOrg(orgId: string | null) {
-  if (typeof window === 'undefined') return;
-  if (orgId === null) {
-    sessionStorage.removeItem(ORG_STORAGE_KEY);
-  } else {
-    sessionStorage.setItem(ORG_STORAGE_KEY, orgId);
-  }
+  orgStorage.set(orgId);
 }
 
 interface ThemeModeContextValue {
@@ -247,6 +258,17 @@ export function useThemeMode(): ThemeModeContextValue {
       theme: 'dark',
       themeSpec: darkTheme,
       themeColors: darkTheme.colors,
+      setTheme: () => {},
+      toggleTheme: () => {},
+    };
+  }
+
+  const storedTheme = getStoredTheme();
+  if (storedTheme) {
+    return {
+      theme: storedTheme,
+      themeSpec: storedTheme === 'dark' ? darkTheme : lightTheme,
+      themeColors: storedTheme === 'dark' ? darkTheme.colors : lightColors,
       setTheme: () => {},
       toggleTheme: () => {},
     };
