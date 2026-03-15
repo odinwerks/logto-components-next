@@ -65,14 +65,17 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │       └── index.tsx
 │   │   ├── custom-logic/
 │   │   │   ├── actions/
-│   │   │   │   ├── get-active-org.ts
-│   │   │   │   └── set-active-org.ts
-│   │   │   ├── OrgSwitcher.tsx
-│   │   │   ├── OrgSwitcherWrapper.tsx
-│   │   │   ├── Protected.tsx
-│   │   │   ├── run-protected.ts
-│   │   │   ├── token-validator.ts
-│   │   │   └── types.ts
+│   │   │   │   ├── check-org-permission.ts   # RBAC permission check
+│   │   │   │   ├── check-org-role.ts         # RBAC role check
+│   │   │   │   ├── fetch-userdata-for-rbac.ts # Fetch user data for RBAC
+│   │   │   │   └── set-active-org.ts         # Set active org
+│   │   │   ├── OrgSwitcher.tsx               # Org selector dropdown
+│   │   │   ├── OrgSwitcherWrapper.tsx        # Server wrapper
+│   │   │   ├── Protected.tsx                 # Route protection component
+│   │   │   ├── run-protected.ts              # Server action wrapper
+│   │   │   ├── token-validator.ts            # JWT validation
+│   │   │   ├── types.ts                     # TypeScript types
+│   │   │   └── index.ts                     # Exports
 │   │   ├── index.ts
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
@@ -413,47 +416,305 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ## Custom Logic (Organization & RBAC Support)
 
-> **⚠️ WARNING**: The custom-logic module is incomplete and not ready for production use. This is a work in progress.
+> **⚠️ WARNING - NOT PRODUCTION READY**: This module is FUNCTIONAL but NOT tested enough for production use. 
+> Use at your own risk. Extensive testing required before deploying to production.
+> This is a work in progress - APIs may change.
 
-The `custom-logic` module provides components and utilities for organization switching and role-based access control. This is currently under active development.
+The `custom-logic` module provides dual protection mechanisms:
+1. **Permission-based (JWT/JWKS)** - Validates via organization tokens
+2. **Role-based (OIDC Introspection)** - Validates via Management API
+
+Additionally provides an OrgSwitcher for users in multiple organizations.
 
 ### Exports
 
 ```tsx
 import {
-  OrgSwitcher,
-  OrgSwitcherWrapper,
   Protected,
   runProtected,
+  OrgSwitcher,
+  OrgSwitcherWrapper,
   setActiveOrg,
-  getActiveOrgId,
-  introspectTokenWithOrg,
+  useOrgMode,           // from './logto-kit' (handlers/preferences)
+  checkOrgPermission,   // from './logto-kit'
+  checkOrgRole,         // from './logto-kit'
+} from './logto-kit';
+
+import type {
+  ProtectedRequirements,
+  ProtectedResult,
+  ProtectedFailReason,
+  OrganizationData,
+  ValidatedTokenClaims,
 } from './logto-kit';
 ```
 
-### Components
+---
 
-- **OrgSwitcher** - Dropdown component for selecting active organization (WIP)
-- **OrgSwitcherWrapper** - Server-side wrapper that fetches org data and renders OrgSwitcher
-- **Protected** - Higher-order component for protecting routes by organization/role (WIP)
+### \<Protected\> - UI Gate Component
 
-### Functions
+A server component that conditionally renders children based on permissions/roles.
 
-- **setActiveOrg(orgId)** - Set the active organization cookie
-- **getActiveOrgId()** - Get the current active organization ID
-- **runProtected(requirements, token)** - Validate token against org/role requirements (WIP)
-- **introspectTokenWithOrg(token)** - Introspect token with organization context
+```tsx
+import { Protected } from './logto-kit';
 
-### Environment Variables
+<Protected perm="read:users">
+  <SensitiveData />
+</Protected>
 
-```env
-# Custom-logic / RBAC Configuration
-LOGTO_M2M_RESOURCE=https://your-logto-endpoint/api
+<Protected role="admin">
+  <AdminPanel />
+</Protected>
+
+<Protected perm={['read:users', 'write:users']} requireAll={false}>
+  <AnyPermissionGranted />
+</Protected>
+
+<Protected perm="launch-nuke" orgId="org-123">
+  <NukeButton />
+</Protected>
 ```
 
-> Note: Organization features require additional Logto configuration (organization scopes enabled in your Logto application).
+**Props:**
 
-## i18n System
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `perm` | `string \| string[]` | - | Required permission(s) to check |
+| `role` | `string \| string[]` | - | Required role(s) to check |
+| `orgId` | `string \| null \| undefined` | `undefined` | Specific org to check against. If `undefined`, uses user's stored org preference |
+| `requireAll` | `boolean` | `true` | If `true`, ALL permissions/roles required. If `false`, ANY one suffices |
+
+---
+
+### runProtected() - Server Action Guard
+
+Wraps a server action to validate before execution.
+
+```tsx
+import { runProtected } from './logto-kit';
+
+async function deleteUser(userId: string) {
+  const result = await runProtected(
+    { perm: 'delete:users', orgId: currentOrgId },
+    async () => {
+      // Your protected action here
+      await deleteUserFromDb(userId);
+      return { success: true };
+    }
+  );
+  
+  if (!result.ok) {
+    // Handle: 'MISSING_PERM' | 'MISSING_ROLE' | 'ORG_MISMATCH' | 'VALIDATION_ERROR'
+    throw new Error(`Access denied: ${result.reason}`);
+  }
+  
+  return result.data;
+}
+```
+
+**Parameters:**
+- `requirements`: `{ perm?, role?, orgId?, requireAll? }`
+- `action`: `() => Promise<T>`
+
+**Returns:** `ProtectedResult<T>`
+- `{ ok: true, data: T }`
+- `{ ok: false, reason: 'MISSING_PERM' | 'MISSING_ROLE' | 'ORG_MISMATCH' | 'VALIDATION_ERROR', detail?: string }`
+
+---
+
+### \<OrgSwitcher\> - Organization Selector
+
+A dropdown component for switching between organizations.
+
+```tsx
+import { OrgSwitcher } from './logto-kit';
+
+<OrgSwitcher 
+  organizations={[
+    { id: 'org-1', name: 'Acme Corp' },
+    { id: 'org-2', name: 'Beta Inc' }
+  ]}
+  theme={themeSpec}
+/>
+```
+
+**Features:**
+- Shows "Be yourself (global)" option to exit org context
+- Auto-selects first org if user is in only one
+- Persists selection to `customData.Preferences.asOrg`
+- Uses sessionStorage for client-side state
+
+---
+
+### setActiveOrg() - Server Action
+
+Validates and sets the active organization.
+
+```tsx
+import { setActiveOrg } from './logto-kit';
+
+// Returns true if valid, false if user not in org
+const isValid = await setActiveOrg('org-123');
+
+// Clear org selection (act as global)
+await setActiveOrg(null);
+```
+
+**Returns:** `Promise<boolean>` - `true` if valid org membership, `false` otherwise
+
+---
+
+### useOrgMode() - Hook
+
+Access and manage organization context anywhere in your app.
+
+```tsx
+import { useOrgMode } from './logto-kit';
+
+function MyComponent() {
+  const { asOrg, setAsOrg } = useOrgMode();
+  
+  // asOrg: string | null (null = global context)
+  // setAsOrg(orgId: string | null) => void
+  
+  return (
+    <div>
+      Current org: {asOrg ?? 'global'}
+      <button onClick={() => setAsOrg(null)}>Be yourself</button>
+    </div>
+  );
+}
+```
+
+---
+
+### How It Works
+
+#### Permission/Role Checking Flow
+
+1. **Fetch User Context** - Gets Logto claims including organizations
+2. **Validate Org Membership** - Checks user belongs to target org
+3. **Call Management API** - Fetches user's roles in the org:
+   ```
+   GET /api/organizations/{orgId}/users/{userId}/roles
+   ```
+4. **Check Permissions/Roles** - Uses ROLE_PERMISSION_MAP to derive permissions
+
+#### Organization Switching Flow
+
+1. User selects org from `<OrgSwitcher>`
+2. `setActiveOrg()` validates membership via Logto claims
+3. Selection stored in:
+   - `sessionStorage` (client) - for immediate UI updates
+   - `customData.Preferences.asOrg` (server) - for persistence
+4. `useOrgMode()` hook provides `asOrg` and `setAsOrg()` throughout the app
+
+---
+
+### Role to Permission Mapping
+
+Default mapping in `check-org-permission.ts`:
+
+```typescript
+const ROLE_PERMISSION_MAP: Record<string, string[]> = {
+  admin: ['*'],                          // All permissions
+  'nuke-commander': ['launch-nuke', 'abort-nuke'],
+  astronaut: ['land-on-moon', 'spacewalk'],
+};
+```
+
+**Extend this** by editing `app/logto-kit/custom-logic/actions/check-org-permission.ts`.
+
+---
+
+### Required Configuration
+
+#### Environment Variables
+
+```env
+# Logto Core
+APP_ID=your_app_id
+APP_SECRET=your_app_secret
+ENDPOINT=https://your-tenant.logto.app
+BASE_URL=http://localhost:3000
+COOKIE_SECRET=your_cookie_secret
+
+# Scopes (must include org scopes)
+SCOPES=profile,organizations,organization_roles
+
+# M2M for Management API
+LOGTO_M2M_APP_ID=your_m2m_app_id
+LOGTO_M2M_APP_SECRET=your_m2m_app_secret
+LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
+```
+
+#### Logto Console Setup
+
+1. **Application Scopes**: Add `organizations` and `organization_roles`
+2. **M2M Application**: Create a Machine-to-Machine app with:
+   - Permissions to read organization roles
+   - Add to environment variables above
+
+---
+
+### Usage Examples
+
+#### Basic Permission Check
+
+```tsx
+import { Protected } from './logto-kit';
+
+export default function AdminPage() {
+  return (
+    <Protected role="admin">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <DeleteUserButton />
+      </div>
+    </Protected>
+  );
+}
+```
+
+#### Protected Server Action
+
+```tsx
+'use server';
+import { runProtected } from './logto-kit';
+
+export async function processPayment(amount: number) {
+  return runProtected(
+    { role: 'billing-manager', requireAll: true },
+    async () => {
+      // Process payment...
+      return { success: true, transactionId: 'xyz' };
+    }
+  );
+}
+```
+
+#### With Org-Specific Content
+
+```tsx
+<Protected perm="view:reports" orgId="org-abc">
+  <OrgReport orgId="org-abc" />
+</Protected>
+```
+
+---
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "User not in organization" | User must be a member of the org in Logto |
+| Permission always returns false | Check: 1) User has the role in Logto Console, 2) Role name matches exactly in ROLE_PERMISSION_MAP, 3) Management API token is configured |
+| Org switcher not appearing | User needs multiple organizations in their Logto claims |
+| "MISSING_PERM" even with correct role | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
+
+---
+
+### i18n System
 
 Translations are loaded from `app/logto-kit/locales/`:
 
@@ -969,14 +1230,17 @@ npm run build
 
 ## Todo
 
-> **⚠️ Organization/RBAC features are WIP** - See custom-logic module above.
+> **⚠️ Organization/RBAC features are FUNCTIONAL but NOT PRODUCTION READY**
+> Extensive testing required before production use. APIs may change.
 
 ### Functions
 
-- [x] Org switcher - Basic structure added (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg)
-- [ ] Org permission (by role and logto perm) wrappers - Not started
-- [ ] Protected action runner for special permission graced users - Not started
-- [ ] Full org-scoped token handling - Partially done (getOrganizationToken usage)
+- [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
+- [x] Protected component - Complete (\<Protected\> server component)
+- [x] runProtected server action - Complete (server action wrapper)
+- [x] RBAC permission checking - Complete (checkOrgPermission, checkOrgRole)
+- [ ] Fine-tune ROLE_PERMISSION_MAP for your needs
+- [ ] Extensive testing before production use
 
 ### UI Polish
 - [x] Profile tab - redesigned with proper edit UI
@@ -984,8 +1248,7 @@ npm run build
 - [x] Security tab - button styling unified across all tabs
 - [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
-- [x] Organizations tab - implemented with org memberships and roles display
-- [ ] All UI to cover full Org and RBAC things - Noooooooope. 
+- [x] Organizations tab - implemented with org memberships, roles display, and org switching 
 
 ### Theme Context Provider
 - [x] Currently theme handling is internal to the dashboard
