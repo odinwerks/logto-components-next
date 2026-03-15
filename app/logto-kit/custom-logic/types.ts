@@ -3,7 +3,8 @@ export interface ProtectedRequirements {
   role?: string | string[];
   orgId?: string | null;
   requireAll?: boolean;
-  userId: string; // Required - the user ID to validate against
+  // Removed: userId (now gets from claims)
+  // Removed: userData (now fetched internally)
 }
 
 export interface ValidatedTokenClaims {

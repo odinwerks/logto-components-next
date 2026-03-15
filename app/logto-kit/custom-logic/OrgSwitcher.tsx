@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { setActiveOrg } from './actions/set-active-org';
+import { useOrgMode } from '../components/handlers/preferences';
 import type { OrganizationData } from './types';
 import type { ThemeSpec } from '../themes';
 
@@ -12,38 +13,37 @@ interface OrgSwitcherProps {
   theme: ThemeSpec;
 }
 
-function getCookieValue(name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined;
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : undefined;
-}
-
 export function OrgSwitcher({ organizations, currentOrgId, theme }: OrgSwitcherProps) {
   const router = useRouter();
-  const [selected, setSelected] = useState(currentOrgId ?? '');
+  const { asOrg, setAsOrg } = useOrgMode();
+  const [selected, setSelected] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   const c = theme.colors;
   const ty = theme.tokens.typography;
 
   useEffect(() => {
-    if (currentOrgId) {
-      setSelected(currentOrgId);
-    }
-  }, [currentOrgId]);
+    const activeOrg = asOrg ?? currentOrgId ?? '';
+    setSelected(activeOrg);
+  }, [asOrg, currentOrgId]);
 
   useEffect(() => {
-    if (organizations.length === 1 && !currentOrgId) {
+    if (organizations.length === 1 && !asOrg && !currentOrgId) {
       handleChange(organizations[0].id);
     }
-  }, [organizations, currentOrgId]);
+  }, [organizations, asOrg, currentOrgId]);
 
   const handleChange = async (newOrgId: string) => {
-    if (!newOrgId) return;
+    const orgIdToSet = newOrgId || null;
+    
+    if (orgIdToSet !== null) {
+      const isValid = await setActiveOrg(orgIdToSet);
+      if (!isValid) return;
+    }
     
     setIsLoading(true);
     try {
-      await setActiveOrg(newOrgId);
+      setAsOrg(orgIdToSet);
       setSelected(newOrgId);
       router.refresh();
     } finally {
@@ -55,12 +55,11 @@ export function OrgSwitcher({ organizations, currentOrgId, theme }: OrgSwitcherP
     return null;
   }
 
-  if (organizations.length === 1 && !currentOrgId) {
+  if (organizations.length === 1 && !asOrg && !currentOrgId) {
     return null;
   }
 
-  const activeOrgCookie = getCookieValue('logto-active-org');
-  const displaySelected = activeOrgCookie || selected;
+  const displaySelected = asOrg ?? currentOrgId ?? '';
 
   return (
     <div style={{ marginBottom: '0.75rem' }}>
@@ -75,6 +74,7 @@ export function OrgSwitcher({ organizations, currentOrgId, theme }: OrgSwitcherP
             opacity: isLoading ? 0.5 : 1,
           }}
         >
+          <option value="">Be yourself (global)</option>
           {organizations.map((org) => (
             <option key={org.id} value={org.id}>
               {org.name}

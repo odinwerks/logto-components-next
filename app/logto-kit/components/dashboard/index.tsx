@@ -93,19 +93,17 @@ export async function Dashboard() {
   const userPrefs = getPreferencesFromUserData(result.userData);
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang = userPrefs?.lang ?? locale;
-
-  // ── Active organization from fetchDashboardData (includes org-scoped token) ───────
-  const currentOrgId = result.activeOrgId;
+  const resolvedOrg = userPrefs?.asOrg ?? null;
 
   return (
     <UserDataProvider userData={result.userData}>
-      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} onUpdateCustomData={updateUserCustomData}>
+      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData}>
         <DashboardClient
           initialData={{
             userData: result.userData,
             accessToken: result.accessToken,
           }}
-          currentOrgId={currentOrgId}
+          currentOrgId={resolvedOrg ?? undefined}
           translations={translations}
           allTranslations={allTranslations}
           supportedLangs={supportedLangs}

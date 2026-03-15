@@ -7,6 +7,7 @@ import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
 import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
+import { useOrgMode } from '../../handlers/preferences';
 
 interface OrganizationsTabProps {
   userData: UserData;
@@ -20,16 +21,32 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
   const c  = theme.colors;
   const ty = theme.tokens.typography;
   const router = useRouter();
+  const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
   const organizations     = userData.organizations      || [];
   const organizationRoles = userData.organizationRoles  || [];
 
+  const activeOrgId = asOrg ?? currentOrgId;
+
   const handleOrgClick = async (orgId: string) => {
-    if (orgId === currentOrgId) return;
+    if (orgId === activeOrgId) return;
+    const isValid = await setActiveOrg(orgId);
+    if (!isValid) return;
     setIsLoading(orgId);
     try {
-      await setActiveOrg(orgId);
+      setAsOrg(orgId);
+      router.refresh();
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const handleBeYourself = () => {
+    if (activeOrgId === null || activeOrgId === undefined) return;
+    setIsLoading('clear');
+    try {
+      setAsOrg(null);
       router.refresh();
     } finally {
       setIsLoading(null);
@@ -82,15 +99,37 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
         {organizations.length === 0 ? (
           <div style={cs.surfaces.emptyState}>{t.organizations.noOrganizations}</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {organizations.map(org => (
-              <OrgCard 
-                key={org.id} 
-                org={org} 
-                isSelected={org.id === currentOrgId} 
-              />
-            ))}
-          </div>
+          <>
+            {/* Be Yourself button */}
+            {activeOrgId && (
+              <div 
+                onClick={handleBeYourself}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: c.bgPrimary,
+                  border: `1px solid ${c.borderColor}`,
+                  borderRadius: theme.tokens.radii.sm,
+                  marginBottom: '0.5rem',
+                  cursor: isLoading === 'clear' ? 'wait' : 'pointer',
+                  opacity: isLoading === 'clear' ? 0.6 : 1,
+                  color: c.textSecondary,
+                  fontSize: ty.size.sm,
+                  fontFamily: ty.fontMono,
+                }}
+              >
+                ← Be yourself (global)
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {organizations.map(org => (
+                <OrgCard 
+                  key={org.id} 
+                  org={org} 
+                  isSelected={org.id === activeOrgId} 
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

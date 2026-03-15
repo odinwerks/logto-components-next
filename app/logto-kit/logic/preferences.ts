@@ -9,6 +9,7 @@ import type { UserData } from './types';
 export interface UserPreferences {
   theme: 'dark' | 'light';
   lang: string; // e.g. 'en-US', 'ka-GE'
+  asOrg: string | null; // active organization ID, null = "be yourself" (global context)
 }
 
 const PREFS_KEY = 'Preferences';
@@ -38,11 +39,16 @@ export function getPreferencesFromUserData(userData: UserData): UserPreferences 
   const lang: string | undefined =
     typeof prefs.lang === 'string' && prefs.lang.length > 0 ? prefs.lang : undefined;
 
-  if (!theme && !lang) return null;
+  // Validate asOrg (string or null)
+  const asOrg: string | null =
+    typeof prefs.asOrg === 'string' ? prefs.asOrg : null;
+
+  if (!theme && !lang && !asOrg) return null;
 
   return {
     theme: theme ?? 'dark',
     lang: lang ?? 'en-US',
+    asOrg,
   };
 }
 
@@ -67,6 +73,7 @@ export function buildUpdatedCustomData(
   const newPrefs: UserPreferences = {
     theme: updates.theme ?? existingPrefs.theme ?? 'dark',
     lang: updates.lang ?? existingPrefs.lang ?? 'en-US',
+    asOrg: updates.asOrg !== undefined ? updates.asOrg : (existingPrefs.asOrg ?? null),
   };
 
   return {
