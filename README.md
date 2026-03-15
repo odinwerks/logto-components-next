@@ -63,19 +63,18 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │       └── security.tsx
 │   │   │   └── userbutton/
 │   │   │       └── index.tsx
+│   │   ├── custom-actions/
+│   │   │   ├── index.ts                  # Action registry and types
+│   │   │   └── validation.ts             # RBAC validation functions
 │   │   ├── custom-logic/
 │   │   │   ├── actions/
-│   │   │   │   ├── check-org-permission.ts   # RBAC permission check
-│   │   │   │   ├── check-org-role.ts         # RBAC role check
-│   │   │   │   ├── fetch-userdata-for-rbac.ts # Fetch user data for RBAC
-│   │   │   │   └── set-active-org.ts         # Set active org
-│   │   │   ├── OrgSwitcher.tsx               # Org selector dropdown
-│   │   │   ├── OrgSwitcherWrapper.tsx        # Server wrapper
-│   │   │   ├── Protected.tsx                 # Route protection component
-│   │   │   ├── run-protected.ts              # Server action wrapper
-│   │   │   ├── token-validator.ts            # JWT validation
-│   │   │   ├── types.ts                     # TypeScript types
-│   │   │   └── index.ts                     # Exports
+│   │   │   │   └── set-active-org.ts    # Set active org
+│   │   │   ├── OrgSwitcher.tsx          # Org selector dropdown
+│   │   │   ├── OrgSwitcherWrapper.tsx   # Server wrapper
+│   │   │   ├── Protected.tsx            # Route protection component
+│   │   │   ├── token-validator.ts       # JWT validation
+│   │   │   ├── types.ts                 # TypeScript types
+│   │   │   └── index.ts                # Exports
 │   │   ├── index.ts
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
@@ -89,6 +88,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   ├── preferences.ts
 │   │   │   ├── tabs.ts
 │   │   │   ├── types.ts
+│   │   │   ├── utils.ts                # Utility functions
 │   │   │   └── validation.ts
 │   │   └── themes/
 │   │       ├── default/
@@ -430,24 +430,24 @@ Additionally provides an OrgSwitcher for users in multiple organizations.
 
 ```tsx
 import {
+  // Organization & RBAC
   Protected,
-  runProtected,
   OrgSwitcher,
   OrgSwitcherWrapper,
   setActiveOrg,
-  useOrgMode,           // from './logto-kit' (handlers/preferences)
-  checkOrgPermission,   // from './logto-kit'
-  checkOrgRole,         // from './logto-kit'
+  useOrgMode,
+  
+  // Context hooks
+  useThemeMode,
+  useLangMode,
 } from './logto-kit';
 
 import type {
-  ProtectedRequirements,
-  ProtectedResult,
-  ProtectedFailReason,
   OrganizationData,
-  ValidatedTokenClaims,
 } from './logto-kit';
 ```
+
+> **Note**: The RBAC validation functions (`fetchUserRbacData`, `validateOrgMembership`, `checkPermissionInOrg`, `checkRoleInOrg`, `validateRbac`, `introspectTokenWithOrg`) and token validation (`validateToken`, `invalidateJWKS`) are internal-only. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
 
 ---
 
@@ -486,39 +486,115 @@ import { Protected } from './logto-kit';
 
 ---
 
-### runProtected() - Server Action Guard
+### Protected Actions API
 
-Wraps a server action to validate before execution.
+A secure API endpoint for executing permission-gated actions from the client.
+
+**Endpoint:** `POST /api/protected`
 
 ```tsx
-import { runProtected } from './logto-kit';
+// Client-side usage
+const response = await fetch('/api/protected', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    token: accessToken,
+    id: userId,
+    action: 'explode-earth',
+    payload: { force: true }
+  })
+});
 
-async function deleteUser(userId: string) {
-  const result = await runProtected(
-    { perm: 'delete:users', orgId: currentOrgId },
-    async () => {
-      // Your protected action here
-      await deleteUserFromDb(userId);
-      return { success: true };
-    }
-  );
-  
-  if (!result.ok) {
-    // Handle: 'MISSING_PERM' | 'MISSING_ROLE' | 'ORG_MISMATCH' | 'VALIDATION_ERROR'
-    throw new Error(`Access denied: ${result.reason}`);
-  }
-  
-  return result.data;
+const result = await response.json();
+if (!result.ok) {
+  console.error(result.error, result.message);
+  return;
+}
+console.log(result.data);
+```
+
+**Request:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `token` | string | Yes | User's access token |
+| `id` | string | Yes | User ID |
+| `action` | string | Yes | Action name registered in registry |
+| `payload` | unknown | No | Data to pass to the action handler |
+
+**Response:**
+
+```tsx
+// Success
+{ ok: true, data: <handler-return-value> }
+
+// Error
+{ ok: false, error: 'ERROR_CODE', message: '...' }
+```
+
+**Error Codes:**
+
+| Code | Description |
+|------|-------------|
+| `MISSING_FIELDS` | token, id, or action missing |
+| `TOKEN_INVALID` | Token not active, expired, or userId mismatch |
+| `INTROSPECTION_ERROR` | Failed to validate token |
+| `USER_DATA_ERROR` | Failed to fetch user RBAC data |
+| `NO_ORG_SELECTED` | User has no org selected (need org context) |
+| `ORG_NOT_MEMBER` | User not member of selected org |
+| `ACTION_NOT_FOUND` | Action doesn't exist in registry |
+| `PERMISSION_DENIED` | User lacks required permission |
+
+---
+
+### Registering Custom Actions
+
+Actions are registered in `app/logto-kit/custom-actions/index.ts`:
+
+```tsx
+import type { ActionRegistry, ActionConfig, ProtectedActionHandler } from './index';
+
+const actions: ActionRegistry = {
+  'explode-earth': {
+    requiredPermission: 'launch-nuke',
+    handler: async ({ userId, orgId, payload }) => {
+      // Your protected logic here
+      // payload is typed as unknown, cast as needed
+      const { force } = payload as { force: boolean };
+      
+      return { success: true, message: 'Earth exploded!' };
+    },
+  },
+  'send-notification': {
+    requiredPermission: 'send-notifications',
+    handler: async ({ userId, orgId, payload }) => {
+      // ...
+      return { sent: true };
+    },
+  },
+};
+
+export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
+  return actions[actionName];
 }
 ```
 
-**Parameters:**
-- `requirements`: `{ perm?, role?, orgId?, requireAll? }`
-- `action`: `() => Promise<T>`
+**Handler receives:**
+- `userId` - The authenticated user's ID
+- `orgId` - The active organization ID (from `customData.Preferences.asOrg`)
+- `payload` - The payload sent from the client
 
-**Returns:** `ProtectedResult<T>`
-- `{ ok: true, data: T }`
-- `{ ok: false, reason: 'MISSING_PERM' | 'MISSING_ROLE' | 'ORG_MISMATCH' | 'VALIDATION_ERROR', detail?: string }`
+**Role to Permission Mapping:**
+
+Edit `app/logto-kit/custom-actions/validation.ts` to customize:
+
+```typescript
+const ROLE_PERMISSION_MAP: Record<string, string[]> = {
+  admin: ['*'],                          // All permissions
+  'nuke-commander': ['launch-nuke', 'abort-nuke'],
+  astronaut: ['land-on-moon', 'spacewalk'],
+};
+```
 
 ---
 
@@ -566,7 +642,7 @@ await setActiveOrg(null);
 
 ### useOrgMode() - Hook
 
-Access and manage organization context anywhere in your app.
+Access and manage organization context anywhere in your app. Part of `PreferencesProvider` alongside theme and language.
 
 ```tsx
 import { useOrgMode } from './logto-kit';
@@ -586,23 +662,27 @@ function MyComponent() {
 }
 ```
 
+**Storage:**
+- `sessionStorage` (client) - immediate UI updates
+- `customData.Preferences.asOrg` (server) - cross-session persistence
+
 ---
 
 ### How It Works
 
-#### Permission/Role Checking Flow
+#### Protected Actions API Flow
 
-1. **Fetch User Context** - Gets Logto claims including organizations
-2. **Validate Org Membership** - Checks user belongs to target org
-3. **Call Management API** - Fetches user's roles in the org:
-   ```
-   GET /api/organizations/{orgId}/users/{userId}/roles
-   ```
-4. **Check Permissions/Roles** - Uses ROLE_PERMISSION_MAP to derive permissions
+1. **Client Request** - Client calls `POST /api/protected` with `{ token, id, action, payload }`
+2. **Token Validation** - Validates token via OIDC introspection
+3. **User Verification** - Verifies token `sub` matches provided `userId`
+4. **RBAC Data Fetch** - Fetches user orgs and active org from `/oidc/me`
+5. **Org Membership Check** - Ensures user is member of selected org
+6. **Permission Check** - Calls Management API to verify user's role has required permission
+7. **Execute Action** - Runs the registered handler if all checks pass
 
 #### Organization Switching Flow
 
-1. User selects org from `<OrgSwitcher>`
+1. User selects org from `<OrgSwitcher>` or Organizations tab
 2. `setActiveOrg()` validates membership via Logto claims
 3. Selection stored in:
    - `sessionStorage` (client) - for immediate UI updates
@@ -611,9 +691,60 @@ function MyComponent() {
 
 ---
 
+### Internal Token Validation & RBAC
+
+> **⚠️ Internal Only**: The following functions are used internally by the Protected Actions API. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
+
+#### Token Validation (JWT)
+
+The system uses JWKS to validate JWT tokens server-side. This is handled internally by the Protected Actions API.
+
+**Token Types:**
+- `org-non-api` - Organization token (audience: `urn:logto:organization:{orgId}`)
+- `org-api-resource` - Token with `organization_id` claim
+- `global` - Standard user token
+
+---
+
+### RBAC Functions
+
+Available from `custom-actions/validation.ts`:
+
+```tsx
+import {
+  fetchUserRbacData,
+  validateOrgMembership,
+  checkPermissionInOrg,
+  checkRoleInOrg,
+  validateRbac,
+} from './logto-kit';
+
+// Fetch user RBAC data (organizations + active org)
+const rbacData = await fetchUserRbacData(token);
+// Returns: { organizations: string[], asOrg: string | null }
+
+// Validate user is member of org
+const result = await validateOrgMembership(userOrgs, asOrg);
+// Returns: { ok: true } or { ok: false, error: 'NO_ORG_SELECTED' | 'ORG_NOT_MEMBER' }
+
+// Check if user has permission in org
+const hasPerm = await checkPermissionInOrg(userId, orgId, 'launch-nuke');
+// Returns: boolean
+
+// Check if user has role in org
+const hasRole = await checkRoleInOrg(userId, orgId, 'admin');
+// Returns: boolean
+
+// Full RBAC validation
+const rbacResult = await validateRbac(userId, rbacData, { perm: 'launch-nuke' });
+// Returns: { ok: true } or { ok: false, error: 'PERMISSION_DENIED', detail: '...' }
+```
+
+---
+
 ### Role to Permission Mapping
 
-Default mapping in `check-org-permission.ts`:
+Default mapping in `custom-actions/validation.ts`:
 
 ```typescript
 const ROLE_PERMISSION_MAP: Record<string, string[]> = {
@@ -623,7 +754,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
 };
 ```
 
-**Extend this** by editing `app/logto-kit/custom-logic/actions/check-org-permission.ts`.
+**Extend this** by editing `app/logto-kit/custom-actions/validation.ts`.
 
 ---
 
@@ -676,23 +807,6 @@ export default function AdminPage() {
 }
 ```
 
-#### Protected Server Action
-
-```tsx
-'use server';
-import { runProtected } from './logto-kit';
-
-export async function processPayment(amount: number) {
-  return runProtected(
-    { role: 'billing-manager', requireAll: true },
-    async () => {
-      // Process payment...
-      return { success: true, transactionId: 'xyz' };
-    }
-  );
-}
-```
-
 #### With Org-Specific Content
 
 ```tsx
@@ -710,7 +824,11 @@ export async function processPayment(amount: number) {
 | "User not in organization" | User must be a member of the org in Logto |
 | Permission always returns false | Check: 1) User has the role in Logto Console, 2) Role name matches exactly in ROLE_PERMISSION_MAP, 3) Management API token is configured |
 | Org switcher not appearing | User needs multiple organizations in their Logto claims |
-| "MISSING_PERM" even with correct role | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
+| "MISSING_PERM" / "PERMISSION_DENIED" | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
+| "NO_ORG_SELECTED" | User must select an organization before calling Protected Actions API |
+| "ORG_NOT_MEMBER" | Selected org not in user's organization list |
+| "ACTION_NOT_FOUND" | Action not registered in `custom-actions/index.ts` |
+| "TOKEN_INVALID" | Token expired, revoked, or userId mismatch |
 
 ---
 
@@ -1236,9 +1354,10 @@ npm run build
 ### Functions
 
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
-- [x] Protected component - Complete (\<Protected\> server component)
-- [x] runProtected server action - Complete (server action wrapper)
-- [x] RBAC permission checking - Complete (checkOrgPermission, checkOrgRole)
+- [x] Protected component - Complete (<Protected> server component)
+- [x] Protected Actions API - Complete (POST /api/protected endpoint)
+- [x] RBAC validation - Complete (validateRbac, checkPermissionInOrg, checkRoleInOrg)
+- [x] Token validation - Complete (validateToken with jose JWKS)
 - [ ] Fine-tune ROLE_PERMISSION_MAP for your needs
 - [ ] Extensive testing before production use
 
