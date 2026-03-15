@@ -1,7 +1,7 @@
 
 export { Dashboard } from './components/dashboard';
 
-export { PreferencesProvider, useThemeMode, useLangMode } from './components/handlers/preferences';
+export { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './components/handlers/preferences';
 export type { ThemeColors } from './components/handlers/preferences';
 
 export { UserDataProvider, useUserDataContext } from './components/handlers/user-data-context';
