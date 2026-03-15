@@ -69,6 +69,7 @@ export const enUS: Translations = {
     passwordChanged: 'Password changed successfully',
     confirmDeleteAccount: 'Enter your password to permanently delete your account.',
     accountDeleted: 'Your account has been deleted.',
+    passwordChangeFailed: 'Password change failed',
   },
   
   // Sidebar
@@ -81,6 +82,8 @@ export const enUS: Translations = {
     lightMode: 'LIGHT MODE',
     darkMode: 'DARK MODE',
     active: 'active',
+    jwtToken: 'JWT Token',
+    opaqueToken: 'Opaque Token',
   },
   
   // Profile tab
@@ -210,6 +213,8 @@ export const enUS: Translations = {
     roleIdLabel: 'Role ID',
     rawTitle: 'organizations & organizationRoles',
     rawHeading: 'RAW ORGANIZATIONS DATA',
+    active: '(active)',
+    beYourself: 'Be yourself (global)',
   },
   
   // MFA tab
@@ -228,6 +233,8 @@ export const enUS: Translations = {
     enterCodeFromApp: 'Enter 6-digit code from app',
     verifyAndEnroll: 'Activate',
     backupCodes: 'BACKUP CODES',
+    saveBackupCodes: 'Save your backup codes',
+    backupCodesTitle: 'Backup codes',
     generateNewCodes: 'Generate new codes',
     viewExisting: 'View existing',
     saveTheseCodes: 'SAVE THESE CODES - Each can be used only once:',
