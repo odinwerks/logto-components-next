@@ -16,8 +16,8 @@ const client = new LogtoClient(logtoConfig);
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip public paths
-  if (PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path))) {
+  // Skip public paths (exact match or with trailing slash)
+  if (PUBLIC_PATHS.some(path => pathname === path || pathname === path + '/' || pathname.startsWith(path + '/'))) {
     return NextResponse.next();
   }
 

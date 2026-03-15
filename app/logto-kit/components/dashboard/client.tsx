@@ -107,6 +107,7 @@ function getTabIcon(id: TabId) {
 
 interface DashboardClientProps {
   initialData: DashboardData;
+  currentOrgId?: string;
   translations: Translations;
   allTranslations: Record<string, Translations>;
   supportedLangs: string[];
@@ -139,6 +140,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({
   initialData,
+  currentOrgId,
   translations: serverTranslations,
   allTranslations,
   supportedLangs,
@@ -479,7 +481,7 @@ export function DashboardClient({
           )}
 
           {activeTab === 'organizations' && (
-            <OrganizationsTab userData={userData} theme={themeSpec} t={t} />
+            <OrganizationsTab userData={userData} currentOrgId={currentOrgId} theme={themeSpec} t={t} />
           )}
 
           {activeTab === 'dev' && (

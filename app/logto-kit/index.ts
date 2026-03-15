@@ -12,6 +12,8 @@ export { UserButton, UserBadge } from './components/userbutton';
 
 export * from './logic';
 
+export * from './custom-logic';
+
 export * from './components/dashboard';
 
 export * from './themes';
