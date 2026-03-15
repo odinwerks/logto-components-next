@@ -1,18 +1,9 @@
-import { cookies } from 'next/headers';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { logtoConfig } from '../../logto';
 import { OrgSwitcher } from './OrgSwitcher';
 import type { OrganizationData } from './types';
 import type { ThemeSpec } from '../themes';
 import type { Translations } from '../locales';
-
-const ACTIVE_ORG_COOKIE = 'logto-active-org';
-
-async function getActiveOrgIdFromCookie(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get(ACTIVE_ORG_COOKIE);
-  return cookie?.value;
-}
 
 interface OrgSwitcherWrapperProps {
   theme: ThemeSpec;
@@ -38,7 +29,5 @@ export async function OrgSwitcherWrapper({ theme, t }: OrgSwitcherWrapperProps) 
     return null;
   }
 
-  const currentOrgId = await getActiveOrgIdFromCookie();
-
-  return <OrgSwitcher organizations={organizationData} currentOrgId={currentOrgId} theme={theme} />;
+  return <OrgSwitcher organizations={organizationData} theme={theme} />;
 }

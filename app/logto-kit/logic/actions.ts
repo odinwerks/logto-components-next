@@ -1,19 +1,10 @@
 'use server';
 
-import { cookies } from 'next/headers';
-import { getAccessToken, getOrganizationToken } from '@logto/next/server-actions';
+import { getAccessToken } from '@logto/next/server-actions';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
-
-const ACTIVE_ORG_COOKIE = 'logto-active-org';
-
-async function getActiveOrgIdFromCookie(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get(ACTIVE_ORG_COOKIE);
-  return cookie?.value;
-}
 
 // ============================================================================
 // Environment Configuration
@@ -99,18 +90,8 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      // Check if an organization is active
-      const activeOrgId = await getActiveOrgIdFromCookie();
-      
-      // Get the appropriate token (global or org-scoped)
-      let token: string;
-      if (activeOrgId) {
-        // Fetch organization-scoped token
-        token = await getOrganizationToken(logtoConfig, activeOrgId) as string;
-      } else {
-        // Use global token
-        token = await getTokenForServerAction();
-      }
+      // Always use global token - org context is managed via customData
+      const token = await getTokenForServerAction();
 
       // Use /oidc/me for reading user data (single request for all user info including orgs)
       const cleanEndpoint = getCleanEndpoint();
@@ -124,6 +105,11 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
       }
 
       const userInfo = await res.json();
+
+      // Extract activeOrgId from customData.Preferences.asOrg
+      const customData = userInfo.custom_data as Record<string, unknown> | undefined;
+      const prefs = customData?.Preferences as { asOrg?: string | null } | undefined;
+      const activeOrgId = prefs?.asOrg ?? undefined;
 
       // Map OIDC response to UserData format
       const userData: UserData = {

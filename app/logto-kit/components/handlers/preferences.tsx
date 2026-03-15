@@ -8,6 +8,7 @@ export type { ThemeColors, ThemeSpec, LocaleCode };
 
 const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
+const ORG_STORAGE_KEY = 'org-mode';
 
 function getStoredTheme(): 'dark' | 'light' | null {
   if (typeof window === 'undefined') return null;
@@ -29,6 +30,20 @@ function setStoredLang(lang: string) {
   sessionStorage.setItem(LANG_STORAGE_KEY, lang);
 }
 
+function getStoredOrg(): string | null {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem(ORG_STORAGE_KEY);
+}
+
+function setStoredOrg(orgId: string | null) {
+  if (typeof window === 'undefined') return;
+  if (orgId === null) {
+    sessionStorage.removeItem(ORG_STORAGE_KEY);
+  } else {
+    sessionStorage.setItem(ORG_STORAGE_KEY, orgId);
+  }
+}
+
 interface ThemeModeContextValue {
   theme: 'dark' | 'light';
   themeSpec: ThemeSpec;
@@ -42,9 +57,15 @@ interface LangModeContextValue {
   setLang: (lang: string) => void;
 }
 
+interface OrgModeContextValue {
+  asOrg: string | null;
+  setAsOrg: (orgId: string | null) => void;
+}
+
 interface PreferencesContextValue {
   theme: ThemeModeContextValue;
   lang: LangModeContextValue;
+  org: OrgModeContextValue;
 }
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
@@ -87,12 +108,14 @@ export function PreferencesProvider({
   children,
   initialTheme = 'dark',
   initialLang,
+  initialOrgId,
   onUpdateCustomData,
   onLangChange,
 }: {
   children: ReactNode;
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
+  initialOrgId?: string | null;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
 }) {
@@ -100,6 +123,11 @@ export function PreferencesProvider({
   
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
   const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
+  const [asOrg, setAsOrgState] = useState<string | null>(() => {
+    const stored = getStoredOrg();
+    if (stored) return stored;
+    return initialOrgId ?? null;
+  });
 
   useEffect(() => {
     const html = document.documentElement;
@@ -141,20 +169,29 @@ export function PreferencesProvider({
   const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
     if (!onUpdateCustomData) return;
     try {
-      await onUpdateCustomData({ Preferences: { theme: newTheme, lang: '' } });
+      await onUpdateCustomData({ Preferences: { theme: newTheme, lang, asOrg } });
     } catch (err) {
       console.error('[PreferencesProvider] Failed to persist theme:', err);
     }
-  }, [onUpdateCustomData]);
+  }, [onUpdateCustomData, lang, asOrg]);
 
   const persistLangToApi = useCallback(async (newLang: string) => {
     if (!onUpdateCustomData) return;
     try {
-      await onUpdateCustomData({ Preferences: { theme, lang: newLang } });
+      await onUpdateCustomData({ Preferences: { theme, lang: newLang, asOrg } });
     } catch (err) {
       console.error('[PreferencesProvider] Failed to persist lang:', err);
     }
-  }, [onUpdateCustomData, theme]);
+  }, [onUpdateCustomData, theme, asOrg]);
+
+  const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
+    if (!onUpdateCustomData) return;
+    try {
+      await onUpdateCustomData({ Preferences: { theme, lang, asOrg: newOrgId } });
+    } catch (err) {
+      console.error('[PreferencesProvider] Failed to persist org:', err);
+    }
+  }, [onUpdateCustomData, theme, lang]);
 
   const persistLockRef = useRef<{ theme: boolean; lang: boolean }>({ theme: false, lang: false });
 
@@ -176,12 +213,19 @@ export function PreferencesProvider({
     onLangChange?.();
   }, [persistLangToApi, onLangChange]);
 
+  const setAsOrg = useCallback((newOrgId: string | null) => {
+    setStoredOrg(newOrgId);
+    setAsOrgState(newOrgId);
+    persistOrgToApi(newOrgId);
+  }, [persistOrgToApi]);
+
   const value = useMemo(
     () => ({
       theme: { theme, themeSpec, themeColors, setTheme, toggleTheme },
       lang: { lang, setLang },
+      org: { asOrg, setAsOrg },
     }),
-    [theme, themeSpec, themeColors, setTheme, toggleTheme, lang, setLang]
+    [theme, themeSpec, themeColors, setTheme, toggleTheme, lang, setLang, asOrg, setAsOrg]
   );
 
   return (
@@ -236,5 +280,26 @@ export function useLangMode(): LangModeContextValue {
   return {
     lang: stored ?? getDefaultLang(),
     setLang: () => {},
+  };
+}
+
+export function useOrgMode(): OrgModeContextValue {
+  const context = useContext(PreferencesContext);
+
+  if (context) {
+    return context.org;
+  }
+
+  if (typeof window === 'undefined') {
+    return {
+      asOrg: null,
+      setAsOrg: () => {},
+    };
+  }
+
+  const stored = getStoredOrg();
+  return {
+    asOrg: stored,
+    setAsOrg: () => {},
   };
 }
