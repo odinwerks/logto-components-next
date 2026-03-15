@@ -9,6 +9,8 @@ import type { Translations } from '../../../locales';
 import { adj, tk, alpha } from '../../handlers/theme-helpers';
 import { fetchUserBadgeData } from '../../../logic/actions';
 import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Download, Phone, Mail, Shield, Lock, Copy, LucideIcon } from 'lucide-react';
+import { Button } from '../../shared/Button';
+import { Input } from '../../shared/Input';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -38,78 +40,6 @@ interface SecurityTabProps {
 const ISSUER = process.env.NEXT_PUBLIC_MFA_ISSUER || 'Logto';
 
 // ─── Primitives ────────────────────────────────────────────────────────────────
-
-function Btn({
-  children, variant = 'secondary', size = 'md', onClick, disabled, style, theme,
-}: {
-  children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerSolid';
-  size?: 'sm' | 'md';
-  onClick?: () => void;
-  disabled?: boolean;
-  style?: React.CSSProperties;
-  theme: ThemeSpec;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const s = theme.components.buttons[variant];
-  const sz = size === 'sm' ? { padding: '0.3125rem 0.8125rem', fontSize: '0.6875rem', gap: '0.3125rem' } : { padding: '0.5rem 1.125rem', fontSize: '0.8125rem', gap: '0.4375rem' };
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...s.base,
-        ...(hovered && !disabled ? s.hover : {}),
-        ...(disabled ? s.disabled : {}),
-        ...sz,
-        ...style,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Inp({
-  type = 'text', value, onChange, placeholder, style: ext,
-  autoFocus, suffix, onKeyDown, disabled, maxLength, hasError, theme,
-}: {
-  type?: string; value?: string;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string; style?: React.CSSProperties;
-  autoFocus?: boolean; suffix?: React.ReactNode;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  disabled?: boolean; maxLength?: number; hasError?: boolean;
-  theme: ThemeSpec;
-}) {
-  const c = theme.colors;
-  const inputStyle = theme.components.inputs.text;
-  const errorStyle = hasError ? { borderColor: c.accentRed, background: c.errorBg } : {};
-  const el = (
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-      autoFocus={autoFocus} onKeyDown={onKeyDown} disabled={disabled} maxLength={maxLength}
-      style={{
-        ...inputStyle,
-        ...errorStyle,
-        ...ext,
-      }}
-    />
-  );
-  if (!suffix) return el;
-  return (
-    <div style={{ position: 'relative' }}>
-      {el}
-      <div style={{
-        position: 'absolute', right: 0, top: 0, bottom: 0,
-        width: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {suffix}
-      </div>
-    </div>
-  );
-}
 
 function Lbl({ children, theme }: { children: React.ReactNode; theme: ThemeSpec }) {
   const cs = theme.components;
@@ -270,7 +200,7 @@ function FlowModal({
             <>
               {extra}
               <Lbl theme={theme}>{t.verification.password}</Lbl>
-              <Inp
+              <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
@@ -291,10 +221,10 @@ function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Btn onClick={onClose} theme={theme}>{t.common.close}</Btn>
-                <Btn variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} theme={theme}>
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color="#fff" strokeWidth={1.5} />
-                </Btn>
+                <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
+                <Button variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} theme={theme}>
+                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={c.bgPage === '#050505' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                </Button>
               </div>
             </>
           )}
@@ -321,7 +251,7 @@ function FlowModal({
                 </p>
               </div>
               <Lbl theme={theme}>Verification code</Lbl>
-              <Inp
+              <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
@@ -332,10 +262,10 @@ function FlowModal({
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Btn onClick={onClose} theme={theme}>Cancel</Btn>
-                <Btn variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} theme={theme}>
-                  Verify <Check size={'0.75rem'} color="#fff" strokeWidth={1.5} />
-                </Btn>
+                <Button onClick={onClose} theme={theme}>Cancel</Button>
+                <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} theme={theme}>
+                  Verify <Check size={'0.75rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                </Button>
               </div>
             </>
           )}
@@ -344,7 +274,7 @@ function FlowModal({
           {step.kind === 'totp-scan' && (
             <>
               <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '1.125rem' }}>
-                <div style={{ background: '#fff', padding: '0.75rem', border: `1px solid ${T.border}`, flexShrink: 0, alignSelf: 'flex-start' }}>
+                <div style={{ background: c.bgPrimary, padding: '0.75rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: 'flex-start' }}>
                   <QRCodeSVG value={step.totpUri} size={140} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -387,7 +317,7 @@ function FlowModal({
               <HR theme={theme} />
               <div style={{ marginTop: '1rem' }}>
                 <Lbl theme={theme}>6-digit code from your app</Lbl>
-                <Inp
+                <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
@@ -402,13 +332,13 @@ function FlowModal({
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Btn onClick={onClose} theme={theme}>Cancel</Btn>
-                <Btn variant="primary"
+                <Button onClick={onClose} theme={theme}>Cancel</Button>
+                <Button variant="primary"
                   onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
                   disabled={code.length !== 6} theme={theme}
                 >
-                  Activate <Check size={'0.75rem'} color="#fff" strokeWidth={1.5} />
-                </Btn>
+                  Activate <Check size={'0.75rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                </Button>
               </div>
             </>
           )}
@@ -417,7 +347,7 @@ function FlowModal({
           {step.kind === 'new-password' && (
             <>
               <Lbl theme={theme}>New password</Lbl>
-              <Inp
+              <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
@@ -437,10 +367,10 @@ function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Btn onClick={onClose} theme={theme}>Cancel</Btn>
-                <Btn variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} theme={theme}>
-                  {danger ? 'Confirm' : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? '#fff' : '#fff'} strokeWidth={1.5} />
-                </Btn>
+                <Button onClick={onClose} theme={theme}>Cancel</Button>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} theme={theme}>
+                  {danger ? t.security.confirmDeleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : (c.bgPage === '#050805' ? '#fff' : c.bgPage)} strokeWidth={1.5} />
+                </Button>
               </div>
             </>
           )}
@@ -516,7 +446,7 @@ function BackupCodesModal({
         }}>
           <div>
             <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
-              {isNew ? 'Save your backup codes' : 'Backup codes'}
+              {isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')}
             </p>
             <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>
               {isNew ? t.mfa.saveTheseCodes : t.mfa.existingCodes}
@@ -560,12 +490,12 @@ function BackupCodesModal({
 
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Btn size="sm" onClick={() => dl('txt')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .txt</Btn>
-              <Btn size="sm" onClick={() => dl('html')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .html</Btn>
+              <Button size="sm" onClick={() => dl('txt')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .txt</Button>
+              <Button size="sm" onClick={() => dl('html')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .html</Button>
             </div>
-            <Btn variant={isNew ? 'primary' : 'secondary'} onClick={onDone} theme={theme}>
+            <Button variant={isNew ? 'primary' : 'secondary'} onClick={onDone} theme={theme}>
               {isNew ? t.mfa.finishAndSave : t.mfa.hide}
-            </Btn>
+            </Button>
           </div>
         </div>
       </div>
@@ -669,7 +599,7 @@ function ContactRow({
           extra={modalKind === 'edit' && step.kind === 'password' ? (
             <div style={{ marginBottom: '1rem' }}>
               <Lbl theme={theme}>{currentValue ? `New ${label.toLowerCase()}` : label}</Lbl>
-              <Inp
+              <Input
                 type={type === 'email' ? 'email' : 'tel'}
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
@@ -697,13 +627,13 @@ function ContactRow({
         <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
           {currentValue ? (
             <>
-              <Btn size="sm" onClick={openEdit} theme={theme}>{t.profile.edit}</Btn>
-              <Btn size="sm" variant="danger" onClick={openRemove} theme={theme}>{t.profile.remove}</Btn>
+              <Button size="sm" onClick={openEdit} theme={theme}>{t.profile.edit}</Button>
+              <Button size="sm" variant="danger" onClick={openRemove} theme={theme}>{t.profile.remove}</Button>
             </>
           ) : (
-            <Btn size="sm" variant="primary" onClick={openEdit} theme={theme}>
-              <Plus size={'0.6875rem'} color="#fff" strokeWidth={1.5} /> {t.profile.add}
-            </Btn>
+            <Button size="sm" variant="primary" onClick={openEdit} theme={theme}>
+              <Plus size={'0.6875rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} /> {t.profile.add}
+            </Button>
           )}
         </div>
       </div>
@@ -937,7 +867,7 @@ export function SecurityTab({
               onSuccess(t.security.passwordChanged || 'Password changed successfully');
               setPwStep(null);
             } catch (err) {
-              onError(err instanceof Error ? err.message : 'Password change failed');
+              onError(err instanceof Error ? err.message : (t.security.passwordChangeFailed || 'Password change failed'));
               setPwStep(null);
             }
           }}
@@ -1013,9 +943,9 @@ export function SecurityTab({
               <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>••••••••••••</p>
             </div>
           </div>
-          <Btn size="sm" onClick={() => setPwStep({ kind: 'password' })} theme={theme}>
+          <Button size="sm" onClick={() => setPwStep({ kind: 'password' })} theme={theme}>
             {t.security.changePassword}
-          </Btn>
+          </Button>
         </div>
       </Card>
 
@@ -1057,17 +987,17 @@ export function SecurityTab({
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {totpFactor ? (
                 <>
-                  <Btn size="sm" variant="ghost" onClick={openTotp} theme={theme}>
+                  <Button size="sm" variant="ghost" onClick={openTotp} theme={theme}>
                     <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> Reconfigure
-                  </Btn>
-                  <Btn size="sm" variant="danger" onClick={openDelTotp} theme={theme}>
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={openDelTotp} theme={theme}>
                     <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
-                  </Btn>
+                  </Button>
                 </>
               ) : (
-                <Btn size="sm" variant="primary" onClick={openTotp} theme={theme}>
-                  <Plus size={'0.6875rem'} color="#fff" strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
-                </Btn>
+                <Button size="sm" variant="primary" onClick={openTotp} theme={theme}>
+                  <Plus size={'0.6875rem'} color={theme.mode === 'dark' ? '#fff' : theme.colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
+                </Button>
               )}
             </div>
           </div>
@@ -1111,9 +1041,9 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              <Btn size="sm" onClick={() => openBackup()} theme={theme}>
+              <Button size="sm" onClick={() => openBackup()} theme={theme}>
                 <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
-              </Btn>
+              </Button>
             </div>
           </div>
         </div>
@@ -1132,10 +1062,10 @@ export function SecurityTab({
                 {t.security.deleteAccountDescription}
               </p>
             </div>
-            <Btn variant="danger" size="sm" style={{ flexShrink: 0 }}
+            <Button variant="danger" size="sm" style={{ flexShrink: 0 }}
               onClick={() => setDeleteStep({ kind: 'password' })} theme={theme}>
               {t.security.deleteAccount}
-            </Btn>
+            </Button>
           </div>
         </Card>
       </div>

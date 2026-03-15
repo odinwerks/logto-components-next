@@ -78,7 +78,7 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
           fontFamily: ty.fontMono 
         }}>
           {org.name}
-          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: ty.size.micro }}>(active)</span>}
+          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: ty.size.micro }}>{t.organizations.active || '(active)'}</span>}
         </div>
         <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
           {t.organizations.idLabel}: {org.id}
@@ -117,7 +117,7 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
                   fontFamily: ty.fontMono,
                 }}
               >
-                ← Be yourself (global)
+                ← {t.organizations.beYourself || 'Be yourself (global)'}
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
