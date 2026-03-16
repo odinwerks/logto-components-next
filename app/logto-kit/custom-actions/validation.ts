@@ -148,9 +148,17 @@ export async function validateRbac(
 ): Promise<RbacValidationResult> {
   const { perm, role, requireAll = true } = options;
 
-  const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
-  if (!orgValidation.ok) {
-    return orgValidation;
+  const requiresOrgContext = (perm || role) && userData.asOrg;
+
+  if (requiresOrgContext) {
+    const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
+    if (!orgValidation.ok) {
+      return orgValidation;
+    }
+  }
+
+  if (!perm && !role) {
+    return { ok: true };
   }
 
   const orgId = userData.asOrg!;
