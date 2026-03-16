@@ -166,6 +166,8 @@ Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 
 The dashboard provides a `PreferencesProvider` that combines theme and language management. It exports both `useThemeMode()` and `useLangMode()` hooks.
 
+> **Important**: All hooks (`useThemeMode`, `useLangMode`, `useOrgMode`, `useUserDataContext`) must be used within their provider contexts. Using them outside will return no-op values with silent failures — the component will appear to work but changes won't persist.
+
 #### useThemeMode Hook
 
 Any component can use the theme context:
