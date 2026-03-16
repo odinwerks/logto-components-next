@@ -29,6 +29,8 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │   │   │   └── route.ts
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
+│   │   ├── protected/
+│   │   │   └── route.ts              # Protected Actions API
 │   │   ├── upload-avatar/
 │   │   │   └── route.ts
 │   │   └── wipe/
@@ -420,11 +422,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 > Use at your own risk. Extensive testing required before deploying to production.
 > This is a work in progress - APIs may change.
 
-The `custom-logic` module provides dual protection mechanisms:
-1. **Permission-based (JWT/JWKS)** - Validates via organization tokens
-2. **Role-based (OIDC Introspection)** - Validates via Management API
+The `custom-logic` module provides UI protection components and organization management:
+- **\<Protected\>** - Server component for gating UI based on permissions/roles
+- **OrgSwitcher** - Dropdown for switching between organizations
+- **useOrgMode** hook - Access organization context throughout your app
 
-Additionally provides an OrgSwitcher for users in multiple organizations.
+For protected server actions, use the **Protected Actions API** (`POST /api/protected`).
 
 ### Exports
 
@@ -688,57 +691,6 @@ function MyComponent() {
    - `sessionStorage` (client) - for immediate UI updates
    - `customData.Preferences.asOrg` (server) - for persistence
 4. `useOrgMode()` hook provides `asOrg` and `setAsOrg()` throughout the app
-
----
-
-### Internal Token Validation & RBAC
-
-> **⚠️ Internal Only**: The following functions are used internally by the Protected Actions API. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
-
-#### Token Validation (JWT)
-
-The system uses JWKS to validate JWT tokens server-side. This is handled internally by the Protected Actions API.
-
-**Token Types:**
-- `org-non-api` - Organization token (audience: `urn:logto:organization:{orgId}`)
-- `org-api-resource` - Token with `organization_id` claim
-- `global` - Standard user token
-
----
-
-### RBAC Functions
-
-Available from `custom-actions/validation.ts`:
-
-```tsx
-import {
-  fetchUserRbacData,
-  validateOrgMembership,
-  checkPermissionInOrg,
-  checkRoleInOrg,
-  validateRbac,
-} from './logto-kit';
-
-// Fetch user RBAC data (organizations + active org)
-const rbacData = await fetchUserRbacData(token);
-// Returns: { organizations: string[], asOrg: string | null }
-
-// Validate user is member of org
-const result = await validateOrgMembership(userOrgs, asOrg);
-// Returns: { ok: true } or { ok: false, error: 'NO_ORG_SELECTED' | 'ORG_NOT_MEMBER' }
-
-// Check if user has permission in org
-const hasPerm = await checkPermissionInOrg(userId, orgId, 'launch-nuke');
-// Returns: boolean
-
-// Check if user has role in org
-const hasRole = await checkRoleInOrg(userId, orgId, 'admin');
-// Returns: boolean
-
-// Full RBAC validation
-const rbacResult = await validateRbac(userId, rbacData, { perm: 'launch-nuke' });
-// Returns: { ok: true } or { ok: false, error: 'PERMISSION_DENIED', detail: '...' }
-```
 
 ---
 
