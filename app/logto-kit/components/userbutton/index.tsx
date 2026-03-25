@@ -4,9 +4,15 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { UserData } from '../../logic/types';
 import type { ThemeSpec } from '../../themes';
 import { useThemeMode } from '../handlers/preferences';
-import { fetchUserBadgeData } from '../../logic/actions';
 import { useLogto } from '../handlers/logto-provider';
 import { User } from 'lucide-react';
+
+const getShape = (shapeProp?: string): string => {
+  if (shapeProp) return shapeProp;
+  const envShape = process.env.NEXT_PUBLIC_USER_SHAPE;
+  if (envShape) return envShape;
+  return 'circle';
+};
 
 const getInitials = (data: UserData): string => {
   if (!data) return '?';
@@ -59,15 +65,16 @@ function AvatarCore({
   imageFailed,
   onImageError,
 }: AvatarCoreProps) {
+  const resolvedShape = getShape(shape);
   const mode: 'Avatar' | 'Initials' =
-    Canvas === 'Avatar' || Canvas === 'Initials' ? Canvas : 'Initials';
+    Canvas === 'Initials' ? 'Initials' : 'Avatar';
 
   const isShowingAvatar = mode === 'Avatar' && userData.avatar && !imageFailed;
 
   const containerStyle: React.CSSProperties = {
     width: Size,
     height: Size,
-    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
+    borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.5rem' : resolvedShape,
     border: `2px solid ${theme.colors.borderColor}`,
     background: isShowingAvatar ? 'transparent' : theme.colors.bgTertiary,
     display: 'flex',
@@ -105,6 +112,7 @@ export function UserButton({
   const { themeSpec: contextTheme } = useThemeMode();
   const theme = providedTheme ?? contextTheme;
   const { openDashboard, userData: contextUserData } = useLogto();
+  const resolvedShape = getShape(shape);
   
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,26 +141,9 @@ export function UserButton({
     const timeout = setTimeout(() => {
       if (isMountedRef.current) {
         setShowFallback(true);
+        setLoading(false);
       }
     }, 1500);
-
-    fetchUserBadgeData()
-      .then((result) => {
-        if (result.success && isMountedRef.current) {
-          setUserData(result.userData);
-        }
-      })
-      .catch(() => {
-        if (isMountedRef.current) {
-          setShowFallback(true);
-        }
-      })
-      .finally(() => {
-        if (isMountedRef.current) {
-          setLoading(false);
-          clearTimeout(timeout);
-        }
-      });
 
     return () => clearTimeout(timeout);
   }, [providedUserData, contextUserData]);
@@ -170,7 +161,7 @@ export function UserButton({
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.625rem' : '50%',
+    borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.625rem' : resolvedShape,
     transition: 'opacity 0.15s, transform 0.15s',
   };
 
@@ -182,7 +173,7 @@ export function UserButton({
           <div style={{
             width: Size,
             height: Size,
-            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
+            borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.5rem' : resolvedShape,
             border: `2px solid ${theme.colors.borderColor}`,
             background: theme.colors.bgTertiary,
             display: 'flex',
@@ -235,6 +226,7 @@ export function UserBadge({
   const { themeSpec: contextTheme } = useThemeMode();
   const theme = providedTheme ?? contextTheme;
   const { userData: contextUserData } = useLogto();
+  const resolvedShape = getShape(shape);
   
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -263,26 +255,9 @@ export function UserBadge({
     const timeout = setTimeout(() => {
       if (isMountedRef.current) {
         setShowFallback(true);
+        setLoading(false);
       }
     }, 1500);
-
-    fetchUserBadgeData()
-      .then((result) => {
-        if (result.success && isMountedRef.current) {
-          setUserData(result.userData);
-        }
-      })
-      .catch(() => {
-        if (isMountedRef.current) {
-          setShowFallback(true);
-        }
-      })
-      .finally(() => {
-        if (isMountedRef.current) {
-          setLoading(false);
-          clearTimeout(timeout);
-        }
-      });
 
     return () => clearTimeout(timeout);
   }, [providedUserData, contextUserData]);
@@ -302,7 +277,7 @@ export function UserBadge({
           <div style={{
             width: Size,
             height: Size,
-            borderRadius: shape === 'sq' ? '0%' : shape === 'rsq' ? '0.5rem' : '50%',
+            borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.5rem' : resolvedShape,
             border: `2px solid ${theme.colors.borderColor}`,
             background: theme.colors.bgTertiary,
             display: 'flex',
