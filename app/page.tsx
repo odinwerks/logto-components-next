@@ -15,7 +15,7 @@ export default async function HomePage() {
       redirect('/callback');
     }
     return (
-      <main style={{ minHeight: '100vh', background: darkTheme.colors.bgPage }}>
+      <main style={{ minHeight: '100vh', background: '#0f0f12' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -31,7 +31,7 @@ export default async function HomePage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', background: darkTheme.colors.bgPage }}>
+    <main style={{ minHeight: '100vh' }}>
       <LogtoProvider
         userData={result.userData}
         accessToken={result.accessToken}
