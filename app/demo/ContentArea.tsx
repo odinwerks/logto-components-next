@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useThemeMode } from '../logto-kit/components/handlers/preferences';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
@@ -166,49 +167,139 @@ const footDotStyle: React.CSSProperties = {
 };
 
 export default function ContentArea({ item }: ContentAreaProps) {
+  const { theme } = useThemeMode();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const colors = mounted ? (theme === 'dark'
+    ? {
+        bg: '#0b0b0d',
+        border: 'rgba(255,255,255,0.05)',
+        borderLight: 'rgba(255,255,255,0.045)',
+        textMuted: 'rgba(255,255,255,0.2)',
+        text: 'rgba(255,255,255,0.46)',
+        title: 'rgba(255,255,255,0.88)',
+        desc: 'rgba(255,255,255,0.32)',
+        rule: 'rgba(255,255,255,0.055)',
+        sectBorder: 'rgba(255,255,255,0.058)',
+        sectBg: 'rgba(255,255,255,0.01)',
+        sectHeadBg: 'rgba(255,255,255,0.015)',
+        sectDot: 'rgba(255,255,255,0.18)',
+        sectLabel: 'rgba(255,255,255,0.28)',
+        phBorder: 'rgba(255,255,255,0.07)',
+        phBg: 'rgba(255,255,255,0.012)',
+        phText: 'rgba(255,255,255,0.14)',
+        cursor: 'rgba(255,255,255,0.22)',
+        footText: 'rgba(255,255,255,0.13)',
+        footDot: 'rgba(255,255,255,0.16)',
+      }
+    : {
+        bg: '#ffffff',
+        border: '#e5e7eb',
+        borderLight: '#d1d5db',
+        textMuted: '#6b7280',
+        text: '#374151',
+        title: '#111827',
+        desc: '#4b5563',
+        rule: '#e5e7eb',
+        sectBorder: '#e5e7eb',
+        sectBg: '#f9fafb',
+        sectHeadBg: '#f3f4f6',
+        sectDot: '#9ca3af',
+        sectLabel: '#6b7280',
+        phBorder: '#d1d5db',
+        phBg: '#f3f4f6',
+        phText: '#6b7280',
+        cursor: '#9ca3af',
+        footText: '#9ca3af',
+        footDot: '#d1d5db',
+      })
+    : {
+        bg: '#0b0b0d',
+        border: 'rgba(255,255,255,0.05)',
+        borderLight: 'rgba(255,255,255,0.045)',
+        textMuted: 'rgba(255,255,255,0.2)',
+        text: 'rgba(255,255,255,0.46)',
+        title: 'rgba(255,255,255,0.88)',
+        desc: 'rgba(255,255,255,0.32)',
+        rule: 'rgba(255,255,255,0.055)',
+        sectBorder: 'rgba(255,255,255,0.058)',
+        sectBg: 'rgba(255,255,255,0.01)',
+        sectHeadBg: 'rgba(255,255,255,0.015)',
+        sectDot: 'rgba(255,255,255,0.18)',
+        sectLabel: 'rgba(255,255,255,0.28)',
+        phBorder: 'rgba(255,255,255,0.07)',
+        phBg: 'rgba(255,255,255,0.012)',
+        phText: 'rgba(255,255,255,0.14)',
+        cursor: 'rgba(255,255,255,0.22)',
+        footText: 'rgba(255,255,255,0.13)',
+        footDot: 'rgba(255,255,255,0.16)',
+      };
+
+  const themedContentStyle = { ...contentStyle, background: colors.bg };
+  const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (theme === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
+  const themedCrumbStyle = { ...crumbStyle, color: colors.textMuted };
+  const themedSepStyle = { ...sepStyle, color: colors.textMuted };
+  const themedCrumbCurStyle = { ...crumbCurStyle, color: colors.text };
+  const themedTbTypeStyle = { ...tbTypeStyle, color: colors.textMuted, border: `1px solid ${colors.borderLight}` };
+  const themedTitleStyle = { ...titleStyle, color: colors.title };
+  const themedDescStyle = { ...descStyle, color: colors.desc };
+  const themedRuleStyle = { ...ruleStyle, background: colors.rule };
+  const themedSectStyle = { ...sectStyle, border: `1px solid ${colors.sectBorder}`, background: colors.sectBg };
+  const themedSectHeadStyle = { ...sectHeadStyle, borderBottom: `1px solid ${colors.borderLight}`, background: colors.sectHeadBg };
+  const themedSectDotStyle = { ...sectDotStyle, background: colors.sectDot };
+  const themedSectLabelStyle = { ...sectLabelStyle, color: colors.sectLabel };
+  const themedPhStyle = { ...phStyle, border: `1px dashed ${colors.phBorder}`, background: colors.phBg, color: colors.phText };
+  const themedCursorStyle = { ...cursorStyle, color: colors.cursor };
+  const themedFootStyle = { ...footStyle, color: colors.footText };
+  const themedFootDotStyle = { ...footDotStyle, background: colors.footDot };
+
   return (
-    <div style={contentStyle}>
+    <div style={themedContentStyle}>
       <style>{`
         @keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
         @keyframes riseUp { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
       `}</style>
 
-      <div style={topbarStyle}>
-        <span style={crumbStyle}>logto-kit</span>
-        <span style={sepStyle}>/</span>
-        <span style={crumbCurStyle}>{item.label}</span>
-        <span style={tbTypeStyle}>{item.type}</span>
+      <div style={themedTopbarStyle}>
+        <span style={themedCrumbStyle}>logto-kit</span>
+        <span style={themedSepStyle}>/</span>
+        <span style={themedCrumbCurStyle}>{item.label}</span>
+        <span style={themedTbTypeStyle}>{item.type}</span>
       </div>
 
       <div style={pageStyle}>
-        <h1 style={titleStyle}>{item.label}</h1>
-        <p style={descStyle}>{item.desc}</p>
-        <div style={ruleStyle} />
+        <h1 style={themedTitleStyle}>{item.label}</h1>
+        <p style={themedDescStyle}>{item.desc}</p>
+        <div style={themedRuleStyle} />
 
         {item.sections.map((section, i) => (
           <div
             key={section}
             style={{
-              ...sectStyle,
+              ...themedSectStyle,
               animation: `riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
             }}
           >
-            <div style={sectHeadStyle}>
-              <div style={sectDotStyle} />
-              <span style={sectLabelStyle}>{section}</span>
+            <div style={themedSectHeadStyle}>
+              <div style={themedSectDotStyle} />
+              <span style={themedSectLabelStyle}>{section}</span>
             </div>
             <div style={sectBodyStyle}>
-              <div style={phStyle}>
+              <div style={themedPhStyle}>
                 {SECTION_HINTS[section] || `${section}...`}
-                <span style={cursorStyle}>▌</span>
+                <span style={themedCursorStyle}>▌</span>
               </div>
             </div>
           </div>
         ))}
 
-        <div style={footStyle}>
-          <div style={footDotStyle} />
+        <div style={themedFootStyle}>
+          <div style={themedFootDotStyle} />
           Placeholder — fill in usage patterns and demos
         </div>
       </div>
