@@ -37,6 +37,13 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │       └── route.ts
 │   ├── callback/
 │   │   └── route.ts
+│   ├── demo/                         # Demo app showcasing theme integration
+│   │   ├── ContentArea.tsx           # Main content with particle background
+│   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
+│   │   ├── index.tsx                # Demo page entry
+│   │   ├── nav-data.tsx             # Navigation data
+│   │   ├── Particles.tsx            # Particle effect background
+│   │   └── types.ts                 # Type definitions
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
@@ -162,6 +169,72 @@ Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 3. Add `index.ts` with theme metadata
 4. Set `THEME=your-theme` in your `.env`
 
+## Demo App
+
+The project includes a demo app at `/demo` that showcases how to integrate the Logto dashboard components with your own application's theme.
+
+### What It Is
+
+The demo app (`app/demo/`) is a standalone application that demonstrates:
+- How to wrap your app with the necessary providers
+- How to sync theme between the Dashboard and your custom components
+- How to create a custom sidebar with navigation
+- How to use the particle background effect
+
+### How It Works
+
+The demo app consists of:
+
+| File | Purpose |
+|------|---------|
+| `index.tsx` | Demo page entry point |
+| `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
+| `ContentArea.tsx` | Main content area with particle background effect |
+| `Particles.tsx` | Canvas-based particle animation |
+| `nav-data.tsx` | Navigation configuration |
+| `types.ts` | TypeScript type definitions |
+
+### Theme Synchronization
+
+The Dashboard and DemoApp share theme state via a custom `theme-changed` event and `sessionStorage`:
+
+1. When theme changes in Dashboard, it dispatches a custom `theme-changed` event
+2. DemoApp listens for this event and updates its theme accordingly
+3. Both apps read/write the theme from `sessionStorage` key `theme-mode`
+
+```tsx
+// Theme change listener in DemoApp
+useEffect(() => {
+  const handleThemeChange = (e: CustomEvent) => {
+    setTheme(e.detail.theme);
+    applyTheme(e.detail.theme, themeSpec);
+  };
+  
+  window.addEventListener('theme-changed', handleThemeChange as EventListener);
+  
+  // Also read initial theme from sessionStorage
+  const stored = sessionStorage.getItem('theme-mode');
+  if (stored) {
+    const { theme } = JSON.parse(stored);
+    setTheme(theme);
+    applyTheme(theme, themeSpec);
+  }
+  
+  return () => {
+    window.removeEventListener('theme-changed', handleThemeChange as EventListener);
+  };
+}, []);
+```
+
+### Using the Demo App
+
+Visit `/demo` to see the demo app in action. It displays:
+- A sidebar with navigation options (Dashboard, Settings, Profile)
+- A user badge showing the logged-in user
+- A theme toggle button
+- A particle background effect
+- Clicking "Dashboard" opens the full Dashboard modal
+
 ### PreferencesProvider
 
 The dashboard provides a `PreferencesProvider` that combines theme and language management. It exports both `useThemeMode()` and `useLangMode()` hooks.
@@ -273,7 +346,21 @@ function MyComponent() {
 |------|------|-------------|
 | `userData` | `UserData` | The user data object to provide |
 
-### LogtoProvider
+### Provider Hierarchy
+
+The codebase uses a nested provider structure where each provider wraps its children with specific context:
+
+```
+LogtoProvider
+├── UserDataProvider    (provides user data)
+│   └── PreferencesProvider
+│       └── PreferencesContext
+│           ├── ThemeModeContext    (theme state)
+│           ├── LangModeContext     (language state)
+│           └── OrgModeContext      (organization state)
+```
+
+#### LogtoProvider
 
 LogtoProvider is a convenience wrapper that combines `UserDataProvider` and `PreferencesProvider` into a single component. It also provides a `useLogto()` hook for accessing user data and access token anywhere in your app.
 
