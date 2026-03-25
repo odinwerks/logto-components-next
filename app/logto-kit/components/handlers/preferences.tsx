@@ -161,6 +161,18 @@ export function PreferencesProvider({
   }, []);
 
   useEffect(() => {
+    const handleThemeChange = () => {
+      const stored = getStoredTheme();
+      if (stored && stored !== theme) {
+        setThemeState(stored);
+      }
+    };
+
+    window.addEventListener('theme-changed', handleThemeChange);
+    return () => window.removeEventListener('theme-changed', handleThemeChange);
+  }, [theme]);
+
+  useEffect(() => {
     const stored = getStoredLang();
     if (stored && stored !== lang) {
       setLangState(stored);
@@ -210,6 +222,7 @@ export function PreferencesProvider({
     setStoredTheme(newTheme);
     setThemeState(newTheme);
     persistThemeToApi(newTheme);
+    window.dispatchEvent(new Event('theme-changed'));
   }, [persistThemeToApi]);
 
   const toggleTheme = useCallback(() => {
@@ -250,7 +263,12 @@ export function useThemeMode(): ThemeModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.theme;
+    // Always read current value from storage, not React state
+    const storedTheme = getStoredTheme();
+    return {
+      ...context.theme,
+      theme: storedTheme ?? context.theme.theme,
+    };
   }
 
   if (typeof window === 'undefined') {
@@ -288,7 +306,12 @@ export function useLangMode(): LangModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.lang;
+    // Always read current value from storage, not React state
+    const storedLang = getStoredLang();
+    return {
+      ...context.lang,
+      lang: storedLang ?? context.lang.lang,
+    };
   }
 
   if (typeof window === 'undefined') {
@@ -309,7 +332,12 @@ export function useOrgMode(): OrgModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.org;
+    // Always read current value from storage, not React state
+    const storedOrg = getStoredOrg();
+    return {
+      ...context.org,
+      asOrg: storedOrg ?? context.org.asOrg,
+    };
   }
 
   if (typeof window === 'undefined') {
