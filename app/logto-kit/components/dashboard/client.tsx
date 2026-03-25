@@ -279,7 +279,7 @@ export function DashboardClient({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '2rem',
-        backgroundColor: themeColors.bgPage,
+        backgroundColor: 'transparent',
         color: themeColors.textPrimary,
         boxSizing: 'border-box',
         fontFamily: 'var(--font-ibm-plex-mono)',
