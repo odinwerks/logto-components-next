@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserButton } from '../logto-kit/components/userbutton';
-import { darkTheme } from '../logto-kit/themes';
+import { useThemeMode } from '../logto-kit/components/handlers/preferences';
 import Particles from './Particles';
 import type { NavItem } from './types';
 
@@ -156,20 +156,97 @@ const footerStyle: React.CSSProperties = {
 };
 
 export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
+  const { theme } = useThemeMode();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const colors = mounted ? (theme === 'dark'
+    ? {
+        bg: '#0f0f12',
+        border: 'rgba(255,255,255,0.055)',
+        borderLight: 'rgba(255,255,255,0.05)',
+        textMuted: 'rgba(255,255,255,0.4)',
+        text: 'rgba(255,255,255,0.52)',
+        textSubtle: 'rgba(255,255,255,0.18)',
+        borderSubtle: 'rgba(255,255,255,0.09)',
+        navActive: 'rgba(255,255,255,0.038)',
+        navHover: 'rgba(255,255,255,0.022)',
+        navIndicator: 'rgba(255,255,255,0.42)',
+        icon: 'rgba(255,255,255,0.22)',
+        iconActive: 'rgba(255,255,255,0.6)',
+        label: 'rgba(255,255,255,0.35)',
+        labelActive: 'rgba(255,255,255,0.84)',
+        typeText: 'rgba(255,255,255,0.15)',
+        typeActive: 'rgba(255,255,255,0.28)',
+        codeActive: 'rgba(255,255,255,0.74)',
+        code: 'rgba(255,255,255,0.28)',
+      }
+    : {
+        bg: '#f3f4f6',
+        border: '#e5e7eb',
+        borderLight: '#d1d5db',
+        textMuted: '#6b7280',
+        text: '#374151',
+        textSubtle: '#9ca3af',
+        borderSubtle: '#e5e7eb',
+        navActive: '#e5e7eb',
+        navHover: '#f3f4f6',
+        navIndicator: '#6b7280',
+        icon: '#9ca3af',
+        iconActive: '#111827',
+        label: '#374151',
+        labelActive: '#111827',
+        typeText: '#9ca3af',
+        typeActive: '#374151',
+        codeActive: '#111827',
+        code: '#6b7280',
+      })
+    : {
+        bg: '#0f0f12',
+        border: 'rgba(255,255,255,0.055)',
+        borderLight: 'rgba(255,255,255,0.05)',
+        textMuted: 'rgba(255,255,255,0.4)',
+        text: 'rgba(255,255,255,0.52)',
+        textSubtle: 'rgba(255,255,255,0.18)',
+        borderSubtle: 'rgba(255,255,255,0.09)',
+        navActive: 'rgba(255,255,255,0.038)',
+        navHover: 'rgba(255,255,255,0.022)',
+        navIndicator: 'rgba(255,255,255,0.42)',
+        icon: 'rgba(255,255,255,0.22)',
+        iconActive: 'rgba(255,255,255,0.6)',
+        label: 'rgba(255,255,255,0.35)',
+        labelActive: 'rgba(255,255,255,0.84)',
+        typeText: 'rgba(255,255,255,0.15)',
+        typeActive: 'rgba(255,255,255,0.28)',
+        codeActive: 'rgba(255,255,255,0.74)',
+        code: 'rgba(255,255,255,0.28)',
+      };
+
+  const themedSidebarStyle = { ...sidebarStyle, background: colors.bg, borderRight: `1px solid ${colors.border}` };
+  const themedBrandStyle = { ...brandStyle, borderBottom: `1px solid ${colors.borderLight}` };
+  const themedBrandIconStyle = { ...brandIconStyle, color: colors.textMuted };
+  const themedBrandNameStyle = { ...brandNameStyle, color: colors.text };
+  const themedBrandVerStyle = { ...brandVerStyle, color: colors.textSubtle, border: `1px solid ${colors.borderSubtle}` };
+  const themedNavGroupLabelStyle = { ...navGroupLabelStyle, color: colors.textSubtle };
+  const themedNavBarStyle = { ...navBarStyle, background: colors.navIndicator };
+
   return (
-    <div style={sidebarStyle}>
+    <div style={themedSidebarStyle}>
       <Particles />
 
-      <div style={brandStyle}>
-        <div style={brandIconStyle}>
+      <div style={themedBrandStyle}>
+        <div style={themedBrandIconStyle}>
           <BrandIcon />
         </div>
-        <span style={brandNameStyle}>logto-kit</span>
-        <span style={brandVerStyle}>docs</span>
+        <span style={themedBrandNameStyle}>logto-kit</span>
+        <span style={themedBrandVerStyle}>docs</span>
       </div>
 
       <div style={navListStyle}>
-        <div style={navGroupLabelStyle}>Reference</div>
+        <div style={themedNavGroupLabelStyle}>Reference</div>
         {items.map((item) => {
           const isActive = item.id === activeId;
           return (
@@ -177,11 +254,11 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
               key={item.id}
               style={{
                 ...navItemStyle,
-                background: isActive ? 'rgba(255,255,255,0.038)' : 'transparent',
+                background: isActive ? colors.navActive : 'transparent',
               }}
               onClick={() => onSelect(item.id)}
               onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.022)';
+                if (!isActive) e.currentTarget.style.background = colors.navHover;
               }}
               onMouseLeave={(e) => {
                 if (!isActive) e.currentTarget.style.background = 'transparent';
@@ -189,16 +266,14 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
             >
               <div
                 style={{
-                  ...navBarStyle,
+                  ...themedNavBarStyle,
                   opacity: isActive ? 1 : 0,
                 }}
               />
               <div
                 style={{
                   ...navIconStyle,
-                  color: isActive
-                    ? 'rgba(255,255,255,0.6)'
-                    : 'rgba(255,255,255,0.22)',
+                  color: isActive ? colors.iconActive : colors.icon,
                 }}
               >
                 {item.icon}
@@ -209,11 +284,11 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
                   fontSize: item.code ? '11.5px' : '12px',
                   color: isActive
                     ? item.code
-                      ? 'rgba(255,255,255,0.74)'
-                      : 'rgba(255,255,255,0.84)'
+                      ? colors.codeActive
+                      : colors.labelActive
                     : item.code
-                      ? 'rgba(255,255,255,0.28)'
-                      : 'rgba(255,255,255,0.35)',
+                      ? colors.code
+                      : colors.label,
                   fontWeight: isActive ? 500 : 400,
                 }}
               >
@@ -222,9 +297,7 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
               <span
                 style={{
                   ...navTypeStyle,
-                  color: isActive
-                    ? 'rgba(255,255,255,0.28)'
-                    : 'rgba(255,255,255,0.15)',
+                  color: isActive ? colors.typeActive : colors.typeText,
                 }}
               >
                 {item.type}
@@ -238,7 +311,6 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
         <UserButton
           Size="32px"
           shape="circle"
-          theme={darkTheme}
         />
       </div>
     </div>
