@@ -5,7 +5,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 ## Features
 
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
-- **Two-Column Layout**: Sidebar with avatar, token, and user info; main content area with tabs
+- **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
 - **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
 - **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
 - **Theme System**: User-created themes with ENV-selected activation and default theme mode
@@ -138,6 +138,21 @@ THEME=default
 # Default theme mode: dark or light (default: dark)
 DEFAULT_THEME_MODE=dark
 # Also reads: NEXT_PUBLIC_DEFAULT_THEME_MODE
+
+# Available themes (comma-separated) - for future multi-theme support
+THEMES_AVAILABLE=default
+NEXT_THEMES_AVAILABLE=default
+
+# User avatar/badge shape: circle, sq (square), rsq (rounded square), or custom border-radius (e.g., 0.5rem, 4px)
+NEXT_PUBLIC_USER_SHAPE=circle
+```
+
+### Optional - MFA Configuration
+
+```env
+# MFA Configuration
+# Name that will show up in the TOTP QR code issuer field
+NEXT_PUBLIC_MFA_ISSUER=YourAppName
 ```
 
 ### Optional - i18n Configuration
@@ -168,6 +183,28 @@ Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 2. Add `dark.css` and `light.css` with CSS variables
 3. Add `index.ts` with theme metadata
 4. Set `THEME=your-theme` in your `.env`
+
+### Multiple Theme Support
+
+The system supports multiple themes via `THEMES_AVAILABLE`:
+
+```env
+THEMES_AVAILABLE=default,custom
+NEXT_THEMES_AVAILABLE=default,custom
+```
+
+Each theme folder in `app/logto-kit/themes/` provides its own dark.css, light.css, and index.ts.
+
+### User Shape Configuration
+
+Control the avatar/badge shape across the dashboard:
+
+```env
+NEXT_PUBLIC_USER_SHAPE=circle    # Circular (default)
+NEXT_PUBLIC_USER_SHAPE=sq        # Square
+NEXT_PUBLIC_USER_SHAPE=rsq       # Rounded square
+NEXT_PUBLIC_USER_SHAPE=0.5rem   # Custom border-radius
+```
 
 ## Demo App
 
@@ -818,6 +855,9 @@ SCOPES=profile,organizations,organization_roles
 LOGTO_M2M_APP_ID=your_m2m_app_id
 LOGTO_M2M_APP_SECRET=your_m2m_app_secret
 LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
+
+# Token Introspection (required for Protected Actions API)
+LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 ```
 
 #### Logto Console Setup
@@ -963,7 +1003,7 @@ Note: This requires a code change. ENV-based configuration would be nice but doe
 
 ### Using the Dashboard Component
 
-The Dashboard is just a React component. You can import it anywhere:
+The Dashboard is a Server Component that fetches data server-side and renders as a centered modal. You can import it anywhere:
 
 ```tsx
 import { Dashboard } from './logto-kit';
@@ -978,11 +1018,11 @@ export default function AdminPage() {
 }
 ```
 
-This is the main use case - drop it into your app wherever you need it.
+This is the main use case - drop it into your app wherever you need it. The Dashboard automatically fetches user data on the server and displays as a centered modal overlay.
 
 ### Dashboard Provider Structure
 
-The Dashboard component automatically wraps your app with two context providers:
+The Dashboard Server Component fetches user data on the server and renders as a centered modal. It automatically wraps your app with two context providers:
 
 ```tsx
 <UserDataProvider userData={userData}>
@@ -993,7 +1033,7 @@ The Dashboard component automatically wraps your app with two context providers:
 ```
 
 This means:
-- **UserDataProvider** - Provides user data to all child components
+- **UserDataProvider** - Provides user data to all child components (server-fetched)
 - **PreferencesProvider** - Manages theme and language state with automatic persistence to Logto
 
 Both providers expose hooks that child components can use:
