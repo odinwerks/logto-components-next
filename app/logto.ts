@@ -13,7 +13,7 @@ const SCOPE_MAP: Record<string, string> = {
   offline_access: 'offline_access',
 };
 
-// AGGRESSIVE whitespace and validation
+// whitespace and validation
 function getEnvVar(name: string, required = true): string {
   const valueRaw =
     process.env[name] || process.env[`NEXT_PUBLIC_${name}`] || process.env[`NEXT_PUBLIC_${name.toUpperCase()}`];
