@@ -134,7 +134,7 @@ COOKIE_SECRET=your-random-secret
 SCOPES=openid,profile,custom_data,email,phone,identities
 ```
 
-### Optional - RBAC & Account Management
+### RBAC & Account Management
 
 ```env
 # M2M for Management API (required for account deletion)
@@ -146,7 +146,9 @@ LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
 LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 ```
 
-### Optional - Tab Configuration
+You have to set this up for pfp uploads and account deletion to work. Also to retreeve user data. 
+
+### Tab Configuration
 
 ```env
 # Which tabs to show and in what order (comma-separated)
@@ -156,7 +158,7 @@ LOAD_TABS=profile,preferences,security,identities,organizations,dev
 # Also reads: NEXT_PUBLIC_LOAD_TABS
 ```
 
-### Optional - Theme Configuration
+### Theme Configuration
 
 ```env
 # Theme folder name (default: default)
@@ -175,7 +177,7 @@ NEXT_THEMES_AVAILABLE=default
 NEXT_PUBLIC_USER_SHAPE=circle
 ```
 
-### Optional - MFA Configuration
+### MFA Configuration
 
 ```env
 # MFA Configuration
@@ -183,7 +185,7 @@ NEXT_PUBLIC_USER_SHAPE=circle
 NEXT_PUBLIC_MFA_ISSUER=YourAppName
 ```
 
-### Optional - i18n Configuration
+### i18n Configuration
 
 ```env
 # Default language
@@ -195,7 +197,7 @@ LANG_AVAILABLE=en-US,ka-GE
 NEXT_LANG_AVAILABLE=en-US,ka-GE
 ```
 
-### Optional - S3 Storage (for Avatar Upload)
+### S3 Storage (for Avatar Upload)
 
 ```env
 # S3-Compatible Storage (Supabase, AWS S3, MinIO, DigitalOcean Spaces)
