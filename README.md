@@ -126,6 +126,34 @@ APP_SECRET=your-app-secret
 ENDPOINT=https://auth.yourdomain.org
 BASE_URL=http://localhost:3000
 COOKIE_SECRET=your-random-secret
+
+# Scopes (comma-separated, required - no defaults)
+# Must include: openid,profile,custom_data,email,phone,identities
+# Add: organizations,organization_roles for org features
+# Add: offline_access for refresh tokens
+SCOPES=openid,profile,custom_data,email,phone,identities
+```
+
+### Optional - RBAC & Account Management
+
+```env
+# M2M for Management API (required for account deletion)
+LOGTO_M2M_APP_ID=your-m2m-app-id
+LOGTO_M2M_APP_SECRET=your-m2m-app-secret
+LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
+
+# Token Introspection (required for Protected Actions API)
+LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
+```
+
+### Optional - Tab Configuration
+
+```env
+# Which tabs to show and in what order (comma-separated)
+# Allowed: profile, preferences, security, identities, organizations, dev
+# Aliases: personal, user → profile | prefs, custom-data, custom → preferences | mfa, 2fa, totp → security | identity → identities | orgs, org → organizations | debug, data, raw → dev
+LOAD_TABS=profile,preferences,security,identities,organizations,dev
+# Also reads: NEXT_PUBLIC_LOAD_TABS
 ```
 
 ### Optional - Theme Configuration
@@ -166,6 +194,23 @@ NEXT_LANG_NAME=en-US
 LANG_AVAILABLE=en-US,ka-GE
 NEXT_LANG_AVAILABLE=en-US,ka-GE
 ```
+
+### Optional - S3 Storage (for Avatar Upload)
+
+```env
+# S3-Compatible Storage (Supabase, AWS S3, MinIO, DigitalOcean Spaces)
+S3_BUCKET_NAME=avatars
+S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars
+S3_ENDPOINT=https://your-project.supabase.co/storage/v1/s3
+S3_ACCESS_KEY_ID=your_access_key
+S3_SECRET_ACCESS_KEY=your_secret_key
+S3_REGION=auto
+
+# Optional: Supabase REST API (more reliable)
+# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+> **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
 
 ## Theme System
 
