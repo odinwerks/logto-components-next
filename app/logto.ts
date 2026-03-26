@@ -63,24 +63,13 @@ export const logtoConfig = (() => {
     const endpoint = getEnvVar('ENDPOINT');
     const baseUrl = getEnvVar('BASE_URL');
     const cookieSecret = getEnvVar('COOKIE_SECRET');
-    const scopeString = getEnvVar('SCOPES', false);
+    const scopeString = getEnvVar('SCOPES');
 
     const nodeEnv = process.env.NODE_ENV || 'development';
 
     const resources = [buildAccountApiResource(endpoint)];
 
-    const defaultScopes = [
-      UserScope.Profile,
-      UserScope.CustomData,
-      UserScope.Email,
-      UserScope.Phone,
-      UserScope.Identities,
-      UserScope.Organizations,
-      UserScope.OrganizationRoles,
-    ];
-
-    const customScopes = parseScopes(scopeString || '');
-    const allScopes = [...new Set([...defaultScopes, ...customScopes])];
+    const allScopes = parseScopes(scopeString);
 
     const config = {
       appId,
