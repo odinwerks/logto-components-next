@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserButton } from '../logto-kit/components/userbutton';
+import { UserCard } from '../logto-kit/components/userbutton';
 import { useThemeMode } from '../logto-kit/components/handlers/preferences';
 import Particles from './Particles';
 import type { NavItem } from './types';
@@ -308,7 +308,7 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
       </div>
 
       <div style={footerStyle}>
-        <UserButton
+        <UserCard
           Size="32px"
           shape="circle"
         />
