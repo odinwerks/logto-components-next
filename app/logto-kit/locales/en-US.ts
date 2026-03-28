@@ -317,6 +317,7 @@ export const enUS: Translations = {
     lightTheme: 'Light',
     darkTheme: 'Dark',
     systemTheme: 'System',
+    loggedInAs: 'Logged in as',
   },
 };
 

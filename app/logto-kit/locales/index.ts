@@ -331,6 +331,7 @@ export interface Translations {
     lightTheme: string;
     darkTheme: string;
     systemTheme: string;
+    loggedInAs: string;
   };
 }
 

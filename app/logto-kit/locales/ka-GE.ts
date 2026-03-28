@@ -317,6 +317,7 @@ export const kaGE: Translations = {
     lightTheme: 'ნათელი',
     darkTheme: 'მუქი',
     systemTheme: 'სისტემური',
+    loggedInAs: 'შესულია როგორც',
   },
 };
 
