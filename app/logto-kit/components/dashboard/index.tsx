@@ -22,7 +22,6 @@ import {
   generateBackupCodes,
   updateUserPassword,
   deleteUserAccount,
-  getBackupCodes,
   signOutUser,
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';

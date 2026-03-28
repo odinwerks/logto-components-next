@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { darkTheme, lightTheme, lightColors, type ThemeSpec, type ThemeColors } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 
@@ -215,8 +215,6 @@ export function PreferencesProvider({
       console.error('[PreferencesProvider] Failed to persist org:', err);
     }
   }, [onUpdateCustomData, theme, lang]);
-
-  const persistLockRef = useRef<{ theme: boolean; lang: boolean }>({ theme: false, lang: false });
 
   const setTheme = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);

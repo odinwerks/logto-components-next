@@ -1,15 +1,15 @@
 'use server';
 
-export interface ProtectedActionHandler<T = unknown> {
+interface ProtectedActionHandler<T = unknown> {
   (data: { userId: string; orgId: string; payload: T }): Promise<T>;
 }
 
-export interface ActionConfig<T = unknown> {
+interface ActionConfig<T = unknown> {
   requiredPermission: string;
   handler: ProtectedActionHandler<T>;
 }
 
-export type ActionRegistry = Record<string, ActionConfig>;
+type ActionRegistry = Record<string, ActionConfig>;
 
 const actions: ActionRegistry = {
   'explode-earth': {
@@ -37,8 +37,4 @@ const actions: ActionRegistry = {
 
 export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
   return actions[actionName];
-}
-
-export async function getAllActions(): Promise<string[]> {
-  return Object.keys(actions);
 }

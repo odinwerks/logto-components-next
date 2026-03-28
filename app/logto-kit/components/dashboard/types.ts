@@ -17,7 +17,7 @@ export interface ToastMessage {
   duration?: number;
 }
 
-export interface VerificationState {
+interface VerificationState {
   type:           'email' | 'phone' | null;
   operation:      'add' | 'edit' | 'remove' | null;
   step:           'password' | 'code' | null;
@@ -26,7 +26,7 @@ export interface VerificationState {
 }
 
 /** Dashboard context available to all tabs. */
-export interface DashboardContext {
+interface DashboardContext {
   theme:     ThemeSpec;
   t:         Translations;
   locale:    string;

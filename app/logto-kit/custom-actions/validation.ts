@@ -3,12 +3,12 @@
 import { logtoConfig, getManagementApiToken } from '../../logto';
 import { getCleanEndpoint } from '../logic/utils';
 
-export interface RbacUserData {
+interface RbacUserData {
   organizations: string[];
   asOrg: string | null;
 }
 
-export interface RbacValidationResult {
+interface RbacValidationResult {
   ok: boolean;
   error?: 'NO_ORG_SELECTED' | 'ORG_NOT_MEMBER' | 'PERMISSION_DENIED' | 'ROLE_DENIED' | 'VALIDATION_ERROR' | 'ACTION_NOT_FOUND' | 'TOKEN_INVALID';
   detail?: string;
@@ -30,8 +30,27 @@ function hasPermission(userPermissions: string[], required: string): boolean {
   return userPermissions.includes(required);
 }
 
+async function fetchOrgRoles(userId: string, orgId: string): Promise<Array<{ id: string; name: string }>> {
+  try {
+    const managementToken = await getManagementApiToken();
+    const cleanEndpoint = await getCleanEndpoint();
+    const rolesRes = await fetch(
+      `${cleanEndpoint}/api/organizations/${orgId}/users/${userId}/roles`,
+      { headers: { Authorization: `Bearer ${managementToken}` } }
+    );
+    if (!rolesRes.ok) {
+      console.error('[RBAC] Failed to fetch org roles:', await rolesRes.text());
+      return [];
+    }
+    return rolesRes.json();
+  } catch (error) {
+    console.error('[RBAC] fetchOrgRoles error:', error);
+    return [];
+  }
+}
+
 export async function fetchUserRbacData(token: string, overrideOrgId?: string | null): Promise<RbacUserData> {
-  const cleanEndpoint = getCleanEndpoint();
+  const cleanEndpoint = await getCleanEndpoint();
   const res = await fetch(`${cleanEndpoint}/oidc/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -75,66 +94,20 @@ export async function checkPermissionInOrg(
   orgId: string,
   requiredPermission: string
 ): Promise<boolean> {
-  try {
-    const managementToken = await getManagementApiToken();
-    const cleanEndpoint = getCleanEndpoint();
-
-    const rolesRes = await fetch(
-      `${cleanEndpoint}/api/organizations/${orgId}/users/${userId}/roles`,
-      {
-        headers: {
-          Authorization: `Bearer ${managementToken}`,
-        },
-      }
-    );
-
-    if (!rolesRes.ok) {
-      console.error('[RBAC] Failed to fetch org roles:', await rolesRes.text());
-      return false;
-    }
-
-    const roles = (await rolesRes.json()) as Array<{ id: string; name: string }>;
-
-    const userPermissions = roles.flatMap((role) => mapRoleToPermissions(role.name));
-
-    return hasPermission(userPermissions, requiredPermission);
-  } catch (error) {
-    console.error('[RBAC] checkPermissionInOrg error:', error);
-    return false;
-  }
+  const roles = await fetchOrgRoles(userId, orgId);
+  if (roles.length === 0) return false;
+  const userPermissions = roles.flatMap((role) => mapRoleToPermissions(role.name));
+  return hasPermission(userPermissions, requiredPermission);
 }
 
-export async function checkRoleInOrg(
+async function checkRoleInOrg(
   userId: string,
   orgId: string,
   requiredRole: string
 ): Promise<boolean> {
-  try {
-    const managementToken = await getManagementApiToken();
-    const cleanEndpoint = getCleanEndpoint();
-
-    const rolesRes = await fetch(
-      `${cleanEndpoint}/api/organizations/${orgId}/users/${userId}/roles`,
-      {
-        headers: {
-          Authorization: `Bearer ${managementToken}`,
-        },
-      }
-    );
-
-    if (!rolesRes.ok) {
-      console.error('[RBAC] Failed to fetch org roles:', await rolesRes.text());
-      return false;
-    }
-
-    const roles = (await rolesRes.json()) as Array<{ id: string; name: string }>;
-    const userRoleNames = roles.map((r) => r.name);
-
-    return userRoleNames.includes(requiredRole);
-  } catch (error) {
-    console.error('[RBAC] checkRoleInOrg error:', error);
-    return false;
-  }
+  const roles = await fetchOrgRoles(userId, orgId);
+  if (roles.length === 0) return false;
+  return roles.some((r) => r.name === requiredRole);
 }
 
 export async function validateRbac(

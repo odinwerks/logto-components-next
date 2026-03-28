@@ -214,7 +214,7 @@ export function ProfileTab({
                 justifyContent:  'center',
                 background:      'rgba(0,0,0,0.55)',
               }}>
-                <SpinnerIcon size={1.25} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} />
+                <SpinnerIcon size={1.25} color={c.contrastText} />
               </div>
             )}
           </div>
@@ -321,8 +321,8 @@ export function ProfileTab({
             theme={theme}
           >
             {nameLoading
-              ? <><SpinnerIcon size={0.8125} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} /> {t.profile.saving || 'Saving…'}</>
-              : <><CheckIcon   size={0.8125} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} /> {t.profile.saveChanges || 'Save changes'}</>
+              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving || 'Saving…'}</>
+              : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges || 'Save changes'}</>
             }
           </Button>
         </div>

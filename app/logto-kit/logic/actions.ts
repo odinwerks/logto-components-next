@@ -4,8 +4,31 @@ import { getAccessToken } from '@logto/next/server-actions';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { logtoConfig, getManagementApiToken } from '../../logto';
-import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaType, MfaVerificationPayload } from './types';
+import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse } from './types';
 import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
+
+// ============================================================================
+// Shared Helpers
+// ============================================================================
+
+async function throwOnApiError(res: Response, label: string): Promise<void> {
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`${label} ${res.status}: ${await truncateError(errorText)}`);
+  }
+}
+
+async function patchMyAccount(body: unknown, label: string): Promise<void> {
+  const res = await makeRequest('/api/my-account', { method: 'PATCH', body });
+  await throwOnApiError(res, label);
+}
+
+function handleAuthFetchError(error: unknown, label: string): never {
+  console.error(`${label}:`, error);
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes('Cookies can only be modified')) redirect('/api/wipe');
+  redirect('/api/auth/sign-in');
+}
 
 // ============================================================================
 // Environment Configuration
@@ -90,10 +113,7 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Logto OIDC ${res.status}: ${await truncateError(errorText)}`);
-      }
+      await throwOnApiError(res, 'Logto OIDC');
 
       const userInfo = await res.json();
 
@@ -139,17 +159,7 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
     return result;
   } catch (error) {
-    console.error('Dashboard data fetch error:', error);
-    
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    
-    // Stale cookie error → wipe cookies and let user retry (real session is still valid)
-    if (errorMsg.includes('Cookies can only be modified')) {
-      redirect('/api/wipe');
-    }
-    
-    // All other errors → redirect to sign-in
-      redirect('/api/auth/sign-in');
+    handleAuthFetchError(error, 'Dashboard data fetch error');
   }
 }
 
@@ -163,10 +173,7 @@ export async function fetchUserBadgeData(): Promise<DashboardResult> {
       const token = await getTokenForServerAction();
       const res = await makeRequest('/api/my-account');
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Logto API ${res.status}: ${await truncateError(errorText)}`);
-      }
+      await throwOnApiError(res, 'Logto API');
 
       return {
         success: true,
@@ -177,15 +184,7 @@ export async function fetchUserBadgeData(): Promise<DashboardResult> {
 
     return result;
   } catch (error) {
-    console.error('UserBadge data fetch error:', error);
-    
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    
-    if (errorMsg.includes('Cookies can only be modified')) {
-      redirect('/api/wipe');
-    }
-    
-    redirect('/api/auth/sign-in');
+    handleAuthFetchError(error, 'UserBadge data fetch error');
   }
 }
 
@@ -212,16 +211,7 @@ export async function updateUserBasicInfo(updates: {
   );
 
   if (Object.keys(cleanUpdates).length === 0) return;
-
-  const res = await makeRequest('/api/my-account', {
-    method: 'PATCH',
-    body: cleanUpdates,
-  });
-  
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Basic info update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await patchMyAccount(cleanUpdates, 'Basic info update failed');
 }
 
 export async function updateUserProfile(profile: {
@@ -233,34 +223,15 @@ export async function updateUserProfile(profile: {
     body: profile,
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Profile update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Profile update failed');
 }
 
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<void> {
-  const res = await makeRequest('/api/my-account', {
-    method: 'PATCH',
-    body: { customData },
-  });
-  
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Custom data update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await patchMyAccount({ customData }, 'Custom data update failed');
 }
 
 export async function updateAvatarUrl(avatarUrl: string): Promise<void> {
-  const res = await makeRequest('/api/my-account', {
-    method: 'PATCH',
-    body: { avatar: avatarUrl || null },
-  });
-  
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Avatar update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await patchMyAccount({ avatar: avatarUrl || null }, 'Avatar update failed');
 }
 
 // ============================================================================
@@ -273,10 +244,7 @@ export async function verifyPasswordForIdentity(password: string): Promise<{ ver
     body: { password },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Password verification failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Password verification failed');
   
   const parsed = await res.json();
   if (!parsed.verificationRecordId) {
@@ -292,10 +260,7 @@ export async function sendEmailVerificationCode(email: string): Promise<{ verifi
     body: { identifier: { type: 'email', value: email } },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Email verification send failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Email verification send failed');
   
   const parsed = await res.json();
   if (!parsed.verificationRecordId) {
@@ -311,10 +276,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<{ verifi
     body: { identifier: { type: 'phone', value: phone } },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Phone verification send failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Phone verification send failed');
   
   const parsed = await res.json();
   if (!parsed.verificationRecordId) {
@@ -335,10 +297,7 @@ export async function verifyVerificationCode(
     body: { identifier: { type, value }, verificationId, code },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Verification failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Verification failed');
   
   const parsed = await res.json();
   if (!parsed.verificationRecordId) {
@@ -363,10 +322,7 @@ export async function updateEmailWithVerification(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Email update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Email update failed');
 }
 
 export async function updatePhoneWithVerification(
@@ -380,10 +336,7 @@ export async function updatePhoneWithVerification(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Phone update failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Phone update failed');
 }
 
 export async function removeUserEmail(identityVerificationRecordId: string): Promise<void> {
@@ -392,10 +345,7 @@ export async function removeUserEmail(identityVerificationRecordId: string): Pro
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Email removal failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Email removal failed');
 }
 
 export async function removeUserPhone(identityVerificationRecordId: string): Promise<void> {
@@ -404,10 +354,7 @@ export async function removeUserPhone(identityVerificationRecordId: string): Pro
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Phone removal failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Phone removal failed');
 }
 
 // ============================================================================
@@ -417,10 +364,7 @@ export async function removeUserPhone(identityVerificationRecordId: string): Pro
 export async function getMfaVerifications(): Promise<MfaVerification[]> {
   const res = await makeRequest('/api/my-account/mfa-verifications');
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Get MFA verifications failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Get MFA verifications failed');
 
   return res.json();
 }
@@ -430,10 +374,7 @@ export async function generateTotpSecret(): Promise<{ secret: string; secretQrCo
     method: 'POST',
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Generate TOTP secret failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Generate TOTP secret failed');
 
   return res.json();
 }
@@ -449,10 +390,7 @@ export async function addMfaVerification(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Add MFA verification failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Add MFA verification failed');
 }
 
 export async function deleteMfaVerification(
@@ -464,10 +402,7 @@ export async function deleteMfaVerification(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Delete MFA verification failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Delete MFA verification failed');
 }
 
 export async function generateBackupCodes(identityVerificationRecordId: string): Promise<{ codes: string[] }> {
@@ -476,10 +411,7 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Generate backup codes failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Generate backup codes failed');
 
   return res.json();
 }
@@ -491,10 +423,7 @@ export async function getBackupCodes(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Get backup codes failed ${res.status}: ${await truncateError(errorText)}`);
-  }
+  await throwOnApiError(res, 'Get backup codes failed');
 
   return res.json();
 }
@@ -597,12 +526,7 @@ export async function deleteUserAccount(
     },
   });
 
-  if (!deleteRes.ok) {
-    const errorText = await deleteRes.text();
-    throw new Error(
-      `Account deletion failed ${deleteRes.status}: ${await truncateError(errorText)}`
-    );
-  }
+  await throwOnApiError(deleteRes, 'Account deletion failed');
 
   // Return cleanly. The client (security.tsx handleDeleteAccount) is
   // responsible for navigating to /api/auth/sign-out after this resolves.
@@ -611,19 +535,6 @@ export async function deleteUserAccount(
 // ============================================================================
 // Avatar Upload Functions
 // ============================================================================
-
-interface OidcIntrospectionResponse {
-  active: boolean
-  sub?: string
-  client_id?: string
-  exp?: number
-  iat?: number
-  iss?: string
-  scope?: string
-  token_type?: string
-  organization_id?: string
-  organization_roles?: string[]
-}
 
 async function uploadViaSupabase(
   bucket: string,

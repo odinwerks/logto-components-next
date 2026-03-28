@@ -16,7 +16,7 @@ export function getStoredUserData(): UserData | null {
   }
 }
 
-export function clearStoredUserData(): void {
+function clearStoredUserData(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(STORAGE_KEY);
 }
