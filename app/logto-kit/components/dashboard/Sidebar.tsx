@@ -17,16 +17,6 @@ const css = {
   sans: "'DM Sans', system-ui, sans-serif",
 } as const;
 
-function Btn({ children, variant = 'secondary', onClick, disabled = false, theme }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; disabled?: boolean; theme: ThemeSpec }) {
-  const c = theme.colors;
-  const base = { padding: '0.5rem 0.9375rem', fontSize: '0.8125rem', fontFamily: css.sans, fontWeight: 500, border: '1px solid', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', borderRadius: '0.25rem', opacity: disabled ? 0.5 : 1 };
-  const styles = {
-    primary: { ...base, background: c.accentBlue, color: c.bgPage === '#050505' ? '#fff' : '#fff', borderColor: c.accentBlue },
-    secondary: { ...base, background: c.bgTertiary, color: c.textSecondary, borderColor: c.borderColor },
-  };
-  return <button onClick={onClick} disabled={disabled} style={styles[variant]}>{children}</button>;
-}
-
 const SignOutIcon = () => (
   <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
     <path d="M5 2H2v10h3M9.5 4.5L12 7l-2.5 2.5M12 7H5.5"

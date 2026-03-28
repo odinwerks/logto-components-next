@@ -99,7 +99,6 @@ export function PreferencesTab({ theme, t, supportedLangs }: PreferencesTabProps
   const c  = theme.colors;
   const ty = theme.tokens.typography;
   const r  = theme.tokens.radii;
-  const tr = theme.tokens.transitions;
 
   const options = [
     { id: 'light', label: t.common.lightTheme, Icon: SunIcon  },
@@ -115,10 +114,6 @@ export function PreferencesTab({ theme, t, supportedLangs }: PreferencesTabProps
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', marginBottom: '1.625rem' }}>
           {options.map(opt => {
             const isSelected = activeMode === opt.id;
-            const [hovered, setHovered] = [
-              useState(false)[0],
-              useState(false)[1],
-            ];
             return (
               <ThemeOption
                 key={opt.id}

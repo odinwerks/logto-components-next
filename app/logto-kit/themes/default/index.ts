@@ -71,6 +71,7 @@ const DARK: ThemeColors = {
   errorBg:   '#450a0a',
   warningBg: '#451a03',
 
+  contrastText: '#fff',
   fontWeight: 400,
 };
 
@@ -95,6 +96,7 @@ const LIGHT: ThemeColors = {
   errorBg:   '#fee2e2',
   warningBg: '#fef3c7',
 
+  contrastText: '#fff',
   fontWeight: 500,
 };
 

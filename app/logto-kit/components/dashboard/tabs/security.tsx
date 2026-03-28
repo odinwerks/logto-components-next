@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
-import type { ThemeSpec, ThemeColors } from '../../../themes';
+import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { adj, tk, alpha } from '../../handlers/theme-helpers';
 import { fetchUserBadgeData } from '../../../logic/actions';
@@ -223,7 +223,7 @@ function FlowModal({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
                 <Button variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} theme={theme}>
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={c.bgPage === '#050505' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -264,7 +264,7 @@ function FlowModal({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Button onClick={onClose} theme={theme}>Cancel</Button>
                 <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} theme={theme}>
-                  Verify <Check size={'0.75rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                  Verify <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -337,7 +337,7 @@ function FlowModal({
                   onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
                   disabled={code.length !== 6} theme={theme}
                 >
-                  Activate <Check size={'0.75rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} />
+                  Activate <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -369,7 +369,7 @@ function FlowModal({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Button onClick={onClose} theme={theme}>Cancel</Button>
                 <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} theme={theme}>
-                  {danger ? t.security.confirmDeleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : (c.bgPage === '#050805' ? '#fff' : c.bgPage)} strokeWidth={1.5} />
+                  {danger ? t.security.confirmDeleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : (c.contrastText)} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -632,7 +632,7 @@ function ContactRow({
             </>
           ) : (
             <Button size="sm" variant="primary" onClick={openEdit} theme={theme}>
-              <Plus size={'0.6875rem'} color={c.bgPage === '#050805' ? '#fff' : c.bgPage} strokeWidth={1.5} /> {t.profile.add}
+              <Plus size={'0.6875rem'} color={c.contrastText} strokeWidth={1.5} /> {t.profile.add}
             </Button>
           )}
         </div>

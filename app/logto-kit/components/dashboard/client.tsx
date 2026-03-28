@@ -30,8 +30,6 @@ const ibmPlexMono = IBM_Plex_Mono({
 // Tab metadata
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TAB_ICON = '›';
-
 function getTabLabel(id: TabId, t: Translations): string {
   switch (id) {
     case 'profile': return t.tabs.profile;
@@ -167,11 +165,11 @@ export function DashboardClient({
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const { theme, themeSpec, setTheme } = useThemeMode();
+  const { themeSpec } = useThemeMode();
   const themeColors = themeSpec.colors;
 
   // ── Language ───────────────────────────────────────────────────────────────
-  const { lang, setLang } = useLangMode();
+  const { lang } = useLangMode();
   const t = useMemo<Translations>(
     () => allTranslations[lang] ?? serverTranslations,
     [lang, allTranslations, serverTranslations]
@@ -212,59 +210,17 @@ export function DashboardClient({
   // and all server components, giving the client fresh user data.
   // No server action needed — onRefresh/revalidatePath was redundant here.
   const router = useRouter();
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const refreshData = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      router.refresh();
-    } finally {
-      setIsRefreshing(false);
-    }
+  const refreshData = useCallback(() => {
+    router.refresh();
   }, [router]);
 
   // ── Theme handlers (providers handle persistence) ───────────────────────────
-  const handleThemeChange = useCallback((newTheme: 'dark' | 'light') => {
-    setTheme(newTheme);
-  }, [setTheme]);
-
-  const handleLangChange = useCallback(async (code: string) => {
-    setLang(code);
-    router.refresh();
-  }, [router, setLang]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
     await onSignOut();
   }, [onSignOut]);
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  const formatDate = useCallback((timestamp?: number | string) => {
-    if (!timestamp) return t.common.notAvailable;
-    try {
-      let date: Date;
-      if (typeof timestamp === 'string') {
-        date = new Date(timestamp);
-      } else {
-        date = new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp);
-      }
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      });
-    } catch {
-      return t.common.invalidDate;
-    }
-  }, [t]);
-
-  const isJwt = accessToken.split('.').length === 3;
-  const tokenPrefix = isJwt ? t.dashboard.jwtToken : t.dashboard.opaqueToken;
-  const hasMultipleLangs = supportedLangs.length > 1;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render

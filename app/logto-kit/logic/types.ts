@@ -140,6 +140,10 @@ export interface OidcIntrospectionResponse {
   client_id?: string;
   exp?: number;
   iat?: number;
+  iss?: string;
+  token_type?: string;
+  organization_id?: string;
+  organization_roles?: string[];
 }
 
 // ============================================================================

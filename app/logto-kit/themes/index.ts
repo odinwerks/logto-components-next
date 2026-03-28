@@ -46,6 +46,10 @@ export interface ThemeColors {
   errorBg:   string;
   warningBg: string;
 
+  // ── Contrast ─────────────────────────────────────────────────────────────
+  /** High-contrast text color for use on dark overlays / primary buttons */
+  contrastText: string;
+
   // ── Typography ───────────────────────────────────────────────────────────
   /** Base font weight applied to body copy (400 dark / 500 light typical) */
   fontWeight: number | string;
@@ -322,9 +326,6 @@ import { defaultDarkTheme, defaultLightTheme } from './default';
 
 function resolveTheme(themeName: string, mode: 'dark' | 'light'): ThemeSpec {
   switch (themeName) {
-    // Register new theme folders here:
-    // case 'midnight':
-    //   return mode === 'dark' ? midnightDarkTheme : midnightLightTheme;
     case 'default':
     default:
       return mode === 'dark' ? defaultDarkTheme : defaultLightTheme;

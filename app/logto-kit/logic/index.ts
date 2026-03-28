@@ -55,3 +55,20 @@ export {
   getBackupCodes,
   introspectTokenWithOrg,
 } from './actions';
+
+export { LogtoApiError } from './errors';
+
+export {
+  ValidationError,
+  validateE164,
+  validateEmail,
+  validatePassword,
+  validateVerificationCode,
+  validateVerificationId,
+  validateUsername,
+  validateUrl,
+  validateJsonObject,
+  sanitizeLogtoError,
+} from './validation';
+
+export type { ValidationResult } from './validation';

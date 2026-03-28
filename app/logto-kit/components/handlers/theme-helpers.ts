@@ -12,7 +12,7 @@ import { alpha, adj as _adj } from '../../themes/default';
 export { _adj as adj, alpha };
 
 // The shape returned by tk()
-export interface TK {
+interface TK {
   // Fonts
   font:  string;
   mono:  string;

@@ -4,6 +4,10 @@ import { fetchUserRbacData, validateOrgMembership, checkPermissionInOrg } from '
 import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
 import { introspectToken, assertSafeUserId } from '../../logto-kit/logic/utils';
 
+function apiError(error: string, message: string, status: number) {
+  return NextResponse.json({ ok: false, error, message }, { status });
+}
+
 interface ProtectedRequestBody {
   token: string;
   id: string;
@@ -22,19 +26,13 @@ export async function POST(request: NextRequest) {
     const { token, id, action, payload } = body;
 
     if (!token || !id || !action) {
-      return NextResponse.json(
-        { ok: false, error: 'MISSING_FIELDS', message: 'token, id, and action are required' },
-        { status: 400 }
-      );
+      return apiError('MISSING_FIELDS', 'token, id, and action are required', 400);
     }
 
     try {
       assertSafeUserId(id);
     } catch (error) {
-      return NextResponse.json(
-        { ok: false, error: 'TOKEN_INVALID', message: 'Invalid userId format' },
-        { status: 400 }
-      );
+      return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
     }
 
     let introspection: OidcIntrospectionResponse;
@@ -42,24 +40,15 @@ export async function POST(request: NextRequest) {
       introspection = await introspectToken(token);
     } catch (error) {
       console.error('[Protected API] Introspection error:', error);
-      return NextResponse.json(
-        { ok: false, error: 'INTROSPECTION_ERROR', message: 'Failed to validate token' },
-        { status: 401 }
-      );
+      return apiError('INTROSPECTION_ERROR', 'Failed to validate token', 401);
     }
 
     if (!introspection.active) {
-      return NextResponse.json(
-        { ok: false, error: 'TOKEN_INVALID', message: 'Token is not active or has been revoked' },
-        { status: 401 }
-      );
+      return apiError('TOKEN_INVALID', 'Token is not active or has been revoked', 401);
     }
 
     if (introspection.sub !== id) {
-      return NextResponse.json(
-        { ok: false, error: 'TOKEN_INVALID', message: 'Token subject does not match the provided userId' },
-        { status: 401 }
-      );
+      return apiError('TOKEN_INVALID', 'Token subject does not match the provided userId', 401);
     }
 
     let userData;
@@ -67,40 +56,24 @@ export async function POST(request: NextRequest) {
       userData = await fetchUserRbacData(token);
     } catch (error) {
       console.error('[Protected API] User data fetch error:', error);
-      return NextResponse.json(
-        { ok: false, error: 'USER_DATA_ERROR', message: 'Failed to fetch user data' },
-        { status: 500 }
-      );
+      return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
     }
 
     const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
     if (!orgValidation.ok) {
-      return NextResponse.json(
-        { ok: false, error: orgValidation.error, message: orgValidation.detail },
-        { status: 403 }
-      );
+      return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
     }
 
     const actionConfig = await getAction(action);
 
     if (!actionConfig) {
-      return NextResponse.json(
-        { ok: false, error: 'ACTION_NOT_FOUND', message: `Action "${action}" not found` },
-        { status: 404 }
-      );
+      return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
     }
 
     const hasPermission = await checkPermissionInOrg(id, userData.asOrg!, actionConfig.requiredPermission);
 
     if (!hasPermission) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: 'PERMISSION_DENIED',
-          message: `User lacks required permission: ${actionConfig.requiredPermission}`,
-        },
-        { status: 403 }
-      );
+      return apiError('PERMISSION_DENIED', `User lacks required permission: ${actionConfig.requiredPermission}`, 403);
     }
 
     const result = await actionConfig.handler({
@@ -112,9 +85,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, data: result });
   } catch (error) {
     console.error('[Protected API] Unexpected error:', error);
-    return NextResponse.json(
-      { ok: false, error: 'INTERNAL_ERROR', message: 'Internal server error' },
-      { status: 500 }
-    );
+    return apiError('INTERNAL_ERROR', 'Internal server error', 500);
   }
 }
