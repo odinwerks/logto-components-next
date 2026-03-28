@@ -7,6 +7,7 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
 - **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
+- **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
 - **Theme System**: User-created themes with ENV-selected activation and default theme mode
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering
@@ -314,7 +315,7 @@ useEffect(() => {
 
 Visit `/demo` to see the demo app in action. It displays:
 - A sidebar with navigation options (Dashboard, Settings, Profile)
-- A user badge showing the logged-in user
+- A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
 - Clicking "Dashboard" opens the full Dashboard modal
@@ -478,16 +479,35 @@ function MyComponent() {
 
 #### useLogto Hook
 
-The `useLogto()` hook returns:
+The `useLogto()` hook provides access to user data, authentication, and all preference state in one place:
 
 ```tsx
-{
-  userData: UserData;
-  accessToken: string;
+import { useLogto } from './logto-kit';
+
+function MyComponent() {
+  const { userData, accessToken, openDashboard, theme, themeSpec, lang, setLang, asOrg, setAsOrg } = useLogto();
+  // ...
 }
 ```
 
-Use this hook to access user data and access token in any component nested within `LogtoProvider`.
+Returns:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `userData` | `UserData` | Current user data |
+| `accessToken` | `string` | JWT or opaque access token |
+| `theme` | `'dark' \| 'light'` | Current theme mode |
+| `themeSpec` | `ThemeSpec` | Full theme specification (colors, components, tokens) |
+| `setTheme` | `(theme: 'dark' \| 'light') => void` | Set theme mode |
+| `toggleTheme` | `() => void` | Toggle between dark/light |
+| `lang` | `string` | Current language code |
+| `setLang` | `(lang: string) => void` | Set language |
+| `asOrg` | `string \| null` | Active organization ID (null = global) |
+| `setAsOrg` | `(orgId: string \| null) => void` | Set active organization |
+| `openDashboard` | `() => void` | Open the dashboard modal |
+| `closeDashboard` | `() => void` | Close the dashboard modal |
+
+Use this hook to access user data, theme, language, and dashboard controls anywhere within `LogtoProvider`.
 
 #### SessionStorage Caching
 
@@ -498,25 +518,25 @@ User data is automatically cached in sessionStorage under the key `user-data`. T
 
 #### Data Priority
 
-When using components like `UserButton` or `UserBadge`:
+All three user display components (`UserButton`, `UserBadge`, `UserCard`) use a shared `useUserDisplay` hook that resolves data from the provider:
 
 1. **Prop** - if `userData` prop passed to component, use it
-2. **Context** - if inside Dashboard, use context (auto-updates when profile changes!)
-3. **Fetch** - standalone button outside Dashboard, fetch from server on mount
+2. **Provider** - otherwise use `userData` and `lang` from `useLogto()` context (auto-updates when profile or language changes)
 
-### UserButton & UserBadge
+### UserButton, UserBadge & UserCard
 
-The dashboard exports two components for displaying user avatars:
+The dashboard exports three components for displaying user avatars:
 
-- **UserButton** - clickable, opens Dashboard modal on click
+- **UserButton** - clickable avatar, opens Dashboard modal on click
 - **UserBadge** - non-interactive display only
+- **UserCard** - clickable card with avatar + "Logged in as" + user name, opens Dashboard on click
 
-Both components work **fully standalone** - they automatically fetch user data if not provided via props or context:
+All three use a shared `useUserDisplay` hook that resolves `userData` and translations from the `LogtoProvider` context. They react to language changes automatically.
 
 ```tsx
-import { UserButton, UserBadge } from './logto-kit';
+import { UserButton, UserBadge, UserCard } from './logto-kit';
 
-// Fully automatic (standalone - fetches its own data)
+// Simple avatar button (opens dashboard on click)
 <UserButton />
 
 // With options
@@ -528,35 +548,28 @@ import { UserButton, UserBadge } from './logto-kit';
 // Non-interactive badge
 <UserBadge Size="32px" Canvas="Avatar" shape="sq" />
 
-// Inside Dashboard - no props needed, uses context automatically
-<UserBadge Size="32px" Canvas="Avatar" shape="sq" />
+// User card — avatar + "Logged in as" + name (click opens dashboard)
+<UserCard Size="32px" shape="rsq" />
+
+// Inside Dashboard — no props needed, uses provider context
+<UserButton Size="32px" />
+<UserCard Size="32px" shape="circle" />
 ```
 
-#### How Auto-Fetching Works
-
-When used outside the Dashboard:
-
-1. **1.5s timeout** - Waits up to 1.5 seconds for data
-2. **Fallback icon** - If no data arrives, shows a user icon placeholder
-3. **Internal fetch** - Calls `fetchUserBadgeData()` to get user info from `/api/my-account`
-
-The component uses the priority system:
-1. **Prop** - if `userData` prop passed, use it
-2. **Context** - if inside Dashboard, use `UserDataProvider` context
-3. **Fetch** - standalone, fetch from server automatically
-
 #### Props
+
+All three components share the same props:
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `Canvas` | `'Avatar' \| 'Initials'` | `'Initials'` | Display mode |
-| `Size` | `string` | `'6.25rem'` | CSS size (e.g., `'48px'`, `'3rem'`) |
-| `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape |
-| `userData` | `UserData` | - | User data (optional, auto-fetched if not provided) |
-| `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected if not provided) |
-| `do` | `() => void` | - | UserButton only: custom click handler |
+| `Size` | `string` | `'6.25rem'` (Button/Badge), `'2.5rem'` (Card) | CSS size (e.g., `'48px'`, `'3rem'`) |
+| `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape (falls back to `NEXT_PUBLIC_USER_SHAPE` ENV) |
+| `userData` | `UserData` | - | User data (optional, uses provider context if not provided) |
+| `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected from provider if not provided) |
+| `do` | `() => void` | - | Custom click handler (Button and Card only; defaults to `openDashboard`) |
 
-If no user data is available for 1.5 seconds, displays a fallback user icon.
+UserCard's "Logged in as" label is automatically translated based on the provider's current language state — no `t` prop needed.
 
 ### AuthWatcher
 
@@ -616,14 +629,37 @@ import {
   // Context hooks
   useThemeMode,
   useLangMode,
+
+  // Components
+  UserButton,
+  UserBadge,
+  UserCard,
+
+  // Error handling
+  LogtoApiError,
+
+  // Validation
+  ValidationError,
+  validateEmail,
+  validatePassword,
+  validateUsername,
+  validateUrl,
+  validateE164,
+  sanitizeLogtoError,
+
+  // Token validation
+  validateToken,
+  invalidateJWKS,
 } from './logto-kit';
 
 import type {
   OrganizationData,
+  ValidatedTokenClaims,
+  ValidationResult,
 } from './logto-kit';
 ```
 
-> **Note**: The RBAC validation functions (`fetchUserRbacData`, `validateOrgMembership`, `checkPermissionInOrg`, `checkRoleInOrg`, `validateRbac`, `introspectTokenWithOrg`) and token validation (`validateToken`, `invalidateJWKS`) are internal-only. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
+> **Note**: The RBAC validation functions (`fetchUserRbacData`, `validateOrgMembership`, `checkPermissionInOrg`, `checkRoleInOrg`, `validateRbac`, `introspectTokenWithOrg`) are internal-only. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
 
 ---
 
@@ -1521,6 +1557,9 @@ npm run build
 - [x] Auto-fetch user data when used outside Dashboard
 - [x] Priority system: prop → context → fetch
 - [x] Fallback user icon after 1.5s timeout
+- [x] UserCard component — wider card with avatar + "Logged in as" + name
+- [x] Shared useUserDisplay hook — all three components use provider context
+- [x] Translations resolved from provider lang state (no t prop needed)
 
 ### Avatar Upload
 - [x] Profile tab - image upload via drag-and-drop
