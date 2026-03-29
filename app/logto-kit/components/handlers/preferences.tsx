@@ -161,16 +161,26 @@ export function PreferencesProvider({
   }, []);
 
   useEffect(() => {
-    const handleThemeChange = () => {
-      const stored = getStoredTheme();
-      if (stored && stored !== theme) {
-        setThemeState(stored);
+    const handlePreferencesChange = () => {
+      const storedTheme = getStoredTheme();
+      if (storedTheme && storedTheme !== theme) {
+        setThemeState(storedTheme);
+      }
+
+      const storedLang = getStoredLang();
+      if (storedLang && storedLang !== lang) {
+        setLangState(storedLang);
+      }
+
+      const storedOrg = getStoredOrg();
+      if (storedOrg !== asOrg) {
+        setAsOrgState(storedOrg);
       }
     };
 
-    window.addEventListener('theme-changed', handleThemeChange);
-    return () => window.removeEventListener('theme-changed', handleThemeChange);
-  }, [theme]);
+    window.addEventListener('preferences-changed', handlePreferencesChange);
+    return () => window.removeEventListener('preferences-changed', handlePreferencesChange);
+  }, [theme, lang, asOrg]);
 
   useEffect(() => {
     const stored = getStoredLang();
@@ -220,7 +230,7 @@ export function PreferencesProvider({
     setStoredTheme(newTheme);
     setThemeState(newTheme);
     persistThemeToApi(newTheme);
-    window.dispatchEvent(new Event('theme-changed'));
+    window.dispatchEvent(new Event('preferences-changed'));
   }, [persistThemeToApi]);
 
   const toggleTheme = useCallback(() => {
@@ -232,6 +242,7 @@ export function PreferencesProvider({
     setStoredLang(newLang);
     setLangState(newLang);
     persistLangToApi(newLang);
+    window.dispatchEvent(new Event('preferences-changed'));
     onLangChange?.();
   }, [persistLangToApi, onLangChange]);
 
@@ -239,6 +250,7 @@ export function PreferencesProvider({
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
     persistOrgToApi(newOrgId);
+    window.dispatchEvent(new Event('preferences-changed'));
   }, [persistOrgToApi]);
 
   const value = useMemo(
