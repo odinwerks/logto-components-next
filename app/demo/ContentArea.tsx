@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useThemeMode } from '../logto-kit/components/handlers/preferences';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
+
+const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
+  'user-button': () => import('./docs/user-button'),
+  'dashboard': () => import('./docs/dashboard'),
+};
 
 interface ContentAreaProps {
   item: NavItem;
@@ -59,35 +64,10 @@ const tbTypeStyle: React.CSSProperties = {
 };
 
 const pageStyle: React.CSSProperties = {
-  padding: '50px 44px 80px',
-  maxWidth: '800px',
-};
-
-const titleStyle: React.CSSProperties = {
-  fontFamily: 'var(--font-instrument-serif)',
-  fontStyle: 'italic',
-  fontWeight: 400,
-  fontSize: '38px',
-  color: 'rgba(255,255,255,0.88)',
-  letterSpacing: '-0.01em',
-  lineHeight: 1.08,
-  marginBottom: '14px',
-  animation: 'riseUp 0.28s ease-out 0.04s both',
-};
-
-const descStyle: React.CSSProperties = {
-  fontSize: '11.5px',
-  lineHeight: 1.95,
-  color: 'rgba(255,255,255,0.32)',
-  maxWidth: '510px',
-  animation: 'riseUp 0.28s ease-out 0.08s both',
-};
-
-const ruleStyle: React.CSSProperties = {
-  height: '1px',
-  background: 'rgba(255,255,255,0.055)',
-  margin: '34px 0 40px',
-  animation: 'riseUp 0.28s ease-out 0.1s both',
+  padding: '36px 44px 0',
+  height: 'calc(100vh - 46px - 36px)',
+  display: 'flex',
+  flexDirection: 'column',
 };
 
 const sectStyle: React.CSSProperties = {
@@ -169,10 +149,21 @@ const footDotStyle: React.CSSProperties = {
 export default function ContentArea({ item }: ContentAreaProps) {
   const { theme } = useThemeMode();
   const [mounted, setMounted] = useState(false);
+  const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setDocContent(null);
+    const loader = DOC_REGISTRY[item.id];
+    if (loader) {
+      loader().then((mod) => {
+        setDocContent(() => mod.default);
+      });
+    }
+  }, [item.id]);
 
   const colors = mounted ? (theme === 'dark'
     ? {
@@ -239,15 +230,12 @@ export default function ContentArea({ item }: ContentAreaProps) {
         footDot: 'rgba(255,255,255,0.16)',
       };
 
-  const themedContentStyle = { ...contentStyle, background: colors.bg };
+  const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'hidden' as const : 'auto' as const };
   const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (theme === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
   const themedCrumbStyle = { ...crumbStyle, color: colors.textMuted };
   const themedSepStyle = { ...sepStyle, color: colors.textMuted };
   const themedCrumbCurStyle = { ...crumbCurStyle, color: colors.text };
   const themedTbTypeStyle = { ...tbTypeStyle, color: colors.textMuted, border: `1px solid ${colors.borderLight}` };
-  const themedTitleStyle = { ...titleStyle, color: colors.title };
-  const themedDescStyle = { ...descStyle, color: colors.desc };
-  const themedRuleStyle = { ...ruleStyle, background: colors.rule };
   const themedSectStyle = { ...sectStyle, border: `1px solid ${colors.sectBorder}`, background: colors.sectBg };
   const themedSectHeadStyle = { ...sectHeadStyle, borderBottom: `1px solid ${colors.borderLight}`, background: colors.sectHeadBg };
   const themedSectDotStyle = { ...sectDotStyle, background: colors.sectDot };
@@ -273,34 +261,36 @@ export default function ContentArea({ item }: ContentAreaProps) {
       </div>
 
       <div style={pageStyle}>
-        <h1 style={themedTitleStyle}>{item.label}</h1>
-        <p style={themedDescStyle}>{item.desc}</p>
-        <div style={themedRuleStyle} />
-
-        {item.sections.map((section, i) => (
-          <div
-            key={section}
-            style={{
-              ...themedSectStyle,
-              animation: `riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
-            }}
-          >
-            <div style={themedSectHeadStyle}>
-              <div style={themedSectDotStyle} />
-              <span style={themedSectLabelStyle}>{section}</span>
-            </div>
-            <div style={sectBodyStyle}>
-              <div style={themedPhStyle}>
-                {SECTION_HINTS[section] || `${section}...`}
-                <span style={themedCursorStyle}>▌</span>
+        {DocContent ? (
+          <Suspense fallback={null}>
+            <DocContent />
+          </Suspense>
+        ) : (
+          item.sections.map((section, i) => (
+            <div
+              key={section}
+              style={{
+                ...themedSectStyle,
+                animation: `riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
+              }}
+            >
+              <div style={themedSectHeadStyle}>
+                <div style={themedSectDotStyle} />
+                <span style={themedSectLabelStyle}>{section}</span>
+              </div>
+              <div style={sectBodyStyle}>
+                <div style={themedPhStyle}>
+                  {SECTION_HINTS[section] || `${section}...`}
+                  <span style={themedCursorStyle}>▌</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
 
         <div style={themedFootStyle}>
           <div style={themedFootDotStyle} />
-          Placeholder — fill in usage patterns and demos
+          {DocContent ? 'Self-documenting demo — logto-kit' : 'Placeholder — fill in usage patterns and demos'}
         </div>
       </div>
     </div>

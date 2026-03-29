@@ -1,6 +1,6 @@
-# Logto Debug Dashboard
+# Logto components kit.
 
-A modular Next.js debug dashboard for Logto authentication with comprehensive user profile management, featuring a terminal/hacker aesthetic.
+Is a modular Next.js app. A base upon which you can build your own app. Think of it as a quick start pre-built. Includes a dashboard, a user button, providers for user data, safe implementation of Logto's Auth system, theme and language handlers, custom action runners, etc.
 
 ## Features
 
@@ -10,14 +10,13 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
 - **Theme System**: User-created themes with ENV-selected activation and default theme mode
-- **i18n Support**: Multi-language support with ENV-configured locale availability and ordering
-- **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn support
-- **User Preferences**: Automatic persistence of theme and language choices in Logto customData
-- **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server
-- **Tab Configuration**: Select which tabs to display and their order via ENV variable
-- **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route
-- **Proxy-Based Auth**: Route protection happens in middleware before page rendering
-- **Translation-First Validation**: All validation messages use translation strings for full i18n coverage
+- **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
+- **MFA Management**: TOTP enrollment, backup codes generation, maybe of I have enough time I'll add WebAuthn too. 
+- **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
+- **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
+- **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
+- **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route.
+- **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get choked at the request layer if problematic.
 
 ## Project Structure
 
@@ -38,13 +37,25 @@ A modular Next.js debug dashboard for Logto authentication with comprehensive us
 │   │       └── route.ts
 │   ├── callback/
 │   │   └── route.ts
-│   ├── demo/                         # Demo app showcasing theme integration
-│   │   ├── ContentArea.tsx           # Main content with particle background
+│   ├── demo/                         # Self-documenting showcase for logto-kit components
+│   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # Navigation data
+│   │   ├── nav-data.tsx             # 8-tab navigation definitions
 │   │   ├── Particles.tsx            # Particle effect background
-│   │   └── types.ts                 # Type definitions
+│   │   ├── types.ts                 # Type definitions
+│   │   ├── docs/                    # Per-tab documentation files (TSX)
+│   │   │   ├── user-button.tsx      # UserButton doc — props, notes, 6 example cards
+│   │   │   ├── dashboard.tsx        # Dashboard doc — tab docs, live demo (WIP)
+│   │   │   └── dashboard/           # Per-dashboard-tab doc fragments
+│   │   │       ├── profile.tsx
+│   │   │       ├── security.tsx
+│   │   │       ├── identities.tsx
+│   │   │       ├── organizations.tsx
+│   │   │       └── dev.tsx
+│   │   └── utils/                   # Shared doc utilities
+│   │       ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
+│   │       └── Section.tsx          # SectionContainer + Section (multi-page docs)
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
@@ -256,15 +267,24 @@ NEXT_PUBLIC_USER_SHAPE=0.5rem   # Custom border-radius
 
 ## Demo App
 
-The project includes a demo app at `/demo` that showcases how to integrate the Logto dashboard components with your own application's theme.
+The project includes a demo app at `/demo` that acts as a self-documenting showcase for the logto-kit components.
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application that demonstrates:
-- How to wrap your app with the necessary providers
-- How to sync theme between the Dashboard and your custom components
-- How to create a custom sidebar with navigation
-- How to use the particle background effect
+The demo app (`app/demo/`) is a standalone application with 8 sidebar tabs — one for each major logto-kit component or concept:
+
+| Tab | Type | Description |
+|-----|------|-------------|
+| UserButton | component | Clickable avatar button, badge, and card with props table and live examples |
+| Dashboard | component | Full user management dashboard modal |
+| `<Protected />` | component | Server component for permission/role-gated UI |
+| OrgSwitcher | component | Organization selector dropdown |
+| Providers | setup | LogtoProvider, useLogto(), context hooks |
+| Theme | config | File-based theme system with dark/light CSS variables |
+| i18n | config | Translation files, language switching |
+| Actions API | api | Permission-gated POST /api/protected endpoint |
+
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation. The **Dashboard** tab has a doc file with per-tab fragments (`docs/dashboard/`) but is still being written — expect it to be complete soon. The remaining tabs show placeholder content until their docs are written.
 
 ### How It Works
 
@@ -274,39 +294,51 @@ The demo app consists of:
 |------|---------|
 | `index.tsx` | Demo page entry point |
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
-| `ContentArea.tsx` | Main content area with particle background effect |
+| `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | Navigation configuration |
+| `nav-data.tsx` | 8-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
+| `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
+| `docs/dashboard.tsx` | Dashboard documentation — tab overview, live demo (WIP) |
+| `docs/dashboard/*.tsx` | Per-dashboard-tab doc fragments — profile, security, identities, organizations, dev |
+| `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
+| `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
 
-### Theme Synchronization
+### Documentation Format
 
-The Dashboard and DemoApp share theme state via a custom `theme-changed` event and `sessionStorage`:
+Each doc file in `docs/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
 
-1. When theme changes in Dashboard, it dispatches a custom `theme-changed` event
-2. DemoApp listens for this event and updates its theme accordingly
-3. Both apps read/write the theme from `sessionStorage` key `theme-mode`
+Typical layout:
+- **Page 1**: Two-column grid — Quick Start + Notes (left), Props table (right)
+- **Page 2**: Example cards in a 2-column grid — code on the left, live preview on the right
+
+To add documentation for a new tab:
+1. Create `app/demo/docs/{tab-id}.tsx`
+2. Add the loader to `DOC_REGISTRY` in `ContentArea.tsx`
+3. Use `SectionContainer` / `Section` for pages, `CodeBlock` for code, and `ExampleCard` for live demos
+
+### Preferences Synchronization
+
+The Dashboard and DemoApp share preferences (theme, language, org) via a unified `preferences-changed` event and `sessionStorage`:
+
+1. When any preference changes in Dashboard (theme, lang, or org), it dispatches a `preferences-changed` event
+2. External consumers listen for this event and re-read from `sessionStorage`
+3. All preferences are stored in `sessionStorage` under keys: `theme-mode`, `lang-mode`, `org-mode`
 
 ```tsx
-// Theme change listener in DemoApp
+// Preferences change listener in external app
 useEffect(() => {
-  const handleThemeChange = (e: CustomEvent) => {
-    setTheme(e.detail.theme);
-    applyTheme(e.detail.theme, themeSpec);
+  const handlePreferencesChange = () => {
+    // Re-read all preferences from storage
+    const theme = sessionStorage.getItem('theme-mode');
+    const lang = sessionStorage.getItem('lang-mode');
+    // Apply changes...
   };
-  
-  window.addEventListener('theme-changed', handleThemeChange as EventListener);
-  
-  // Also read initial theme from sessionStorage
-  const stored = sessionStorage.getItem('theme-mode');
-  if (stored) {
-    const { theme } = JSON.parse(stored);
-    setTheme(theme);
-    applyTheme(theme, themeSpec);
-  }
-  
+
+  window.addEventListener('preferences-changed', handlePreferencesChange);
+
   return () => {
-    window.removeEventListener('theme-changed', handleThemeChange as EventListener);
+    window.removeEventListener('preferences-changed', handlePreferencesChange);
   };
 }, []);
 ```
@@ -314,11 +346,64 @@ useEffect(() => {
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with navigation options (Dashboard, Settings, Profile)
+- A sidebar with 8 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
-- Clicking "Dashboard" opens the full Dashboard modal
+- Clicking any tab loads its documentation into the content area
+- Press **ArrowUp** / **ArrowDown** to switch between pages within a tab
+- Bottom-right chevron buttons and a page counter (e.g. "1/2") show the current position
+
+The UserButton tab is the most complete — it includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards (sizes, shapes, canvas modes, UserCard, custom click handlers).
+
+### Documentation Utilities
+
+These shared utilities live in `app/demo/utils/` and are used by all doc files:
+
+#### CodeBlock
+
+A syntax-highlighted code block component using VSCode Dark+ color scheme. Includes a copy button that appears on hover.
+
+```tsx
+import CodeBlock from '../utils/CodeBlock';
+
+// Basic
+<CodeBlock code={`<UserButton Size="48px" />} />
+
+// With title bar
+<CodeBlock title="Import" code={`import { UserButton } from './logto-kit';`} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `code` | `string` | — | The code string to display |
+| `lang` | `'tsx' \| 'ts' \| 'bash'` | `'tsx'` | Language label shown in the title bar |
+| `title` | `string` | — | Optional title shown above the code block |
+
+Features: regex-based TSX tokenizer (no external deps), horizontal scroll for long lines, `marginBottom: 6px`, `#1e1e1e` background.
+
+#### SectionContainer & Section
+
+A multi-page layout system. `SectionContainer` is the viewport that manages page transitions via CSS `translateY` — each `Section` child is a full-height page stacked vertically. Pages slide up/down with a cubic-bezier transition.
+
+```tsx
+import { SectionContainer, Section } from '../utils/Section';
+
+export default function MyDoc() {
+  return (
+    <SectionContainer>
+      <Section id={1}>
+        {/* Page 1 content — Quick Start, Props table */}
+      </Section>
+      <Section id={2}>
+        {/* Page 2 content — Example cards */}
+      </Section>
+    </SectionContainer>
+  );
+}
+```
+
+Features: ArrowUp/ArrowDown keyboard navigation, bottom-right nav buttons with page counter, `overflowY: auto` per page for scrollable content, `overflow: hidden` on the viewport to prevent scrollbar cascade.
 
 ### PreferencesProvider
 
