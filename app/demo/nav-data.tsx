@@ -81,7 +81,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'component',
     icon: <DashboardIcon />,
     desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Identities, Organizations, Dev (tokens, cookies, session). Drop it anywhere — wraps itself in required providers.',
-    sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Live Demo'],
+    sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering'],
   },
   {
     id: 'protected',

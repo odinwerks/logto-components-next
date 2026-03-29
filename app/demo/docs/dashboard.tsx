@@ -1,10 +1,22 @@
 'use client';
 
-import { Dashboard } from '../../logto-kit/components/dashboard';
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
 
 // ─── Shared styles ──────────────────────────────────────────────────────────
+
+const twoColLayoutStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: '16px',
+  alignItems: 'stretch',
+};
+
+const colLeftStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '16px',
+};
 
 const sectionWrapStyle: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.058)',
@@ -149,7 +161,7 @@ function SectionWrap({ label, children }: { label: string; children: React.React
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Section 1: Internals
+// Page 1 Sections
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function InternalsSection() {
@@ -157,181 +169,117 @@ function InternalsSection() {
     <SectionWrap label="How the Dashboard works">
       <p style={textStyle}>
         The <code style={codeStyle}>Dashboard</code> is a <strong>Server Component</strong> that
-        fetches user data server-side, then self-wraps with its own internal providers before
-        rendering the client-side UI.
+        fetches user data server-side, then self-wraps with internal providers.
       </p>
       <CodeBlock title="Rendering pipeline" code={`// 1. Server Component — fetches data
 const result = await fetchDashboardData();
 
-// 2. Resolve preferences from user customData
-const userPrefs = getPreferencesFromUserData(result.userData);
-
-// 3. Self-wrap with internal providers
+// 2. Self-wrap with internal providers
 return (
   <UserDataProvider userData={result.userData}>
-    <PreferencesProvider
-      initialTheme={userPrefs.theme}
-      initialLang={userPrefs.lang}
-      initialOrgId={userPrefs.asOrg}
-      onUpdateCustomData={updateUserCustomData}
-    >
+    <PreferencesProvider ...>
       <DashboardClient ... />
     </PreferencesProvider>
   </UserDataProvider>
 );`} />
       <p style={textStyle}>
-        The <code style={codeStyle}>DashboardClient</code> component consumes these providers via hooks:
+        Hooks consumed by <code style={codeStyle}>DashboardClient</code>:
       </p>
       <table style={tableStyle}>
         <thead>
           <tr>
             <th style={thStyle}>Hook</th>
             <th style={thStyle}>Returns</th>
-            <th style={thStyle}>Used for</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td style={tdPropStyle}>useThemeMode()</td>
-            <td style={tdTypeStyle}>theme, themeSpec, themeColors, setTheme, toggleTheme</td>
-            <td style={tdStyle}>Theme switching, styling</td>
+            <td style={tdStyle}>theme, themeSpec, setTheme, toggleTheme</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>useLangMode()</td>
-            <td style={tdTypeStyle}>lang, setLang</td>
-            <td style={tdStyle}>Language switching, translations</td>
+            <td style={tdStyle}>lang, setLang</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>useOrgMode()</td>
-            <td style={tdTypeStyle}>asOrg, setAsOrg</td>
-            <td style={tdStyle}>Organization switching</td>
-          </tr>
-          <tr>
-            <td style={tdPropStyle}>useUserDataContext()</td>
-            <td style={tdTypeStyle}>UserData</td>
-            <td style={tdStyle}>User display data</td>
+            <td style={tdStyle}>asOrg, setAsOrg</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
-        After mutations (e.g. updating profile), the dashboard calls{' '}
-        <code style={codeStyle}>router.refresh()</code> to re-run the server component
-        pipeline, giving the client fresh user data without a full page reload.
+      <p style={{ ...textStyle, marginBottom: 0 }}>
+        Mutations call <code style={codeStyle}>router.refresh()</code> to re-run the server
+        component pipeline for fresh data.
       </p>
-      <CodeBlock title="Mutation + refresh" code={`// DashboardClient
-const router = useRouter();
-const refreshData = useCallback(() => {
-  router.refresh(); // re-runs Dashboard server component
-}, [router]);`} />
     </SectionWrap>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Section 2: Provider Sync
-// ═══════════════════════════════════════════════════════════════════════════════
 
 function ProviderSyncSection() {
   return (
     <SectionWrap label="Provider sync — Dashboard → External">
       <p style={textStyle}>
-        The Dashboard creates <strong>isolated</strong> provider instances that are not
-        directly reachable from your app. External consumers (like{' '}
-        <code style={codeStyle}>LogtoProvider</code>) have their own separate provider instances.
+        The Dashboard creates <strong>isolated</strong> provider instances.
+        External consumers (like <code style={codeStyle}>LogtoProvider</code>) have
+        separate instances.
       </p>
       <CodeBlock title="Two separate provider trees" code={`// Dashboard (Server Component)
 //   └─ UserDataProvider ← INSTANCE B
 //   └─ PreferencesProvider ← INSTANCE B
-//   └─ DashboardClient
 
-// Your app (LogtoProvider)
+// Your app (LogtoProvider)  
 //   └─ PreferencesProvider ← INSTANCE A
-//   └─ LogtoProviderContent
-//   └─ UserDataProvider ← INSTANCE A
-//   └─ Your app`} />
+//   └─ UserDataProvider ← INSTANCE A`} />
       <p style={textStyle}>
-        When the Dashboard changes a preference, it must notify external consumers. The sync
-        mechanism works through <code style={codeStyle}>sessionStorage</code> and a custom
-        event:
-      </p>
-      <CodeBlock title="Sync flow" code={`// 1. Dashboard changes theme → setTheme() called
-const setTheme = (newTheme) => {
-  sessionStorage.setItem('theme-mode', newTheme);  // persist
-  setThemeState(newTheme);                          // update local state
-  window.dispatchEvent(new Event('preferences-changed'));  // notify others
-};
-
-// 2. External consumer listens
-useEffect(() => {
-  const handler = () => {
-    const stored = sessionStorage.getItem('theme-mode');
-    // re-read and apply...
-  };
-  window.addEventListener('preferences-changed', handler);
-  return () => window.removeEventListener('preferences-changed', handler);
-}, []);`} />
-      <p style={textStyle}>
-        The same pattern applies to language and organization changes. All three dispatch the
-        unified <code style={codeStyle}>preferences-changed</code> event.
+        Sync via <code style={codeStyle}>sessionStorage</code> + unified event:
       </p>
       <table style={tableStyle}>
         <thead>
           <tr>
             <th style={thStyle}>Storage key</th>
-            <th style={thStyle}>Value</th>
-            <th style={thStyle}>Changed by</th>
+            <th style={thStyle}>Dispatched by</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td style={tdPropStyle}>theme-mode</td>
-            <td style={tdStyle}>"dark" | "light"</td>
             <td style={tdStyle}><code style={codeSmStyle}>setTheme()</code></td>
           </tr>
           <tr>
             <td style={tdPropStyle}>lang-mode</td>
-            <td style={tdStyle}>locale string (e.g. "en-US")</td>
             <td style={tdStyle}><code style={codeSmStyle}>setLang()</code></td>
           </tr>
           <tr>
             <td style={tdPropStyle}>org-mode</td>
-            <td style={tdStyle}>org ID string | null</td>
             <td style={tdStyle}><code style={codeSmStyle}>setAsOrg()</code></td>
           </tr>
         </tbody>
       </table>
       <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Key insight:</strong> The
-        Dashboard&apos;s providers are <em>self-contained</em>. They persist to the Logto API
-        via <code style={codeSmStyle}>onUpdateCustomData</code> and broadcast changes via
-        the <code style={codeSmStyle}>preferences-changed</code> event, but they never
-        directly touch external provider state.
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Event:</strong>{' '}
+        All changes dispatch a unified <code style={codeSmStyle}>preferences-changed</code>{' '}
+        event. External consumers re-read from storage.
       </div>
     </SectionWrap>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Section 3: Tab Structure
+// Page 2 Sections
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function TabStructureSection() {
   return (
     <SectionWrap label="Tab configuration">
       <p style={textStyle}>
-        Tabs are configured via the <code style={codeStyle}>LOAD_TABS</code> environment
-        variable. Set it to a comma-separated list of tab identifiers. If omitted, all tabs
-        are shown in default order.
+        Tabs configured via <code style={codeStyle}>LOAD_TABS</code> env. Comma-separated
+        list with alias support.
       </p>
-      <CodeBlock title="ENV configuration" code={`# .env.local
-LOAD_TABS=profile,preferences,mfa,raw`} />
-      <p style={textStyle}>
-        Each identifier resolves through an alias table, so you can use friendly names:
-      </p>
+      <CodeBlock title="ENV" code={`LOAD_TABS=profile,preferences,mfa,raw`} />
       <table style={tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Tab ID</th>
+            <th style={thStyle}>Tab</th>
             <th style={thStyle}>Aliases</th>
             <th style={thStyle}>Purpose</th>
           </tr>
@@ -339,112 +287,192 @@ LOAD_TABS=profile,preferences,mfa,raw`} />
         <tbody>
           <tr>
             <td style={tdPropStyle}>profile</td>
-            <td style={tdStyle}><span style={chipStyle}>personal</span>{' '}<span style={chipStyle}>user</span></td>
-            <td style={tdStyle}>Avatar, name, username</td>
+            <td style={tdStyle}><span style={chipStyle}>personal</span></td>
+            <td style={tdStyle}>Avatar, name</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>preferences</td>
-            <td style={tdStyle}><span style={chipStyle}>prefs</span>{' '}<span style={chipStyle}>custom-data</span></td>
+            <td style={tdStyle}><span style={chipStyle}>prefs</span></td>
             <td style={tdStyle}>Theme, language</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>security</td>
-            <td style={tdStyle}><span style={chipStyle}>mfa</span>{' '}<span style={chipStyle}>2fa</span>{' '}<span style={chipStyle}>totp</span></td>
-            <td style={tdStyle}>MFA, password, account deletion</td>
+            <td style={tdStyle}><span style={chipStyle}>mfa</span></td>
+            <td style={tdStyle}>MFA, password</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>identities</td>
-            <td style={tdStyle}><span style={chipStyle}>identity</span></td>
-            <td style={tdStyle}>Linked social providers</td>
+            <td style={tdStyle}>—</td>
+            <td style={tdStyle}>Social providers</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>organizations</td>
-            <td style={tdStyle}><span style={chipStyle}>orgs</span>{' '}<span style={chipStyle}>org</span></td>
-            <td style={tdStyle}>Org memberships, roles</td>
+            <td style={tdStyle}><span style={chipStyle}>orgs</span></td>
+            <td style={tdStyle}>Orgs, roles</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>dev</td>
-            <td style={tdStyle}><span style={chipStyle}>debug</span>{' '}<span style={chipStyle}>raw</span>{' '}<span style={chipStyle}>data</span></td>
-            <td style={tdStyle}>Token, raw JSON, session</td>
+            <td style={tdStyle}><span style={chipStyle}>raw</span></td>
+            <td style={tdStyle}>Token, cookies</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
-        Tabs are rendered client-side in <code style={codeStyle}>DashboardClient</code>. The
-        active tab is managed via internal <code style={codeStyle}>useState</code>:
+      <p style={{ ...textStyle, marginBottom: 0 }}>
+        Tabs render via <code style={codeStyle}>activeTab</code> state in{' '}
+        <code style={codeStyle}>DashboardClient</code>.
       </p>
-      <CodeBlock title="Tab switching" code={`const [activeTab, setActiveTab] = useState<TabId>(
-  loadedTabs[0] ?? 'profile'
-);
-
-// Sidebar buttons call setActiveTab()
-<button onClick={() => setActiveTab('security')}>
-  ...
-</button>
-
-// Content renders based on activeTab
-{activeTab === 'security' && <SecurityTab ... />}
-{activeTab === 'profile' && <ProfileTab ... />}
-`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Order preserved:</strong>{' '}
-        The order of tabs in <code style={codeSmStyle}>LOAD_TABS</code> determines the
-        sidebar order. Duplicates are removed.
-      </div>
     </SectionWrap>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Section 4: Live Demo
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function LiveDemoSection() {
-  return (
-    <SectionWrap label="Live dashboard">
-      <p style={textStyle}>
-        The full Dashboard rendered inline. All tab functionality is active — switch tabs,
-        change preferences, manage security settings.
-      </p>
-      <div style={{
-        background: 'rgba(255,255,255,0.008)',
-        border: '1px solid rgba(255,255,255,0.058)',
-        borderRadius: '5px',
-        overflow: 'hidden',
-        minHeight: '500px',
-      }}>
-        <Dashboard />
-      </div>
-    </SectionWrap>
-  );
-}
-
-// ─── Notes ────────────────────────────────────────────────────────────────────
 
 function NotesSection() {
   return (
     <SectionWrap label="Notes">
       <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Standalone vs Modal:</strong>{' '}
-        The Dashboard can render standalone (as shown above) or as a modal within{' '}
-        <code style={codeSmStyle}>LogtoProvider</code> via the{' '}
-        <code style={codeSmStyle}>dashboard</code> prop.
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Server + Client:</strong>{' '}
+        <code style={codeSmStyle}>Dashboard</code> is a Server Component wrapping{' '}
+        <code style={codeSmStyle}>DashboardClient</code> (Client Component).
       </div>
       <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Server + Client:</strong>{' '}
-        The <code style={codeSmStyle}>Dashboard</code> component is a Server Component.
-        It wraps <code style={codeSmStyle}>DashboardClient</code> which is a Client Component.
-        Data fetching happens server-side; interactivity happens client-side.
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Rendering modes:</strong>{' '}
+        Modal inside LogtoProvider, or full page at a route (e.g. <code style={codeSmStyle}>/dashboard</code>).
       </div>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Toast system:</strong>{' '}
-        The dashboard includes a built-in toast notification system. All tabs report success/error
-        via <code style={codeSmStyle}>showToast()</code>.
+        Built-in. All tabs report via <code style={codeSmStyle}>showToast()</code>.
       </div>
       <div style={{ ...noteStyle, marginBottom: 0 }}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Theme integration:</strong>{' '}
-        The dashboard uses <code style={codeSmStyle}>ThemeSpec</code> objects for all styling.
-        It respects the active theme from <code style={codeSmStyle}>PreferencesProvider</code>.
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Theme:</strong>{' '}
+        Uses <code style={codeSmStyle}>ThemeSpec</code> from{' '}
+        <code style={codeSmStyle}>PreferencesProvider</code>.
+      </div>
+    </SectionWrap>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Page 3 Sections
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function WiringSection() {
+  return (
+    <SectionWrap label="The wiring (page.tsx)">
+      <p style={textStyle}>
+        Dashboard is a Server Component JSX prop passed to the Client Component{' '}
+        <code style={codeStyle}>LogtoProvider</code>.
+      </p>
+      <CodeBlock title="Pre-rendered JSX as prop" code={`export default async function HomePage() {
+  const result = await fetchDashboardData();
+
+  return (
+    <LogtoProvider
+      userData={result.userData}
+      accessToken={result.accessToken}
+      dashboard={<Dashboard />}  {/* Server Component JSX */}
+    >
+      <DemoApp />
+    </LogtoProvider>
+  );
+}`} />
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Key point:</strong>{' '}
+        Next.js allows Server Component JSX to be passed as props to Client Components.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function ModalSection() {
+  return (
+    <SectionWrap label="The modal (LogtoProvider)">
+      <p style={textStyle}>
+        <code style={codeStyle}>LogtoProvider</code> manages modal state and renders
+        the Dashboard when <code style={codeStyle}>isDashboardOpen</code> is true.
+      </p>
+      <CodeBlock title="Modal lifecycle" code={`const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+const openDashboard = useCallback(() => setIsDashboardOpen(true), []);
+
+// ESC key — only when open
+useEffect(() => {
+  if (!isDashboardOpen) return;
+  const handleKey = (e) => e.key === 'Escape' && setIsDashboardOpen(false);
+  document.addEventListener('keydown', handleKey);
+  return () => document.removeEventListener('keydown', handleKey);
+}, [isDashboardOpen]);
+
+// Render when open
+{isDashboardOpen && dashboard && (
+  <div style={{ position: 'fixed', inset: 0, zIndex: 9999,
+    backdropFilter: 'blur(0.5rem)' }}>
+    <button onClick={closeDashboard}>✕</button>
+    {dashboard}
+  </div>
+}`} />
+    </SectionWrap>
+  );
+}
+
+function ClickSection() {
+  return (
+    <SectionWrap label="The click (UserButton)">
+      <p style={textStyle}>
+        <code style={codeStyle}>UserButton</code>, <code style={codeStyle}>UserCard</code> use{' '}
+        <code style={codeStyle}>useUserDisplay()</code> which calls{' '}
+        <code style={codeStyle}>openDashboard()</code> from LogtoProvider context.
+      </p>
+      <CodeBlock title="useUserDisplay hook" code={`function useUserDisplay(opts) {
+  const { openDashboard, userData } = useLogto();
+
+  // Data priority: prop → context → fallback (1.5s)
+  const handleClick = useCallback(() => {
+    if (typeof opts.do === 'function') opts.do();
+    else if (openDashboard) openDashboard();
+  }, [opts.do, openDashboard]);
+
+  return { userData, handleClick, ... };
+}`} />
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>UserBadge:</strong>{' '}
+        Read-only — <code style={codeSmStyle}>pointerEvents: &apos;none&apos;</code>, no click handler.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function WhySection() {
+  return (
+    <SectionWrap label="Why this pattern?">
+      <p style={textStyle}>
+        Async Server Components cannot be rendered directly from Client Components.
+      </p>
+      <CodeBlock title="❌ This error" code={`'use client';
+import { Dashboard } from './dashboard';
+// Error: Dashboard is an async Server Component`} />
+      <p style={textStyle}>
+        The <strong>prop workaround</strong> works because:
+      </p>
+      <table style={tableStyle}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Rule</th>
+            <th style={thStyle}>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={tdPropStyle}>Server → Client prop</td>
+            <td style={tdStyle}>Pre-rendered JSX passed, not imported</td>
+          </tr>
+          <tr>
+            <td style={tdPropStyle}>Lazy rendering</td>
+            <td style={tdStyle}>Only rendered when <code style={codeStyle}>isDashboardOpen</code> is true</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>This doc file:</strong>{' '}
+        Is a Client Component — that&apos;s why we can&apos;t render{' '}
+        <code style={codeSmStyle}>&lt;Dashboard /&gt;</code> here.
       </div>
     </SectionWrap>
   );
@@ -455,40 +483,41 @@ function NotesSection() {
 export default function DashboardDoc() {
   return (
     <SectionContainer>
-      {/* Page 1: Internals + Provider Sync */}
+      {/* Page 1: Internals + Provider Sync (two-column) */}
       <Section id={1}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          padding: '16px',
-          height: '100%',
-          overflow: 'auto',
-        }}>
-          <InternalsSection />
-          <ProviderSyncSection />
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={colLeftStyle}>
+            <InternalsSection />
+          </div>
+          <div style={colLeftStyle}>
+            <ProviderSyncSection />
+          </div>
         </div>
       </Section>
 
-      {/* Page 2: Tab Structure + Notes */}
+      {/* Page 2: Tab Structure + Notes (two-column) */}
       <Section id={2}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          padding: '16px',
-          height: '100%',
-          overflow: 'auto',
-        }}>
-          <TabStructureSection />
-          <NotesSection />
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={colLeftStyle}>
+            <TabStructureSection />
+          </div>
+          <div style={colLeftStyle}>
+            <NotesSection />
+          </div>
         </div>
       </Section>
 
-      {/* Page 3: Live Demo */}
+      {/* Page 3: Rendering (two-column: wiring + modal/click, why) */}
       <Section id={3}>
-        <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
-          <LiveDemoSection />
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={colLeftStyle}>
+            <WiringSection />
+            <ModalSection />
+          </div>
+          <div style={colLeftStyle}>
+            <ClickSection />
+            <WhySection />
+          </div>
         </div>
       </Section>
     </SectionContainer>
