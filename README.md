@@ -46,13 +46,14 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── types.ts                 # Type definitions
 │   │   ├── docs/                    # Per-tab documentation files (TSX)
 │   │   │   ├── user-button.tsx      # UserButton doc — props, notes, 6 example cards
-│   │   │   ├── dashboard.tsx        # Dashboard doc — tab docs, live demo (WIP)
-│   │   │   └── dashboard/           # Per-dashboard-tab doc fragments
-│   │   │       ├── profile.tsx
-│   │   │       ├── security.tsx
-│   │   │       ├── identities.tsx
-│   │   │       ├── organizations.tsx
-│   │   │       └── dev.tsx
+│   │   │   ├── dashboard.tsx        # Dashboard doc — internals, providers, rendering
+│   │   │   └── dashboard/           # Per-dashboard-tab doc files
+│   │   │       ├── profile.tsx      # Avatar, name editing
+│   │   │       ├── preferences.tsx  # Theme, language switching
+│   │   │       ├── security.tsx     # MFA, backup codes, account deletion (detailed)
+│   │   │       ├── identities.tsx   # Social provider display
+│   │   │       ├── organizations.tsx # Org switching, roles
+│   │   │       └── dev.tsx          # Token, session, cookies
 │   │   └── utils/                   # Shared doc utilities
 │   │       ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
 │   │       └── Section.tsx          # SectionContainer + Section (multi-page docs)
@@ -284,7 +285,7 @@ The demo app (`app/demo/`) is a standalone application with 8 sidebar tabs — o
 | i18n | config | Translation files, language switching |
 | Actions API | api | Permission-gated POST /api/protected endpoint |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation. The **Dashboard** tab has a doc file with per-tab fragments (`docs/dashboard/`) but is still being written — expect it to be complete soon. The remaining tabs show placeholder content until their docs are written.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **Security tab** has a dedicated detailed doc (3 pages) explaining FlowModal architecture, TOTP enrollment, backup codes, and account deletion. The remaining tabs show placeholder content until their docs are written.
 
 ### How It Works
 
@@ -299,8 +300,13 @@ The demo app consists of:
 | `nav-data.tsx` | 8-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
-| `docs/dashboard.tsx` | Dashboard documentation — tab overview, live demo (WIP) |
-| `docs/dashboard/*.tsx` | Per-dashboard-tab doc fragments — profile, security, identities, organizations, dev |
+| `docs/dashboard.tsx` | Dashboard documentation — Internals, Provider Sync, Tab Structure, Rendering (3 pages) |
+| `docs/dashboard/profile.tsx` | Profile tab doc — Avatar upload, name editing, refresh flow |
+| `docs/dashboard/preferences.tsx` | Preferences tab doc — Theme/language switching, provider sync |
+| `docs/dashboard/security.tsx` | Security tab doc — FlowModal, TOTP, backup codes, account deletion (detailed, 3 pages) |
+| `docs/dashboard/identities.tsx` | Identities tab doc — Social provider display |
+| `docs/dashboard/organizations.tsx` | Organizations tab doc — Org switching, roles |
+| `docs/dashboard/dev.tsx` | Dev tab doc — Token, raw JSON, session actions |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
 
@@ -309,8 +315,8 @@ The demo app consists of:
 Each doc file in `docs/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
 
 Typical layout:
-- **Page 1**: Two-column grid — Quick Start + Notes (left), Props table (right)
-- **Page 2**: Example cards in a 2-column grid — code on the left, live preview on the right
+- **Two-column grid** — Left and right sections side by side (matching `user-button.tsx` pattern)
+- **Single column** — For detailed content like the Security tab's FlowModal architecture
 
 To add documentation for a new tab:
 1. Create `app/demo/docs/{tab-id}.tsx`
@@ -354,7 +360,7 @@ Visit `/demo` to see the demo app in action. It displays:
 - Press **ArrowUp** / **ArrowDown** to switch between pages within a tab
 - Bottom-right chevron buttons and a page counter (e.g. "1/2") show the current position
 
-The UserButton tab is the most complete — it includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards (sizes, shapes, canvas modes, UserCard, custom click handlers).
+The UserButton tab includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards. The Dashboard tab covers internals, provider sync, tab configuration, and rendering patterns across 3 pages with a two-column grid layout.
 
 ### Documentation Utilities
 
