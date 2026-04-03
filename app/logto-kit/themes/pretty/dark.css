@@ -1,0 +1,80 @@
+/* ============================================================================
+ * Dark Theme - Logto Dashboard
+ * Warm Modern SaaS — approachable, polished, friendly
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap');
+
+:root[data-theme="dark"],
+:root {
+  /* Backgrounds — deep indigo-tinted neutrals, not pure black */
+  --ldd-bg-page: #0f1117;
+  --ldd-bg-primary: #161b27;
+  --ldd-bg-secondary: #1c2233;
+  --ldd-bg-tertiary: #242a3d;
+
+  /* Text — warm off-whites, never harsh pure white */
+  --ldd-text-primary: #eef0f6;
+  --ldd-text-secondary: #9ba3be;
+  --ldd-text-tertiary: #5c647f;
+
+  /* Borders — subtle, soft */
+  --ldd-border-color: #2d3350;
+  --ldd-border-radius: 0.75rem;
+  --ldd-border-radius-sm: 0.5rem;
+
+  /* Accents — vibrant but not neon */
+  --ldd-accent-green: #34d399;
+  --ldd-accent-yellow: #fbbf24;
+  --ldd-accent-red: #f87171;
+  --ldd-accent-blue: #818cf8;
+
+  /* Buttons */
+  --ldd-btn-primary-bg: #6366f1;
+  --ldd-btn-danger-bg: #ef4444;
+  --ldd-btn-secondary-bg: #242a3d;
+
+  /* Status backgrounds */
+  --ldd-success-bg: #0d2b1e;
+  --ldd-error-bg: #2b0d0d;
+  --ldd-warning-bg: #2b1e07;
+
+  /* Typography — clean geometric sans, highly legible */
+  --ldd-font-family: 'Geist', 'Inter', system-ui, sans-serif;
+  --ldd-font-weight: 400;
+
+  /* Layout */
+  --ldd-sidebar-width: 20rem;
+  --ldd-header-height: auto;
+  --ldd-max-content-width: 87.5rem;
+}
+
+/* Scrollbar — thin, subtle */
+[data-theme="dark"] ::-webkit-scrollbar,
+:root[data-theme="dark"] ::-webkit-scrollbar {
+  width: 0.375rem;
+  height: 0.375rem;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track,
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--ldd-border-color);
+  border-radius: 9999px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--ldd-text-tertiary);
+}
+
+/* Selection */
+[data-theme="dark"] ::selection,
+:root[data-theme="dark"] ::selection {
+  background: #6366f133;
+  color: var(--ldd-text-primary);
+}

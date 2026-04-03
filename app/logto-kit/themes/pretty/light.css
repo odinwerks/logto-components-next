@@ -1,0 +1,74 @@
+/* ============================================================================
+ * Light Theme - Logto Dashboard
+ * Warm Modern SaaS — approachable, polished, friendly
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap');
+
+:root[data-theme="light"] {
+  /* Backgrounds — warm whites, slight warmth to avoid clinical coldness */
+  --ldd-bg-page: #f4f5f9;
+  --ldd-bg-primary: #ffffff;
+  --ldd-bg-secondary: #eef0f6;
+  --ldd-bg-tertiary: #e4e7f0;
+
+  /* Text — deep charcoal, not pure black */
+  --ldd-text-primary: #111827;
+  --ldd-text-secondary: #4b5563;
+  --ldd-text-tertiary: #9ca3af;
+
+  /* Borders */
+  --ldd-border-color: #d9dce8;
+  --ldd-border-radius: 0.75rem;
+  --ldd-border-radius-sm: 0.5rem;
+
+  /* Accents */
+  --ldd-accent-green: #059669;
+  --ldd-accent-yellow: #d97706;
+  --ldd-accent-red: #dc2626;
+  --ldd-accent-blue: #4f46e5;
+
+  /* Buttons */
+  --ldd-btn-primary-bg: #6366f1;
+  --ldd-btn-danger-bg: #dc2626;
+  --ldd-btn-secondary-bg: #e4e7f0;
+
+  /* Status backgrounds */
+  --ldd-success-bg: #ecfdf5;
+  --ldd-error-bg: #fef2f2;
+  --ldd-warning-bg: #fffbeb;
+
+  /* Typography */
+  --ldd-font-family: 'Geist', 'Inter', system-ui, sans-serif;
+  --ldd-font-weight: 400;
+
+  /* Layout */
+  --ldd-sidebar-width: 20rem;
+  --ldd-header-height: auto;
+  --ldd-max-content-width: 87.5rem;
+}
+
+/* Scrollbar */
+[data-theme="light"] ::-webkit-scrollbar {
+  width: 0.375rem;
+  height: 0.375rem;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--ldd-border-color);
+  border-radius: 9999px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--ldd-text-tertiary);
+}
+
+/* Selection */
+[data-theme="light"] ::selection {
+  background: #6366f122;
+  color: var(--ldd-text-primary);
+}
