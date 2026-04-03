@@ -8,7 +8,7 @@ export { UserDataProvider, useUserDataContext } from './components/handlers/user
 
 export { LogtoProvider, useLogto } from './components/handlers/logto-provider';
 
-export { UserButton, UserBadge } from './components/userbutton';
+export { UserButton, UserBadge, UserCard } from './components/userbutton';
 
 export * from './logic';
 
@@ -25,6 +25,7 @@ export { getLoadedTabs, ALL_TABS } from './logic/tabs';
 export { getPreferencesFromUserData, buildUpdatedCustomData, hasPreferences } from './logic/preferences';
 export { getDefaultThemeMode } from './themes';
 export { getAllTranslations } from './locales';
+export type { KitTranslations, Translations } from './locales';
 
 export { useAvatarUpload } from './components/handlers/use-avatar-upload';
 
