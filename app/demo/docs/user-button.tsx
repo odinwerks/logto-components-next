@@ -162,7 +162,7 @@ function QuickStartSection() {
       <CodeBlock title="Minimal usage" code={`<UserButton />`} />
       <p style={{ ...textStyle, marginBottom: 0 }}>
         Clickable circle avatar. Falls back to user icon after 1.5s if no data.
-        Priority: prop, then provider context, then auto-fetch.
+        Priority: prop, then provider context, then fallback icon.
       </p>
     </SectionWrap>
   );
@@ -200,8 +200,8 @@ function PropsSection() {
           <tr>
             <td style={tdPropStyle}>shape</td>
             <td style={tdTypeStyle}>circle | sq | rsq</td>
-            <td style={tdStyle}>env</td>
-            <td style={tdStyle}>Border radius. Falls back to NEXT_PUBLIC_USER_SHAPE env.</td>
+            <td style={tdStyle}>circle</td>
+            <td style={tdStyle}>Border radius. Overridable via USER_SHAPE env.</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>userData</td>
@@ -244,11 +244,11 @@ function NotesSection() {
     <SectionWrap label="Notes">
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Data resolution priority:</strong>{' '}
-        prop - LogtoProvider context - auto-fetch - fallback user icon (after 1.5s).
+        prop — LogtoProvider context — fallback user icon (after 1.5s timeout).
       </div>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Shape fallback:</strong>{' '}
-        Omits <code style={codeSmStyle}>shape</code>? Reads <code style={codeSmStyle}>NEXT_PUBLIC_USER_SHAPE</code>{' '}
+        Omits <code style={codeSmStyle}>shape</code>? Reads <code style={codeSmStyle}>USER_SHAPE</code>{' '}
         env, defaults to <code style={codeSmStyle}>circle</code>.
       </div>
       <div style={noteStyle}>
@@ -414,15 +414,25 @@ export default function UserButtonDoc() {
                 <ExampleCard
                   label="Shapes"
                   subLabel="circle / square / rounded-sq"
-                  code={`<UserButton Size="56px" />
-<UserButton Size="56px" shape="sq" />
-<UserButton Size="56px" shape="rsq" />`}
-                  note="Sizes exaggerated for clarity"
+                  code={`
+<UserBadge Size="56px" shape="circle" />
+<UserBadge Size="56px" shape="sq" />
+<UserBadge Size="56px" shape="rsq" />
+
+`}
+                  note="All three shapes for both components"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <UserButton Size="56px" />
-                    <UserButton Size="56px" shape="sq" />
-                    <UserButton Size="56px" shape="rsq" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <UserButton Size="56px" shape="circle" />
+                      <UserButton Size="56px" shape="sq" />
+                      <UserButton Size="56px" shape="rsq" />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <UserButton Size="56px" shape="circle" Canvas="Initials" />
+                      <UserButton Size="56px" shape="sq" Canvas="Initials"/>
+                      <UserButton Size="56px" shape="rsq" Canvas="Initials"/>
+                    </div>
                   </div>
                 </ExampleCard>
 
@@ -447,12 +457,13 @@ export default function UserButtonDoc() {
                 <ExampleCard
                   label="UserCard"
                   subLabel="avatar + name + i18n label"
-                  code={`<UserCard Size="48px" shape="circle" />
-<UserCard Size="48px" shape="sq" />`}
+                  code={`
+<UserCard Size="36px" shape="sq" />
+<UserCard Size="36px" shape="rsq" />`}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
-                    <UserCard Size="36px" shape="circle" />
                     <UserCard Size="36px" shape="sq" />
+                    <UserCard Size="36px" shape="rsq" />
                   </div>
                 </ExampleCard>
 

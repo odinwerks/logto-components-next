@@ -201,12 +201,13 @@ return (
             <td style={tdPropStyle}>useLangMode()</td>
             <td style={tdStyle}>lang, setLang</td>
           </tr>
-          <tr>
-            <td style={tdPropStyle}>useOrgMode()</td>
-            <td style={tdStyle}>asOrg, setAsOrg</td>
-          </tr>
         </tbody>
       </table>
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Note:</strong>{' '}
+        <code style={codeStyle}>useOrgMode()</code> (returns asOrg, setAsOrg) is consumed by{' '}
+        <code style={codeStyle}>OrganizationsTab</code>, not <code style={codeStyle}>DashboardClient</code>.
+      </div>
       <p style={{ ...textStyle, marginBottom: 0 }}>
         Mutations call <code style={codeStyle}>router.refresh()</code> to re-run the server
         component pipeline for fresh data.
@@ -287,32 +288,32 @@ function TabStructureSection() {
         <tbody>
           <tr>
             <td style={tdPropStyle}>profile</td>
-            <td style={tdStyle}><span style={chipStyle}>personal</span></td>
+            <td style={tdStyle}><span style={chipStyle}>personal</span> <span style={chipStyle}>user</span></td>
             <td style={tdStyle}>Avatar, name</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>preferences</td>
-            <td style={tdStyle}><span style={chipStyle}>prefs</span></td>
+            <td style={tdStyle}><span style={chipStyle}>prefs</span> <span style={chipStyle}>custom-data</span> <span style={chipStyle}>custom</span> <span style={chipStyle}>customdata</span></td>
             <td style={tdStyle}>Theme, language</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>security</td>
-            <td style={tdStyle}><span style={chipStyle}>mfa</span></td>
+            <td style={tdStyle}><span style={chipStyle}>mfa</span> <span style={chipStyle}>2fa</span> <span style={chipStyle}>totp</span></td>
             <td style={tdStyle}>MFA, password</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>identities</td>
-            <td style={tdStyle}>—</td>
+            <td style={tdStyle}><span style={chipStyle}>identity</span></td>
             <td style={tdStyle}>Social providers</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>organizations</td>
-            <td style={tdStyle}><span style={chipStyle}>orgs</span></td>
+            <td style={tdStyle}><span style={chipStyle}>orgs</span> <span style={chipStyle}>org</span></td>
             <td style={tdStyle}>Orgs, roles</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>dev</td>
-            <td style={tdStyle}><span style={chipStyle}>raw</span></td>
+            <td style={tdStyle}><span style={chipStyle}>raw</span> <span style={chipStyle}>debug</span> <span style={chipStyle}>data</span></td>
             <td style={tdStyle}>Token, cookies</td>
           </tr>
         </tbody>
