@@ -64,7 +64,22 @@ const ActionsApiIcon = () => (
   </svg>
 );
 
+const RocketIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <path d="M8 2L10 7h3l-2.5 4L12 14l-4-2-4 2 1.5-3L3 7h3l2-5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export const NAV_ITEMS: NavItem[] = [
+  {
+    id: 'getting-started',
+    label: 'Getting Started',
+    code: false,
+    type: 'guide',
+    icon: <RocketIcon />,
+    desc: 'Clone, configure ENV, replace the demo with your app. All other docs assume this environment.',
+    sections: ['What is this?', 'Clone & install', 'ENV setup', 'Avatar upload', 'Logto Console', 'Replace the demo'],
+  },
   {
     id: 'user-button',
     label: 'UserButton',
@@ -84,6 +99,15 @@ export const NAV_ITEMS: NavItem[] = [
     sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering'],
   },
   {
+    id: 'tabs-and-flows',
+    label: 'Tabs & Flows',
+    code: false,
+    type: 'reference',
+    icon: <DashboardIcon />,
+    desc: 'Deep dive into each dashboard tab: props, hooks (useAvatarUpload, useThemeMode, useLangMode, useOrgMode), server actions, FlowModal architecture, TOTP flows, ContactRow, org switching.',
+    sections: ['Tab overview', 'Profile', 'Preferences', 'Security', 'Organizations', 'Dev'],
+  },
+  {
     id: 'protected',
     label: '<Protected />',
     code: true,
@@ -98,8 +122,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <OrgSwitcherIcon />,
-    desc: 'Dropdown for switching between organisations. Includes "Be yourself (global)" option. Persists to customData.Preferences.asOrg and sessionStorage. Auto-selects when user has a single org.',
-    sections: ['Quick start', 'Props', 'Examples', 'Notes'],
+    desc: 'Dropdown for switching organisations. OrgSwitcherWrapper auto-fetches from Logto. setActiveOrg validates via JWT claims. setAsOrg persists to customData + sessionStorage. Auto-selects single org.',
+    sections: ['Overview', 'OrgSwitcher props', 'Wrapper', 'useOrgMode', 'setActiveOrg', 'Switching flow'],
   },
   {
     id: 'providers',
@@ -116,8 +140,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'config',
     icon: <ThemeIcon />,
-    desc: 'File-based theme system. Each theme is a folder under logto-kit/themes/ containing dark.css, light.css, and index.ts. Activated via THEME env var. useThemeMode() hook available anywhere inside LogtoProvider.',
-    sections: ['Overview', 'Adding a theme', 'useThemeMode hook', 'CSS variables'],
+    desc: 'Dual theme system: JS ThemeSpec for inline React styles + CSS variables for global pseudo-classes. Color tokens, typography, radii, shadows, component styles, tk() helper, CSS variables, and custom theme guide.',
+    sections: ['Dual system', 'Color tokens', 'Typography', 'Component styles', 'tk() aliases', 'Custom themes'],
   },
   {
     id: 'i18n',
@@ -125,8 +149,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'config',
     icon: <I18nIcon />,
-    desc: 'Translation files in logto-kit/locales/. Ships with en-US and ka-GE. LANG_AVAILABLE and LANG_MAIN control which locales are offered and the default. All validation messages are translation-keyed for full coverage.',
-    sections: ['Overview', 'Adding a language', 'useLangMode hook', 'ENV reference'],
+    desc: 'File-based i18n. All locales bundled statically. LANG_AVAILABLE controls the picker UI. useLangMode() for client-side, getTranslations() for server-side. Re-renders on language change without server round-trip.',
+    sections: ['Overview', 'How it works', 'ENV variables', 'Direct imports', 'Custom hook', 'Adding a language'],
   },
   {
     id: 'actions-api',
@@ -149,7 +173,7 @@ export const SECTION_HINTS: SectionHint = {
   Configuration: 'Provider props and environment variables...',
   'Hooks reference': 'useLogto, useThemeMode, useLangMode, useOrgMode...',
   'Adding a theme': 'Create folder → dark.css, light.css, index.ts...',
-  'useThemeMode hook': 'theme, themeColors, setTheme, toggleTheme...',
+  'useThemeMode hook': 'theme, themeSpec, setTheme, toggleTheme...',
   'CSS variables': 'Full list of CSS custom properties...',
   Overview: 'How this system works end-to-end...',
   'Adding a language': 'Create locale file → register → add to LANG_AVAILABLE...',
@@ -159,4 +183,16 @@ export const SECTION_HINTS: SectionHint = {
   'Request schema': '{ token, id, action, payload? }...',
   'Response + error codes': '{ ok, data } or { ok, error, message }...',
   'Registering actions': 'ActionRegistry shape in custom-actions/index.ts...',
+  'Logto Console': 'Regular Web App, M2M App...',
+  'ENV setup': 'Required environment variables...',
+  'Avatar upload': 'Supabase REST API or MinIO/S3...',
+  'Replace the demo': 'Swap DemoApp with your component...',
+  'Tab overview': 'All tabs, hooks, actions summary...',
+  'Security': 'TOTP, backup codes, password, account deletion...',
+  'Dual system': 'JS ThemeSpec + CSS variables working together...',
+  'Color tokens': 'All 17 color tokens with dark/light values...',
+  'Typography': 'Font families, size scale, weight, leading...',
+  'Component styles': 'Surfaces, buttons, badges, code, tabs, sidebar...',
+  'tk() aliases': 'Compact shorthand for ThemeColors...',
+  'Custom themes': 'Create folder, export specs, register, set ENV...',
 };

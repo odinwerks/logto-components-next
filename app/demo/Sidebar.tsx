@@ -309,8 +309,7 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
 
       <div style={footerStyle}>
         <UserCard
-          Size="32px"
-          shape="circle"
+          Size="42px"
         />
       </div>
     </div>
