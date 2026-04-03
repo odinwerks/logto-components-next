@@ -2,8 +2,8 @@
 // i18n System - ENV-based Locale Loading
 // ============================================================================
 // Usage:
-//   LANG_MAIN=en-US (or NEXT_LANG_NAME=en-US) - sets default language
-//   LANG_AVAILABLE=en-US,ka-GE (or NEXT_LANG_AVAILABLE) - available languages
+//   LANG_MAIN=en-US - sets default language
+//   LANG_AVAILABLE=en-US,ka-GE - available languages
 //
 // If not set, falls back to 'en-US'
 // ============================================================================
@@ -11,10 +11,11 @@
 import { enUS } from './en-US';
 import { kaGE } from './ka-GE';
 import { getDefaultLang } from '../logic/i18n';
+import { readEnv } from '../logic/env';
 
 export type LocaleCode = 'en-US' | 'ka-GE';
 
-export interface Translations {
+export interface KitTranslations {
   // Dashboard
   dashboard: {
     loading: string;
@@ -335,8 +336,11 @@ export interface Translations {
   };
 }
 
+// Backward-compatible alias
+export type Translations = KitTranslations;
+
 // Registry of all locales
-const locales: Record<LocaleCode, Translations> = {
+const locales: Record<LocaleCode, KitTranslations> = {
   'en-US': enUS,
   'ka-GE': kaGE,
 };
@@ -353,12 +357,12 @@ export function getMainLocale(): LocaleCode {
 
 /**
  * Get available locales from environment
- * LANG_AVAILABLE and NEXT_LANG_AVAILABLE should be comma-separated list
+ * LANG_AVAILABLE should be a comma-separated list
  */
 export function getAvailableLocales(): LocaleCode[] {
-  const available = process.env.LANG_AVAILABLE || process.env.NEXT_LANG_AVAILABLE || 'en-US';
+  const available = readEnv('LANG_AVAILABLE') || 'en-US';
   const codes = available.split(',').map(l => l.trim() as LocaleCode);
-  
+
   // Filter to only valid locales
   return codes.filter(code => locales[code]);
 }

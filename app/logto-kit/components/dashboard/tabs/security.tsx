@@ -11,6 +11,7 @@ import { fetchUserBadgeData } from '../../../logic/actions';
 import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Download, Phone, Mail, Shield, Lock, Copy, LucideIcon } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
+import { readEnv } from '../../../logic/env';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ interface SecurityTabProps {
   onError: (message: string) => void;
 }
 
-const ISSUER = process.env.NEXT_PUBLIC_MFA_ISSUER || 'Logto';
+const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
 
 // ─── Primitives ────────────────────────────────────────────────────────────────
 
