@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "next-devtools": {
+      "command": ["npx"],
+      "args": ["-y", "next-devtools-mcp@latest"],
+      "enabled": true
+    }
+  }
+}
