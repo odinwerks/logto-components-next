@@ -40,6 +40,8 @@ export interface LogtoProviderProps {
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
+  darkThemeSpec: ThemeSpec;
+  lightThemeSpec: ThemeSpec;
 }
 
 function LogtoProviderContent({
@@ -158,6 +160,8 @@ export function LogtoProvider({
   initialLang,
   onUpdateCustomData,
   onLangChange,
+  darkThemeSpec,
+  lightThemeSpec,
 }: LogtoProviderProps) {
   return (
     <PreferencesProvider
@@ -165,6 +169,8 @@ export function LogtoProvider({
       initialLang={initialLang}
       onUpdateCustomData={onUpdateCustomData}
       onLangChange={onLangChange}
+      darkThemeSpec={darkThemeSpec}
+      lightThemeSpec={lightThemeSpec}
     >
       <LogtoProviderContent
         userData={userData}
