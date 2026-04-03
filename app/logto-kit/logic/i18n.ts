@@ -4,30 +4,17 @@
 // This is the single source of truth for language configuration.
 // ============================================================================
 
+import { readEnv } from './env';
+
 // The canonical set of locale codes the app ships with.
 // When you add a new locale file (e.g. ru-RU.ts), add it here.
 export const AVAILABLE_LOCALES = ['en-US', 'ka-GE'] as const;
 export type LocaleCode = (typeof AVAILABLE_LOCALES)[number];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ENV parsing helpers (work server-side AND with NEXT_PUBLIC_ prefix client-side)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function readEnv(name: string): string | undefined {
-  if (typeof process !== 'undefined' && process.env) {
-    return (
-      process.env[name] ||
-      process.env[`NEXT_PUBLIC_${name}`] ||
-      undefined
-    );
-  }
-  return undefined;
-}
-
 /**
  * Returns the ordered list of supported language codes.
  *
- * Source: `LANG_AVAILABLE` or `NEXT_PUBLIC_LANG_AVAILABLE`
+ * Source: `LANG_AVAILABLE` (also checks `NEXT_PUBLIC_LANG_AVAILABLE` as fallback)
  * Example value: "en-US,ka-GE,ru-RU"
  *
  * Rules:
@@ -65,7 +52,7 @@ export function getSupportedLangs(): string[] {
 /**
  * Returns the default/main language code.
  *
- * Source: `LANG_MAIN` or `NEXT_PUBLIC_LANG_MAIN`
+ * Source: `LANG_MAIN` (also checks `NEXT_PUBLIC_LANG_MAIN` as fallback)
  * Falls back to first entry in LANG_AVAILABLE, then 'en-US'.
  */
 export function getDefaultLang(): string {

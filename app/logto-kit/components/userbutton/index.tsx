@@ -7,14 +7,22 @@ import locales from '../../locales';
 import { useThemeMode } from '../handlers/preferences';
 import { useLogto } from '../handlers/logto-provider';
 import { User } from 'lucide-react';
+import { readEnv } from '../../logic/env';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const getShape = (shapeProp?: string): string => {
   if (shapeProp) return shapeProp;
-  const envShape = process.env.NEXT_PUBLIC_USER_SHAPE;
+  const envShape = readEnv('USER_SHAPE');
   if (envShape) return envShape;
   return 'circle';
+};
+
+const getBorderRadius = (shape: string, rsqRadius: string): string => {
+  if (shape === 'sq') return '0%';
+  if (shape === 'rsq') return rsqRadius;
+  if (shape === 'circle') return '50%';
+  return shape; // custom CSS value (e.g. '8px', '1rem')
 };
 
 const getInitials = (data: UserData): string => {
@@ -110,7 +118,7 @@ function FallbackAvatar({ Size, shape, theme }: { Size: string; shape?: string; 
   return (
     <div style={{
       width: Size, height: Size,
-      borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.5rem' : resolvedShape,
+      borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
       border: `2px solid ${theme.colors.borderColor}`,
       background: theme.colors.bgTertiary,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -143,7 +151,7 @@ function AvatarCore({
   const containerStyle: React.CSSProperties = {
     width: Size,
     height: Size,
-    borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.5rem' : resolvedShape,
+    borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
     border: `2px solid ${theme.colors.borderColor}`,
     background: isShowingAvatar ? 'transparent' : theme.colors.bgTertiary,
     display: 'flex',
@@ -217,7 +225,7 @@ export function UserButton({
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    borderRadius: resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.625rem' : resolvedShape,
+    borderRadius: getBorderRadius(resolvedShape, '0.625rem'),
     transition: 'opacity 0.15s, transform 0.15s',
   };
 
@@ -290,7 +298,7 @@ export function UserBadge({
 export function UserCard({
   Canvas,
   Size = '2.5rem',
-  shape,
+  shape = 'sq',
   userData: providedUserData,
   theme: providedTheme,
   do: customAction,
@@ -300,13 +308,13 @@ export function UserCard({
   const resolvedShape = getShape(shape);
   const c = theme.colors;
   const ty = theme.tokens.typography;
-  const borderRadius = resolvedShape === 'sq' ? '0%' : resolvedShape === 'rsq' ? '0.625rem' : resolvedShape;
+  const borderRadius = resolvedShape === 'sq' ? '0%' : '0.625rem';
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.625rem',
-    padding: '0.4375rem 0.75rem',
+    padding: '0.4375rem',
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
@@ -367,6 +375,7 @@ export function UserCard({
       style={wrapperStyle}
       onClick={handleClick}
       aria-label="Open user dashboard"
+      suppressHydrationWarning
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
       onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)'; }}

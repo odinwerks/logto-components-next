@@ -18,6 +18,8 @@ export const ALL_TABS: TabId[] = [
 ];
 
 // ENV value aliases — lets operators use friendly names
+import { readEnv } from './env';
+
 const TAB_ALIASES: Record<string, TabId> = {
   // profile aliases
   profile: 'profile',
@@ -53,21 +55,10 @@ const TAB_ALIASES: Record<string, TabId> = {
   raw: 'dev',
 };
 
-function readEnv(name: string): string | undefined {
-  if (typeof process !== 'undefined' && process.env) {
-    return (
-      process.env[name] ||
-      process.env[`NEXT_PUBLIC_${name}`] ||
-      undefined
-    );
-  }
-  return undefined;
-}
-
 /**
  * Returns the ordered list of tab IDs to load, based on LOAD_TABS env var.
  *
- * Source: `LOAD_TABS` or `NEXT_PUBLIC_LOAD_TABS`
+ * Source: `LOAD_TABS` (also checks `NEXT_PUBLIC_LOAD_TABS` as fallback)
  * Example: "profile,custom-data,mfa,raw"
  *
  * Rules:

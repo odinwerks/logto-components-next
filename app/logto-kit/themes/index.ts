@@ -108,11 +108,11 @@ export interface ThemeTransitions {
 }
 
 export interface ThemeTokens {
-  colors:      ThemeColors;
-  typography:  ThemeTypography;
-  radii:       ThemeRadii;
-  shadows:     ThemeShadows;
-  transitions: ThemeTransitions;
+  typography:    ThemeTypography;
+  radii:         ThemeRadii;
+  shadows:       ThemeShadows;
+  transitions:   ThemeTransitions;
+  dashboardRadius: string; // outer dashboard container border-radius
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -272,7 +272,7 @@ export interface ThemeSpec {
 
   /**
    * Raw design tokens.
-   * Use tokens.colors, tokens.typography, tokens.radii etc. for building
+   * Use tokens.typography, tokens.radii etc. for building
    * custom one-off styles that are not covered by `components`.
    */
   tokens: ThemeTokens;
@@ -284,28 +284,14 @@ export interface ThemeSpec {
    */
   components: ComponentStyles;
 
-  /**
-   * Convenience shorthand — identical to tokens.colors.
-   * Keeps existing `themeColors.accentBlue` style access patterns working
-   * during migration without extra destructuring.
-   */
   colors: ThemeColors;
 }
+
+import { readEnv } from '../logic/env';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. ENV helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function readEnv(name: string): string | undefined {
-  if (typeof process !== 'undefined' && process.env) {
-    return (
-      process.env[name] ||
-      process.env[`NEXT_PUBLIC_${name}`] ||
-      undefined
-    );
-  }
-  return undefined;
-}
 
 /** Active theme folder name from ENV (default: 'default') */
 export function getThemeName(): string {
@@ -323,9 +309,12 @@ export function getDefaultThemeMode(): 'dark' | 'light' {
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { defaultDarkTheme, defaultLightTheme } from './default';
+import { defaultDarkTheme as prettyDarkTheme, defaultLightTheme as prettyLightTheme } from './pretty';
 
 function resolveTheme(themeName: string, mode: 'dark' | 'light'): ThemeSpec {
   switch (themeName) {
+    case 'pretty':
+      return mode === 'dark' ? prettyDarkTheme : prettyLightTheme;
     case 'default':
     default:
       return mode === 'dark' ? defaultDarkTheme : defaultLightTheme;
