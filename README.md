@@ -305,6 +305,7 @@ The demo app consists of:
 | `docs/providers.tsx` | Providers documentation — LogtoProvider, hooks reference |
 | `docs/themes.tsx` | Theme system documentation — dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation — file-based locales, useLangMode, adding languages |
+| `docs/protected.tsx` | Protected component and API documentation — RBAC, server actions, examples (4 pages) |
 | `docs/actions-api.tsx` | Actions API documentation — endpoint, request schema, error codes |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
@@ -794,7 +795,7 @@ import { Protected } from './logto-kit';
 |------|------|---------|-------------|
 | `perm` | `string \| string[]` | - | Required permission(s) to check |
 | `role` | `string \| string[]` | - | Required role(s) to check |
-| `orgId` | `string \| null \| undefined` | `undefined` | Specific org to check against. If `undefined`, uses user's stored org preference |
+| `orgId` | `string \| null` | `undefined` | Specific org to check against. If omitted, uses user's stored org preference |
 | `requireAll` | `boolean` | `true` | If `true`, ALL permissions/roles required. If `false`, ANY one suffices |
 
 ---
@@ -833,30 +834,31 @@ console.log(result.data);
 | `token` | string | Yes | User's access token |
 | `id` | string | Yes | User ID |
 | `action` | string | Yes | Action name registered in registry |
-| `payload` | unknown | No | Data to pass to the action handler |
+| `payload` | unknown | No | Data to pass to the action handler (defaults to `{}` if omitted) |
 
 **Response:**
 
 ```tsx
-// Success
+// Success (200)
 { ok: true, data: <handler-return-value> }
 
-// Error
+// Error (status varies)
 { ok: false, error: 'ERROR_CODE', message: '...' }
 ```
 
 **Error Codes:**
 
-| Code | Description |
-|------|-------------|
-| `MISSING_FIELDS` | token, id, or action missing |
-| `TOKEN_INVALID` | Token not active, expired, or userId mismatch |
-| `INTROSPECTION_ERROR` | Failed to validate token |
-| `USER_DATA_ERROR` | Failed to fetch user RBAC data |
-| `NO_ORG_SELECTED` | User has no org selected (need org context) |
-| `ORG_NOT_MEMBER` | User not member of selected org |
-| `ACTION_NOT_FOUND` | Action doesn't exist in registry |
-| `PERMISSION_DENIED` | User lacks required permission |
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `MISSING_FIELDS` | 400 | token, id, or action missing |
+| `TOKEN_INVALID` | 400 / 401 | Invalid userId format (400), or token not active, expired, or userId mismatch (401) |
+| `INTROSPECTION_ERROR` | 401 | Failed to validate token |
+| `USER_DATA_ERROR` | 500 | Failed to fetch user RBAC data |
+| `NO_ORG_SELECTED` | 403 | User has no org selected (need org context) |
+| `ORG_NOT_MEMBER` | 403 | User not member of selected org |
+| `ACTION_NOT_FOUND` | 404 | Action doesn't exist in registry |
+| `PERMISSION_DENIED` | 403 | User lacks required permission |
+| `INTERNAL_ERROR` | 500 | Unexpected server error (catch-all) |
 
 ---
 
@@ -894,8 +896,8 @@ export async function getAction(actionName: string): Promise<ActionConfig | unde
 
 **Handler receives:**
 - `userId` - The authenticated user's ID
-- `orgId` - The active organization ID (from `customData.Preferences.asOrg`)
-- `payload` - The payload sent from the client
+- `orgId` - The active organization ID (resolved from `customData.Preferences.asOrg` via `fetchUserRbacData`)
+- `payload` - The payload sent from the client (defaults to `{}` if omitted)
 
 **Role to Permission Mapping:**
 
