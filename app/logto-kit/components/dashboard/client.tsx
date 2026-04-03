@@ -241,19 +241,20 @@ export function DashboardClient({
         fontFamily: 'var(--font-ibm-plex-mono)',
       }}
     >
-      {/* Centered Modal */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '61.875rem',
-          height: '41.25rem',
-          display: 'flex',
-          background: themeColors.bgSecondary,
-          border: `1px solid ${themeColors.borderColor}`,
-          boxShadow: '0 2rem 5.625rem rgba(0,0,0,0.65)',
-          overflow: 'hidden',
-        }}
-      >
+        {/* Centered Modal */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '61.875rem',
+            height: '41.25rem',
+            display: 'flex',
+            background: themeColors.bgSecondary,
+            border: `1px solid ${themeColors.borderColor}`,
+            boxShadow: '0 2rem 5.625rem rgba(0,0,0,0.65)',
+            overflow: 'hidden',
+            borderRadius: themeSpec.tokens.dashboardRadius,
+          }}
+        >
         {/* Sidebar */}
         <div
           style={{
@@ -453,5 +454,3 @@ export function DashboardClient({
   );
 }
 
-// Alias export for modal usage
-export { DashboardClient as UserProfile };

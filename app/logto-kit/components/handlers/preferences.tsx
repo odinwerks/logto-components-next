@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
-import { darkTheme, lightTheme, lightColors, type ThemeSpec, type ThemeColors } from '../../themes';
+import { type ThemeSpec, type ThemeColors } from '../../themes';
+import { defaultDarkTheme, defaultLightTheme } from '../../themes/default';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 
 export type { ThemeColors, ThemeSpec, LocaleCode };
@@ -58,7 +59,6 @@ function setStoredOrg(orgId: string | null) {
 interface ThemeModeContextValue {
   theme: 'dark' | 'light';
   themeSpec: ThemeSpec;
-  themeColors: ThemeColors;
   setTheme: (theme: 'dark' | 'light') => void;
   toggleTheme: () => void;
 }
@@ -122,6 +122,8 @@ export function PreferencesProvider({
   initialOrgId,
   onUpdateCustomData,
   onLangChange,
+  darkThemeSpec,
+  lightThemeSpec,
 }: {
   children: ReactNode;
   initialTheme?: 'dark' | 'light';
@@ -129,6 +131,8 @@ export function PreferencesProvider({
   initialOrgId?: string | null;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
+  darkThemeSpec: ThemeSpec;
+  lightThemeSpec: ThemeSpec;
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
   
@@ -189,14 +193,9 @@ export function PreferencesProvider({
     }
   }, []);
 
-  const themeColors = useMemo(
-    () => (theme === 'dark' ? darkTheme.colors : lightColors),
-    [theme]
-  );
-
   const themeSpec = useMemo(
-    () => (theme === 'dark' ? darkTheme : lightTheme),
-    [theme]
+    () => (theme === 'dark' ? darkThemeSpec : lightThemeSpec),
+    [theme, darkThemeSpec, lightThemeSpec]
   );
 
   const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
@@ -255,11 +254,11 @@ export function PreferencesProvider({
 
   const value = useMemo(
     () => ({
-      theme: { theme, themeSpec, themeColors, setTheme, toggleTheme },
+      theme: { theme, themeSpec, setTheme, toggleTheme },
       lang: { lang, setLang },
       org: { asOrg, setAsOrg },
     }),
-    [theme, themeSpec, themeColors, setTheme, toggleTheme, lang, setLang, asOrg, setAsOrg]
+    [theme, themeSpec, setTheme, toggleTheme, lang, setLang, asOrg, setAsOrg]
   );
 
   return (
@@ -284,8 +283,7 @@ export function useThemeMode(): ThemeModeContextValue {
   if (typeof window === 'undefined') {
     return {
       theme: 'dark',
-      themeSpec: darkTheme,
-      themeColors: darkTheme.colors,
+      themeSpec: defaultDarkTheme,
       setTheme: () => {},
       toggleTheme: () => {},
     };
@@ -295,8 +293,7 @@ export function useThemeMode(): ThemeModeContextValue {
   if (storedTheme) {
     return {
       theme: storedTheme,
-      themeSpec: storedTheme === 'dark' ? darkTheme : lightTheme,
-      themeColors: storedTheme === 'dark' ? darkTheme.colors : lightColors,
+      themeSpec: storedTheme === 'dark' ? defaultDarkTheme : defaultLightTheme,
       setTheme: () => {},
       toggleTheme: () => {},
     };
@@ -305,8 +302,7 @@ export function useThemeMode(): ThemeModeContextValue {
   const autoTheme = getAutoDetectedTheme();
   return {
     theme: autoTheme,
-    themeSpec: autoTheme === 'dark' ? darkTheme : lightTheme,
-    themeColors: autoTheme === 'dark' ? darkTheme.colors : lightColors,
+    themeSpec: autoTheme === 'dark' ? defaultDarkTheme : defaultLightTheme,
     setTheme: () => {},
     toggleTheme: () => {},
   };

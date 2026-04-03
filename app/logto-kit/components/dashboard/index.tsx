@@ -1,5 +1,5 @@
 import { fetchDashboardData } from '../../logic/actions';
-import { DashboardClient, UserProfile } from './client';
+import { DashboardClient } from './client';
 import { PreferencesProvider } from '../handlers/preferences';
 import { UserDataProvider } from '../handlers/user-data-context';
 import {
@@ -26,7 +26,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { getDefaultThemeMode, darkTheme } from '../../themes';
+import { getThemeSpec, getDefaultThemeMode } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -45,6 +45,9 @@ export async function Dashboard() {
 
   // ── Theme default from ENV ─────────────────────────────────────────────────
   const defaultThemeMode = getDefaultThemeMode();
+  const darkThemeSpec = getThemeSpec('dark');
+  const lightThemeSpec = getThemeSpec('light');
+  const errorTheme = darkThemeSpec;
 
   // ── Fetch user data ────────────────────────────────────────────────────────
   const result = await fetchDashboardData();
@@ -54,36 +57,36 @@ export async function Dashboard() {
       redirect('/callback');
     }
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: darkTheme.colors.bgPage,
-          color: darkTheme.colors.textPrimary,
-          fontFamily: 'monospace',
-          padding: '1.25rem',
-        }}
-      >
         <div
           style={{
-            background: darkTheme.colors.bgSecondary,
-            border: `1px solid ${darkTheme.colors.borderColor}`,
-            borderRadius: '0.5rem',
-            padding: '1.875rem',
-            maxWidth: '31.25rem',
-            textAlign: 'center',
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: errorTheme.colors.bgPage,
+            color: errorTheme.colors.textPrimary,
+            fontFamily: 'monospace',
+            padding: '1.25rem',
           }}
         >
-          <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
-            {translations.dashboard.error}
-          </h1>
-          <p style={{ fontSize: '0.75rem', color: darkTheme.colors.textTertiary }}>
-            {'error' in result ? result.error : translations.dashboard.loadFailed}
-          </p>
+          <div
+            style={{
+              background: errorTheme.colors.bgSecondary,
+              border: `1px solid ${errorTheme.colors.borderColor}`,
+              borderRadius: '0.5rem',
+              padding: '1.875rem',
+              maxWidth: '31.25rem',
+              textAlign: 'center',
+            }}
+          >
+            <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
+              {translations.dashboard.error}
+            </h1>
+            <p style={{ fontSize: '0.75rem', color: errorTheme.colors.textTertiary }}>
+              {'error' in result ? result.error : translations.dashboard.loadFailed}
+            </p>
+          </div>
         </div>
-      </div>
     );
   }
 
@@ -96,7 +99,7 @@ export async function Dashboard() {
 
   return (
     <UserDataProvider userData={result.userData}>
-      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData}>
+      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData} darkThemeSpec={darkThemeSpec} lightThemeSpec={lightThemeSpec}>
         <DashboardClient
           initialData={{
             userData: result.userData,
@@ -132,5 +135,3 @@ export async function Dashboard() {
   );
 }
 
-// Re-export UserProfile for modal usage
-export { UserProfile };

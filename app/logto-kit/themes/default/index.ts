@@ -156,11 +156,11 @@ function buildDefaultTheme(mode: 'dark' | 'light'): ThemeSpec {
   };
 
   const tokens: ThemeTokens = {
-    colors:      c,
     typography:  ty,
     radii:       r,
     shadows,
     transitions: tr,
+    dashboardRadius: '0',
   };
 
   // Alias shortcuts — used only within this factory
