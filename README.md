@@ -9,14 +9,14 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 - **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
-- **Theme System**: User-created themes with ENV-selected activation and default theme mode
+- **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
-- **MFA Management**: TOTP enrollment, backup codes generation, maybe of I have enough time I'll add WebAuthn too. 
+- **MFA Management**: TOTP enrollment and backup codes generation. WebAuthn support planned for future release. 
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route.
-- **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get choked at the request layer if problematic.
+- **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get caught at the request layer if problematic.
 
 ## Project Structure
 
@@ -41,19 +41,19 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 8-tab navigation definitions
+│   │   ├── nav-data.tsx             # 10-tab navigation definitions
 │   │   ├── Particles.tsx            # Particle effect background
 │   │   ├── types.ts                 # Type definitions
 │   │   ├── docs/                    # Per-tab documentation files (TSX)
+│   │   │   ├── getting-started.tsx  # Getting started guide
 │   │   │   ├── user-button.tsx      # UserButton doc — props, notes, 6 example cards
 │   │   │   ├── dashboard.tsx        # Dashboard doc — internals, providers, rendering
-│   │   │   └── dashboard/           # Per-dashboard-tab doc files
-│   │   │       ├── profile.tsx      # Avatar, name editing
-│   │   │       ├── preferences.tsx  # Theme, language switching
-│   │   │       ├── security.tsx     # MFA, backup codes, account deletion (detailed)
-│   │   │       ├── identities.tsx   # Social provider display
-│   │   │       ├── organizations.tsx # Org switching, roles
-│   │   │       └── dev.tsx          # Token, session, cookies
+│   │   │   ├── tabs-and-flows.tsx   # Tabs and flows documentation
+│   │   │   ├── org-switcher.tsx     # OrgSwitcher doc
+│   │   │   ├── providers.tsx        # Providers doc
+│   │   │   ├── themes.tsx           # Theme system doc
+│   │   │   ├── i18n.tsx             # i18n doc
+│   │   │   └── components/          # (empty)
 │   │   └── utils/                   # Shared doc utilities
 │   │       ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
 │   │       └── Section.tsx          # SectionContainer + Section (multi-page docs)
@@ -92,9 +92,8 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── actions/
 │   │   │   │   └── set-active-org.ts    # Set active org
 │   │   │   ├── OrgSwitcher.tsx          # Org selector dropdown
-│   │   │   ├── OrgSwitcherWrapper.tsx   # Server wrapper
+│   │   │   ├── org-switcher-wrapper.tsx # Server wrapper
 │   │   │   ├── Protected.tsx            # Route protection component
-│   │   │   ├── token-validator.ts       # JWT validation
 │   │   │   ├── types.ts                 # TypeScript types
 │   │   │   └── index.ts                # Exports
 │   │   ├── index.ts
@@ -159,7 +158,7 @@ LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
 LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 ```
 
-You have to set this up for pfp uploads and account deletion to work. Also to retreeve user data. 
+You have to set this up for pfp uploads and account deletion to work. Also to retrieve user data. 
 
 ### Tab Configuration
 
@@ -168,26 +167,20 @@ You have to set this up for pfp uploads and account deletion to work. Also to re
 # Allowed: profile, preferences, security, identities, organizations, dev
 # Aliases: personal, user → profile | prefs, custom-data, custom → preferences | mfa, 2fa, totp → security | identity → identities | orgs, org → organizations | debug, data, raw → dev
 LOAD_TABS=profile,preferences,security,identities,organizations,dev
-# Also reads: NEXT_PUBLIC_LOAD_TABS
 ```
 
 ### Theme Configuration
 
 ```env
 # Theme folder name (default: default)
+# Must match a folder in app/logto-kit/themes/ AND be registered in themes/index.ts
 THEME=default
-# Also reads: NEXT_PUBLIC_THEME
 
 # Default theme mode: dark or light (default: dark)
 DEFAULT_THEME_MODE=dark
-# Also reads: NEXT_PUBLIC_DEFAULT_THEME_MODE
-
-# Available themes (comma-separated) - for future multi-theme support
-THEMES_AVAILABLE=default
-NEXT_THEMES_AVAILABLE=default
 
 # User avatar/badge shape: circle, sq (square), rsq (rounded square), or custom border-radius (e.g., 0.5rem, 4px)
-NEXT_PUBLIC_USER_SHAPE=circle
+USER_SHAPE=circle
 ```
 
 ### MFA Configuration
@@ -195,7 +188,7 @@ NEXT_PUBLIC_USER_SHAPE=circle
 ```env
 # MFA Configuration
 # Name that will show up in the TOTP QR code issuer field
-NEXT_PUBLIC_MFA_ISSUER=YourAppName
+MFA_ISSUER=YourAppName
 ```
 
 ### i18n Configuration
@@ -203,11 +196,9 @@ NEXT_PUBLIC_MFA_ISSUER=YourAppName
 ```env
 # Default language
 LANG_MAIN=en-US
-NEXT_LANG_NAME=en-US
 
 # Available languages
 LANG_AVAILABLE=en-US,ka-GE
-NEXT_LANG_AVAILABLE=en-US,ka-GE
 ```
 
 ### S3 Storage (for Avatar Upload)
@@ -231,39 +222,44 @@ S3_REGION=auto
 
 Themes are user-created and ENV-selected. Each theme lives in its own folder under `app/logto-kit/themes/` and is activated by setting the `THEME` environment variable.
 
+> **Important:** Adding a theme requires a code change. You must register the theme in `themes/index.ts` — setting `THEME` in `.env` alone is not enough.
+
 Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 
 - `dark.css` - Dark theme variables
 - `light.css` - Light theme variables
-- `index.ts` - Theme metadata
+- `index.ts` - Theme metadata and exported ThemeSpec objects
 
 ### Adding a New Theme
 
 1. Create a new folder in `app/logto-kit/themes/{your-theme}/`
 2. Add `dark.css` and `light.css` with CSS variables
-3. Add `index.ts` with theme metadata
-4. Set `THEME=your-theme` in your `.env`
+3. Add `index.ts` that exports `{ yourThemeDarkTheme, yourThemeLightTheme }` as `ThemeSpec` objects
+4. Import and register your theme in `app/logto-kit/themes/index.ts`:
+   ```ts
+   import { yourThemeDarkTheme, yourThemeLightTheme } from './your-theme';
 
-### Multiple Theme Support
-
-The system supports multiple themes via `THEMES_AVAILABLE`:
-
-```env
-THEMES_AVAILABLE=default,custom
-NEXT_THEMES_AVAILABLE=default,custom
-```
-
-Each theme folder in `app/logto-kit/themes/` provides its own dark.css, light.css, and index.ts.
+   function resolveTheme(themeName: string, mode: 'dark' | 'light'): ThemeSpec {
+     switch (themeName) {
+       case 'your-theme':
+         return mode === 'dark' ? yourThemeDarkTheme : yourThemeLightTheme;
+       case 'default':
+       default:
+         return mode === 'dark' ? defaultDarkTheme : defaultLightTheme;
+     }
+   }
+   ```
+5. Set `THEME=your-theme` in your `.env`
 
 ### User Shape Configuration
 
 Control the avatar/badge shape across the dashboard:
 
 ```env
-NEXT_PUBLIC_USER_SHAPE=circle    # Circular (default)
-NEXT_PUBLIC_USER_SHAPE=sq        # Square
-NEXT_PUBLIC_USER_SHAPE=rsq       # Rounded square
-NEXT_PUBLIC_USER_SHAPE=0.5rem   # Custom border-radius
+USER_SHAPE=circle    # Circular (default)
+USER_SHAPE=sq        # Square
+USER_SHAPE=rsq       # Rounded square
+USER_SHAPE=0.5rem   # Custom border-radius
 ```
 
 ## Demo App
@@ -272,12 +268,14 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 8 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
+| Getting Started | guide | Clone, configure, set up avatar upload, Logto Console setup |
 | UserButton | component | Clickable avatar button, badge, and card with props table and live examples |
 | Dashboard | component | Full user management dashboard modal |
+| Tabs & Flows | reference | Deep dive into each dashboard tab: props, hooks, actions, FlowModal architecture |
 | `<Protected />` | component | Server component for permission/role-gated UI |
 | OrgSwitcher | component | Organization selector dropdown |
 | Providers | setup | LogtoProvider, useLogto(), context hooks |
@@ -285,7 +283,7 @@ The demo app (`app/demo/`) is a standalone application with 8 sidebar tabs — o
 | i18n | config | Translation files, language switching |
 | Actions API | api | Permission-gated POST /api/protected endpoint |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **Security tab** has a dedicated detailed doc (3 pages) explaining FlowModal architecture, TOTP enrollment, backup codes, and account deletion. The remaining tabs show placeholder content until their docs are written.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Identities, Organizations, and Dev tabs.
 
 ### How It Works
 
@@ -297,16 +295,17 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 8-tab navigation definitions with section hints |
+| `nav-data.tsx` | 10-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
+| `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
 | `docs/dashboard.tsx` | Dashboard documentation — Internals, Provider Sync, Tab Structure, Rendering (3 pages) |
-| `docs/dashboard/profile.tsx` | Profile tab doc — Avatar upload, name editing, refresh flow |
-| `docs/dashboard/preferences.tsx` | Preferences tab doc — Theme/language switching, provider sync |
-| `docs/dashboard/security.tsx` | Security tab doc — FlowModal, TOTP, backup codes, account deletion (detailed, 3 pages) |
-| `docs/dashboard/identities.tsx` | Identities tab doc — Social provider display |
-| `docs/dashboard/organizations.tsx` | Organizations tab doc — Org switching, roles |
-| `docs/dashboard/dev.tsx` | Dev tab doc — Token, raw JSON, session actions |
+| `docs/tabs-and-flows.tsx` | Detailed tabs documentation — props, hooks, actions for all dashboard tabs (5 pages) |
+| `docs/org-switcher.tsx` | OrgSwitcher documentation — props, wrapper, useOrgMode, setActiveOrg |
+| `docs/providers.tsx` | Providers documentation — LogtoProvider, hooks reference |
+| `docs/themes.tsx` | Theme system documentation — dual system, color tokens, custom themes |
+| `docs/i18n.tsx` | i18n documentation — file-based locales, useLangMode, adding languages |
+| `docs/actions-api.tsx` | Actions API documentation — endpoint, request schema, error codes |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
 
@@ -352,7 +351,7 @@ useEffect(() => {
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 8 navigation tabs covering every major logto-kit feature
+- A sidebar with 10 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -374,7 +373,7 @@ A syntax-highlighted code block component using VSCode Dark+ color scheme. Inclu
 import CodeBlock from '../utils/CodeBlock';
 
 // Basic
-<CodeBlock code={`<UserButton Size="48px" />} />
+<CodeBlock code={`<UserButton Size="48px" />`} />
 
 // With title bar
 <CodeBlock title="Import" code={`import { UserButton } from './logto-kit';`} />
@@ -425,7 +424,7 @@ Any component can use the theme context:
 import { useThemeMode } from './logto-kit';
 
 function MyComponent() {
-  const { theme, themeColors, setTheme, toggleTheme } = useThemeMode();
+  const { theme, themeSpec, setTheme, toggleTheme } = useThemeMode();
   
   return (
     <button onClick={toggleTheme}>
@@ -437,8 +436,7 @@ function MyComponent() {
 
 The hook returns:
 - `theme` - `'dark' | 'light'`
-- `themeSpec` - Full ThemeSpec object with colors, components, tokens
-- `themeColors` - ThemeColors object with all color values
+- `themeSpec` - Full ThemeSpec object with colors, components, tokens. Access colors via `themeSpec.colors`.
 - `setTheme(theme)` - Set specific theme
 - `toggleTheme()` - Toggle between dark/light
 
@@ -471,6 +469,8 @@ The hook returns:
   initialLang="en-US"
   onUpdateCustomData={async (data) => { /* save to Logto */ }}
   onLangChange={() => { /* called when language changes */ }}
+  darkThemeSpec={defaultDarkTheme}
+  lightThemeSpec={defaultLightTheme}
 />
 ```
 
@@ -478,8 +478,11 @@ The hook returns:
 |------|------|---------|-------------|
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
+| `initialOrgId` | `string \| null` | `null` | Initial organization ID |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist preferences to Logto customData |
 | `onLangChange` | `() => void` | - | Optional callback fired when language changes |
+| `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
+| `lightThemeSpec` | `ThemeSpec` | — | **Required.** Light theme specification object |
 
 When `onUpdateCustomData` is provided, theme and language changes are automatically synced to Logto for cross-device persistence.
 
@@ -528,12 +531,19 @@ The codebase uses a nested provider structure where each provider wraps its chil
 
 ```
 LogtoProvider
-├── UserDataProvider    (provides user data)
+├── PreferencesProvider  (theme, language, org state)
+│   └── LogtoProviderContent
+│       └── UserDataProvider
+│           └── children
+```
+
+When using the `Dashboard` component standalone (outside `LogtoProvider`), it creates its own provider tree:
+
+```
+Dashboard (Server Component)
+├── UserDataProvider
 │   └── PreferencesProvider
-│       └── PreferencesContext
-│           ├── ThemeModeContext    (theme state)
-│           ├── LangModeContext     (language state)
-│           └── OrgModeContext      (organization state)
+│       └── DashboardClient
 ```
 
 #### LogtoProvider
@@ -552,21 +562,26 @@ function MyComponent() {
   userData={userData} 
   accessToken={token}
   initialTheme="dark"
-  initialLang="en"
+  initialLang="en-US"
   onUpdateCustomData={updateCustomData}
+  darkThemeSpec={defaultDarkTheme}
+  lightThemeSpec={defaultLightTheme}
 >
   <MyComponent />
 </LogtoProvider>
 ```
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `userData` | `UserData` | The user data object |
-| `accessToken` | `string` | JWT or opaque access token |
-| `initialTheme` | `'dark' \| 'light'` | Initial theme (default: 'dark') |
-| `initialLang` | `string` | Initial language code |
-| `onUpdateCustomData` | `(data) => Promise<void>` | Callback for updating user custom data |
-| `onLangChange` | `() => void` | Callback fired when language changes |
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `userData` | `UserData` | — | The user data object |
+| `accessToken` | `string` | — | JWT or opaque access token |
+| `dashboard` | `ReactNode` | - | Optional dashboard modal content |
+| `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
+| `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
+| `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data |
+| `onLangChange` | `() => void` | - | Callback fired when language changes |
+| `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
+| `lightThemeSpec` | `ThemeSpec` | — | **Required.** Light theme specification object |
 
 #### useLogto Hook
 
@@ -655,7 +670,7 @@ All three components share the same props:
 |------|------|---------|-------------|
 | `Canvas` | `'Avatar' \| 'Initials'` | `'Initials'` | Display mode |
 | `Size` | `string` | `'6.25rem'` (Button/Badge), `'2.5rem'` (Card) | CSS size (e.g., `'48px'`, `'3rem'`) |
-| `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape (falls back to `NEXT_PUBLIC_USER_SHAPE` ENV) |
+| `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape (falls back to `USER_SHAPE` ENV) |
 | `userData` | `UserData` | - | User data (optional, uses provider context if not provided) |
 | `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected from provider if not provided) |
 | `do` | `() => void` | - | Custom click handler (Button and Card only; defaults to `openDashboard`) |
@@ -737,15 +752,10 @@ import {
   validateUrl,
   validateE164,
   sanitizeLogtoError,
-
-  // Token validation
-  validateToken,
-  invalidateJWKS,
 } from './logto-kit';
 
 import type {
   OrganizationData,
-  ValidatedTokenClaims,
   ValidationResult,
 } from './logto-kit';
 ```
@@ -913,9 +923,19 @@ import { OrgSwitcher } from './logto-kit';
     { id: 'org-1', name: 'Acme Corp' },
     { id: 'org-2', name: 'Beta Inc' }
   ]}
+  currentOrgId="org-1"
   theme={themeSpec}
 />
 ```
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `organizations` | `OrganizationData[]` | — | List of organizations to display |
+| `currentOrgId` | `string` | - | Currently active organization ID |
+| `theme` | `ThemeSpec` | — | Theme specification for styling |
+| `t` | `{ organizations?: { beYourself?: string } }` | - | Optional translations |
 
 **Features:**
 - Shows "Be yourself (global)" option to exit org context
@@ -927,7 +947,7 @@ import { OrgSwitcher } from './logto-kit';
 
 ### setActiveOrg() - Server Action
 
-Validates and sets the active organization.
+Validates org membership. Does NOT persist the selection — use `useOrgMode().setAsOrg()` for that.
 
 ```tsx
 import { setActiveOrg } from './logto-kit';
@@ -1022,8 +1042,8 @@ ENDPOINT=https://your-tenant.logto.app
 BASE_URL=http://localhost:3000
 COOKIE_SECRET=your_cookie_secret
 
-# Scopes (must include org scopes)
-SCOPES=profile,organizations,organization_roles
+# Scopes (must include org scopes ON TOP of the required ones)
+SCOPES=openid,profile,custom_data,email,phone,identities,organizations,organization_roles
 
 # M2M for Management API
 LOGTO_M2M_APP_ID=your_m2m_app_id
@@ -1079,7 +1099,7 @@ export default function AdminPage() {
 | "User not in organization" | User must be a member of the org in Logto |
 | Permission always returns false | Check: 1) User has the role in Logto Console, 2) Role name matches exactly in ROLE_PERMISSION_MAP, 3) Management API token is configured |
 | Org switcher not appearing | User needs multiple organizations in their Logto claims |
-| "MISSING_PERM" / "PERMISSION_DENIED" | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
+| "PERMISSION_DENIED" | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
 | "NO_ORG_SELECTED" | User must select an organization before calling Protected Actions API |
 | "ORG_NOT_MEMBER" | Selected org not in user's organization list |
 | "ACTION_NOT_FOUND" | Action not registered in `custom-actions/index.ts` |
@@ -1212,7 +1232,7 @@ This means:
 
 Both providers expose hooks that child components can use:
 - `useUserDataContext()` - Access user data
-- `useThemeMode()` - Access theme and themeColors
+- `useThemeMode()` - Access theme and themeSpec (colors via themeSpec.colors)
 - `useLangMode()` - Access current language
 
 The preferences tab no longer needs props passed to it - it uses the hooks directly!
@@ -1228,7 +1248,9 @@ The tab system is pretty simple - look at existing tabs for examples.
 
 1. Create a folder in `app/logto-kit/themes/{your-theme}/`
 2. Add `dark.css` and `light.css` with your CSS variables
-3. Set `THEME=your-theme` in `.env`
+3. Add `index.ts` exporting `{ yourThemeDarkTheme, yourThemeLightTheme }` as `ThemeSpec` objects
+4. **Register the theme in `app/logto-kit/themes/index.ts`** — import your exports and add a case to `resolveTheme()`
+5. Set `THEME=your-theme` in `.env`
 
 ### Adding a Language
 
@@ -1278,6 +1300,9 @@ To ensure type safety and proper validation in your Logto application, update yo
         "lang": {
           "type": "string",
           "pattern": "^[a-zA-Z]{2}-[A-Z]{2}$"
+        },
+        "asOrg": {
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -1612,7 +1637,6 @@ npm run build
 - [x] Protected component - Complete (<Protected> server component)
 - [x] Protected Actions API - Complete (POST /api/protected endpoint)
 - [x] RBAC validation - Complete (validateRbac, checkPermissionInOrg, checkRoleInOrg)
-- [x] Token validation - Complete (validateToken with jose JWKS)
 - [ ] Fine-tune ROLE_PERMISSION_MAP for your needs
 - [ ] Extensive testing before production use
 
