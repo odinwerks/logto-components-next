@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logtoConfig } from '../../logto';
+import { getLogtoConfig } from '../../logto';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   if (force) {
     console.log('[CookieKiller] Force flag set, signing out from Logto...');
     const { signOut } = await import('@logto/next/server-actions');
-    await signOut(logtoConfig);
+    await signOut(getLogtoConfig());
   }
 
   return response;

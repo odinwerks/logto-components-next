@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import ContentArea from './ContentArea';
 import { NAV_ITEMS } from './nav-data';
 
+
 const appStyle: React.CSSProperties = {
   display: 'flex',
   height: '100vh',

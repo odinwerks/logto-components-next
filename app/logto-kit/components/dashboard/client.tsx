@@ -184,6 +184,11 @@ export function DashboardClient({
     setAccessToken(initialData.accessToken);
   }, [initialData.userData, initialData.accessToken]);
 
+  // ── Organization Data ─────────────────────────────────────────────────────
+  // Organization roles and organizations now come from claims in dashboard data
+
+
+
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
 

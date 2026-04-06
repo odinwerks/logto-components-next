@@ -1,5 +1,5 @@
 import { getLogtoContext } from '@logto/next/server-actions';
-import { logtoConfig } from '../../logto';
+import { getLogtoConfig } from '../../logto';
 import { OrgSwitcher } from './OrgSwitcher';
 import type { OrganizationData } from './types';
 import type { ThemeSpec } from '../themes';
@@ -11,7 +11,7 @@ interface OrgSwitcherWrapperProps {
 }
 
 export async function OrgSwitcherWrapper({ theme, t }: OrgSwitcherWrapperProps) {
-  const { claims, isAuthenticated, userInfo } = await getLogtoContext(logtoConfig, {
+  const { claims, isAuthenticated, userInfo } = await getLogtoContext(getLogtoConfig(), {
     fetchUserInfo: true,
   });
 

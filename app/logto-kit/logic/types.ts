@@ -45,6 +45,7 @@ export interface UserData {
   updatedAt: string | number;
   organizations?: Array<{ id: string; name: string }>;
   organizationRoles?: Array<{ id: string; name: string; organizationId: string }>;
+  organizationPermissions?: string[]; // Permission scopes from organization token
 }
 
 // ============================================================================
@@ -143,7 +144,6 @@ export interface OidcIntrospectionResponse {
   iss?: string;
   token_type?: string;
   organization_id?: string;
-  organization_roles?: string[];
 }
 
 // ============================================================================

@@ -10,6 +10,7 @@ const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType 
   'user-button': () => import('./docs/user-button'),
   'dashboard': () => import('./docs/dashboard'),
   'tabs-and-flows': () => import('./docs/tabs-and-flows'),
+  'protected': () => import('./docs/protected'),
   'org-switcher': () => import('./docs/org-switcher'),
   'providers': () => import('./docs/providers'),
   'theme': () => import('./docs/themes'),

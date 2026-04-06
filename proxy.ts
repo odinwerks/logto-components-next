@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
-import { logtoConfig } from './app/logto';
+import { getLogtoConfig } from './app/logto';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 
@@ -11,7 +11,7 @@ const PUBLIC_PATHS = [
   '/api/wipe',
 ];
 
-const client = new LogtoClient(logtoConfig);
+const getClient = () => new LogtoClient(getLogtoConfig());
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
 
   try {
     // Auth check - use fetchUserInfo to detect deleted accounts
-    const context = await client.getLogtoContext(request, { fetchUserInfo: true });
+    const context = await getClient().getLogtoContext(request, { fetchUserInfo: true });
 
     if (!context.isAuthenticated) {
       // Not authenticated - redirect to sign-in

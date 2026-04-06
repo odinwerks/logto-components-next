@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { KeyRound, Braces, Cookie, LogOut } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
+import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
 
 interface DevTabProps {
   userData:    UserData;
@@ -17,6 +19,31 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
   const cs = theme.components;
   const c  = theme.colors;
   const ty = theme.tokens.typography;
+
+  // Load organization permissions client-side
+  const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const customData = userData.customData as Record<string, unknown> | undefined;
+    const prefs = customData?.Preferences as { asOrg?: string | null } | undefined;
+    const activeOrgId = prefs?.asOrg;
+    if (activeOrgId && loadedPermissions.length === 0) {
+      loadOrganizationPermissions(activeOrgId)
+        .then(permissions => {
+          setLoadedPermissions(permissions);
+        })
+        .catch(error => {
+          console.error('[DevTab] Failed to load permissions:', error);
+          setLoadedPermissions([]);
+        });
+    }
+  }, [userData.customData, loadedPermissions.length]);
+
+  // Enhanced userData with loaded permissions for display
+  const enhancedUserData = {
+    ...userData,
+    organizationPermissions: loadedPermissions.length > 0 ? loadedPermissions : userData.organizationPermissions,
+  };
 
   // ── Section wrapper (card with icon+label header) ───────────────────────
   function Section({
@@ -65,7 +92,7 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
 
       {/* Raw JSON */}
       <Section icon={<Braces size={12} strokeWidth={2} />} label={t.raw.dataTitle}>
-        <CodeBlock data={userData} theme={theme} maxHeight="20rem" t={t} />
+        <CodeBlock data={enhancedUserData} theme={theme} maxHeight="20rem" t={t} />
       </Section>
 
       {/* Cookie actions */}

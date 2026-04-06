@@ -1,6 +1,6 @@
 'use server';
 
-import { logtoConfig } from '../../logto';
+import { getLogtoConfig } from '../../logto';
 import type { OidcIntrospectionResponse } from './types';
 
 /**
@@ -9,7 +9,7 @@ import type { OidcIntrospectionResponse } from './types';
  * @throws Error if endpoint is missing from configuration.
  */
 export async function getCleanEndpoint(): Promise<string> {
-  const endpoint = logtoConfig.endpoint;
+  const endpoint = getLogtoConfig().endpoint;
   if (!endpoint) {
     throw new Error(
       'ENDPOINT configuration is missing! ' +
@@ -95,3 +95,5 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     );
   }
 }
+
+

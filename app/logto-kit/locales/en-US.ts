@@ -211,7 +211,7 @@ export const enUS: Translations = {
     idLabel: 'ID',
     organizationLabel: 'Organization',
     roleIdLabel: 'Role ID',
-    rawTitle: 'organizations & organizationRoles',
+    rawTitle: 'organizations & roles',
     rawHeading: 'RAW ORGANIZATIONS DATA',
     active: '(active)',
     beYourself: 'Be yourself (global)',
