@@ -49,6 +49,9 @@ next-env.d.ts
 *.swp
 *.swo
 
+# Project tooling
+.kilo/
+
 # Logs
 logs
 *.log
