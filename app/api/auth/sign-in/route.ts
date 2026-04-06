@@ -1,6 +1,6 @@
 import { signIn } from '@logto/next/server-actions';
-import { logtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../../logto';
 
 export async function GET() {
-  await signIn(logtoConfig);
+  await signIn(getLogtoConfig());
 }

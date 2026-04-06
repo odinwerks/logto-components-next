@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
@@ -8,6 +8,7 @@ import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
 import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
 import { useOrgMode } from '../../handlers/preferences';
+import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
 
 interface OrganizationsTabProps {
   userData: UserData;
@@ -23,11 +24,35 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState<string | null>(null);
-
-  const organizations     = userData.organizations      || [];
-  const organizationRoles = userData.organizationRoles  || [];
+  const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
 
   const activeOrgId = asOrg ?? currentOrgId;
+
+  const organizations       = userData.organizations        || [];
+  // Only show roles for the active organization (security: don't show org roles when "be yourself")
+  const organizationRoles   = activeOrgId ? (userData.organizationRoles || []).filter(role => role.organizationId === activeOrgId) : [];
+  // Use loaded permissions if available, otherwise fall back to userData
+  const organizationPermissions = loadedPermissions.length > 0 ? loadedPermissions : (userData.organizationPermissions || []);
+
+  // Load permissions for active organization, clear when switching to "be yourself"
+  useEffect(() => {
+    if (activeOrgId) {
+      // User is acting as an organization - load permissions
+      if (loadedPermissions.length === 0) {
+        loadOrganizationPermissions(activeOrgId)
+          .then(permissions => {
+            setLoadedPermissions(permissions);
+          })
+          .catch(error => {
+            console.error('[OrganizationsTab] Failed to load permissions:', error);
+            setLoadedPermissions([]);
+          });
+      }
+    } else {
+      // User is in "be yourself" mode - clear all organization permissions
+      setLoadedPermissions([]);
+    }
+  }, [activeOrgId]);
 
   const handleOrgClick = async (orgId: string) => {
     if (orgId === activeOrgId) return;
@@ -134,14 +159,22 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
       </div>
 
       {/* Roles */}
-      <p style={cs.text.sectionLabel}>{t.organizations.orgRoles}</p>
+      <p style={cs.text.sectionLabel}>{t.organizations.orgRoles || 'ORGANIZATION ROLES'}</p>
       <div style={cs.surfaces.well}>
         <p style={{ ...cs.text.mutedMono, marginBottom: '0.75rem' }}>
-          {t.organizations.rolesDescription}
+          {activeOrgId
+            ? (t.organizations.rolesDescription || 'Your roles within the active organization.')
+            : 'Select an organization above to see your roles.'
+          }
         </p>
 
         {organizationRoles.length === 0 ? (
-          <div style={cs.surfaces.emptyState}>{t.organizations.noRoles}</div>
+          <div style={cs.surfaces.emptyState}>
+            {activeOrgId
+              ? (t.organizations.noRoles || 'No roles assigned in this organization')
+              : 'Select an organization to see roles'
+            }
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {organizationRoles.map((role, index) => {
@@ -160,10 +193,10 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
                     {role.name}
                   </div>
                   <div style={{ color: c.textSecondary, fontSize: ty.size.micro, fontFamily: ty.fontMono }}>
-                    {t.organizations.organizationLabel}: {org?.name || role.organizationId}
+                    {t.organizations.organizationLabel || 'Organization'}: {org?.name || role.organizationId}
                   </div>
                   <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
-                    {t.organizations.roleIdLabel}: {role.id}
+                    {t.organizations.roleIdLabel || 'Role ID'}: {role.id}
                   </div>
                 </div>
               );
@@ -172,15 +205,40 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
         )}
       </div>
 
-      {/* Raw JSON */}
-      <p style={cs.text.sectionLabel}>{t.organizations.rawHeading}</p>
+      {/* Permissions */}
+      <p style={cs.text.sectionLabel}>{t.organizations.orgs || 'ORGANIZATIONS'} PERMISSIONS</p>
       <div style={cs.surfaces.well}>
-        <CodeBlock
-          title={t.organizations.rawTitle}
-          data={{ organizations, organizationRoles }}
-          theme={theme}
-          t={t}
-        />
+        <p style={{ ...cs.text.mutedMono, marginBottom: '0.75rem' }}>
+          {activeOrgId
+            ? 'Organization-specific permissions from organization tokens.'
+            : 'Select an organization above to see your permissions.'
+          }
+        </p>
+
+        {organizationPermissions.length === 0 ? (
+          <div style={cs.surfaces.emptyState}>
+            {activeOrgId ? 'Loading permissions...' : 'No active organization'}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {organizationPermissions.map((permission, index) => (
+              <div
+                key={`${permission}-${index}`}
+                style={{
+                  padding:      '0.5rem 0.75rem',
+                  background:   c.bgPrimary,
+                  border:       `1px solid ${c.borderColor}`,
+                  borderRadius: theme.tokens.radii.sm,
+                  fontFamily:   ty.fontMono,
+                  fontSize:     ty.size.sm,
+                  color:        c.textPrimary,
+                }}
+              >
+                {permission}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

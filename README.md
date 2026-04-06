@@ -798,6 +798,32 @@ import { Protected } from './logto-kit';
 | `orgId` | `string \| null` | `undefined` | Specific org to check against. If omitted, uses user's stored org preference |
 | `requireAll` | `boolean` | `true` | If `true`, ALL permissions/roles required. If `false`, ANY one suffices |
 
+**Best Practice — Separate Concerns:**
+
+Avoid wrapping protected content inline in your main page files. Instead, create a dedicated component file for the protected UI and wrap it with `<Protected />` there. This keeps permission logic co-located with the component it guards:
+
+```tsx
+// app/admin/admin-panel.tsx
+import { Protected } from '../../logto-kit';
+import { AdminDashboard } from './admin-dashboard';
+
+export function AdminPanel() {
+  return (
+    <Protected role="admin">
+      <AdminDashboard />
+    </Protected>
+  );
+}
+```
+
+```tsx
+// app/page.tsx
+import { AdminPanel } from './admin/admin-panel';
+
+// Just import and use — permissions are encapsulated
+<AdminPanel />
+```
+
 ---
 
 ### Protected Actions API

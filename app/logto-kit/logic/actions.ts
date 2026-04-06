@@ -1,11 +1,13 @@
 'use server';
 
-import { getAccessToken } from '@logto/next/server-actions';
+import { getAccessToken, getOrganizationToken } from '@logto/next/server-actions';
+import 'server-only';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
-import { logtoConfig, getManagementApiToken } from '../../logto';
+import { getLogtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse } from './types';
 import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
+
 
 // ============================================================================
 // Shared Helpers
@@ -40,11 +42,17 @@ function handleAuthFetchError(error: unknown, label: string): never {
 // Token Helper - ONLY used in Server Actions
 // ============================================================================
 
-async function getTokenForServerAction(): Promise<string> {
-  const token = await getAccessToken(logtoConfig, '');
+export async function getTokenForServerAction(): Promise<string> {
+  const token = await getAccessToken(getLogtoConfig(), '');
   if (!token) throw new Error('No access token available for Account API');
   return token;
 }
+
+export async function getFreshAccessToken(): Promise<string> {
+  return await getTokenForServerAction();
+}
+
+
 
 // ============================================================================
 // Request Helper
@@ -104,18 +112,24 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      // Always use global token - org context is managed via customData
+      // Use Logto SDK to get context with full user info and claims
+      const { claims, userInfo } = await (async () => {
+        const { getLogtoContext } = await import('@logto/next/server-actions');
+        const { getLogtoConfig } = await import('../../logto');
+        return await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
+      })();
+
+      if (!claims?.sub) {
+        return { success: false, needsAuth: true } as any;
+      }
+
+      if (!userInfo) {
+        throw new Error('Failed to fetch user info');
+      }
+
+      // Organization data loaded successfully
+
       const token = await getTokenForServerAction();
-
-      // Use /oidc/me for reading user data (single request for all user info including orgs)
-      const cleanEndpoint = await getCleanEndpoint();
-      const res = await fetch(`${cleanEndpoint}/oidc/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      await throwOnApiError(res, 'Logto OIDC');
-
-      const userInfo = await res.json();
 
       // Extract activeOrgId from customData.Preferences.asOrg
       const customData = userInfo.custom_data as Record<string, unknown> | undefined;
@@ -124,29 +138,39 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
       // Map OIDC response to UserData format
       const userData: UserData = {
-        id: userInfo.sub,
-        name: userInfo.name,
-        avatar: userInfo.picture,
-        primaryEmail: userInfo.email,
-        primaryPhone: userInfo.phone_number,
-        customData: userInfo.custom_data || {},
-        identities: userInfo.identities || {},
+        id: claims.sub!,
+        name: (userInfo.name as string) || undefined,
+        avatar: (userInfo.picture as string) || undefined,
+        primaryEmail: (userInfo.email as string) || undefined,
+        primaryPhone: (userInfo.phone_number as string) || undefined,
+        customData: (userInfo.custom_data as Record<string, unknown>) || {},
+        identities: (userInfo.identities as Record<string, { userId: string; details?: Record<string, unknown> }>) || {},
         profile: {
-          givenName: userInfo.given_name,
-          familyName: userInfo.family_name,
+          givenName: (userInfo.given_name as string) || undefined,
+          familyName: (userInfo.family_name as string) || undefined,
         },
-        createdAt: userInfo.created_at || Date.now(),
-        updatedAt: userInfo.updated_at || Date.now(),
-        lastSignInAt: userInfo.last_sign_in_at,
-        // Organization data from OIDC
-        organizations: userInfo.organization_data?.map((org: { id: string; name: string }) => ({
-          id: org.id,
-          name: org.name,
-        })) || [],
-        organizationRoles: userInfo.organization_roles?.map((roleStr: string) => {
-          const [organizationId, name] = roleStr.split(':');
-          return { id: roleStr, organizationId, name: name || roleStr };
-        }) || [],
+        createdAt: (userInfo.created_at as string | number) || Date.now(),
+        updatedAt: (userInfo.updated_at as string | number) || Date.now(),
+        lastSignInAt: (userInfo.last_sign_in_at as string | number) || undefined,
+
+        // Organization data from userInfo (now with correct scopes)
+        organizations: (userInfo?.organizations as string[] || []).map(orgId => ({
+          id: orgId,
+          name: orgId, // you can later enrich with organization_data if you want
+        })),
+
+        // Organization roles from userInfo (format: "org_id:role_name")
+        organizationRoles: (userInfo?.organization_roles as string[] || []).map(roleStr => {
+          const [orgId, roleName] = roleStr.split(':');
+          return {
+            id: roleStr,
+            name: roleName || roleStr,
+            organizationId: orgId || '',
+          };
+        }),
+
+        // Organization permissions will be loaded separately when needed
+        organizationPermissions: [],
       };
 
       return {
@@ -194,7 +218,7 @@ export async function fetchUserBadgeData(): Promise<DashboardResult> {
 
 export async function signOutUser(): Promise<void> {
   const { signOut } = await import('@logto/next/server-actions');
-  await signOut(logtoConfig);
+  await signOut(getLogtoConfig());
 }
 
 // ============================================================================
@@ -667,6 +691,39 @@ export async function uploadAvatar(
   }
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` }
+}
+
+// ============================================================================
+// Organization Token Management
+// ============================================================================
+
+// Removed custom getOrganizationToken - now using SDK version
+
+export async function getOrganizationUserPermissions(orgId: string): Promise<string[]> {
+  try {
+    const orgToken = await getOrganizationToken(getLogtoConfig(), orgId);
+    if (!orgToken) {
+      console.warn(`[getOrganizationUserPermissions] No token for org ${orgId}`);
+      return [];
+    }
+
+    const parts = orgToken.split('.');
+    if (parts.length !== 3) return [];
+
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    console.log(`[DEBUG] Org token scope for ${orgId}:`, payload.scope);
+
+    const permissions = (payload.scope ?? '')
+      .split(' ')
+      .filter(Boolean)
+      .filter((s: string) => !s.startsWith('openid'));
+
+    console.log(`[DEBUG] Parsed permissions for ${orgId}:`, permissions);
+    return permissions;
+  } catch (error) {
+    console.error(`[getOrganizationUserPermissions] Failed for org ${orgId}:`, error);
+    return [];
+  }
 }
 
 // ============================================================================

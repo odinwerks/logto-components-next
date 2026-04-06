@@ -1,10 +1,10 @@
 'use server';
 
 import { getLogtoContext } from '@logto/next/server-actions';
-import { logtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../../logto';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
-  const { claims, isAuthenticated } = await getLogtoContext(logtoConfig);
+  const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
 
   if (!isAuthenticated || !claims?.organizations) {
     return false;

@@ -114,7 +114,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'component',
     icon: <ProtectedIcon />,
     desc: 'Server component that gates UI subtrees behind permission or role checks. Supports single string, string[], and orgId scoping. requireAll controls AND vs OR logic.',
-    sections: ['Quick start', 'Props', 'Examples', 'Notes'],
+    sections: ['RBAC Overview', 'Protected Component', 'Protected Actions API', 'Action Registration', 'Live RBAC Demo', 'Alias System'],
   },
   {
     id: 'org-switcher',

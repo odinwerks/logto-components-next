@@ -658,7 +658,7 @@ function OrgPropsSection() {
           <tr>
             <td style={tdPathStyle}>userData</td>
             <td style={tdStyle}><code style={codeStyle}>UserData</code></td>
-            <td style={tdStyle}>Contains organizations[] and organizationRoles[]</td>
+            <td style={tdStyle}>Contains organizations[] and organizationPermissions[]</td>
           </tr>
           <tr>
             <td style={tdPathStyle}>currentOrgId</td>

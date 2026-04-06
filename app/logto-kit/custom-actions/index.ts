@@ -5,32 +5,59 @@ interface ProtectedActionHandler<T = unknown> {
 }
 
 interface ActionConfig<T = unknown> {
-  requiredPermission: string;
+  requiredPerm: string | string[]; // Changed from requiredRole
   handler: ProtectedActionHandler<T>;
 }
 
 type ActionRegistry = Record<string, ActionConfig>;
 
 const actions: ActionRegistry = {
-  'explode-earth': {
-    requiredPermission: 'launch-nuke',
+  'destroy-economy': {
+    requiredPerm: 'steal:taxes', // Use actual permission from Logto Console
     handler: async ({ payload }) => {
-      console.log('[DEMO] Exploding earth with payload:', payload);
-      return { success: true, message: 'Earth exploded (demo only!)' };
+      // Get current counter from payload or default to 0
+      const currentInflation = (payload as { inflation?: number })?.inflation ?? 0;
+      const newInflation = currentInflation + 10; // Increment by 10%
+
+      console.log(`💸 The dollar is worth ${newInflation}% less now!!`);
+
+      return {
+        success: true,
+        message: `Inflated the economy! Dollar worth ${newInflation}% less.`,
+        data: { inflation: newInflation }
+      };
     },
   },
-  'land-on-moon': {
-    requiredPermission: 'land-on-moon',
+  'steal-tax-dollars': {
+    requiredPerm: 'steal:taxes', // Use actual permission from Logto Console
     handler: async ({ payload }) => {
-      console.log('[DEMO] Landing on moon with payload:', payload);
-      return { success: true, message: 'Landed on moon (demo only!)' };
+      // Get current stolen amount from payload or default to 0
+      const currentStolen = (payload as { stolen?: number })?.stolen ?? 0;
+      const newStolen = currentStolen + 1000000; // Increment by $1M
+
+      console.log(`💰 Stolen $1M. I now illegally have $${newStolen.toLocaleString()}.`);
+
+      return {
+        success: true,
+        message: `Stole $1M from taxpayers! Total: $${newStolen.toLocaleString()}`,
+        data: { stolen: newStolen }
+      };
     },
   },
-  'send-notification': {
-    requiredPermission: 'send-notifications',
+  'kidnap-children': {
+    requiredPerm: 'kidnap:kids', // Use actual permission from Logto Console
     handler: async ({ payload }) => {
-      console.log('[DEMO] Sending notification with payload:', payload);
-      return { success: true, message: 'Notification sent (demo only!)' };
+      // Get current count from payload or default to 0
+      const currentCount = (payload as { children?: number })?.children ?? 0;
+      const newCount = currentCount + 1;
+
+      console.log(`😈 Nice, kidnapped 1 more kid. My giant villa basement now has ${newCount} children.`);
+
+      return {
+        success: true,
+        message: `Kidnapped another child! Basement count: ${newCount}`,
+        data: { children: newCount }
+      };
     },
   },
 };

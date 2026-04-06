@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/custom-actions';
-import { fetchUserRbacData, validateOrgMembership, checkPermissionInOrg } from '../../logto-kit/custom-actions/validation';
+import { fetchUserRbacData, validateOrgMembership } from '../../logto-kit/custom-actions/validation';
 import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
 import { introspectToken, assertSafeUserId } from '../../logto-kit/logic/utils';
 
@@ -37,13 +37,16 @@ export async function POST(request: NextRequest) {
 
     let introspection: OidcIntrospectionResponse;
     try {
+      console.log('[Protected API] Introspecting token:', token.substring(0, 20) + '...');
       introspection = await introspectToken(token);
+      console.log('[Protected API] Introspection result:', introspection);
     } catch (error) {
       console.error('[Protected API] Introspection error:', error);
       return apiError('INTROSPECTION_ERROR', 'Failed to validate token', 401);
     }
 
     if (!introspection.active) {
+      console.log('[Protected API] Token not active:', introspection);
       return apiError('TOKEN_INVALID', 'Token is not active or has been revoked', 401);
     }
 
@@ -59,21 +62,28 @@ export async function POST(request: NextRequest) {
       return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
     }
 
-    const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
-    if (!orgValidation.ok) {
-      return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
-    }
-
     const actionConfig = await getAction(action);
 
     if (!actionConfig) {
       return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
     }
 
-    const hasPermission = await checkPermissionInOrg(id, userData.asOrg!, actionConfig.requiredPermission);
+    const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
+    if (!orgValidation.ok) {
+      return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
+    }
+
+    const { getOrganizationUserPermissions } = await import('../../logto-kit/logic/actions');
+    const userPermissions = await getOrganizationUserPermissions(userData.asOrg!);
+
+    const requiredPerms = Array.isArray(actionConfig.requiredPerm)
+      ? actionConfig.requiredPerm
+      : [actionConfig.requiredPerm];
+
+    const hasPermission = requiredPerms.every(perm => userPermissions.includes(perm));
 
     if (!hasPermission) {
-      return apiError('PERMISSION_DENIED', `User lacks required permission: ${actionConfig.requiredPermission}`, 403);
+      return apiError('PERMISSION_DENIED', `User lacks required permission: ${requiredPerms.join(', ')}`, 403);
     }
 
     const result = await actionConfig.handler({

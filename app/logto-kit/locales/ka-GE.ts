@@ -211,7 +211,7 @@ export const kaGE: Translations = {
     idLabel: 'ID',
     organizationLabel: 'ორგანიზაცია',
     roleIdLabel: 'როლის ID',
-    rawTitle: 'ორგანიზაციები & ორგანიზაციის როლები',
+    rawTitle: 'ორგანიზაციები & როლები',
     rawHeading: 'ორგანიზაციების ნედლი მონაცემები',
     active: '(აქტიური)',
     beYourself: 'იყავი თავი (გლობალური)',

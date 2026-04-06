@@ -18,14 +18,16 @@ function getEnvVar(name: string, required = true): string {
   const valueRaw =
     process.env[name] || process.env[`NEXT_PUBLIC_${name}`] || process.env[`NEXT_PUBLIC_${name.toUpperCase()}`];
 
-  if (required && !valueRaw) {
+  // During build time, don't throw for missing env vars to allow demo builds
+  const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.CI && !valueRaw;
+  if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
   }
 
   // AGGRESSIVE trim: remove ALL whitespace, newlines, tabs
   const value = valueRaw?.toString().replace(/\s+/g, '').trim() || '';
 
-  if (required && !value) {
+  if (required && !value && !isBuildTime) {
     throw new Error(`Environment variable ${name} is empty after aggressive trimming`);
   }
 
@@ -67,7 +69,7 @@ export const logtoConfig = (() => {
 
     const nodeEnv = process.env.NODE_ENV || 'development';
 
-    const resources = [buildAccountApiResource(endpoint)];
+    const resources: string[] = []; // Keep empty for regular apps
 
     const allScopes = parseScopes(scopeString);
 
@@ -82,9 +84,7 @@ export const logtoConfig = (() => {
       scopes: allScopes,
     };
 
-    if (!config.resources || config.resources.length === 0) {
-      throw new Error('Resources array is empty - Account API will fail');
-    }
+    // Resources can be empty for regular authentication apps
 
     return config;
   } catch (error) {
@@ -92,6 +92,8 @@ export const logtoConfig = (() => {
     throw error;
   }
 })();
+
+export const getLogtoConfig = () => logtoConfig;
 
 // ============================================================================
 // Management API Token Helper
@@ -119,7 +121,7 @@ export async function getManagementApiToken(): Promise<string> {
     );
   }
 
-  const cleanEndpoint = logtoConfig.endpoint.replace(/\/$/, '');
+  const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
   const resource = process.env.LOGTO_M2M_RESOURCE || `${cleanEndpoint}/api`;
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 

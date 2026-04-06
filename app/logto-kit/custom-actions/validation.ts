@@ -1,11 +1,11 @@
 'use server';
 
-import { logtoConfig, getManagementApiToken } from '../../logto';
 import { getCleanEndpoint } from '../logic/utils';
 
 interface RbacUserData {
   organizations: string[];
   asOrg: string | null;
+  organizationPermissions?: string[]; // Permission scopes from organization token
 }
 
 interface RbacValidationResult {
@@ -15,39 +15,14 @@ interface RbacValidationResult {
 }
 
 
-const ROLE_PERMISSION_MAP: Record<string, string[]> = {
-  admin: ['*'],
-  'nuke-commander': ['launch-nuke', 'abort-nuke'],
-  astronaut: ['land-on-moon', 'spacewalk'],
-};
 
-function mapRoleToPermissions(roleName: string): string[] {
-  return ROLE_PERMISSION_MAP[roleName] || [];
-}
 
 function hasPermission(userPermissions: string[], required: string): boolean {
   if (userPermissions.includes('*')) return true;
   return userPermissions.includes(required);
 }
 
-async function fetchOrgRoles(userId: string, orgId: string): Promise<Array<{ id: string; name: string }>> {
-  try {
-    const managementToken = await getManagementApiToken();
-    const cleanEndpoint = await getCleanEndpoint();
-    const rolesRes = await fetch(
-      `${cleanEndpoint}/api/organizations/${orgId}/users/${userId}/roles`,
-      { headers: { Authorization: `Bearer ${managementToken}` } }
-    );
-    if (!rolesRes.ok) {
-      console.error('[RBAC] Failed to fetch org roles:', await rolesRes.text());
-      return [];
-    }
-    return rolesRes.json();
-  } catch (error) {
-    console.error('[RBAC] fetchOrgRoles error:', error);
-    return [];
-  }
-}
+
 
 export async function fetchUserRbacData(token: string, overrideOrgId?: string | null): Promise<RbacUserData> {
   const cleanEndpoint = await getCleanEndpoint();
@@ -61,7 +36,7 @@ export async function fetchUserRbacData(token: string, overrideOrgId?: string | 
 
   const userInfo = await res.json();
   const userOrgs = (userInfo.organizations as string[]) || [];
-  
+
   let asOrg: string | null;
   if (overrideOrgId !== undefined) {
     asOrg = overrideOrgId;
@@ -71,9 +46,30 @@ export async function fetchUserRbacData(token: string, overrideOrgId?: string | 
     asOrg = prefs.asOrg ?? null;
   }
 
+  let organizationPermissions: string[] | undefined;
+
+  // If user has active org, get permissions via Management API
+  if (asOrg) {
+    try {
+      const { getOrganizationUserPermissions } = await import('../logic/actions');
+      // Extract userId from JWT token
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        const userId = payload.sub;
+        if (userId) {
+          organizationPermissions = await getOrganizationUserPermissions(asOrg);
+        }
+      }
+    } catch (error) {
+      console.warn('[fetchUserRbacData] Failed to get org permissions:', error);
+    }
+  }
+
   return {
     organizations: userOrgs,
     asOrg,
+    organizationPermissions,
   };
 }
 
@@ -89,98 +85,42 @@ export async function validateOrgMembership(userOrgs: string[], asOrg: string | 
   return { ok: true };
 }
 
-export async function checkPermissionInOrg(
-  userId: string,
-  orgId: string,
-  requiredPermission: string
-): Promise<boolean> {
-  const roles = await fetchOrgRoles(userId, orgId);
-  if (roles.length === 0) return false;
-  const userPermissions = roles.flatMap((role) => mapRoleToPermissions(role.name));
-  return hasPermission(userPermissions, requiredPermission);
-}
 
-async function checkRoleInOrg(
-  userId: string,
-  orgId: string,
-  requiredRole: string
-): Promise<boolean> {
-  const roles = await fetchOrgRoles(userId, orgId);
-  if (roles.length === 0) return false;
-  return roles.some((r) => r.name === requiredRole);
-}
 
 export async function validateRbac(
   userId: string,
   userData: RbacUserData,
   options: {
-    perm?: string | string[];
-    role?: string | string[];
+    perm?: string | string[]; // Changed from 'role' to 'perm'
     requireAll?: boolean;
   } = {}
 ): Promise<RbacValidationResult> {
-  const { perm, role, requireAll = true } = options;
+  const { perm, requireAll = true } = options;
 
-  const requiresOrgContext = (perm || role) && userData.asOrg;
+  if (!perm) return { ok: true };
 
-  if (requiresOrgContext) {
-    const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
-    if (!orgValidation.ok) {
-      return orgValidation;
-    }
+  // Must have active organization for permission checks
+  if (!userData.asOrg) {
+    return { ok: false, error: 'NO_ORG_SELECTED', detail: 'Organization permissions require active organization' };
   }
 
-  if (!perm && !role) {
-    return { ok: true };
+  // Validate org membership
+  const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
+  if (!orgValidation.ok) return orgValidation;
+
+  // Check permissions in organization token
+  if (!userData.organizationPermissions) {
+    return { ok: false, error: 'PERMISSION_DENIED', detail: 'No organization permissions available' };
   }
 
-  const orgId = userData.asOrg!;
+  const requiredPerms = Array.isArray(perm) ? perm : [perm];
+  const hasPermission = requireAll
+    ? requiredPerms.every(p => userData.organizationPermissions!.includes(p))
+    : requiredPerms.some(p => userData.organizationPermissions!.includes(p));
 
-  let permPassed = true;
-  let rolePassed = true;
-  let permFailed = false;
-  let roleFailed = false;
-
-  if (perm) {
-    const perms = Array.isArray(perm) ? perm : [perm];
-    const results = await Promise.all(perms.map((p) => checkPermissionInOrg(userId, orgId, p)));
-    permPassed = requireAll ? results.every(Boolean) : results.some(Boolean);
-    permFailed = !permPassed;
-  }
-
-  if (role) {
-    const roles = Array.isArray(role) ? role : [role];
-    const results = await Promise.all(roles.map((r) => checkRoleInOrg(userId, orgId, r)));
-    rolePassed = requireAll ? results.every(Boolean) : results.some(Boolean);
-    roleFailed = !rolePassed;
-  }
-
-  let finalPass: boolean;
-  if (perm && role) {
-    finalPass = requireAll ? (permPassed && rolePassed) : (permPassed || rolePassed);
-  } else if (perm) {
-    finalPass = permPassed;
-  } else if (role) {
-    finalPass = rolePassed;
-  } else {
-    finalPass = true;
-  }
-
-  if (!finalPass) {
-    let error: 'PERMISSION_DENIED' | 'ROLE_DENIED';
-    if (perm && role) {
-      error = permFailed ? 'PERMISSION_DENIED' : 'ROLE_DENIED';
-    } else if (perm) {
-      error = 'PERMISSION_DENIED';
-    } else {
-      error = 'ROLE_DENIED';
-    }
-
-    const detail = error === 'PERMISSION_DENIED'
-      ? `Missing permission: ${Array.isArray(perm) ? perm.join(', ') : perm}`
-      : `Missing role: ${Array.isArray(role) ? role.join(', ') : role}`;
-
-    return { ok: false, error, detail };
+  if (!hasPermission) {
+    const detail = `Missing permission(s): ${requiredPerms.join(', ')}`;
+    return { ok: false, error: 'PERMISSION_DENIED', detail };
   }
 
   return { ok: true };
