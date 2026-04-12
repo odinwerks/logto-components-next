@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@logto/next": "^4.2.9",
+    "kilocode": "^1.2.0",
     "lucide-react": "^1.7.0",
     "minio": "^8.0.7",
     "next": "^16.2.2",

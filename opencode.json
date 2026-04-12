@@ -5,5 +5,32 @@
       "type": "local",
       "command": ["npx", "-y", "next-devtools-mcp@latest"]
     }
+  },
+  "provider": {
+    "llmapi": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LLMAPI",
+      "options": {
+        "baseURL": "https://api.llmapi.ai/v1",
+        "apiKey": "llmapi_e4fdf4bc535c6be79c3f43a4f6678413a7b759d552979fc8034866fbbc576a73"
+      },
+      "models": {
+        "gpt-4o": {
+          "name": "GPT-4o"
+        },
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6"
+        },
+        "claude-opus-4-6": {
+          "name": "Claude Opus 4.6"
+        },
+        "kimi-k2.5": {
+          "name": "Kimi K2.5"
+        },
+        "minimax-m2.7": {
+          "name": "MiniMax M2.7"
+        }
+      }
+    }
   }
 }
