@@ -1,9 +1,9 @@
 import { ClientProtected } from './ClientProtected';
 import { PresidentControlPanelClient } from './PresidentControlPanelClient';
 
-export function PresidentControlPanel() {
+export default function PresidentControlPanel() {
   return (
-    <ClientProtected orgId="government" perm="kidnap:kids">
+    <ClientProtected orgId="5b6sw6p5uzti" perm="kidnap:kids">
       <PresidentControlPanelClient />
     </ClientProtected>
   );
