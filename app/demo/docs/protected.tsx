@@ -3,7 +3,7 @@
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
 import { ClientProtected } from '../logic/ClientProtected';
-import { PresidentControlPanelClient } from '../logic/PresidentControlPanelClient';
+import PresidentControlPanel from '../logic/PresidentControlPanel';
 
 // ─── Shared styles ──────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@ function RbacOverviewSection() {
     <SectionWrap label="RBAC Overview">
       <p style={textStyle}>
         Permission-Based Access Control (PBAC) is implemented through Logto's organization permission system.
-        Permissions are granted based on organization permissions assigned to user roles.
+        Permissions are granted based on organization permissions assigned to users.
       </p>
       <CodeBlock title="RBAC Flow" code={`// 1. User selects organization (stored in customData.Preferences.asOrg)
 // 2. Permissions are checked from organization tokens via getOrganizationUserPermissions()
@@ -200,7 +200,7 @@ function RbacOverviewSection() {
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Demo:</strong>{' '}
         The app includes a President Control Panel that only appears for users with "kidnap:kids" permission in organization "government".
-        Try switching organizations and roles to see RBAC in action!
+        Try switching organizations to see permission-based access control in action!
       </div>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Organization Context:</strong>{' '}
@@ -215,7 +215,7 @@ function ProtectedComponentSection() {
   return (
     <SectionWrap label="Protected Component">
       <p style={textStyle}>
-        A Server Component that conditionally renders children based on permission or role checks.
+        A Server Component that conditionally renders children based on permission checks.
         Performs validation server-side before page rendering.
       </p>
       <CodeBlock title="Basic Usage" code={`import { Protected } from './logto-kit';
@@ -250,12 +250,6 @@ export default function AdminPage() {
             <td style={tdStyle}>Required permission(s) to check</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>role</td>
-            <td style={tdTypeStyle}>string | string[]</td>
-            <td style={tdStyle}>-</td>
-            <td style={tdStyle}>Required role(s) to check</td>
-          </tr>
-          <tr>
             <td style={tdPropStyle}>orgId</td>
             <td style={tdTypeStyle}>string | null</td>
             <td style={tdStyle}>undefined</td>
@@ -265,7 +259,7 @@ export default function AdminPage() {
             <td style={tdPropStyle}>requireAll</td>
             <td style={tdTypeStyle}>boolean</td>
             <td style={tdStyle}>true</td>
-            <td style={tdStyle}>Require ALL permissions/roles (AND) vs ANY (OR)</td>
+            <td style={tdStyle}>Require ALL permissions (AND) vs ANY (OR)</td>
           </tr>
         </tbody>
       </table>
@@ -407,8 +401,8 @@ function ApiResponseSection() {
             <td style={tdStyle}>Requested action not registered</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>ROLE_DENIED</td>
-            <td style={tdStyle}>User lacks required role in active organization</td>
+            <td style={tdPropStyle}>PERMISSION_DENIED</td>
+            <td style={tdStyle}>User lacks required permission in active organization</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>INTERNAL_ERROR</td>
@@ -496,12 +490,12 @@ function ExamplesSection() {
   <ReadOnlyDashboard />
 </Protected>
 
-// Role-based access
+// Permission-based access
 <Protected perm="manage:users">
   <AdminPanel />
 </Protected>
 
-// Organization + Role combination (like President demo)
+// Organization + Permission combination (like President demo)
 <Protected orgId="government" perm="kidnap:kids">
   <PresidentControlPanel />
 </Protected>
@@ -534,48 +528,7 @@ if (data.ok) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Page 4: Role Mapping + Troubleshooting
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Page 5: Live RBAC Demo
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function RoleMappingSection() {
-  return (
-    <SectionWrap label="Role to Permission Mapping">
-      <p style={textStyle}>
-        Roles are defined in Logto and mapped to permissions in{' '}
-        <code style={codeStyle}>app/logto-kit/custom-actions/validation.ts</code>.
-      </p>
-      <CodeBlock title="Role-Based Actions" code={`const actions: ActionRegistry = {
-  'destroy-economy': {
-    requiredPerm: 'kidnap:kids', // Permission from Logto Console
-    handler: async ({ payload }) => {
-      // Action logic here
-    },
-  },
-  'steal-tax-dollars': {
-    requiredPerm: 'kidnap:kids', // Permission from Logto Console
-    handler: async ({ payload }) => {
-      // Action logic here
-    },
-  },
-};`} />
-      <p style={textStyle}>
-        Actions are configured with required permissions. Permissions are defined in Logto Console organization templates
-        which are resolved to actual role IDs. Role data is fetched server-side using Logto's Management API
-        and passed to client components. The system checks if users have the specified role
-        within their active organization context.
-      </p>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Logto Setup:</strong>{' '}
-        Assign roles to users within organizations via Logto Console or Management API.
-      </div>
-    </SectionWrap>
-  );
-}
-
+// Page 4: Permission System + Troubleshooting
 function PermissionSystemSection() {
   return (
     <SectionWrap label="Permission System">
@@ -605,20 +558,62 @@ function PermissionSystemSection() {
 
 function DemoExplanationSection() {
   return (
-    <SectionWrap label="Demo Explanation">
-      <p style={textStyle}>
-        This demo showcases organization-based access control. The ClientProtected component
-        checks if the active organization is "government" and conditionally renders the content.
-      </p>
-      <CodeBlock title="Client-Side RBAC Check" code='<ClientProtected orgName="government" perm="kidnap:kids">\n  <PresidentControlPanelClient />\n</ClientProtected>' />
-      <p style={textStyle}>
-        In production, this would use server-side validation with the Protected component
-        to ensure security. The client-side version is for demo purposes only.
-      </p>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Actions:</strong>{' '}
-        Clicking the buttons calls the protected API with silly server actions that increment counters
-        and log humorous messages to the console.
+    <SectionWrap label="Live RBAC Demo">
+      <div style={twoColLayoutStyle}>
+        <div style={colLeftStyle}>
+          <p style={textStyle}>
+            Test the Protected Actions API with curl. Get your token from the browser console.
+          </p>
+          <CodeBlock title="Get Token" code={`// In browser console:
+console.log(logto.accessToken)`} />
+          <CodeBlock title="Test with Curl" code={`curl -X POST localhost:3000/api/protected \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "token": "YOUR_ACCESS_TOKEN",
+    "id": "YOUR_USER_ID",
+    "action": "destroy-economy",
+    "payload": { "inflation": 0 }
+  }'`} />
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ ...thStyle, paddingBottom: '8px' }}>Available Actions:</div>
+            <div style={noteStyle}>
+              <span style={codeSmStyle}>destroy-economy</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
+              <span style={codeSmStyle}>steal-tax-dollars</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
+              <span style={codeSmStyle}>kidnap-children</span> → requires <span style={codeSmStyle}>kidnap:kids</span><br />
+              <span style={codeSmStyle}>launch-nuke</span> → requires <span style={codeSmStyle}>launch:nuke</span>
+            </div>
+          </div>
+          <CodeBlock title="Success Response (200)" code={`{
+  "ok": true,
+  "data": {
+    "success": true,
+    "message": "Inflated the economy! ...",
+    "data": { "inflation": 10 }
+  }
+}`} />
+          <CodeBlock title="Error Responses" code={`// 401 - Invalid/expired token
+{ "ok": false, "error": "TOKEN_INVALID", "message": "..." }
+
+// 403 - Missing permission
+{ "ok": false, "error": "PERMISSION_DENIED", "message": "User lacks required permission: steal:taxes" }
+
+// 404 - Action not found
+{ "ok": false, "error": "ACTION_NOT_FOUND", "message": "Action \\"foo\\" not found" }`} />
+        </div>
+        <div style={colLeftStyle}>
+          <p style={textStyle}>
+            The panel below demonstrates organization-based access control. Switch to the 
+            "government" organization to see it appear.
+          </p>
+          <PresidentControlPanel />
+          <div style={noteStyle}>
+            <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How it works:</strong>{' '}
+            The component wraps <code style={codeSmStyle}>PresidentControlPanelClient</code> with{' '}
+            <code style={codeSmStyle}>ClientProtected</code> at the export stage — this is the recommended pattern.
+            Wrap your component in its own file, export the protected version, and use it in your app.
+            Clicking the buttons calls <code style={codeSmStyle}>POST /api/protected</code> with the registered actions.
+          </div>
+        </div>
       </div>
     </SectionWrap>
   );
@@ -665,38 +660,14 @@ export default function ProtectedDoc() {
         </div>
       </Section>
 
-      {/* Page 4: Role Mapping + Troubleshooting */}
+      {/* Page 4: Permission System + Live Demo */}
       <Section id={4}>
         <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
           <div style={colLeftStyle}>
-            <RoleMappingSection />
-          </div>
-          <div style={colLeftStyle}>
-            <PermissionSystemSection />
-          </div>
-        </div>
-      </Section>
-
-      {/* Page 5: Live RBAC Demo */}
-      <Section id={5}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
-            <DemoExplanationSection />
-          </div>
-          <div style={colLeftStyle}>
-            <DemoExplanationSection />
-          </div>
-        </div>
-      </Section>
-
-      {/* Page 6: Alias System */}
-      <Section id={6}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
             <PermissionSystemSection />
           </div>
           <div style={colLeftStyle}>
-            {/* Could add more alias-related content here */}
+            <DemoExplanationSection />
           </div>
         </div>
       </Section>

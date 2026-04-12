@@ -375,7 +375,7 @@ function UseLogtoSection() {
         </tbody>
       </table>
       <CodeBlock title="Usage" code={`'use client';
-import { useLogto } from '@odinwerks/logto-kit';
+import { useLogto } from './logto-kit';
 
 function MyComponent() {
   const { userData, theme, openDashboard, setLang } = useLogto();
@@ -444,7 +444,7 @@ function PreferenceHooksSection() {
         </tbody>
       </table>
       <CodeBlock title="useThemeMode()" code={`'use client';
-import { useThemeMode } from '@odinwerks/logto-kit';
+import { useThemeMode } from './logto-kit';
 
 function ThemeToggle() {
   const { theme, themeSpec, toggleTheme } = useThemeMode();
@@ -482,7 +482,7 @@ function ThemeToggle() {
         </tbody>
       </table>
       <CodeBlock title="useLangMode()" code={`'use client';
-import { useLangMode } from '@odinwerks/logto-kit';
+import { useLangMode } from './logto-kit';
 
 function LangSelector() {
   const { lang, setLang } = useLangMode();
@@ -517,7 +517,7 @@ function LangSelector() {
         </tbody>
       </table>
       <CodeBlock title="useOrgMode()" code={`'use client';
-import { useOrgMode } from '@odinwerks/logto-kit';
+import { useOrgMode } from './logto-kit';
 
 function OrgIndicator() {
   const { asOrg, setAsOrg } = useOrgMode();
@@ -549,7 +549,7 @@ function UserDataSection() {
         the key <code style={codeSmStyle}>user-data</code>.
       </p>
       <CodeBlock title="Usage" code={`'use client';
-import { useUserDataContext } from '@odinwerks/logto-kit';
+import { useUserDataContext } from './logto-kit';
 
 function UserAvatar() {
   const userData = useUserDataContext();
@@ -587,7 +587,7 @@ function AuthWatcherSection() {
         <code style={codeStyle}>router.refresh()</code> on three triggers.
         Place it in your root layout — it renders nothing.
       </p>
-      <CodeBlock title="Root layout" code={`import AuthWatcher from '@odinwerks/logto-kit';
+      <CodeBlock title="Root layout" code={`import AuthWatcher from './logto-kit';
 
 export default function RootLayout({ children }) {
   return (

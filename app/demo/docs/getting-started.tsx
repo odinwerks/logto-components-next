@@ -259,7 +259,7 @@ function EnvSection() {
 SCOPES=openid,profile,custom_data,email,phone,identities
 
 # With organizations
-SCOPES=openid,profile,custom_data,email,phone,identities,organizations,kidnap:kids,steal:taxes`} />
+SCOPES=openid,profile,custom_data,email,phone,identities,organizations,organization_roles`} />
     </SectionWrap>
   );
 }

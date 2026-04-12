@@ -178,7 +178,7 @@ function OverviewSection() {
           </tr>
           <tr>
             <td style={tdPathStyle}>Security</td>
-            <td style={tdStyle}>19</td>
+            <td style={tdStyle}>20</td>
             <td style={tdStyle}>—</td>
             <td style={tdStyle}>15</td>
           </tr>
@@ -466,29 +466,30 @@ function SecurityOverviewSection() {
   theme: ThemeSpec;
   t: Translations;
   // Identity verification
-  onVerifyPassword: (password) => Promise<{ verificationRecordId }>;
-  onSendEmailVerification: (email) => Promise<{ verificationId }>;
-  onSendPhoneVerification: (phone) => Promise<{ verificationId }>;
-  onVerifyCode: (type, value, verificationId, code) => Promise<{ verificationRecordId }>;
+  onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
+  onSendEmailVerification: (email: string) => Promise<{ verificationId: string }>;
+  onSendPhoneVerification: (phone: string) => Promise<{ verificationId: string }>;
+  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<{ verificationRecordId: string }>;
   // Email/Phone
-  onUpdateEmail: (email, newVerId, identityVerId) => Promise<void>;
-  onUpdatePhone: (phone, newVerId, identityVerId) => Promise<void>;
+  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
+  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
   onRemoveEmail: (identityVerId) => Promise<void>;
   onRemovePhone: (identityVerId) => Promise<void>;
   // MFA
   onGetMfaVerifications: () => Promise<MfaVerification[]>;
-  onGenerateTotpSecret: () => Promise<{ secret, secretQrCode }>;
-  onAddMfaVerification: (verification, identityVerId) => Promise<void>;
-  onDeleteMfaVerification: (verificationId, identityVerId) => Promise<void>;
-  onGenerateBackupCodes: (identityVerId) => Promise<{ codes }>;
+  onGenerateTotpSecret: () => Promise<{ secret: string; secretQrCode: string }>;
+  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
+  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
+  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   // Password
-  onUpdatePassword: (newPassword, identityVerId) => Promise<void>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   // Account
-  onDeleteAccount: (identityVerId, accessToken) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
   // Toasts
   onSuccess: (message) => void;
   onError: (message) => void;
-}`} />
+}
+// Note: Actual count is 20 props (includes onSuccess + onError)`} />
     </SectionWrap>
   );
 }
