@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "next-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "next-devtools-mcp@latest"]
+    }
+  },
+  "provider": {
+    "llmapi": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LLMAPI",
+      "options": {
+        "baseURL": "https://api.llmapi.ai/v1",
+        "apiKey": "llmapi_01918aa6f7411d28ac256a731cad056ed4a95884b6c4a67295128cf2d08bf7af"
+      },
+      "models": {
+        "deepseek-v3.2": {
+          "name": "DeepSeek v3.2"
+        },
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6"
+        },
+        "claude-opus-4-6": {
+          "name": "Claude Opus 4.6"
+        },
+        "kimi-k2.5": {
+          "name": "Kimi K2.5"
+        },
+        "minimax-m2.7": {
+          "name": "MiniMax M2.7"
+        }
+      }
+    }
+  }
+}
