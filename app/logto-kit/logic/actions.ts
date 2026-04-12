@@ -153,11 +153,13 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
         updatedAt: (userInfo.updated_at as string | number) || Date.now(),
         lastSignInAt: (userInfo.last_sign_in_at as string | number) || undefined,
 
-        // Organization data from userInfo (now with correct scopes)
-        organizations: (userInfo?.organizations as string[] || []).map(orgId => ({
-          id: orgId,
-          name: orgId, // you can later enrich with organization_data if you want
-        })),
+        // Organization data from userInfo — use organization_data if available, otherwise fall back to IDs
+        organizations: (() => {
+          const orgData = userInfo?.organization_data as Array<{ id: string; name: string }> | undefined;
+          return orgData
+            ? orgData.map(org => ({ id: org.id, name: org.name }))
+            : (userInfo?.organizations as string[] || []).map(orgId => ({ id: orgId, name: orgId }));
+        })(),
 
         // Organization roles from userInfo (format: "org_id:role_name")
         organizationRoles: (userInfo?.organization_roles as string[] || []).map(roleStr => {
