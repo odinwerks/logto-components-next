@@ -24,11 +24,14 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 ./
 ├── app/
 │   ├── api/
+│   │   ├── adjust-preference/          # Update user preferences API
 │   │   ├── auth/
 │   │   │   ├── sign-in/
 │   │   │   │   └── route.ts
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
+│   │   ├── load-org-permissions/       # Load org permissions for active user
+│   │   ├── org-permissions/            # Get user's organization permissions
 │   │   ├── protected/
 │   │   │   └── route.ts              # Protected Actions API
 │   │   ├── upload-avatar/
@@ -49,11 +52,15 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── user-button.tsx      # UserButton doc — props, notes, 6 example cards
 │   │   │   ├── dashboard.tsx        # Dashboard doc — internals, providers, rendering
 │   │   │   ├── tabs-and-flows.tsx   # Tabs and flows documentation
+│   │   │   ├── protected.tsx        # Protected component + Actions API doc
 │   │   │   ├── org-switcher.tsx     # OrgSwitcher doc
-│   │   │   ├── providers.tsx        # Providers doc
+│   │   │   ├── providers.tsx         # Providers doc
 │   │   │   ├── themes.tsx           # Theme system doc
 │   │   │   ├── i18n.tsx             # i18n doc
 │   │   │   └── components/          # (empty)
+│   │   ├── logic/                    # Demo-specific components
+│   │   │   ├── PresidentControlPanel.tsx  # Protected RBAC demo
+│   │   │   └── PresidentControlPanelClient.tsx
 │   │   └── utils/                   # Shared doc utilities
 │   │       ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
 │   │       └── Section.tsx          # SectionContainer + Section (multi-page docs)
