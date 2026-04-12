@@ -11,7 +11,6 @@ const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType 
   'dashboard': () => import('./docs/dashboard'),
   'tabs-and-flows': () => import('./docs/tabs-and-flows'),
   'protected': () => import('./docs/protected'),
-  'actions-api': () => import('./docs/protected'),
   'org-switcher': () => import('./docs/org-switcher'),
   'providers': () => import('./docs/providers'),
   'theme': () => import('./docs/themes'),
@@ -238,7 +237,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
         footDot: 'rgba(255,255,255,0.16)',
       };
 
-  const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'hidden' as const : 'auto' as const };
+  const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'auto' as const : 'auto' as const };
   const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (theme === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
   const themedCrumbStyle = { ...crumbStyle, color: colors.textMuted };
   const themedSepStyle = { ...sepStyle, color: colors.textMuted };

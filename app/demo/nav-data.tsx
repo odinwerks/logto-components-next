@@ -152,15 +152,6 @@ export const NAV_ITEMS: NavItem[] = [
     desc: 'File-based i18n. All locales bundled statically. LANG_AVAILABLE controls the picker UI. useLangMode() for client-side, getTranslations() for server-side. Re-renders on language change without server round-trip.',
     sections: ['Overview', 'How it works', 'ENV variables', 'Direct imports', 'Custom hook', 'Adding a language'],
   },
-  {
-    id: 'actions-api',
-    label: 'Actions API',
-    code: false,
-    type: 'api',
-    icon: <ActionsApiIcon />,
-    desc: 'POST /api/protected — permission-gated server actions. Pipeline: token introspection → user verification → org membership → RBAC check → handler. Register actions in custom-actions/index.ts.',
-    sections: ['Endpoint', 'Request schema', 'Response + error codes', 'Registering actions'],
-  },
 ];
 
 export const SECTION_HINTS: SectionHint = {
