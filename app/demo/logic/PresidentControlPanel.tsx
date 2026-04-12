@@ -5,7 +5,11 @@ import { PresidentControlPanelClient } from './PresidentControlPanelClient';
 
 export default function PresidentControlPanel() {
   return (
-    <Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">
+    <Protected
+      orgId="5b6sw6p5uzti"
+      perm="kidnap:kids"
+      fallback={null}
+    >
       <PresidentControlPanelClient />
     </Protected>
   );
