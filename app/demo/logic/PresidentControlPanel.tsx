@@ -1,3 +1,5 @@
+'use client';
+
 import { Protected } from '../../logto-kit/custom-logic';
 import { PresidentControlPanelClient } from './PresidentControlPanelClient';
 

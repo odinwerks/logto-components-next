@@ -51,6 +51,7 @@ next-env.d.ts
 
 # Project tooling
 .kilo/
+kilo.json
 
 # Logs
 logs
