@@ -84,4 +84,5 @@ Desktop.ini
 
 # Temporary files
 *.tmp
-*.temp
+*.tempopencode.json
+.opencode/
