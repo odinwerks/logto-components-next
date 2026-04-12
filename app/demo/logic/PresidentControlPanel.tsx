@@ -1,10 +1,10 @@
-import { ClientProtected } from './ClientProtected';
+import { Protected } from '../../logto-kit/custom-logic';
 import { PresidentControlPanelClient } from './PresidentControlPanelClient';
 
 export default function PresidentControlPanel() {
   return (
-    <ClientProtected orgId="5b6sw6p5uzti" perm="kidnap:kids">
+    <Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">
       <PresidentControlPanelClient />
-    </ClientProtected>
+    </Protected>
   );
 }

@@ -2,7 +2,7 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
-import { ClientProtected } from '../logic/ClientProtected';
+import { Protected } from '../../logto-kit/custom-logic';
 import PresidentControlPanel from '../logic/PresidentControlPanel';
 
 // ─── Shared styles ──────────────────────────────────────────────────────────
@@ -538,19 +538,19 @@ function PermissionSystemSection() {
         organization templates and assigned to roles.
       </p>
       <CodeBlock title="Using Permissions in Components" code={`// Check for specific permissions:
-<ClientProtected orgId="org-123-actual-id" perm="manage:users">
+<Protected orgId="org-123-actual-id" perm="manage:users">
   <Component />
-</ClientProtected>
+</Protected>
 
 // Multiple permissions (require all):
-<ClientProtected perm={["read:documents", "write:documents"]}>
+<Protected perm={["read:documents", "write:documents"]}>
   <Editor />
-</ClientProtected>
+</Protected>
 
 // Multiple permissions (require any):
-<ClientProtected perm={["read:documents", "write:documents"]} requireAll={false}>
+<Protected perm={["read:documents", "write:documents"]} requireAll={false}>
   <Viewer />
-</ClientProtected>
+</Protected>
 `} />
     </SectionWrap>
   );
@@ -609,7 +609,7 @@ console.log(logto.accessToken)`} />
           <div style={noteStyle}>
             <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How it works:</strong>{' '}
             The component wraps <code style={codeSmStyle}>PresidentControlPanelClient</code> with{' '}
-            <code style={codeSmStyle}>ClientProtected</code> at the export stage — this is the recommended pattern.
+            <code style={codeSmStyle}>Protected</code> at the export stage — this is the recommended pattern.
             Wrap your component in its own file, export the protected version, and use it in your app.
             Clicking the buttons calls <code style={codeSmStyle}>POST /api/protected</code> with the registered actions.
           </div>

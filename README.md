@@ -89,13 +89,18 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │       └── index.tsx
 │   │   ├── custom-actions/
 │   │   │   ├── index.ts                  # Action registry and types
-│   │   │   └── validation.ts             # RBAC validation functions
+│   │   │   ├── validation.ts             # RBAC validation functions
+│   │   │   └── president-actions/       # Demo action handlers
+│   │   │       ├── destroy-economy.ts
+│   │   │       ├── kidnap-children.ts
+│   │   │       ├── launch-nuke.ts
+│   │   │       └── steal-tax-dollars.ts
 │   │   ├── custom-logic/
 │   │   │   ├── actions/
 │   │   │   │   └── set-active-org.ts    # Set active org
 │   │   │   ├── OrgSwitcher.tsx          # Org selector dropdown
 │   │   │   ├── org-switcher-wrapper.tsx # Server wrapper
-│   │   │   ├── Protected.tsx            # Route protection component
+│   │   │   ├── Protected.tsx            # Client-side permission gate
 │   │   │   ├── types.ts                 # TypeScript types
 │   │   │   └── index.ts                # Exports
 │   │   ├── index.ts
@@ -275,7 +280,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -283,7 +288,7 @@ The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — o
 | UserButton | component | Clickable avatar button, badge, and card with props table and live examples |
 | Dashboard | component | Full user management dashboard modal |
 | Tabs & Flows | reference | Deep dive into each dashboard tab: props, hooks, actions, FlowModal architecture |
-| `<Protected />` | component | Server component for permission-gated UI |
+| `<Protected />` | component | Client component for permission-gated UI |
 | OrgSwitcher | component | Organization selector dropdown |
 | Providers | setup | LogtoProvider, useLogto(), context hooks |
 | Theme | config | File-based theme system with dark/light CSS variables |
@@ -302,7 +307,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 9-tab navigation definitions with section hints |
+| `nav-data.tsx` | 10-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
@@ -773,7 +778,7 @@ import type {
 
 ### \<Protected\> - UI Gate Component
 
-A server component that conditionally renders children based on organization permissions.
+A client component that conditionally renders children based on organization permissions. Must be used within `LogtoProvider` context.
 
 ```tsx
 import { Protected } from './logto-kit';
