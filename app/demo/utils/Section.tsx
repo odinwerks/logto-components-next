@@ -125,7 +125,7 @@ export function Section({ id, children }: SectionProps) {
       height: '100%',
       flexShrink: 0,
       overflowY: 'auto',
-      overflowX: 'hidden',
+      overflowX: 'auto',
     }}>
       {children}
     </div>

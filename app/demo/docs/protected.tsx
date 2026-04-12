@@ -12,18 +12,24 @@ const twoColLayoutStyle: React.CSSProperties = {
   gridTemplateColumns: '1fr 1fr',
   gap: '16px',
   alignItems: 'start',
+  overflow: 'hidden',
+  boxSizing: 'border-box',
+  width: '100%',
 };
 
 const colLeftStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '16px',
+  overflow: 'hidden',
+  boxSizing: 'border-box',
+  minWidth: 0,
 };
 
 const sectionWrapStyle: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.058)',
   borderRadius: '5px',
-  overflow: 'hidden',
+  overflow: 'visible',
   background: 'rgba(255,255,255,0.01)',
   display: 'flex',
   flexDirection: 'column',
@@ -56,6 +62,8 @@ const sectionLabelStyle: React.CSSProperties = {
 
 const sectionBodyStyle: React.CSSProperties = {
   padding: '20px 16px',
+  overflow: 'hidden',
+  boxSizing: 'border-box',
 };
 
 const textStyle: React.CSSProperties = {
@@ -626,7 +634,7 @@ export default function ProtectedDoc() {
     <SectionContainer>
       {/* Page 1: Overview + Protected Component */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={colLeftStyle}>
             <RbacOverviewSection />
           </div>
@@ -638,7 +646,7 @@ export default function ProtectedDoc() {
 
       {/* Page 2: Protected Actions API */}
       <Section id={2}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={colLeftStyle}>
             <ProtectedApiSection />
           </div>
@@ -650,7 +658,7 @@ export default function ProtectedDoc() {
 
       {/* Page 3: Action Registration + Examples */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={colLeftStyle}>
             <ActionRegistrationSection />
           </div>
@@ -662,7 +670,7 @@ export default function ProtectedDoc() {
 
       {/* Page 4: Permission System + Live Demo */}
       <Section id={4}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={colLeftStyle}>
             <PermissionSystemSection />
           </div>
