@@ -71,7 +71,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.tsx
 │   │   │   │   ├── index.tsx
-│   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── types.ts
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx
@@ -83,8 +82,11 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │       ├── profile.tsx
 │   │   │   │       ├── dev.tsx
 │   │   │   │       └── security.tsx
-│   │   │   └── userbutton/
-│   │   │       └── index.tsx
+│   │   │   └── shared/
+│   │   │       ├── Button.tsx
+│   │   │       └── Input.tsx
+│   │   └── userbutton/
+│   │       └── index.tsx
 │   │   ├── custom-actions/
 │   │   │   ├── index.ts                  # Action registry and types
 │   │   │   └── validation.ts             # RBAC validation functions
@@ -103,6 +105,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── ka-GE.ts
 │   │   ├── logic/
 │   │   │   ├── actions.ts
+│   │   │   ├── env.ts
 │   │   │   ├── errors.ts
 │   │   │   ├── i18n.ts
 │   │   │   ├── index.ts
@@ -113,6 +116,10 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── validation.ts
 │   │   └── themes/
 │   │       ├── default/
+│   │       │   ├── dark.css
+│   │       │   ├── index.ts
+│   │       │   └── light.css
+│   │       ├── pretty/
 │   │       │   ├── dark.css
 │   │       │   ├── index.ts
 │   │       │   └── light.css
@@ -146,7 +153,7 @@ COOKIE_SECRET=your-random-secret
 SCOPES=openid,profile,custom_data,email,phone,identities
 ```
 
-### RBAC & Account Management
+### Permission-Based Access Control & Account Management
 
 ```env
 # M2M for Management API (required for account deletion)
@@ -268,7 +275,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -276,7 +283,7 @@ The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — 
 | UserButton | component | Clickable avatar button, badge, and card with props table and live examples |
 | Dashboard | component | Full user management dashboard modal |
 | Tabs & Flows | reference | Deep dive into each dashboard tab: props, hooks, actions, FlowModal architecture |
-| `<Protected />` | component | Server component for permission/role-gated UI |
+| `<Protected />` | component | Server component for permission-gated UI |
 | OrgSwitcher | component | Organization selector dropdown |
 | Providers | setup | LogtoProvider, useLogto(), context hooks |
 | Theme | config | File-based theme system with dark/light CSS variables |
@@ -295,7 +302,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 10-tab navigation definitions with section hints |
+| `nav-data.tsx` | 9-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
@@ -305,8 +312,7 @@ The demo app consists of:
 | `docs/providers.tsx` | Providers documentation — LogtoProvider, hooks reference |
 | `docs/themes.tsx` | Theme system documentation — dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation — file-based locales, useLangMode, adding languages |
-| `docs/protected.tsx` | Protected component and API documentation — RBAC, server actions, examples (4 pages) |
-| `docs/actions-api.tsx` | Actions API documentation — endpoint, request schema, error codes |
+| `docs/protected.tsx` | Protected component and API documentation — permission-based access control, server actions, examples (4 pages) |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
 
@@ -352,7 +358,7 @@ useEffect(() => {
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 10 navigation tabs covering every major logto-kit feature
+- A sidebar with 9 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -709,14 +715,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 | `refreshIntervalMs` | `number` | `300000` (5 min) | How often to check auth state. Set `0` to disable. |
 | `debounceMs` | `number` | `1000` | Minimum ms between refreshes to prevent spam |
 
-## Custom Logic (Organization & RBAC Support)
+## Custom Logic (Organization & Permission-Based Access Control)
 
 > **⚠️ WARNING - NOT PRODUCTION READY**: This module is FUNCTIONAL but NOT tested enough for production use. 
 > Use at your own risk. Extensive testing required before deploying to production.
 > This is a work in progress - APIs may change.
 
 The `custom-logic` module provides UI protection components and organization management:
-- **\<Protected\>** - Server component for gating UI based on permissions/roles
+- **\<Protected\>** - Server component for gating UI based on organization permissions
 - **OrgSwitcher** - Dropdown for switching between organizations
 - **useOrgMode** hook - Access organization context throughout your app
 
@@ -726,7 +732,7 @@ For protected server actions, use the **Protected Actions API** (`POST /api/prot
 
 ```tsx
 import {
-  // Organization & RBAC
+  // Organization & Permission-Based Access Control
   Protected,
   OrgSwitcher,
   OrgSwitcherWrapper,
@@ -761,23 +767,19 @@ import type {
 } from './logto-kit';
 ```
 
-> **Note**: The RBAC validation functions (`fetchUserRbacData`, `validateOrgMembership`, `checkPermissionInOrg`, `checkRoleInOrg`, `validateRbac`, `introspectTokenWithOrg`) are internal-only. **Do not import or use these directly** — use the Protected Actions API (`POST /api/protected`) instead.
+> **Note**: The permission validation functions (`fetchUserRbacData`, `validateOrgMembership`, `validateRbac`) are exported and available for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
 
 ---
 
 ### \<Protected\> - UI Gate Component
 
-A server component that conditionally renders children based on permissions/roles.
+A server component that conditionally renders children based on organization permissions.
 
 ```tsx
 import { Protected } from './logto-kit';
 
 <Protected perm="read:users">
   <SensitiveData />
-</Protected>
-
-<Protected role="admin">
-  <AdminPanel />
 </Protected>
 
 <Protected perm={['read:users', 'write:users']} requireAll={false}>
@@ -794,9 +796,9 @@ import { Protected } from './logto-kit';
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `perm` | `string \| string[]` | - | Required permission(s) to check |
-| `role` | `string \| string[]` | - | Required role(s) to check |
 | `orgId` | `string \| null` | `undefined` | Specific org to check against. If omitted, uses user's stored org preference |
-| `requireAll` | `boolean` | `true` | If `true`, ALL permissions/roles required. If `false`, ANY one suffices |
+| `orgName` | `string \| null` | - | Organization name (accepted but currently unused) |
+| `requireAll` | `boolean` | `true` | If `true`, ALL permissions required. If `false`, ANY one suffices |
 
 **Best Practice — Separate Concerns:**
 
@@ -809,7 +811,7 @@ import { AdminDashboard } from './admin-dashboard';
 
 export function AdminPanel() {
   return (
-    <Protected role="admin">
+    <Protected perm="admin">
       <AdminDashboard />
     </Protected>
   );
@@ -897,7 +899,7 @@ import type { ActionRegistry, ActionConfig, ProtectedActionHandler } from './ind
 
 const actions: ActionRegistry = {
   'explode-earth': {
-    requiredPermission: 'launch-nuke',
+    requiredPerm: 'launch-nuke',
     handler: async ({ userId, orgId, payload }) => {
       // Your protected logic here
       // payload is typed as unknown, cast as needed
@@ -907,7 +909,7 @@ const actions: ActionRegistry = {
     },
   },
   'send-notification': {
-    requiredPermission: 'send-notifications',
+    requiredPerm: 'send-notifications',
     handler: async ({ userId, orgId, payload }) => {
       // ...
       return { sent: true };
@@ -924,18 +926,6 @@ export async function getAction(actionName: string): Promise<ActionConfig | unde
 - `userId` - The authenticated user's ID
 - `orgId` - The active organization ID (resolved from `customData.Preferences.asOrg` via `fetchUserRbacData`)
 - `payload` - The payload sent from the client (defaults to `{}` if omitted)
-
-**Role to Permission Mapping:**
-
-Edit `app/logto-kit/custom-actions/validation.ts` to customize:
-
-```typescript
-const ROLE_PERMISSION_MAP: Record<string, string[]> = {
-  admin: ['*'],                          // All permissions
-  'nuke-commander': ['launch-nuke', 'abort-nuke'],
-  astronaut: ['land-on-moon', 'spacewalk'],
-};
-```
 
 ---
 
@@ -1028,7 +1018,7 @@ function MyComponent() {
 3. **User Verification** - Verifies token `sub` matches provided `userId`
 4. **RBAC Data Fetch** - Fetches user orgs and active org from `/oidc/me`
 5. **Org Membership Check** - Ensures user is member of selected org
-6. **Permission Check** - Calls Management API to verify user's role has required permission
+6. **Permission Check** - Calls Management API to verify user's organization token has required permission
 7. **Execute Action** - Runs the registered handler if all checks pass
 
 #### Organization Switching Flow
@@ -1039,22 +1029,6 @@ function MyComponent() {
    - `sessionStorage` (client) - for immediate UI updates
    - `customData.Preferences.asOrg` (server) - for persistence
 4. `useOrgMode()` hook provides `asOrg` and `setAsOrg()` throughout the app
-
----
-
-### Role to Permission Mapping
-
-Default mapping in `custom-actions/validation.ts`:
-
-```typescript
-const ROLE_PERMISSION_MAP: Record<string, string[]> = {
-  admin: ['*'],                          // All permissions
-  'nuke-commander': ['launch-nuke', 'abort-nuke'],
-  astronaut: ['land-on-moon', 'spacewalk'],
-};
-```
-
-**Extend this** by editing `app/logto-kit/custom-actions/validation.ts`.
 
 ---
 
@@ -1086,7 +1060,7 @@ LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 
 1. **Application Scopes**: Add `organizations` and `organization_roles`
 2. **M2M Application**: Create a Machine-to-Machine app with:
-   - Permissions to read organization roles
+   - Permissions to read organization roles and user data
    - Add to environment variables above
 
 ---
@@ -1100,7 +1074,7 @@ import { Protected } from './logto-kit';
 
 export default function AdminPage() {
   return (
-    <Protected role="admin">
+    <Protected perm="admin">
       <div>
         <h1>Admin Dashboard</h1>
         <DeleteUserButton />
@@ -1125,9 +1099,9 @@ export default function AdminPage() {
 | Issue | Solution |
 |-------|----------|
 | "User not in organization" | User must be a member of the org in Logto |
-| Permission always returns false | Check: 1) User has the role in Logto Console, 2) Role name matches exactly in ROLE_PERMISSION_MAP, 3) Management API token is configured |
+| Permission always returns false | Check: 1) User has the permission in Logto Console, 2) Permission string matches exactly, 3) Management API token is configured |
 | Org switcher not appearing | User needs multiple organizations in their Logto claims |
-| "PERMISSION_DENIED" | Verify role is in Logto Console AND matches ROLE_PERMISSION_MAP |
+| "PERMISSION_DENIED" | Verify user has the permission in Logto Console for the active organization |
 | "NO_ORG_SELECTED" | User must select an organization before calling Protected Actions API |
 | "ORG_NOT_MEMBER" | Selected org not in user's organization list |
 | "ACTION_NOT_FOUND" | Action not registered in `custom-actions/index.ts` |
@@ -1664,8 +1638,8 @@ npm run build
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
 - [x] Protected component - Complete (<Protected> server component)
 - [x] Protected Actions API - Complete (POST /api/protected endpoint)
-- [x] RBAC validation - Complete (validateRbac, checkPermissionInOrg, checkRoleInOrg)
-- [ ] Fine-tune ROLE_PERMISSION_MAP for your needs
+- [x] RBAC validation - Complete (validateRbac, fetchUserRbacData, validateOrgMembership)
+- [ ] Fine-tune permission checks for your needs
 - [ ] Extensive testing before production use
 
 ### UI Polish
