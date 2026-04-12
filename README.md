@@ -785,7 +785,13 @@ import type {
 
 ### \<Protected\> - UI Gate Component
 
-A client component that conditionally renders children based on organization permissions. Must be used within `LogtoProvider` context.
+A **client component** that conditionally renders children based on organization permissions. Must be used within `LogtoProvider` context.
+
+**Key behavior:**
+- Permissions are loaded asynchronously via `loadOrganizationPermissions(orgId)` on mount or org change
+- Shows `fallback` (or `"Loading authorization..."`) while loading
+- When `asOrg` changes (org switch or "Be yourself"), clears cached permissions and re-fetches
+- When org context is lost (`asOrg` = null), access is denied immediately
 
 ```tsx
 import { Protected } from './logto-kit';
@@ -809,8 +815,21 @@ import { Protected } from './logto-kit';
 |------|------|---------|-------------|
 | `perm` | `string \| string[]` | - | Required permission(s) to check |
 | `orgId` | `string \| null` | `undefined` | Specific org to check against. If omitted, uses user's stored org preference |
-| `orgName` | `string \| null` | - | Organization name (accepted but currently unused) |
+| `orgName` | `string \| null` | - | Look up org by name from userData.organizations |
 | `requireAll` | `boolean` | `true` | If `true`, ALL permissions required. If `false`, ANY one suffices |
+| `fallback` | `ReactNode` | `null` | Placeholder shown while loading or when access denied |
+
+**With fallback:**
+
+```tsx
+<Protected
+  orgId="5b6sw6p5uzti"
+  perm="kidnap:kids"
+  fallback={<div className="animate-pulse">Loading...</div>}
+>
+  <PresidentControlPanel />
+</Protected>
+```
 
 **Best Practice — Separate Concerns:**
 
@@ -1651,12 +1670,17 @@ npm run build
 > **⚠️ Organization/RBAC features are FUNCTIONAL but NOT PRODUCTION READY**
 > Extensive testing required before production use. APIs may change.
 
+### Security TODO
+
+- [ ] **Auto-nullify `asOrg` on website exit** — When a user closes the tab or navigates away, `customData.Preferences.asOrg` should be cleared to `null`. This prevents stolen tokens from being used to call Protected API actions on behalf of a user. Attackers would need to: (1) steal the opaque token, (2) discover the org ID, (3) discover the required permissions, and (4) find a way to update `customData` — all within the token's lifecycle (~5 minutes). Implementation approaches: `beforeunload` event + async Logto API call to clear `asOrg`, or session-storage-only org state (never persisted to Logto customData).
+
 ### Functions
 
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
-- [x] Protected component - Complete (<Protected> server component)
+- [x] Protected component - Complete (<Protected> client component with async permission loading)
 - [x] Protected Actions API - Complete (POST /api/protected endpoint)
 - [x] RBAC validation - Complete (validateRbac, fetchUserRbacData, validateOrgMembership)
+- [x] `fallback` prop - Complete (custom placeholder while loading/denied)
 - [ ] Fine-tune permission checks for your needs
 - [ ] Extensive testing before production use
 
