@@ -23,6 +23,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "ts-unused-exports": "^11.0.1",
     "typescript": "^6.0.2"
   }
 }
