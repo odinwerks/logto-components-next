@@ -1349,9 +1349,15 @@ The dashboard supports user avatar uploads via drag-and-drop or file browser. Wh
 │    token    │     │    FormData      │     │    token        │     │   you.png │
 │ 3. POST     │     │ 2. Call action   │     │ 2. Upload to    │     │           │
 │ 4. Get URL  │◀────│ 3. Return URL    │◀────│    S3           │◀────│           │
-│ 5. Push to  │     │                  │     │                 │     │           │
-│    Logto    │     └──────────────────┘     └─────────────────┘     └───────────┘
-└─────────────┘
+└─────────────┘     └──────────────────┘     └─────────────────┘     └───────────┘
+      │
+      │ 5. Push URL to Logto
+      ▼
+┌─────────────────┐
+│  Logto Account  │
+│  API            │
+│  updateAvatar() │
+└─────────────────┘
 ```
 
 ### Security
