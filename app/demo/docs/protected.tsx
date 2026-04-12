@@ -277,6 +277,12 @@ export default function AdminPage() {
             <td style={tdStyle}>true</td>
             <td style={tdStyle}>Require ALL permissions (AND) vs ANY (OR)</td>
           </tr>
+          <tr>
+            <td style={tdPropStyle}>fallback</td>
+            <td style={tdTypeStyle}>ReactNode</td>
+            <td style={tdStyle}><code style={codeSmStyle}>null</code></td>
+            <td style={tdStyle}>Placeholder shown while loading or when access denied</td>
+          </tr>
         </tbody>
       </table>
       <div style={noteStyle}>
@@ -296,7 +302,10 @@ import { AdminDashboard } from './admin-dashboard';
 
 export function AdminPanel() {
   return (
-    <Protected perm="read:users">
+    <Protected 
+      perm="read:users"
+      fallback={<div className="animate-pulse">Loading...</div>}
+    >
       <AdminDashboard />
     </Protected>
   );

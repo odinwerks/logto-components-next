@@ -11,6 +11,7 @@ interface ProtectedProps {
   orgId?: string | null;
   orgName?: string | null;
   requireAll?: boolean;
+  fallback?: ReactNode;
 }
 
 export function Protected({
@@ -19,6 +20,7 @@ export function Protected({
   orgId,
   orgName,
   requireAll = true,
+  fallback,
 }: ProtectedProps) {
   const { asOrg } = useOrgMode();
   const { userData } = useLogto();
@@ -28,8 +30,15 @@ export function Protected({
 
   useEffect(() => {
     if (!userData || !orgId) return;
+
+    hasLoadedRef.current = false;
+    setLoadedPerms([]);
+    setIsLoadingPerms(true);
+  }, [asOrg, userData, orgId]);
+
+  useEffect(() => {
+    if (!userData || !orgId || !asOrg) return;
     if (hasLoadedRef.current) return;
-    if (loadedPerms.length > 0) return;
 
     hasLoadedRef.current = true;
     setIsLoadingPerms(true);
@@ -41,18 +50,22 @@ export function Protected({
       .catch(() => {
         setIsLoadingPerms(false);
       });
-  }, [userData, orgId, loadedPerms.length]);
+  }, [userData, orgId, asOrg]);
 
   if (!userData) {
-    return <div>Loading authorization...</div>;
+    return <>{fallback ?? null}</>;
   }
 
   if (isLoadingPerms) {
-    return <div>Loading authorization...</div>;
+    return <>{fallback ?? null}</>;
   }
 
   const effectivePerms =
-    loadedPerms.length > 0 ? loadedPerms : userData.organizationPermissions || [];
+    loadedPerms.length > 0
+      ? loadedPerms
+      : asOrg
+        ? userData.organizationPermissions || []
+        : [];
 
   const checkAccess = (): boolean => {
     if (!userData?.organizations) {
@@ -154,5 +167,5 @@ export function Protected({
 
   const isAuthorized = checkAccess();
 
-  return isAuthorized ? <>{children}</> : null;
+  return isAuthorized ? <>{children}</> : <>{fallback ?? null}</>;
 }
