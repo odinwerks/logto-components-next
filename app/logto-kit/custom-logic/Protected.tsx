@@ -1,8 +1,9 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
 import { useOrgMode } from '../components/handlers/preferences';
 import { useLogto } from '../components/handlers/logto-provider';
+import { loadOrganizationPermissions } from '../actions/load-org-permissions';
 
 interface ProtectedProps {
   children: ReactNode;
@@ -21,10 +22,37 @@ export function Protected({
 }: ProtectedProps) {
   const { asOrg } = useOrgMode();
   const { userData } = useLogto();
+  const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
+  const [isLoadingPerms, setIsLoadingPerms] = useState(false);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!userData || !orgId) return;
+    if (hasLoadedRef.current) return;
+    if (loadedPerms.length > 0) return;
+
+    hasLoadedRef.current = true;
+    setIsLoadingPerms(true);
+    loadOrganizationPermissions(orgId)
+      .then((perms) => {
+        setLoadedPerms(perms);
+        setIsLoadingPerms(false);
+      })
+      .catch(() => {
+        setIsLoadingPerms(false);
+      });
+  }, [userData, orgId, loadedPerms.length]);
 
   if (!userData) {
     return <div>Loading authorization...</div>;
   }
+
+  if (isLoadingPerms) {
+    return <div>Loading authorization...</div>;
+  }
+
+  const effectivePerms =
+    loadedPerms.length > 0 ? loadedPerms : userData.organizationPermissions || [];
 
   const checkAccess = (): boolean => {
     if (!userData?.organizations) {
@@ -57,7 +85,7 @@ export function Protected({
       return false;
     }
 
-    const hasRequiredPerms = checkPermissions(targetOrgId);
+    const hasRequiredPerms = checkPermissions(targetOrgId, effectivePerms);
     if (!hasRequiredPerms) {
       console.log('[Protected] User lacks required permissions in organization:', targetOrgId);
       return false;
@@ -78,43 +106,31 @@ export function Protected({
       hasRequiredPerms: true,
       activeOrgMatches: true,
       userOrgs: userData.organizations.map((org) => ({ id: org.id, name: org.name })),
-      availablePerms: userData.organizationPermissions || [],
+      availablePerms: effectivePerms,
     });
 
     return true;
   };
 
-  const checkPermissions = (_organizationId: string): boolean => {
+  const checkPermissions = (_organizationId: string, perms: string[]): boolean => {
     if (!perm || (Array.isArray(perm) && perm.length === 0)) {
       return true;
     }
 
-    if (!userData?.organizationPermissions) {
-      console.log('[Protected] No organization permissions data available');
-      console.log('[Protected] userData keys:', Object.keys(userData || {}));
-      console.log('[Protected] userData.organizationPermissions:', userData?.organizationPermissions);
+    if (!perms || perms.length === 0) {
+      console.log('[Protected] No organization permissions available');
       return false;
     }
 
-    if (!Array.isArray(userData.organizationPermissions)) {
-      console.error('[Protected] organizationPermissions is not an array:', userData.organizationPermissions);
-      return false;
-    }
-
-    if (userData.organizationPermissions.length === 0) {
-      console.log('[Protected] User has no organization permissions - may still be loading');
-      return false;
-    }
-
-    console.log('[Protected] Available organization permissions:', userData.organizationPermissions);
+    console.log('[Protected] Available organization permissions:', perms);
 
     const requiredPerms = Array.isArray(perm) ? perm : [perm];
     const permResults = requiredPerms.map((requiredPerm) => {
-      const hasPerm = userData.organizationPermissions!.includes(requiredPerm);
+      const hasPerm = perms.includes(requiredPerm);
 
       console.log(`[Protected] Permission check for "${requiredPerm}":`, {
         hasPermission: hasPerm,
-        availablePerms: userData.organizationPermissions,
+        availablePerms: perms,
       });
 
       return hasPerm;
@@ -126,7 +142,7 @@ export function Protected({
 
     console.log('[Protected] Permission check summary:', {
       _organizationId,
-      availablePerms: userData.organizationPermissions,
+      availablePerms: perms,
       requiredPerms,
       requireAll,
       permResults,

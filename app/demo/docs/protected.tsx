@@ -179,11 +179,13 @@ function RbacOverviewSection() {
     <SectionWrap label="RBAC Overview">
       <p style={textStyle}>
         Permission-Based Access Control (PBAC) is implemented through Logto's organization permission system.
-        Permissions are granted based on organization permissions assigned to users.
+        Permissions are granted based on organization roles assigned to users within an organization.
       </p>
       <CodeBlock title="RBAC Flow" code={`// 1. User selects organization (stored in customData.Preferences.asOrg)
-// 2. Permissions are checked from organization tokens via getOrganizationUserPermissions()
-// 3. Protected component/API checks permissions before rendering/executing`} />
+customData.Preferences.asOrg = "government"
+
+// 2. loadOrganizationPermissions(orgId) fetches perms from Logto
+// 3. Protected component checks permissions client-side before rendering`} />
       <table style={tableStyle}>
         <thead>
           <tr>
@@ -196,24 +198,24 @@ function RbacOverviewSection() {
           <tr>
             <td style={tdPropStyle}>{`<Protected />`}</td>
             <td style={tdStyle}>Conditional UI rendering</td>
-            <td style={tdStyle}>Server-side</td>
+            <td style={tdStyle}>Client-side</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>POST /api/protected</td>
             <td style={tdStyle}>Protected server actions</td>
-            <td style={tdStyle}>API endpoint</td>
+            <td style={tdStyle}>Server-side</td>
           </tr>
         </tbody>
       </table>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Demo:</strong>{' '}
-        The app includes a President Control Panel that only appears for users with "kidnap:kids" permission in organization "government".
+        The app includes a President Control Panel that only appears for users with <code style={codeSmStyle}>kidnap:kids</code> permission in organization <code style={codeSmStyle}>government</code> (org id: <code style={codeSmStyle}>5b6sw6p5uzti</code>).
         Try switching organizations to see permission-based access control in action!
       </div>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Organization Context:</strong>{' '}
-        All RBAC checks require an active organization selection. Use{' '}
-        <code style={codeSmStyle}>useOrgMode()</code> or OrgSwitcher to manage this.
+        All RBAC checks require an active organization selection. Use the OrgSwitcher or dashboard to select an organization.
+        When "Be yourself" is selected, organization permissions are cleared and org-gated content is hidden.
       </div>
     </SectionWrap>
   );
@@ -223,8 +225,8 @@ function ProtectedComponentSection() {
   return (
     <SectionWrap label="Protected Component">
       <p style={textStyle}>
-        A Server Component that conditionally renders children based on permission checks.
-        Performs validation server-side before page rendering.
+        A client-side component that conditionally renders children based on permission checks.
+        Fetches organization permissions via <code style={codeSmStyle}>loadOrganizationPermissions(orgId)</code> and checks them against <code style={codeSmStyle}>useOrgMode().asOrg</code>.
       </p>
       <CodeBlock title="Basic Usage" code={`import { Protected } from './logto-kit';
 
@@ -261,7 +263,13 @@ export default function AdminPage() {
             <td style={tdPropStyle}>orgId</td>
             <td style={tdTypeStyle}>string | null</td>
             <td style={tdStyle}>undefined</td>
-            <td style={tdStyle}>Override org context (uses user's stored org if undefined)</td>
+            <td style={tdStyle}>Gated to specific org; uses <code style={codeSmStyle}>asOrg</code> if undefined</td>
+          </tr>
+          <tr>
+            <td style={tdPropStyle}>orgName</td>
+            <td style={tdTypeStyle}>string | null</td>
+            <td style={tdStyle}>undefined</td>
+            <td style={tdStyle}>Look up org by name from userData.organizations</td>
           </tr>
           <tr>
             <td style={tdPropStyle}>requireAll</td>
@@ -271,6 +279,11 @@ export default function AdminPage() {
           </tr>
         </tbody>
       </table>
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Client-side only:</strong>{' '}
+        <code style={codeSmStyle}>{`<Protected />`}</code> is a client component (<code style={codeSmStyle}>'use client'</code>). It uses <code style={codeSmStyle}>useOrgMode()</code> and <code style={codeSmStyle}>useLogto()</code> hooks.
+        It fetches permissions via <code style={codeSmStyle}>loadOrganizationPermissions</code> and checks if <code style={codeSmStyle}>asOrg</code> matches the required <code style={codeSmStyle}>orgId</code>.
+      </div>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Best Practice — Separate Concerns:</strong>{' '}
         Avoid wrapping protected content inline in your main page files. Instead, create a dedicated component
@@ -292,7 +305,6 @@ export function AdminPanel() {
 // app/page.tsx
 import { AdminPanel } from './admin/admin-panel';
 
-// Just import and use — permissions are encapsulated
 <AdminPanel />`} />
     </SectionWrap>
   );
@@ -306,17 +318,17 @@ function ProtectedApiSection() {
   return (
     <SectionWrap label="Protected Actions API">
       <p style={textStyle}>
-        Secure API endpoint for executing permission-gated server actions from the client.
-        Validates tokens, checks organization membership, and verifies permissions before execution.
+        Server-side API endpoint for executing permission-gated actions from the client.
+        Validates tokens via OIDC introspection, checks organization membership, and verifies permissions before executing the action handler.
       </p>
       <CodeBlock title="Endpoint" code={`POST /api/protected`} />
       <CodeBlock title="Request Format" code={`const response = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,        // User's access token
-    id: userId,               // User ID (must match token.sub)
-    action: 'action-name',    // Registered action name
+    token: accessToken,      // User's access token (from logto.accessToken)
+    id: userId,             // User ID (must match token.sub)
+    action: 'action-name',  // Registered action name
     payload: { /* optional data */ }
   })
 });`} />
@@ -352,7 +364,7 @@ function ProtectedApiSection() {
             <td style={tdPropStyle}>payload</td>
             <td style={tdTypeStyle}>unknown</td>
             <td style={tdStyle}>No</td>
-            <td style={tdStyle}>Data passed to action handler (defaults to `{}` if omitted)</td>
+            <td style={tdStyle}>Data passed to action handler (defaults to <code style={codeSmStyle}>{}</code> if omitted)</td>
           </tr>
         </tbody>
       </table>
@@ -431,20 +443,27 @@ function ActionRegistrationSection() {
     <SectionWrap label="Action Registration">
       <p style={textStyle}>
         Actions are registered in <code style={codeStyle}>app/logto-kit/custom-actions/index.ts</code>{' '}
-        with required permissions and handler functions.
+        as async functions that return <code style={codeStyle}>{`{ requiredPerm, handler }`}</code>.
+        Each action has a unique name, required permission(s), and a handler function.
       </p>
-      <CodeBlock title="Registration Example" code={`import type { ActionRegistry } from './index';
+      <CodeBlock title="Registration Example" code={`// app/logto-kit/custom-actions/my-actions/do-something.ts
+'use server';
+
+export async function getDoSomething() {
+  return {
+    requiredPerm: 'do:something',
+    handler: async ({ userId, orgId, payload }: { userId: string; orgId: string; payload: unknown }) => {
+      // Business logic here
+      return { success: true };
+    },
+  };
+}
+
+// app/logto-kit/custom-actions/index.ts
+import { getDoSomething } from './my-actions/do-something';
 
 const actions: ActionRegistry = {
-  'send-notification': {
-    requiredPermission: 'send-notifications',
-    handler: async ({ userId, orgId, payload }) => {
-      // Business logic here
-      const { message } = payload as { message: string };
-      await sendNotification(userId, orgId, message);
-      return { sent: true, timestamp: Date.now() };
-    },
-  },
+  'do-something': (await getDoSomething()),
 };
 
 export async function getAction(actionName: string) {
@@ -503,31 +522,30 @@ function ExamplesSection() {
   <AdminPanel />
 </Protected>
 
-// Organization + Permission combination (like President demo)
-<Protected orgId="government" perm="kidnap:kids">
+// Organization + Permission combination (President demo)
+<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">
   <PresidentControlPanel />
 </Protected>
 
-// Specific organization override
-<Protected perm="manage-org" orgId="org-specific-id">
-  <OrgManagement />
+// Specific organization by name
+<Protected orgName="government" perm="steal:taxes">
+  <EvilDashboard />
 </Protected>`} />
       <CodeBlock title="Protected Actions API Example" code={`// Client-side call (like in PresidentControlPanel)
 const result = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,        // User's access token
-    id: userId,               // User ID (must match token.sub)
-    action: 'destroy-economy', // Registered action name
-    payload: { inflation: 0 }  // Current counter value
+    token: accessToken,       // logto.accessToken
+    id: userData.id,          // must match token.sub
+    action: 'destroy-economy', // registered action name
+    payload: { inflation: 0 }  // current counter value
   })
 });
 
 const data = await result.json();
 if (data.ok) {
   console.log('Action succeeded:', data.data);
-  // Update UI with new counter: data.data.inflation
 } else {
   console.error('Action failed:', data.error, data.message);
 }`} />
@@ -536,45 +554,59 @@ if (data.ok) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Page 4: Permission System + Troubleshooting
+// Page 4: Permission System + Live Demo (new layout)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function PermissionSystemSection() {
   return (
     <SectionWrap label="Permission System">
       <p style={textStyle}>
         The system uses Logto's organization permissions for access control.
-        Permissions like "kidnap:kids" and "steal:taxes" are defined in Logto Console
-        organization templates and assigned to roles.
+        Permissions like <code style={codeSmStyle}>kidnap:kids</code> and <code style={codeSmStyle}>steal:taxes</code> are defined in Logto Console
+        organization templates and assigned to roles within organizations.
       </p>
-      <CodeBlock title="Using Permissions in Components" code={`// Check for specific permissions:
-<Protected orgId="org-123-actual-id" perm="manage:users">
-  <Component />
-</Protected>
+      <p style={textStyle}>
+        When a user selects an organization (sets <code style={codeSmStyle}>asOrg</code> in <code style={codeSmStyle}>customData.Preferences</code>),
+        the <code style={codeSmStyle}>Protected</code> component and <code style={codeSmStyle}>/api/protected</code> endpoint fetch that org's permissions
+        via <code style={codeSmStyle}>getOrganizationUserPermissions(orgId)</code> and check them against required permissions.
+      </p>
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ ...thStyle, paddingBottom: '8px' }}>Available Actions &amp; Required Permissions:</div>
+        <div style={noteStyle}>
+          <span style={codeSmStyle}>destroy-economy</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
+          <span style={codeSmStyle}>steal-tax-dollars</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
+          <span style={codeSmStyle}>kidnap-children</span> → requires <span style={codeSmStyle}>kidnap:kids</span><br />
+          <span style={codeSmStyle}>launch-nuke</span> → requires <span style={codeSmStyle}>launch:nuke</span>
+        </div>
+      </div>
+      <CodeBlock title="Permission Flow" code={`// 1. User selects org in OrgSwitcher or dashboard
+//    → setAsOrg(orgId) updates customData.Preferences.asOrg
 
-// Multiple permissions (require all):
-<Protected perm={["read:documents", "write:documents"]}>
-  <Editor />
-</Protected>
+// 2. Protected component (client-side):
+//    → loadOrganizationPermissions(asOrg) fetches perms
+//    → checks: perms.includes(requiredPerm) && asOrg === orgId
 
-// Multiple permissions (require any):
-<Protected perm={["read:documents", "write:documents"]} requireAll={false}>
-  <Viewer />
-</Protected>
-`} />
+// 3. POST /api/protected (server-side):
+//    → introspectToken(token) validates JWT
+//    → fetchUserRbacData(token) gets org + perms
+//    → validateOrgMembership(orgs, asOrg) checks membership
+//    → getOrganizationUserPermissions(asOrg) fetches perms
+//    → checks: requiredPerms.every(p => userPermissions.includes(p))`} />
     </SectionWrap>
   );
 }
 
-function DemoExplanationSection() {
+function LiveRbacDemoSection() {
   return (
     <SectionWrap label="Live RBAC Demo">
-      <div style={twoColLayoutStyle}>
-        <div style={colLeftStyle}>
-          <p style={textStyle}>
-            Test the Protected Actions API with curl. Get your token from the browser console.
-          </p>
-          <CodeBlock title="Get Token" code={`// In browser console:
+      <p style={textStyle}>
+        Test the Protected Actions API with curl. Get your token from the browser console using the dashboard.
+      </p>
+      <CodeBlock title="Get Token (from dashboard)" code={`// Open the dashboard (click user button → Dashboard)
+// Go to Dev tab → copy the Access Token
+// Or in browser console:
 console.log(logto.accessToken)`} />
-          <CodeBlock title="Test with Curl" code={`curl -X POST localhost:3000/api/protected \\
+      <CodeBlock title="Test with Curl" code={`curl -X POST localhost:3000/api/protected \\
   -H "Content-Type: application/json" \\
   -d '{
     "token": "YOUR_ACCESS_TOKEN",
@@ -582,46 +614,32 @@ console.log(logto.accessToken)`} />
     "action": "destroy-economy",
     "payload": { "inflation": 0 }
   }'`} />
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ ...thStyle, paddingBottom: '8px' }}>Available Actions:</div>
-            <div style={noteStyle}>
-              <span style={codeSmStyle}>destroy-economy</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
-              <span style={codeSmStyle}>steal-tax-dollars</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
-              <span style={codeSmStyle}>kidnap-children</span> → requires <span style={codeSmStyle}>kidnap:kids</span><br />
-              <span style={codeSmStyle}>launch-nuke</span> → requires <span style={codeSmStyle}>launch:nuke</span>
-            </div>
-          </div>
-          <CodeBlock title="Success Response (200)" code={`{
+      <CodeBlock title="Success Response (200)" code={`{
   "ok": true,
   "data": {
     "success": true,
-    "message": "Inflated the economy! ...",
+    "message": "Inflated the economy! Dollar worth 10% less.",
     "data": { "inflation": 10 }
   }
 }`} />
-          <CodeBlock title="Error Responses" code={`// 401 - Invalid/expired token
+      <CodeBlock title="Error Responses" code={`// 401 - Invalid/expired token
 { "ok": false, "error": "TOKEN_INVALID", "message": "..." }
 
 // 403 - Missing permission
 { "ok": false, "error": "PERMISSION_DENIED", "message": "User lacks required permission: steal:taxes" }
 
 // 404 - Action not found
-{ "ok": false, "error": "ACTION_NOT_FOUND", "message": "Action \\"foo\\" not found" }`} />
-        </div>
-        <div style={colLeftStyle}>
-          <p style={textStyle}>
-            The panel below demonstrates organization-based access control. Switch to the 
-            "government" organization to see it appear.
-          </p>
-          <PresidentControlPanel />
-          <div style={noteStyle}>
-            <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How it works:</strong>{' '}
-            The component wraps <code style={codeSmStyle}>PresidentControlPanelClient</code> with{' '}
-            <code style={codeSmStyle}>Protected</code> at the export stage — this is the recommended pattern.
-            Wrap your component in its own file, export the protected version, and use it in your app.
-            Clicking the buttons calls <code style={codeSmStyle}>POST /api/protected</code> with the registered actions.
-          </div>
-        </div>
+{ "ok": false, "error": "ACTION_NOT_FOUND", "message": "Action \\"foo\\" not found" }
+
+// 403 - No org selected
+{ "ok": false, "error": "NO_ORG_SELECTED", "message": "User has no organization selected" }`} />
+      <div style={noteStyle}>
+        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How Protected works with PresidentControlPanel:</strong>{' '}
+        <code style={codeSmStyle}>PresidentControlPanel.tsx</code> wraps{' '}
+        <code style={codeSmStyle}>PresidentControlPanelClient</code> with{' '}
+        <code style={codeSmStyle}>{`<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">`}</code>.
+        This pattern (wrapping in a dedicated file) is recommended — permission logic stays co-located with the guarded component.
+        The buttons call <code style={codeSmStyle}>POST /api/protected</code> with registered actions.
       </div>
     </SectionWrap>
   );
@@ -668,15 +686,26 @@ export default function ProtectedDoc() {
         </div>
       </Section>
 
-      {/* Page 4: Permission System + Live Demo */}
+      {/* Page 4: Permission System + Live Demo (new layout) */}
       <Section id={4}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-          <div style={colLeftStyle}>
-            <PermissionSystemSection />
+        <div style={{ padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          {/* Row 1: Permission System (left) + PresidentControlPanel (right) */}
+          <div style={{ ...twoColLayoutStyle, marginBottom: '16px' }}>
+            <div style={colLeftStyle}>
+              <PermissionSystemSection />
+            </div>
+            <div style={colLeftStyle}>
+              <SectionWrap label="President Control Panel (Live Demo)">
+                <p style={textStyle}>
+                  The panel below demonstrates organization-based access control. Switch to the
+                  "government" organization to see it appear.
+                </p>
+                <PresidentControlPanel />
+              </SectionWrap>
+            </div>
           </div>
-          <div style={colLeftStyle}>
-            <DemoExplanationSection />
-          </div>
+          {/* Row 2: Live RBAC Demo (full width below) */}
+          <LiveRbacDemoSection />
         </div>
       </Section>
     </SectionContainer>
