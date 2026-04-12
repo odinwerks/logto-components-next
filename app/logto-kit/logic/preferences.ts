@@ -58,7 +58,7 @@ export function getPreferencesFromUserData(userData: UserData): UserPreferences 
 
 /**
  * Merges new preferences into the existing customData object.
- * Returns the full updated customData (safe to pass directly to onUpdateCustomData).
+ * Returns the full updated customData (safe to pass directly to the Management API).
  *
  * This is a shallow merge — all other keys in customData are preserved.
  * Inside Preferences, the provided fields are merged (theme and lang independently).

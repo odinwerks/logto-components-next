@@ -165,26 +165,16 @@ export function PreferencesProvider({
   }, []);
 
   useEffect(() => {
-    const handlePreferencesChange = () => {
-      const storedTheme = getStoredTheme();
-      if (storedTheme && storedTheme !== theme) {
-        setThemeState(storedTheme);
-      }
-
-      const storedLang = getStoredLang();
-      if (storedLang && storedLang !== lang) {
-        setLangState(storedLang);
-      }
-
-      const storedOrg = getStoredOrg();
-      if (storedOrg !== asOrg) {
-        setAsOrgState(storedOrg);
+    const handleThemeChange = () => {
+      const stored = getStoredTheme();
+      if (stored && stored !== theme) {
+        setThemeState(stored);
       }
     };
 
-    window.addEventListener('preferences-changed', handlePreferencesChange);
-    return () => window.removeEventListener('preferences-changed', handlePreferencesChange);
-  }, [theme, lang, asOrg]);
+    window.addEventListener('theme-changed', handleThemeChange);
+    return () => window.removeEventListener('theme-changed', handleThemeChange);
+  }, [theme]);
 
   useEffect(() => {
     const stored = getStoredLang();
@@ -229,7 +219,7 @@ export function PreferencesProvider({
     setStoredTheme(newTheme);
     setThemeState(newTheme);
     persistThemeToApi(newTheme);
-    window.dispatchEvent(new Event('preferences-changed'));
+    window.dispatchEvent(new Event('theme-changed'));
   }, [persistThemeToApi]);
 
   const toggleTheme = useCallback(() => {
