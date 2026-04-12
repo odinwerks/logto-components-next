@@ -3,7 +3,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useOrgMode } from '../../logto-kit/components/handlers/preferences';
 import { useLogto } from '../../logto-kit/components/handlers/logto-provider';
-import { validateRbac } from '../../logto-kit/custom-actions/validation';
 interface ClientProtectedProps {
   children: ReactNode;
   perm?: string | string[];
