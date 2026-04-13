@@ -30,8 +30,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   └── route.ts
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
-│   │   ├── load-org-permissions/       # Load org permissions for active user
-│   │   ├── org-permissions/            # Get user's organization permissions
 │   │   ├── protected/
 │   │   │   └── route.ts              # Protected Actions API
 │   │   ├── upload-avatar/
@@ -341,36 +339,10 @@ To add documentation for a new tab:
 2. Add the loader to `DOC_REGISTRY` in `ContentArea.tsx`
 3. Use `SectionContainer` / `Section` for pages, `CodeBlock` for code, and `ExampleCard` for live demos
 
-### Preferences Synchronization
-
-The Dashboard and DemoApp share preferences (theme, language, org) via a unified `preferences-changed` event and `sessionStorage`:
-
-1. When any preference changes in Dashboard (theme, lang, or org), it dispatches a `preferences-changed` event
-2. External consumers listen for this event and re-read from `sessionStorage`
-3. All preferences are stored in `sessionStorage` under keys: `theme-mode`, `lang-mode`, `org-mode`
-
-```tsx
-// Preferences change listener in external app
-useEffect(() => {
-  const handlePreferencesChange = () => {
-    // Re-read all preferences from storage
-    const theme = sessionStorage.getItem('theme-mode');
-    const lang = sessionStorage.getItem('lang-mode');
-    // Apply changes...
-  };
-
-  window.addEventListener('preferences-changed', handlePreferencesChange);
-
-  return () => {
-    window.removeEventListener('preferences-changed', handlePreferencesChange);
-  };
-}, []);
-```
-
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 9 navigation tabs covering every major logto-kit feature
+- A sidebar with 10 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
