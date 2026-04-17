@@ -1642,9 +1642,177 @@ npm run build
 > **⚠️ Organization/RBAC features are FUNCTIONAL but NOT PRODUCTION READY**
 > Extensive testing required before production use. APIs may change.
 
-### Security TODO
+### Security TODO — Enhanced Session Context Validation
 
-- [ ] **Auto-nullify `asOrg` on website exit** — When a user closes the tab or navigates away, `customData.Preferences.asOrg` should be cleared to `null`. This prevents stolen tokens from being used to call Protected API actions on behalf of a user. Attackers would need to: (1) steal the opaque token, (2) discover the org ID, (3) discover the required permissions, and (4) find a way to update `customData` — all within the token's lifecycle (~5 minutes). Implementation approaches: `beforeunload` event + async Logto API call to clear `asOrg`, or session-storage-only org state (never persisted to Logto customData).
+**Goal**: Prevent stolen tokens from being used to call Protected API actions by validating session context (user agent, GEO location) against Logto's native session data.
+
+#### Attack Vector Being Mitigated
+
+Imagine: User (SEDH - evil dingus hacker) steals a token:
+1. User closes tab in Georgia, USA
+2. SEDH tries to call Protected API from Mexico/Russia using stolen token
+3. Even if SEDH has the token + org ID + permissions → **BLOCKED** because GEO/UA doesn't match user's active sessions
+
+#### Current Protected API Security (Already Implemented)
+
+| Check | Purpose |
+|-------|---------|
+| ✅ Token introspection | Token is active (not expired/revoked) |
+| ✅ User ID vs OIDC sub | Token belongs to the claimed user |
+| ✅ Org membership | User is member of the selected organization |
+| ✅ Permission check | User has required permission for action |
+
+#### New Security Pipeline — Session Context Validation
+
+| Check | Data Source | Purpose |
+|-------|-------------|---------|
+| 🔲 **User Agent Match** | Request UA vs Logto sessions | Detect device/browser mismatch |
+| 🔲 **GEO Location** | Request IP country vs Logto session GEO | Detect impossible travel |
+
+#### Implementation Plan
+
+**Phase 1: Core Security Module**
+
+1. Create `app/logto-kit/custom-actions/security-validation.ts`
+   - Fetch user's active sessions from Logto API (`GET /api/my-account/sessions`)
+   - Parse User-Agent header into components (browser, OS, device type)
+   - Compare request context against all active sessions (any session match = pass)
+   - Country-level GEO matching (no IP stored, just country from Logto)
+
+2. User Agent Matching Strategy (Strict but Smart)
+   ```
+   Extract from request:
+   - browser: exact match (Chrome, Firefox, Safari, Edge)
+   - browserVersion: major version match only (120.x == 120.y)
+   - os: exact match (Windows, macOS, Linux, iOS, Android)
+   - deviceType: exact match (desktop, mobile, tablet)
+   
+   Excluded (too volatile):
+   - Full UA string (browser updates change it)
+   - OS version (too many variants)
+   ```
+
+3. GEO Matching Strategy
+   ```
+   Normal Mode:
+   - Country must match exactly (e.g., "US" == "US")
+   
+   Travel Mode (user-triggered):
+   - Bypass country check
+   - Still validate UA
+   ```
+
+4. Integrate into Protected Actions API (`/api/protected`)
+   - Add security validation after token introspection, before org validation
+   - New error codes:
+     - `SESSION_CONTEXT_MISMATCH` (403) — Request context doesn't match any active session
+     - `GEO_MISMATCH` (403) — Request location doesn't match session
+     - `UA_MISMATCH` (403) — Request device doesn't match session
+
+**Phase 2: Travel Mode UI**
+
+5. Add travel mode toggle to Preferences tab
+   ```typescript
+   // In customData.Preferences:
+   {
+     "travelMode": {
+       "enabled": true,
+       "expiresAt": "2024-01-15T00:00:00Z"  // Auto-disable after trip
+     }
+   }
+   ```
+   - User enables before traveling
+   - Auto-expires after set time
+   - Can be disabled manually
+
+**Phase 3: Security Hardening**
+
+6. Error handling: Hard reject on security violation
+   - Return 403 with specific error code
+   - Clear `asOrg` in customData (force re-selection)
+   - Log security event for audit
+
+#### Security Check Flow
+
+```
+Request arrives at /api/protected:
+  - token, id, action, payload (from client)
+  - User-Agent header (automatic)
+  - IP address (automatic for GEO)
+
+1. Token introspection
+   └─> Get active status + sub claim
+
+2. Session security validation (NEW)
+   ├─> Fetch user's active sessions from Logto
+   ├─> Parse request UA → {browser, os, deviceType}
+   ├─> Get GEO country from request IP
+   ├─> Compare against all active sessions:
+   │     - UA match? (browser + os + deviceType)
+   │     - GEO match? (country)
+   └─> If no match → SECURITY_VIOLATION (hard reject)
+
+3. Org validation (existing)
+   └─> Check asOrg from customData.Preferences
+
+4. Permission check (existing)
+   └─> Verify user has required permission
+
+5. Execute action
+```
+
+#### Files to Modify/Create
+
+| File | Changes |
+|------|---------|
+| `app/logto-kit/custom-actions/security-validation.ts` | **NEW**: UA parsing, GEO matching, session fetching |
+| `app/api/protected/route.ts` | Add security validation pipeline |
+| `app/logto-kit/custom-actions/validation.ts` | Integrate security checks |
+| `app/logto-kit/components/dashboard/tabs/preferences.tsx` | Add travel mode toggle |
+| `app/logto-kit/logic/actions.ts` | Add `updateTravelMode` action |
+| `app/logto-kit/locales/en-US.ts` | Add travel mode translations |
+| `app/logto-kit/locales/ka-GE.ts` | Add travel mode translations |
+
+#### Example Logto Session Structure
+
+```json
+{
+  "payload": {
+    "exp": 1712345678,
+    "iat": 1712345678,
+    "jti": "session-id-here",
+    "uid": "user-id",
+    "kind": "Session",
+    "loginTs": 1712345678,
+    "accountId": "user-id",
+    "authorizations": {}
+  },
+  "lastSubmission": {
+    "interactionEvent": "SignIn",
+    "userId": "user-id",
+    "verificationRecords": [...]
+  }
+}
+```
+
+Note: Session context (IP, user agent, GEO) is provided by Logto v1.38.0+ via the session management API. GEO data is attached to sessions by Logto when available.
+
+#### Discussion Notes (for future reference)
+
+- **IP matching excluded**: IPs change too frequently (NAT, VPN, dynamic allocation) — not useful for security
+- **Country matching sufficient**: Store country only, not exact location (privacy + no PII liability)
+- **Any session match**: If user has 3 sessions (phone, laptop, tablet), request matching ANY is sufficient
+- **Step-up auth deferred**: Could be implemented later but adds complexity (Logto's verification API)
+- **Travel mode UX**: User proactively enables before traveling, auto-expires after trip duration
+
+#### ENV Configuration (Future)
+
+```env
+# Security settings (optional, defaults to strict)
+SECURITY_GEO_CHECK=enabled  # enabled | disabled
+SECURITY_UA_CHECK=enabled    # enabled | disabled
+SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
+```
 
 ### Functions
 
