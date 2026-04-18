@@ -285,46 +285,53 @@ export function ProfileTab({
       </Well>
 
       {/* Name section */}
-      <SectionLabel theme={theme}>{t.profile.changeName || 'Change your name'}</SectionLabel>
       <Well theme={theme}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem', marginBottom: '1.125rem' }}>
-          <div>
-            <label style={cs.inputs.label}>{t.profile.firstName || 'First name'}</label>
-            <Input
-              value={givenName}
-              onChange={e => setGivenName(e.target.value)}
-              placeholder={t.profile.firstNamePlaceholder || 'First name'}
-              theme={theme}
-            />
-          </div>
-          <div>
-            <label style={cs.inputs.label}>{t.profile.lastName || 'Last name'}</label>
-            <Input
-              value={familyName}
-              onChange={e => setFamilyName(e.target.value)}
-              placeholder={t.profile.lastNamePlaceholder || 'Last name'}
-              theme={theme}
-            />
-          </div>
+        <div>
+          <p style={theme.components.text.sectionLabel}>
+            {t.profile.changeName || 'Change your name'}
+          </p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {nameChanged && (
-            <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme}>
-              {t.profile.discard || 'Discard'}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', flex: 1 }}>
+            <div>
+              <label style={cs.inputs.label}>{t.profile.firstName || 'First name'}</label>
+              <Input
+                value={givenName}
+                onChange={e => setGivenName(e.target.value)}
+                placeholder={t.profile.firstNamePlaceholder || 'First name'}
+                theme={theme}
+              />
+            </div>
+            <div>
+              <label style={cs.inputs.label}>{t.profile.lastName || 'Last name'}</label>
+              <Input
+                value={familyName}
+                onChange={e => setFamilyName(e.target.value)}
+                placeholder={t.profile.lastNamePlaceholder || 'Last name'}
+                theme={theme}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {nameChanged && (
+              <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme}>
+                {t.profile.discard || 'Discard'}
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              onClick={handleSaveName}
+              disabled={!nameChanged || nameLoading}
+              theme={theme}
+            >
+              {nameLoading
+                ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving || 'Saving…'}</>
+                : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges || 'Save changes'}</>
+              }
             </Button>
-          )}
-          <Button
-            variant="primary"
-            onClick={handleSaveName}
-            disabled={!nameChanged || nameLoading}
-            theme={theme}
-          >
-            {nameLoading
-              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving || 'Saving…'}</>
-              : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges || 'Save changes'}</>
-            }
-          </Button>
+          </div>
         </div>
       </Well>
     </div>
