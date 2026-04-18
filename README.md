@@ -1814,6 +1814,106 @@ SECURITY_UA_CHECK=enabled    # enabled | disabled
 SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 ```
 
+---
+
+### ✅ Heartbeat System — IMPLEMENTED
+
+A dual-mode heartbeat system that keeps user session context alive while the tab is active. When heartbeats stop (user closes tab), the `asOrg` context is invalidated after a timeout.
+
+#### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DEV MODE (Memory)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   Client sends heartbeat every 30s ──► In-memory Map                    │
+│   ├─ Key: "userId:orgId"                                                │
+│   └─ Value: timestamp                                                   │
+│                                                                         │
+│   Cleanup interval (60s) scans Map                                      │
+│   └─ Entries older than 60s are removed                                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PROD MODE (Redis)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   Client sends heartbeat every 30s ──► Redis SETEX                        │
+│   ├─ Key: "hb:userId:orgId"                                             │
+│   └─ TTL: 60 seconds (auto-expires)                                     │
+│                                                                         │
+│   No cleanup needed — Redis handles expiration                          │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Files Added
+
+| File | Purpose |
+|------|---------|
+| `app/logto-kit/logic/heartbeat/store.ts` | Store interface definition |
+| `app/logto-kit/logic/heartbeat/memory-store.ts` | In-memory implementation (dev) |
+| `app/logto-kit/logic/heartbeat/redis-store.ts` | Redis implementation (prod) |
+| `app/logto-kit/logic/heartbeat/index.ts` | Factory + exports |
+| `app/logto-kit/logic/heartbeat/cleanup.ts` | Cleanup integration functions |
+| `app/api/heartbeat/route.ts` | POST endpoint to receive heartbeats |
+| `app/logto-kit/components/handlers/heartbeat-provider.tsx` | Client-side heartbeat sender |
+
+#### Configuration
+
+```env
+# Storage mode: 'memory' (dev) or 'redis' (prod)
+HEARTBEAT_MODE=memory
+
+# Memory mode settings
+HEARTBEAT_CLEANUP_INTERVAL_MS=60000    # Cleanup scan interval
+HEARTBEAT_MAX_AGE_MS=60000             # Max age before expired
+
+# Redis mode settings (self-hosted)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=                          # Optional
+REDIS_DB=0
+REDIS_HEARTBEAT_PREFIX=hb:
+REDIS_HEARTBEAT_TTL=60
+```
+
+#### Usage
+
+The `HeartbeatProvider` is automatically included in `app/layout.tsx`. It runs silently and sends heartbeats when:
+- Component mounts (initial heartbeat)
+- Every 30 seconds (interval)
+- Tab becomes visible (user returned)
+- Component unmounts (tab close — best effort)
+
+#### Integration with Protected API
+
+To validate heartbeat before processing a protected action:
+
+```typescript
+import { getHeartbeatStore } from '@/app/logto-kit/logic/heartbeat';
+
+// In your protected API route:
+const store = getHeartbeatStore();
+const lastHeartbeat = await store.get(userId, orgId);
+
+if (!lastHeartbeat) {
+  return NextResponse.json(
+    { error: 'SESSION_EXPIRED', message: 'Please re-select your organization' },
+    { status: 403 }
+  );
+}
+```
+
+#### Security Model
+
+- **Token theft protection**: Even if SEDH steals the token, they need to maintain an active heartbeat
+- **Tab close = timeout**: When user closes tab, heartbeat stops → context invalidates after 60s
+- **No Redis in dev**: Memory mode works out of the box for development
+- **Self-hosted Redis**: Production uses your own Redis instance (no vendor lock-in)
+
 ### Functions
 
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
