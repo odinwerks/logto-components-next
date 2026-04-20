@@ -1,4 +1,5 @@
 import { UserScope } from '@logto/next';
+import { readEnv } from './logto-kit/logic/env';
 
 // Map SCOPES string to Logto enum
 const SCOPE_MAP: Record<string, string> = {
@@ -7,6 +8,7 @@ const SCOPE_MAP: Record<string, string> = {
   email: UserScope.Email,
   phone: UserScope.Phone,
   identities: UserScope.Identities,
+  sessions: UserScope.Sessions,
   organizations: UserScope.Organizations,
   organization_roles: UserScope.OrganizationRoles,
   openid: 'openid',
@@ -14,9 +16,14 @@ const SCOPE_MAP: Record<string, string> = {
 };
 
 // whitespace and validation
+const PRIVATE_ENV_VARS = new Set([
+  'APP_SECRET', 'COOKIE_SECRET', 'LOGTO_M2M_APP_SECRET',
+  'LOGTO_M2M_APP_ID', 'S3_SECRET_ACCESS_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
+]);
+
 function getEnvVar(name: string, required = true): string {
-  const valueRaw =
-    process.env[name] || process.env[`NEXT_PUBLIC_${name}`] || process.env[`NEXT_PUBLIC_${name.toUpperCase()}`];
+  const allowPublic = !PRIVATE_ENV_VARS.has(name);
+  const valueRaw = readEnv(name, allowPublic);
 
   // During build time, don't throw for missing env vars to allow demo builds
   const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.CI && !valueRaw;
