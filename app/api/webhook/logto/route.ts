@@ -1,8 +1,22 @@
 /**
- * IN DEVELOPMENT — Session tracking webhook handler.
- * Receives PostSignIn webhooks from Logto and stores device metadata to S3.
- * Not production-ready. Requires testing and possibly a signing key
- * in production (currently bypassable when LOGTO_WEBHOOK_SIGNING_KEY is unset).
+ * Session tracking webhook handler (OPTIONAL).
+ *
+ * This webhook is no longer required for device metadata — Logto v1.38.0+
+ * provides browser, OS, IP, and user agent via signInContext in the
+ * session response. Device info is now read directly from the Account API.
+ *
+ * This webhook remains useful for pre-populating lastActive at sign-in time
+ * (so the "last active" timestamp reflects the actual sign-in moment rather
+ * than the first heartbeat). However it is not required — sessions will work
+ * in dev and production without it.
+ *
+ * If configured in Logto Console, it receives PostSignIn events and stores
+ * { jti, lastActive, createdAt, browser, os, ip, ... } to S3. Old S3 files
+ * retain full metadata (now ignored by getSessionsWithDeviceMeta which reads
+ * from signInContext). New heartbeats only write { jti, lastActive }.
+ *
+ * Security: LOGTO_WEBHOOK_SIGNING_KEY is validated when set. Without it,
+ * signature verification is bypassed (acceptable for development).
  */
 import { type NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
