@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect, useRef } from 'react';
 import { useOrgMode } from '../components/handlers/preferences';
 import { useLogto } from '../components/handlers/logto-provider';
 import { loadOrganizationPermissions } from '../actions/load-org-permissions';
+import { debugLog } from '../logic/debug';
 
 interface ProtectedProps {
   children: ReactNode;
@@ -69,7 +70,7 @@ export function Protected({
 
   const checkAccess = (): boolean => {
     if (!userData?.organizations) {
-      console.log('[Protected] No user organizations found');
+      debugLog('[Protected] No user organizations found');
       return false;
     }
 
@@ -85,7 +86,7 @@ export function Protected({
       if (orgWithName) {
         targetOrgId = orgWithName.id;
       } else {
-        console.log('[Protected] Organization with name not found:', orgName);
+        debugLog('[Protected] Organization with name not found:', orgName);
         return false;
       }
     } else {
@@ -94,33 +95,26 @@ export function Protected({
 
     const hasOrg = userData.organizations.some((org) => org.id === targetOrgId);
     if (!hasOrg) {
-      console.log('[Protected] User does not have required organization:', targetOrgId);
+      debugLog('[Protected] User does not have required organization:', targetOrgId);
       return false;
     }
 
     const hasRequiredPerms = checkPermissions(targetOrgId, effectivePerms);
     if (!hasRequiredPerms) {
-      console.log('[Protected] User lacks required permissions in organization:', targetOrgId);
+      debugLog('[Protected] User lacks required permissions in organization:', targetOrgId);
       return false;
     }
 
     const activeOrgMatches = asOrg === targetOrgId;
     if (!activeOrgMatches) {
-      console.log('[Protected] Organization not selected as active:', {
+      debugLog('[Protected] Organization not selected as active:', {
         required: targetOrgId,
         current: asOrg,
       });
       return false;
     }
 
-    console.log('[Protected] Access granted:', {
-      targetOrgId,
-      hasOrg: true,
-      hasRequiredPerms: true,
-      activeOrgMatches: true,
-      userOrgs: userData.organizations.map((org) => ({ id: org.id, name: org.name })),
-      availablePerms: effectivePerms,
-    });
+    debugLog('[Protected] Access granted for org:', targetOrgId);
 
     return true;
   };
@@ -131,17 +125,17 @@ export function Protected({
     }
 
     if (!perms || perms.length === 0) {
-      console.log('[Protected] No organization permissions available');
+      debugLog('[Protected] No organization permissions available');
       return false;
     }
 
-    console.log('[Protected] Available organization permissions:', perms);
+    debugLog('[Protected] Available organization permissions:', perms);
 
     const requiredPerms = Array.isArray(perm) ? perm : [perm];
     const permResults = requiredPerms.map((requiredPerm) => {
       const hasPerm = perms.includes(requiredPerm);
 
-      console.log(`[Protected] Permission check for "${requiredPerm}":`, {
+      debugLog(`[Protected] Permission check for "${requiredPerm}":`, {
         hasPermission: hasPerm,
         availablePerms: perms,
       });
@@ -153,12 +147,11 @@ export function Protected({
       ? permResults.every(Boolean)
       : permResults.some(Boolean);
 
-    console.log('[Protected] Permission check summary:', {
+    debugLog('[Protected] Permission check summary:', {
       _organizationId,
       availablePerms: perms,
       requiredPerms,
       requireAll,
-      permResults,
       hasRequiredPerms,
     });
 

@@ -92,7 +92,7 @@ export function getNextLang(currentLang: string): string {
 /**
  * Safe getter: if lang is not valid, return default.
  */
-export function resolvelang(lang: string | undefined | null): string {
+export function resolveLang(lang: string | undefined | null): string {
   if (!lang) return getDefaultLang();
   if (isValidLang(lang)) return lang;
   return getDefaultLang();

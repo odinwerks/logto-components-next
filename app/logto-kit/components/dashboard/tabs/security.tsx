@@ -421,7 +421,7 @@ function BackupCodesModal({
       content = `<!DOCTYPE html><html><head><title>Backup Codes</title>
 <style>body{font-family:monospace;padding:40px;background:#0d0d0d;color:#e5e5e5}.w{max-width:560px;margin:0 auto;background:#1a1a1a;padding:28px;border:1px solid #333}h1{font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;color:#fff}.s{color:#666;font-size:12px;margin-bottom:20px}.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}.c{padding:9px 12px;background:#111;border:1px solid #2a2a2a;font-size:13px;letter-spacing:.04em}.f{margin-top:20px;color:#444;font-size:11px}</style>
 </head><body><div class="w"><h1>Backup codes</h1><p class="s">Each code can only be used once.</p>
-<div class="g">${codes.map(c => `<div class="c">${c.code}</div>`).join('')}</div>
+<div class="g">${codes.map(c => `<div class="c">${String(c.code).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}</div>`).join('')}</div>
 <p class="f">Generated ${new Date().toLocaleString()}</p></div></body></html>`;
       mime = 'text/html'; ext = 'html';
     }

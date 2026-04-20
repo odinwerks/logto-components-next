@@ -5,7 +5,7 @@ import 'server-only';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
 import { getLogtoConfig, getManagementApiToken } from '../../logto';
-import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse } from './types';
+import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse, LogtoSession, SessionMeta } from './types';
 import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
 
 
@@ -90,6 +90,20 @@ async function makeRequest(
 const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 1000;
 
+const AUTH_ERROR_PATTERNS = [
+  'Cookies can only be modified',
+  'Unauthorized',
+  '401',
+  'needsAuth',
+];
+
+function isAuthError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return AUTH_ERROR_PATTERNS.some(p => error.message.includes(p));
+  }
+  return false;
+}
+
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
   let lastError: Error | unknown = new Error('fetchWithRetry: all retries exhausted');
   
@@ -98,6 +112,10 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
       return await fn();
     } catch (error) {
       lastError = error;
+      if (isAuthError(error)) {
+        console.warn(`[fetchWithRetry] Auth error on attempt ${i + 1}, not retrying:`, error instanceof Error ? error.message : error);
+        break;
+      }
       if (i < retries - 1) {
         const delay = BASE_DELAY_MS * (i + 1);
         console.log(`[fetchWithRetry] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
@@ -112,12 +130,14 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      // Use Logto SDK to get context with full user info and claims
-      const { claims, userInfo } = await (async () => {
-        const { getLogtoContext } = await import('@logto/next/server-actions');
-        const { getLogtoConfig } = await import('../../logto');
-        return await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
-      })();
+      const { getLogtoContext } = await import('@logto/next/server-actions');
+      const { getLogtoConfig } = await import('../../logto');
+
+      // First, ensure we have a valid token (this is a Server Action, can modify cookies)
+      // Doing this first may prevent the SDK from triggering a refresh inside getLogtoContext
+      await getTokenForServerAction();
+
+      const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {
         return { success: false, needsAuth: true } as any;
@@ -126,8 +146,6 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
       if (!userInfo) {
         throw new Error('Failed to fetch user info');
       }
-
-      // Organization data loaded successfully
 
       const token = await getTokenForServerAction();
 
@@ -562,38 +580,48 @@ export async function deleteUserAccount(
 // Avatar Upload Functions
 // ============================================================================
 
+async function supabaseStorageHeaders(
+  contentType: string,
+  upsert = false,
+): Promise<Record<string, string>> {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.');
+  }
+  return {
+    Authorization: `Bearer ${serviceRoleKey}`,
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=0, must-revalidate',
+    ...(upsert ? { 'x-upsert': 'true' } : {}),
+    'apikey': serviceRoleKey,
+  };
+}
+
+function supabaseRestBase(): string {
+  const rawEndpoint = process.env.S3_ENDPOINT;
+  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.');
+  return rawEndpoint.replace(/\/s3\/?$/, '');
+}
+
 async function uploadViaSupabase(
   bucket: string,
   key: string,
   bytes: Buffer,
   contentType: string,
 ): Promise<void> {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const rawEndpoint = process.env.S3_ENDPOINT;
-
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.');
-  }
-  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.');
-
-  const restBase = rawEndpoint.replace(/\/s3\/?$/, '')
-  const uploadUrl = `${restBase}/object/${bucket}/${key}`
+  const uploadUrl = `${supabaseRestBase()}/object/${bucket}/${key}`
+  const headers = await supabaseStorageHeaders(contentType, true);
 
   const res = await fetch(uploadUrl, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${serviceRoleKey}`,
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=0, must-revalidate',
-      'x-upsert': 'true',
-    },
-    body: bytes as unknown as BodyInit,
+    headers,
+    body: new Uint8Array(bytes),
     cache: 'no-store',
   })
 
   if (!res.ok) {
     const body = await res.text().catch(() => res.statusText)
-    throw new Error(`Supabase upload failed (HTTP ${res.status}): ${body}`)
+    throw new Error(`Storage upload failed (HTTP ${res.status}). Check your S3 and Supabase configuration.`)
   }
 }
 
@@ -608,7 +636,7 @@ async function uploadViaMinIO(
   const rawEndpoint = process.env.S3_ENDPOINT
 
   if (!accessKey || !secretKey) {
-    throw new Error('Set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY.')
+    throw new Error('Set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY, or set SUPABASE_SERVICE_ROLE_KEY to use the Supabase REST path.')
   }
   if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.')
 
@@ -626,10 +654,71 @@ async function uploadViaMinIO(
     region: process.env.S3_REGION ?? 'auto',
   })
 
-  await minio.putObject(bucket, key, bytes, bytes.length, {
-    'Content-Type': contentType,
-    'Cache-Control': 'public, max-age=0, must-revalidate',
-  })
+  try {
+    await minio.putObject(bucket, key, bytes, bytes.length, {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+    })
+  } catch (err) {
+    throw new Error('Storage upload failed. Please check your S3 configuration and credentials.')
+  }
+}
+
+async function deleteFromSupabase(bucket: string, key: string): Promise<void> {
+  const restBase = supabaseRestBase();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) return;
+  const url = `${restBase}/object/${bucket}/${key}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: serviceRoleKey,
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok && res.status !== 404) {
+    console.warn(`[deleteFromSupabase] Failed to delete ${key}: HTTP ${res.status}`);
+  }
+}
+
+async function deleteFromMinio(bucket: string, key: string): Promise<void> {
+  const rawEndpoint = process.env.S3_ENDPOINT;
+  const accessKey = process.env.S3_ACCESS_KEY_ID;
+  const secretKey = process.env.S3_SECRET_ACCESS_KEY;
+  if (!rawEndpoint || !accessKey || !secretKey) return;
+
+  const parsed = new URL(rawEndpoint);
+  const minio = new Minio.Client({
+    endPoint: parsed.hostname,
+    port: parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === 'https:' ? 443 : 80,
+    useSSL: parsed.protocol === 'https:',
+    accessKey,
+    secretKey,
+    region: process.env.S3_REGION ?? 'auto',
+  });
+
+  try {
+    await minio.removeObject(bucket, key);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('Not Found') && !msg.includes('NoSuchKey') && !msg.includes('404')) {
+      console.warn(`[deleteFromMinio] Failed to delete ${key}: ${msg}`);
+    }
+  }
+}
+
+async function deleteOldAvatars(bucket: string, userId: string, newExt: string): Promise<void> {
+  const extensions = ['jpg', 'png', 'webp', 'gif'].filter(ext => ext !== newExt);
+  for (const ext of extensions) {
+    const key = `${userId}/you.${ext}`;
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      await deleteFromSupabase(bucket, key);
+    } else {
+      await deleteFromMinio(bucket, key);
+    }
+  }
 }
 
 // introspectToken and assertSafeUserId are now imported from ./utils
@@ -651,16 +740,51 @@ async function validateUserToken(accessToken: string, userId: string): Promise<v
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 const MAX_BYTES = 2 * 1024 * 1024
 
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+
+const MAGIC_BYTES: Record<string, [number[], number[]]> = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF], []],
+  'image/png': [[0x89, 0x50, 0x4E, 0x47], []],
+  'image/webp': [[0x52, 0x49, 0x46, 0x46], [0x57, 0x45, 0x42, 0x50]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38], []],
+}
+
+function detectMimeFromBytes(bytes: Buffer): string | null {
+  for (const [mime, [prefix, at]] of Object.entries(MAGIC_BYTES)) {
+    let match = true
+    for (let i = 0; i < prefix.length; i++) {
+      if (bytes[i] !== prefix[i]) { match = false; break }
+    }
+    if (!match) continue
+    if (at.length > 0) {
+      for (let i = 0; i < at.length; i++) {
+        if (bytes[8 + i] !== at[i]) { match = false; break }
+      }
+    }
+    if (match) return mime
+  }
+  return null
+}
+
 export async function uploadAvatar(
   formData: FormData,
 ): Promise<{ url: string }> {
-  const file = formData.get('file') as File | null
-  const accessToken = formData.get('accessToken') as string | null
-  const userId = formData.get('userId') as string | null
+  const rawFile = formData.get('file')
+  const rawAccessToken = formData.get('accessToken')
+  const rawUserId = formData.get('userId')
 
-  if (!file || !accessToken || !userId) {
-    throw new Error('Bad request — file, accessToken, and userId are all required.')
+  if (!(rawFile instanceof File) || typeof rawAccessToken !== 'string' || typeof rawUserId !== 'string') {
+    throw new Error('Bad request — file, accessToken, and userId are all required and must be correct types.')
   }
+
+  const file = rawFile
+  const accessToken = rawAccessToken
+  const userId = rawUserId
 
   if (!(ALLOWED_MIME as readonly string[]).includes(file.type)) {
     throw new Error(`Invalid file type "${file.type}". Allowed: ${ALLOWED_MIME.join(', ')}.`)
@@ -670,19 +794,14 @@ export async function uploadAvatar(
     throw new Error(`File is ${(file.size / 1024 / 1024).toFixed(2)} MB — limit is 2 MB.`)
   }
 
-  await validateUserToken(accessToken, userId);
-
-  const bucket = process.env.S3_BUCKET_NAME
-  if (!bucket) throw new Error('S3_BUCKET_NAME is not set.')
-
-  const key = `${userId}/you.png`
-  const bytes = Buffer.from(await file.arrayBuffer())
-
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    await uploadViaSupabase(bucket, key, bytes, file.type)
-  } else {
-    await uploadViaMinIO(bucket, key, bytes, file.type)
+  const arrayBuf = await file.arrayBuffer()
+  const bytes = Buffer.from(arrayBuf)
+  const detectedMime = detectMimeFromBytes(bytes)
+  if (!detectedMime || detectedMime !== file.type) {
+    throw new Error(`File content does not match declared type "${file.type}". Upload rejected.`)
   }
+
+  await validateUserToken(accessToken, userId);
 
   const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, '')
   if (!publicBase) {
@@ -691,6 +810,20 @@ export async function uploadAvatar(
         'reading objects — NOT the S3 API endpoint.',
     )
   }
+
+  const bucket = process.env.S3_BUCKET_NAME
+  if (!bucket) throw new Error('S3_BUCKET_NAME is not set.')
+
+  const ext = MIME_TO_EXT[file.type] || 'png'
+  const key = `${userId}/you.${ext}`
+
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    await uploadViaSupabase(bucket, key, bytes, file.type)
+  } else {
+    await uploadViaMinIO(bucket, key, bytes, file.type)
+  }
+
+  await deleteOldAvatars(bucket, userId, ext);
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` }
 }
@@ -726,6 +859,269 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<str
     console.error(`[getOrganizationUserPermissions] Failed for org ${orgId}:`, error);
     return [];
   }
+}
+
+// ============================================================================
+// Session Meta — S3 Storage Helpers
+// ============================================================================
+
+const SESSION_META_BUCKET = () => process.env.S3_SESSION_BUCKET || process.env.S3_BUCKET_NAME || '';
+
+function sessionMetaKey(userId: string, jti: string): string {
+  return `sessions/${userId}/${jti}.json`;
+}
+
+async function listSessionMetasFromS3(userId: string): Promise<import('./types').SessionMeta[]> {
+  const bucket = SESSION_META_BUCKET();
+  if (!bucket) return [];
+  const prefix = `sessions/${userId}/`;
+
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const srk = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const restBase = supabaseRestBase();
+      const url = `${restBase}/object/list/${bucket}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${srk}`,
+          apikey: srk,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prefix, limit: 100 }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        console.warn(`[sessionMeta] Failed to list objects: HTTP ${res.status}`);
+        return [];
+      }
+      const objects = await res.json() as { name: string }[];
+      const metas: import('./types').SessionMeta[] = [];
+      await Promise.allSettled(objects.map(async (obj) => {
+        const fileRes = await fetch(`${restBase}/object/${bucket}/${obj.name}`, {
+          headers: {
+            Authorization: `Bearer ${srk}`,
+            apikey: srk,
+          },
+          cache: 'no-store',
+        });
+        if (fileRes.ok) {
+          const meta = await fileRes.json() as import('./types').SessionMeta;
+          metas.push(meta);
+        }
+      }));
+      return metas;
+    }
+
+    // MinIO fallback for list
+    const rawEndpoint = process.env.S3_ENDPOINT;
+    const accessKey = process.env.S3_ACCESS_KEY_ID;
+    const secretKey = process.env.S3_SECRET_ACCESS_KEY;
+    if (!rawEndpoint || !accessKey || !secretKey) return [];
+
+    const parsed = new URL(rawEndpoint);
+    const minio = new Minio.Client({
+      endPoint: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === 'https:' ? 443 : 80,
+      useSSL: parsed.protocol === 'https:',
+      accessKey,
+      secretKey,
+      region: process.env.S3_REGION ?? 'auto',
+    });
+
+    const stream = minio.listObjects(bucket, prefix, false);
+    const objectNames = await new Promise<string[]>((resolve, reject) => {
+      const names: string[] = [];
+      stream.on('data', (obj: { name: string }) => names.push(obj.name));
+      stream.on('end', () => resolve(names));
+      stream.on('error', reject);
+    });
+
+    const metas: import('./types').SessionMeta[] = [];
+    await Promise.allSettled(objectNames.map(async (name) => {
+      const data = await minio.getObject(bucket, name);
+      const bytes = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        data.on('data', (chunk: Buffer) => chunks.push(chunk));
+        data.on('end', () => resolve(Buffer.concat(chunks)));
+        data.on('error', reject);
+      });
+      metas.push(JSON.parse(bytes.toString('utf-8')) as import('./types').SessionMeta);
+    }));
+    return metas;
+  } catch (err) {
+    console.warn(`[sessionMeta] Failed to list session metas for ${userId}:`, err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+export async function fetchAllSessionMeta(userId: string): Promise<Map<string, import('./types').SessionMeta>> {
+  const bucket = SESSION_META_BUCKET();
+  if (!bucket) {
+    console.log('[sessionMeta] No S3_SESSION_BUCKET configured, skipping meta fetch');
+    return new Map();
+  }
+
+  const metas = await listSessionMetasFromS3(userId);
+  const result = new Map<string, import('./types').SessionMeta>();
+  for (const meta of metas) {
+    if (meta.jti) result.set(meta.jti, meta);
+  }
+  console.log(`[sessionMeta] Fetched ${result.size} session meta records for user ${userId.substring(0, 8)}`);
+  return result;
+}
+
+export async function deleteSessionMeta(userId: string, jti: string): Promise<void> {
+  const bucket = SESSION_META_BUCKET();
+  if (!bucket) return;
+  const key = sessionMetaKey(userId, jti);
+
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const restBase = supabaseRestBase();
+      const url = `${restBase}/object/${bucket}/${key}`;
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        },
+        cache: 'no-store',
+      });
+      if (!res.ok && res.status !== 404) {
+        console.warn(`[sessionMeta] Failed to delete ${jti}: HTTP ${res.status}`);
+      } else {
+        console.log(`[sessionMeta] Deleted meta for session ${jti}`);
+      }
+      return;
+    }
+
+    // MinIO fallback
+    const rawEndpoint = process.env.S3_ENDPOINT;
+    const accessKey = process.env.S3_ACCESS_KEY_ID;
+    const secretKey = process.env.S3_SECRET_ACCESS_KEY;
+    if (!rawEndpoint || !accessKey || !secretKey) return;
+
+    const parsed = new URL(rawEndpoint);
+    const minio = new Minio.Client({
+      endPoint: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === 'https:' ? 443 : 80,
+      useSSL: parsed.protocol === 'https:',
+      accessKey,
+      secretKey,
+      region: process.env.S3_REGION ?? 'auto',
+    });
+
+    await minio.removeObject(bucket, key);
+    console.log(`[sessionMeta] Deleted meta for session ${jti}`);
+  } catch (err) {
+    console.warn(`[sessionMeta] Error deleting ${jti}:`, err instanceof Error ? err.message : err);
+  }
+}
+
+// ============================================================================
+// Session Management Actions
+// ============================================================================
+
+export async function getUserSessions(verificationRecordId: string): Promise<LogtoSession[]> {
+  console.log(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
+  const res = await makeRequest('/api/my-account/sessions', {
+    extraHeaders: { 'logto-verification-id': verificationRecordId },
+  });
+  await throwOnApiError(res, 'Get sessions failed');
+  const data = await res.json();
+  const sessions = (data.sessions ?? []) as LogtoSession[];
+  console.log(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
+  return sessions;
+}
+
+export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<{
+  sessions: LogtoSession[];
+  currentJti: string | null;
+}> {
+  const sessions = await getUserSessions(verificationRecordId);
+
+  const token = await getTokenForServerAction();
+  const introspection = await introspectToken(token);
+  const currentJti = introspection.sid || introspection.jti || null;
+  const userId = introspection.sub || '';
+
+  console.log(`[getSessionsWithDeviceMeta] currentJti=${currentJti}, userId=${userId}`);
+
+  // Fetch all S3-stored session metadata for this user
+  const metaMap = await fetchAllSessionMeta(userId);
+
+  // Match metadata to sessions by jti
+  const enrichedSessions: LogtoSession[] = sessions.map(session => ({
+    ...session,
+    meta: metaMap.get(session.payload.jti) ?? null,
+  }));
+
+  console.log(`[getSessionsWithDeviceMeta] Returning ${enrichedSessions.length} sessions, ${metaMap.size} meta records found`);
+  return { sessions: enrichedSessions, currentJti };
+}
+
+export async function revokeUserSession(
+  sessionId: string,
+  revokeGrantsTarget?: 'all' | 'firstParty',
+  identityVerificationRecordId?: string,
+): Promise<void> {
+  console.log(`[revokeUserSession] Starting revocation for session ${sessionId}`);
+  console.log(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
+
+  const extraHeaders: Record<string, string> = {};
+  if (identityVerificationRecordId) {
+    extraHeaders['logto-verification-id'] = identityVerificationRecordId;
+  }
+
+  const path = `/api/my-account/sessions/${sessionId}`
+    + (revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : '');
+
+  console.log(`[revokeUserSession] Calling DELETE ${path}`);
+  const res = await makeRequest(path, {
+    method: 'DELETE',
+    extraHeaders,
+  });
+
+  console.log(`[revokeUserSession] Logto responded with status ${res.status}`);
+  await throwOnApiError(res, 'Session revocation failed');
+
+  // Delete the session meta from S3
+  try {
+    const token = await getTokenForServerAction();
+    const introspection = await introspectToken(token);
+    const userId = introspection.sub || '';
+    if (userId) {
+      await deleteSessionMeta(userId, sessionId);
+    }
+  } catch (err) {
+    console.warn(`[revokeUserSession] Failed to delete session meta from S3:`, err instanceof Error ? err.message : err);
+  }
+
+  console.log(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+}
+
+export async function getUserGrants(): Promise<unknown[]> {
+  const res = await makeRequest('/api/my-account/grants');
+  await throwOnApiError(res, 'Get grants failed');
+  const data = await res.json();
+  return data.grants ?? [];
+}
+
+export async function revokeUserGrant(
+  grantId: string,
+  identityVerificationRecordId?: string,
+): Promise<void> {
+  const extraHeaders: Record<string, string> = {};
+  if (identityVerificationRecordId) {
+    extraHeaders['logto-verification-id'] = identityVerificationRecordId;
+  }
+
+  const res = await makeRequest(`/api/my-account/grants/${grantId}`, {
+    method: 'DELETE',
+    extraHeaders,
+  });
+  await throwOnApiError(res, 'Grant revocation failed');
 }
 
 // ============================================================================

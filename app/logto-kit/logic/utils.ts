@@ -1,5 +1,3 @@
-'use server';
-
 import { getLogtoConfig } from '../../logto';
 import type { OidcIntrospectionResponse } from './types';
 

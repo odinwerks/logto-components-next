@@ -28,7 +28,6 @@ export function Toast({ message, onDismiss, theme }: ToastProps) {
     success: cs.toasts.success,
     error:   cs.toasts.error,
     info:    cs.toasts.info,
-    warning: cs.toasts.warning,
   } as const;
 
   const toastStyle: React.CSSProperties = {

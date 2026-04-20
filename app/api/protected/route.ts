@@ -3,6 +3,7 @@ import { getAction } from '../../logto-kit/custom-actions';
 import { fetchUserRbacData, validateOrgMembership } from '../../logto-kit/custom-actions/validation';
 import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
 import { introspectToken, assertSafeUserId } from '../../logto-kit/logic/utils';
+import { debugLog, debugError } from '../../logto-kit/logic/debug';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json({ ok: false, error, message }, { status });
@@ -30,23 +31,22 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      assertSafeUserId(id);
+      await assertSafeUserId(id);
     } catch (error) {
       return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
     }
 
     let introspection: OidcIntrospectionResponse;
     try {
-      console.log('[Protected API] Introspecting token:', token.substring(0, 20) + '...');
+      debugLog('[Protected API] Introspecting token');
       introspection = await introspectToken(token);
-      console.log('[Protected API] Introspection result:', introspection);
     } catch (error) {
-      console.error('[Protected API] Introspection error:', error);
+      debugError('[Protected API] Introspection error:', error instanceof Error ? error.message : String(error));
       return apiError('INTROSPECTION_ERROR', 'Failed to validate token', 401);
     }
 
     if (!introspection.active) {
-      console.log('[Protected API] Token not active:', introspection);
+      debugLog('[Protected API] Token not active');
       return apiError('TOKEN_INVALID', 'Token is not active or has been revoked', 401);
     }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     try {
       userData = await fetchUserRbacData(token);
     } catch (error) {
-      console.error('[Protected API] User data fetch error:', error);
+      debugError('[Protected API] User data fetch error:', error instanceof Error ? error.message : String(error));
       return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
     }
 
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, data: result });
   } catch (error) {
-    console.error('[Protected API] Unexpected error:', error);
+    debugError('[Protected API] Unexpected error:', error instanceof Error ? error.message : String(error));
     return apiError('INTERNAL_ERROR', 'Internal server error', 500);
   }
 }

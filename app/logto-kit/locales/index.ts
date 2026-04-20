@@ -41,6 +41,7 @@ export interface KitTranslations {
     profile: string;
     preferences: string;
     security: string;
+    sessions: string;
     identities: string;
     organizations: string;
     mfa: string;
@@ -313,6 +314,47 @@ export interface KitTranslations {
     invalidateSession: string;
     invalidateSessionDescription: string;
   };
+
+  // Sessions tab
+  sessions: {
+    title: string;
+    description: string;
+    activeSessions: string;
+    currentSession: string;
+    lastActive: string;
+    signedIn: string;
+    expires: string;
+    authMethod: string;
+    deviceId: string;
+    browser: string;
+    os: string;
+    device: string;
+    ip: string;
+    unknown: string;
+    revoke: string;
+    revokeSession: string;
+    revokeSessionDesc: string;
+    processing: string;
+    revokeAll: string;
+    revokeAllDesc: string;
+    revoked: string;
+    revokeFailed: string;
+    noSessions: string;
+    password: string;
+    social: string;
+    enterpriseSso: string;
+    webauthn: string;
+    totp: string;
+    backupCode: string;
+    desktop: string;
+    mobile: string;
+    thisDevice: string;
+    verifyToView: string;
+    verifyToViewDesc: string;
+    verifyPassword: string;
+    verifyFailed: string;
+    loadFailed: string;
+  };
   
   // Common
   common: {
@@ -385,7 +427,7 @@ export function getAllTranslations(): Record<string, Translations> {
  * Check if a locale is available
  */
 export function isLocaleAvailable(locale: string): boolean {
-  return locale.toUpperCase() in locales;
+  return locale in locales;
 }
 
 // Export individual locales

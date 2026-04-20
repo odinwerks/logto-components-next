@@ -7,13 +7,10 @@ export async function GET(request: NextRequest) {
   const baseUrl = process.env.APP_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
-  console.log('[CookieKiller] Wiping cookies via API route...', { force });
-
   const response = NextResponse.redirect(new URL('/', baseUrl));
 
   request.cookies.getAll().forEach(cookie => {
     if (cookie.name.startsWith('logto_') || cookie.name === ACTIVE_ORG_COOKIE) {
-      console.log('[CookieKiller] Clearing cookie:', cookie.name);
       response.cookies.set(cookie.name, '', {
         maxAge: 0,
         path: '/',
@@ -22,9 +19,23 @@ export async function GET(request: NextRequest) {
   });
 
   if (force) {
-    console.log('[CookieKiller] Force flag set, signing out from Logto...');
     const { signOut } = await import('@logto/next/server-actions');
-    await signOut(getLogtoConfig());
+    try {
+      await signOut(getLogtoConfig());
+    } catch (err) {
+      const redirect = err instanceof Error && err.message.includes('NEXT_REDIRECT')
+        ? response
+        : NextResponse.redirect(new URL('/', baseUrl));
+      request.cookies.getAll().forEach(cookie => {
+        if (cookie.name.startsWith('logto_') || cookie.name === ACTIVE_ORG_COOKIE) {
+          redirect.cookies.set(cookie.name, '', {
+            maxAge: 0,
+            path: '/',
+          });
+        }
+      });
+      return redirect;
+    }
   }
 
   return response;
