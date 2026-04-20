@@ -183,6 +183,12 @@ function OverviewSection() {
             <td style={tdStyle}>15</td>
           </tr>
           <tr>
+            <td style={tdPathStyle}>Sessions</td>
+            <td style={tdStyle}>8</td>
+            <td style={tdStyle}>—</td>
+            <td style={tdStyle}>3</td>
+          </tr>
+          <tr>
             <td style={tdPathStyle}>Identities</td>
             <td style={tdStyle}>3</td>
             <td style={tdStyle}>—</td>
@@ -755,6 +761,112 @@ const handleInvalidateSession = () => { window.location.href = '/api/wipe?force=
   );
 }
 
+// ─── Sessions Tab ───────────────────────────────────────────────────────────
+
+function SessionsOverviewSection() {
+  return (
+    <SectionWrap label="Sessions Tab">
+      <div style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: '0.375rem', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'rgba(255,255,255,0.7)' }}>
+        <strong style={{ color: '#ffc800' }}>⚠ IN DEVELOPMENT</strong> — The sessions tab with device metadata (IP, browser, OS via S3 heartbeat/webhook) is functional but still being validated. The sessions list itself (from Logto Account API) is production-ready, but the enhanced device metadata feature requires S3 storage and optional PostSignIn webhook to be fully operational.
+      </div>
+
+      <p style={textStyle}>
+        The Sessions tab provides users with a comprehensive view of their active authentication
+        sessions across all devices. Users can see where they're currently signed in, view
+        authentication methods, and revoke individual sessions for security purposes.
+      </p>
+
+      <p style={textStyle}>
+        <strong>Key Features:</strong>
+      </p>
+      <ul style={{ ...textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
+        <li>Real-time session listing from Logto Account API</li>
+        <li>Current session identification with visual indicators</li>
+        <li>Password-protected session revocation</li>
+        <li>Identity verification required before viewing sessions</li>
+      </ul>
+
+      <div style={noteStyle}>
+        <strong>Note:</strong> Logto's Account API provides session metadata including session ID,
+        authentication method, login time, and expiry. Device metadata (IP, browser, OS) requires
+        capturing via your own infrastructure — Logto does not provide this per-session.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function SessionsPropsSection() {
+  return (
+    <SectionWrap label="Props">
+      <CodeBlock title="Props" code={`interface SessionsTabProps {
+  userData: UserData;
+  theme: ThemeSpec;
+  t: Translations;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<{
+    sessions: LogtoSession[];
+    currentJti: string | null;
+  }>;
+  onRevokeSession: (
+    sessionId: string,
+    revokeGrantsTarget?: 'all' | 'firstParty',
+    identityVerificationRecordId?: string
+  ) => Promise<void>;
+  onVerifyPassword: (password: string) => Promise<{
+    verificationRecordId: string;
+  }>;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
+}`} />
+
+      <table style={tableStyle}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Prop</th>
+            <th style={thStyle}>Type</th>
+            <th style={thStyle}>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={tdStyle}><code style={codeStyle}>onGetSessionsWithDeviceMeta</code></td>
+            <td style={tdStyle}>Server Action</td>
+            <td style={tdStyle}>Fetches sessions + current JTI via introspection</td>
+          </tr>
+          <tr>
+            <td style={tdStyle}><code style={codeStyle}>onRevokeSession</code></td>
+            <td style={tdStyle}>Server Action</td>
+            <td style={tdStyle}>Revokes session (requires identity verification)</td>
+          </tr>
+        </tbody>
+      </table>
+    </SectionWrap>
+  );
+}
+
+function SessionsApiSection() {
+  return (
+    <SectionWrap label="Server Actions">
+      <CodeBlock title="getSessionsWithDeviceMeta" code={`export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<{
+  sessions: LogtoSession[];
+  currentJti: string | null;
+}> {
+  const sessions = await getUserSessions(verificationRecordId);
+
+  const token = await getTokenForServerAction();
+  const introspection = await introspectToken(token);
+  const currentJti = introspection.sid || introspection.jti || null;
+
+  return { sessions, currentJti };
+}`} />
+
+      <p style={textStyle}>
+        Fetches active sessions from Logto's Account API with identity verification,
+        then determines the current session via token introspection.
+      </p>
+    </SectionWrap>
+  );
+}
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function TabsAndFlowsDoc() {
@@ -811,8 +923,21 @@ export default function TabsAndFlowsDoc() {
         </div>
       </Section>
 
-      {/* Page 5: Organizations + Dev */}
+      {/* Page 5: Sessions */}
       <Section id={5}>
+        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={colLeftStyle}>
+            <SessionsOverviewSection />
+            <SessionsPropsSection />
+          </div>
+          <div style={colLeftStyle}>
+            <SessionsApiSection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 6: Organizations + Dev */}
+      <Section id={6}>
         <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
           <div style={colLeftStyle}>
             <OrgPropsSection />

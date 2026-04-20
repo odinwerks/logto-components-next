@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * IN DEVELOPMENT — Sessions tab component.
+ * Shows device metadata (browser, OS, IP, last active) for each active session.
+ * Requires session-track API and S3 storage to be fully functional.
+ */
 import React, { useState, useCallback } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';

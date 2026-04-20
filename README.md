@@ -1505,6 +1505,8 @@ function MyAvatarUploader({ userId }: { userId: string }) {
 
 ## Session Metadata (Device Info & Last Active)
 
+> **⚠️ IN DEVELOPMENT** — The device metadata feature (IP, browser, OS via S3 heartbeat and PostSignIn webhook) is functional but still being validated. The sessions list from Logto's Account API (revocation, current session indicator) is production-ready. The S3-based device enrichment requires `S3_SESSION_BUCKET`, optional webhook, and `ENABLE_SESSION_TRACKING=true` env var to be fully operational before production use.
+
 The dashboard enriches session cards with device metadata — browser, OS, device type, IP address, and a "last active" timestamp — rather than showing raw client IDs. This is powered by two cooperating systems.
 
 ### Architecture
