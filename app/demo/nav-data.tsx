@@ -113,7 +113,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: true,
     type: 'component',
     icon: <ProtectedIcon />,
-    desc: 'Server component that gates UI subtrees behind permission or role checks. Supports single string, string[], and orgId scoping. requireAll controls AND vs OR logic.',
+    desc: 'Client component that gates UI subtrees behind permission checks. Supports single string, string[], and orgId scoping. requireAll controls AND vs OR logic.',
     sections: ['RBAC Overview', 'Protected Component', 'Protected Actions API', 'Action Registration', 'Live RBAC Demo', 'Alias System'],
   },
   {

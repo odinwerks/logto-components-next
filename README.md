@@ -6,9 +6,9 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, identities, organizations, MFA, and developer tools views
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP, last active), identities, organizations, MFA, and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
-- **Dev Tab**: Debug view for access tokens, ID tokens, cookie management, and session control
+- **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
 - **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
 - **MFA Management**: TOTP enrollment and backup codes generation. WebAuthn support planned for future release. 
@@ -17,6 +17,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route.
 - **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get caught at the request layer if problematic.
+- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) gated behind `DEBUG=true` env var.
 
 ## Project Structure
 
@@ -42,7 +43,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 10-tab navigation definitions
+│   │   ├── nav-data.tsx             # 9-tab navigation definitions
 │   │   ├── Particles.tsx            # Particle effect background
 │   │   ├── types.ts                 # Type definitions
 │   │   ├── docs/                    # Per-tab documentation files (TSX)
@@ -85,6 +86,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │       ├── organizations.tsx
 │   │   │   │       ├── preferences.tsx
 │   │   │   │       ├── profile.tsx
+│   │   │   │       ├── sessions.tsx
 │   │   │   │       ├── dev.tsx
 │   │   │   │       └── security.tsx
 │   │   │   └── shared/
@@ -157,10 +159,10 @@ BASE_URL=http://localhost:3000
 COOKIE_SECRET=your-random-secret
 
 # Scopes (comma-separated, required - no defaults)
-# Must include: openid,profile,custom_data,email,phone,identities
+# Must include: openid,profile,custom_data,email,phone,identities,sessions
 # Add: organizations,organization_roles for org features
 # Add: offline_access for refresh tokens
-SCOPES=openid,profile,custom_data,email,phone,identities
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 ```
 
 ### Permission-Based Access Control & Account Management
@@ -181,9 +183,9 @@ You have to set this up for pfp uploads and account deletion to work. Also to re
 
 ```env
 # Which tabs to show and in what order (comma-separated)
-# Allowed: profile, preferences, security, identities, organizations, dev
-# Aliases: personal, user → profile | prefs, custom-data, custom → preferences | mfa, 2fa, totp → security | identity → identities | orgs, org → organizations | debug, data, raw → dev
-LOAD_TABS=profile,preferences,security,identities,organizations,dev
+# Allowed: profile, preferences, security, sessions, identities, organizations, dev
+# Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations; debug, data, raw → dev
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
 ```
 
 ### Theme Configuration
@@ -231,6 +233,13 @@ S3_REGION=auto
 
 # Optional: Supabase REST API (more reliable)
 # SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Session metadata bucket (separate from avatars bucket)
+S3_SESSION_BUCKET=session-meta
+
+# Webhook signing key (from Logto Console > Webhooks > webhook details)
+# Leave empty during development to skip signature verification
+# LOGTO_WEBHOOK_SIGNING_KEY=your_signing_key
 ```
 
 > **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
@@ -285,7 +294,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -298,9 +307,8 @@ The demo app (`app/demo/`) is a standalone application with 10 sidebar tabs — 
 | Providers | setup | LogtoProvider, useLogto(), context hooks |
 | Theme | config | File-based theme system with dark/light CSS variables |
 | i18n | config | Translation files, language switching |
-| Actions API | api | Permission-gated POST /api/protected endpoint |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Identities, Organizations, and Dev tabs.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
 ### How It Works
 
@@ -312,7 +320,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 10-tab navigation definitions with section hints |
+| `nav-data.tsx` | 9-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
@@ -342,7 +350,7 @@ To add documentation for a new tab:
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 10 navigation tabs covering every major logto-kit feature
+- A sidebar with 9 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -569,7 +577,7 @@ function MyComponent() {
 | `dashboard` | `ReactNode` | - | Optional dashboard modal content |
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
-| `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data |
+| `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data (forwarded to PreferencesProvider) |
 | `onLangChange` | `() => void` | - | Callback fired when language changes |
 | `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
 | `lightThemeSpec` | `ThemeSpec` | — | **Required.** Light theme specification object |
@@ -706,7 +714,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 > This is a work in progress - APIs may change.
 
 The `custom-logic` module provides UI protection components and organization management:
-- **\<Protected\>** - Server component for gating UI based on organization permissions
+- **\<Protected\>** - Client component for gating UI based on organization permissions
 - **OrgSwitcher** - Dropdown for switching between organizations
 - **useOrgMode** hook - Access organization context throughout your app
 
@@ -716,24 +724,29 @@ For protected server actions, use the **Protected Actions API** (`POST /api/prot
 
 ```tsx
 import {
-  // Organization & Permission-Based Access Control
-  Protected,
-  OrgSwitcher,
-  OrgSwitcherWrapper,
-  setActiveOrg,
-  useOrgMode,
-  
-  // Context hooks
-  useThemeMode,
-  useLangMode,
-
   // Components
+  Dashboard,
+  LogtoProvider,
   UserButton,
   UserBadge,
   UserCard,
+  OrgSwitcher,
 
-  // Error handling
-  LogtoApiError,
+  // Client components
+  Protected,
+  AuthWatcher,
+
+  // Hooks
+  useLogto,
+  useThemeMode,
+  useLangMode,
+  useOrgMode,
+  useUserDataContext,
+  useAvatarUpload,
+
+  // Organization & Permission-Based Access Control
+  OrgSwitcherWrapper,
+  setActiveOrg,
 
   // Validation
   ValidationError,
@@ -748,6 +761,10 @@ import {
 import type {
   OrganizationData,
   ValidationResult,
+  ThemeSpec,
+  UserData,
+  KitTranslations,
+  Translations,
 } from './logto-kit';
 ```
 
@@ -758,10 +775,9 @@ import type {
 ### \<Protected\> - UI Gate Component
 
 A **client component** that conditionally renders children based on organization permissions. Must be used within `LogtoProvider` context.
-
 **Key behavior:**
 - Permissions are loaded asynchronously via `loadOrganizationPermissions(orgId)` on mount or org change
-- Shows `fallback` (or `"Loading authorization..."`) while loading
+- Shows `fallback` (or nothing) while loading
 - When `asOrg` changes (org switch or "Be yourself"), clears cached permissions and re-fetches
 - When org context is lost (`asOrg` = null), access is denied immediately
 
@@ -1048,7 +1064,7 @@ BASE_URL=http://localhost:3000
 COOKIE_SECRET=your_cookie_secret
 
 # Scopes (must include org scopes ON TOP of the required ones)
-SCOPES=openid,profile,custom_data,email,phone,identities,organizations,organization_roles
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles
 
 # M2M for Management API
 LOGTO_M2M_APP_ID=your_m2m_app_id
@@ -1139,6 +1155,7 @@ Available tab IDs with their display aliases:
 | `profile` | `personal`, `user` | User profile and basic info |
 | `preferences` | `prefs`, `custom-data`, `custom`, `customdata` | User preferences and settings |
 | `security` | `mfa`, `2fa`, `totp` | Multi-factor authentication management |
+| `sessions` | `session`, `devices`, `activity` | Active session management and device overview |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
 | `dev` | `debug`, `data`, `raw` | Developer tools: access tokens, ID tokens, cookies, session management |
@@ -1147,14 +1164,14 @@ Available tab IDs with their display aliases:
 
 ```env
 # Show all tabs in default order
-LOAD_TABS=profile,preferences,security,identities,organizations,dev
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
 
-# Show only profile, security, and preferences (in that order)
-LOAD_TABS=profile,security,preferences
+# Show only profile, security, sessions, and preferences (in that order)
+LOAD_TABS=profile,security,sessions,preferences
 
 # Use aliases - these are all equivalent to the first example
-LOAD_TABS=personal,prefs,mfa,identity,orgs,debug
-LOAD_TABS=user,custom-data,2fa,identities,organization,data
+LOAD_TABS=personal,prefs,mfa,sessions,identity,orgs,debug
+LOAD_TABS=user,custom-data,2fa,devices,identities,organization,data
 
 # If not set or empty, shows all tabs in default order
 ```
@@ -1486,6 +1503,124 @@ function MyAvatarUploader({ userId }: { userId: string }) {
 }
 ```
 
+## Session Metadata (Device Info & Last Active)
+
+The dashboard enriches session cards with device metadata — browser, OS, device type, IP address, and a "last active" timestamp — rather than showing raw client IDs. This is powered by two cooperating systems.
+
+### Architecture
+
+```
+Sign-in (Logto PostSignIn webhook)
+  → POST /api/webhook/logto
+  → Parse User-Agent → { browser, browserVersion, os, osVersion, deviceType }
+  → Store sessions/{userId}/{jti}.json to S3
+
+Dashboard load (Sessions tab)
+  → getSessionsWithDeviceMeta()
+  → Fetch Logto sessions (jti, loginTs, exp)
+  → Fetch sessions/{userId}/*.json from S3
+  → Merge by jti → rich session cards
+
+Heartbeat (every 5 min / tab focus)
+  → POST /api/session-track { accessToken, userId }
+  → Parse UA from request headers
+  → List sessions/{userId}/*.json from S3
+  → Match by browser + os + deviceType
+  → Update lastActive on the matching file
+
+Session revocation
+  → DELETE /api/my-account/sessions/{jti} (Logto Account API)
+  → DELETE sessions/{userId}/{jti}.json from S3
+```
+
+### How It Works
+
+**At sign-in**, Logto fires a PostSignIn webhook. The `/api/webhook/logto` endpoint:
+1. Verifies the `logto-signature-sha-256` HMAC signature
+2. Extracts `sessionId` (= the session's `jti`), `userAgent`, `userIp`, `userId`, `createdAt`
+3. Parses the UA string with `ua-parser-js` → browser name, browser version, OS name, OS version, device type
+4. Stores `{ jti, userId, browser, browserVersion, os, osVersion, deviceType, ip, createdAt, lastActive }` as `sessions/{userId}/{jti}.json` in S3
+
+**At dashboard load**, `getSessionsWithDeviceMeta()` fetches sessions from Logto's Account API, lists S3 metadata files for the user, and merges them by `jti`. The sessions tab then shows e.g. "Chrome 122 · macOS 14.2 · desktop · 192.168.1.1 · Last active: just now".
+
+**Heartbeat pings** (`/api/session-track`) run every 5 minutes via `useSessionTracker`. The endpoint:
+1. Validates the user's access token
+2. Parses the incoming request's `User-Agent` header
+3. Lists all `sessions/{userId}/*.json` files from S3
+4. **If fingerprint matches**: updates `lastActive` on the matched file
+5. **If no match found**: creates a new file using `jti` from token introspection + request UA/IP (fallback for dev/no-webhook)
+
+**On revocation**, `revokeUserSession()` calls the Logto Account API and deletes the corresponding S3 file.
+
+### Logto Console Setup
+
+1. Go to **Console > Webhooks > Create webhook**
+2. Name: `Session Metadata`, Endpoint: `https://your-domain.com/api/webhook/logto`
+3. Events: **PostSignIn**
+4. Copy the signing key → set as `LOGTO_WEBHOOK_SIGNING_KEY` env var
+5. Click "Send test payload" to verify the endpoint responds 200
+
+### Environment Variables
+
+```env
+# Session metadata bucket (falls back to S3_BUCKET_NAME if not set)
+S3_SESSION_BUCKET=session-meta
+
+# Webhook signing key — get from Logto Console > Webhooks > webhook details
+# Leave empty during development to skip signature verification
+LOGTO_WEBHOOK_SIGNING_KEY=your_signing_key_here
+```
+
+### S3 Bucket Setup
+
+Create a bucket named `session-meta` in your S3-compatible storage (Supabase, AWS S3, MinIO, etc.):
+- Private (service role key access only — no public access needed)
+- Allowed MIME type: `application/json`
+
+The bucket can share the same Supabase project as avatar storage — they use separate bucket names.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `app/api/webhook/logto/route.ts` | Receives PostSignIn webhooks, verifies signature, stores device metadata to S3 |
+| `app/api/session-track/route.ts` | Heartbeat endpoint — matches UA fingerprint, updates lastActive |
+| `app/logto-kit/logic/actions.ts` | `getSessionsWithDeviceMeta()`, `fetchAllSessionMeta()`, `deleteSessionMeta()` |
+| `app/logto-kit/logic/types.ts` | `SessionMeta` interface |
+| `app/logto-kit/components/dashboard/tabs/sessions.tsx` | Sessions tab — reads `session.meta` for display |
+| `app/logto-kit/components/handlers/use-session-tracker.tsx` | Client-side heartbeat pinger |
+
+### Data Flow
+
+```json
+// sessions/{userId}/{jti}.json — stored by the webhook at sign-in
+{
+  "jti": "abc123def456",
+  "userId": "pbxqomjqadyj",
+  "browser": "Chrome",
+  "browserVersion": "122",
+  "os": "macOS",
+  "osVersion": "14.2",
+  "deviceType": "desktop",
+  "ip": "203.0.113.42",
+  "createdAt": "2026-04-19T12:00:00Z",
+  "lastActive": "2026-04-19T12:05:00Z"
+}
+```
+
+### No Match Fallback
+
+If no S3 metadata file matches the current UA fingerprint, the heartbeat creates a new one using the `jti` from token introspection (`introspection.sid || introspection.jti`). This means the system works fully without the webhook — device info appears after the first heartbeat ping (up to 5 minutes after sign-in), with `createdAt` set to the first heartbeat time rather than the sign-in time.
+
+**Priority order:**
+1. **Webhook match** — exact fingerprint + exact `createdAt` (best: sign-in time IP, UA, timestamp)
+2. **Heartbeat fallback** — creates new file from introspection `jti` + request UA/IP (good: appears after first heartbeat)
+3. **No `jti`** — returns `{ updated: false }` if introspection doesn't return `sid`/`jti`
+
+### Signature Verification
+
+Logto signs webhook payloads using HMAC-SHA256. The signature is in the `logto-signature-sha-256` request header. Set `LOGTO_WEBHOOK_SIGNING_KEY` to the signing key from Logto Console. Leave it empty during development to skip verification.
+
 ## Server Actions
 
 All server actions are exported from `logto-kit` and can be used in your own custom flows when the provided UI doesn't meet your needs.
@@ -1526,8 +1661,8 @@ import {
 // Update basic info (name, username)
 await updateUserBasicInfo({ name: 'John', username: 'johndoe' });
 
-// Update full profile
-await updateUserProfile({ name: 'John', username: 'johndoe', primaryEmail: 'john@example.com' });
+// Update profile (given name, family name)
+await updateUserProfile({ givenName: 'John', familyName: 'Doe' });
 
 // Update custom data
 await updateUserCustomData({ preferences: { notifications: true } });
@@ -1558,12 +1693,8 @@ const mfaList = await getMfaVerifications();
 // Generate TOTP secret for new enrollment
 const { secret, secretQrCode } = await generateTotpSecret();
 
-// Add MFA verification
-await addMfaVerification({
-  type: 'Totp',
-  code: '123456',
-  verificationId: 'verificationRecordId',
-});
+// Add MFA verification (takes 2 args: verification payload + identity verification record ID)
+await addMfaVerification({ type: 'Totp', payload: { secret, code: '123456' } }, 'verificationRecordId');
 
 // Delete MFA method
 await deleteMfaVerification('mfaVerificationId', 'verificationRecordId');
@@ -1588,7 +1719,7 @@ const { verificationId } = await sendEmailVerificationCode('user@example.com');
 const { verificationId } = await sendPhoneVerificationCode('+1234567890');
 
 // Verify any code (email, phone, or backup)
-await verifyVerificationCode('123456', 'verificationId', 'email');
+await verifyVerificationCode('email', 'user@example.com', 'verificationId', '123456');
 
 // Update email with verification
 await updateEmailWithVerification('newemail@example.com', 'verificationId', 'verificationRecordId');
@@ -1816,104 +1947,6 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 
 ---
 
-### ✅ Heartbeat System — IMPLEMENTED
-
-A dual-mode heartbeat system that keeps user session context alive while the tab is active. When heartbeats stop (user closes tab), the `asOrg` context is invalidated after a timeout.
-
-#### How It Works
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         DEV MODE (Memory)                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   Client sends heartbeat every 30s ──► In-memory Map                    │
-│   ├─ Key: "userId:orgId"                                                │
-│   └─ Value: timestamp                                                   │
-│                                                                         │
-│   Cleanup interval (60s) scans Map                                      │
-│   └─ Entries older than 60s are removed                                 │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         PROD MODE (Redis)                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   Client sends heartbeat every 30s ──► Redis SETEX                        │
-│   ├─ Key: "hb:userId:orgId"                                             │
-│   └─ TTL: 60 seconds (auto-expires)                                     │
-│                                                                         │
-│   No cleanup needed — Redis handles expiration                          │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-#### Files Added
-
-| File | Purpose |
-|------|---------|
-| `app/logto-kit/logic/heartbeat/store.ts` | Store interface definition |
-| `app/logto-kit/logic/heartbeat/memory-store.ts` | In-memory implementation (dev) |
-| `app/logto-kit/logic/heartbeat/redis-store.ts` | Redis implementation (prod) |
-| `app/logto-kit/logic/heartbeat/index.ts` | Factory + exports |
-| `app/logto-kit/logic/heartbeat/cleanup.ts` | Cleanup integration functions |
-| `app/api/heartbeat/route.ts` | POST endpoint to receive heartbeats |
-| `app/logto-kit/components/handlers/heartbeat-provider.tsx` | Client-side heartbeat sender |
-
-#### Configuration
-
-```env
-# Storage mode: 'memory' (dev) or 'redis' (prod)
-HEARTBEAT_MODE=memory
-
-# Memory mode settings
-HEARTBEAT_CLEANUP_INTERVAL_MS=60000    # Cleanup scan interval
-HEARTBEAT_MAX_AGE_MS=60000             # Max age before expired
-
-# Redis mode settings (self-hosted)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=                          # Optional
-REDIS_DB=0
-REDIS_HEARTBEAT_PREFIX=hb:
-REDIS_HEARTBEAT_TTL=60
-```
-
-#### Usage
-
-The `HeartbeatProvider` is automatically included in `app/layout.tsx`. It runs silently and sends heartbeats when:
-- Component mounts (initial heartbeat)
-- Every 30 seconds (interval)
-- Tab becomes visible (user returned)
-- Component unmounts (tab close — best effort)
-
-#### Integration with Protected API
-
-To validate heartbeat before processing a protected action:
-
-```typescript
-import { getHeartbeatStore } from '@/app/logto-kit/logic/heartbeat';
-
-// In your protected API route:
-const store = getHeartbeatStore();
-const lastHeartbeat = await store.get(userId, orgId);
-
-if (!lastHeartbeat) {
-  return NextResponse.json(
-    { error: 'SESSION_EXPIRED', message: 'Please re-select your organization' },
-    { status: 403 }
-  );
-}
-```
-
-#### Security Model
-
-- **Token theft protection**: Even if SEDH steals the token, they need to maintain an active heartbeat
-- **Tab close = timeout**: When user closes tab, heartbeat stops → context invalidates after 60s
-- **No Redis in dev**: Memory mode works out of the box for development
-- **Self-hosted Redis**: Production uses your own Redis instance (no vendor lock-in)
-
 ### Functions
 
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
@@ -1966,6 +1999,14 @@ if (!lastHeartbeat) {
 - [x] OIDC token introspection for security
 - [x] User ID matching prevents cross-user uploads
 - [x] Automatic URL update to Logto profile
+
+### Session Metadata
+- [x] Webhook route — receives PostSignIn, verifies signature, stores device metadata to S3
+- [x] Heartbeat fallback — creates metadata file when no S3 files exist (dev-friendly, no tunnel needed)
+- [x] UA fingerprint matching — browser + os + deviceType to identify current device
+- [x] lastActive updates — heartbeat keeps timestamps fresh
+- [x] Revocation cleanup — S3 file deleted when session is revoked
+- [x] README documentation — architecture, setup, env vars, data format
 
 ### Conquer All.
 - [ ] [Conquer All.](https://music.youtube.com/watch?v=l6t4gx8vCMI)

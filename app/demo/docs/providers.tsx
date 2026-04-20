@@ -161,6 +161,8 @@ function ProviderTreeSection() {
   initialTheme="dark"       // optional — falls back to storage or ENV
   initialLang="en-US"       // optional — falls back to storage or default
   onUpdateCustomData={updateUserCustomData} // optional — persists to Logto API
+  darkThemeSpec={defaultDarkTheme}   // required
+  lightThemeSpec={defaultLightTheme} // required
 >
   <App />
 </LogtoProvider>`} />
@@ -247,6 +249,8 @@ export default async function HomePage() {
       dashboard={<Dashboard />}
       initialTheme="dark"
       onUpdateCustomData={updateUserCustomData}
+      darkThemeSpec={defaultDarkTheme}
+      lightThemeSpec={defaultLightTheme}
     >
       <App />
     </LogtoProvider>
@@ -651,20 +655,24 @@ function CrossTabSyncSection() {
         Preferences (theme, language, org) sync across browser tabs via{' '}
         <code style={codeStyle}>sessionStorage</code> and a custom DOM event.
       </p>
-      <CodeBlock title="Storage keys + event" code={`// Storage keys written by setTheme(), setLang(), setAsOrg():
+      <CodeBlock title="Storage keys + events" code={`// Storage keys written by setTheme(), setLang(), setAsOrg():
 sessionStorage.setItem('theme-mode', 'dark');
 sessionStorage.setItem('lang-mode', 'en-US');
 sessionStorage.setItem('org-mode', 'org_abc123');
 
-// On every change, a unified event is dispatched:
+// Theme changes dispatch 'theme-changed':
+window.dispatchEvent(new Event('theme-changed'));
+
+// Language and org changes dispatch 'preferences-changed':
 window.dispatchEvent(new Event('preferences-changed'));
 
-// External consumers re-read from storage:
-window.addEventListener('preferences-changed', () => {
+// Listen for either event to re-read from storage:
+window.addEventListener('theme-changed', () => {
   const theme = sessionStorage.getItem('theme-mode');
+});
+window.addEventListener('preferences-changed', () => {
   const lang  = sessionStorage.getItem('lang-mode');
   const org   = sessionStorage.getItem('org-mode');
-  // apply changes...
 });`} />
       <table style={tableStyle}>
         <thead>
