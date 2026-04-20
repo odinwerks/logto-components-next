@@ -1,3 +1,9 @@
+/**
+ * IN DEVELOPMENT — Session tracking webhook handler.
+ * Receives PostSignIn webhooks from Logto and stores device metadata to S3.
+ * Not production-ready. Requires testing and possibly a signing key
+ * in production (currently bypassable when LOGTO_WEBHOOK_SIGNING_KEY is unset).
+ */
 import { type NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { UAParser } from 'ua-parser-js'

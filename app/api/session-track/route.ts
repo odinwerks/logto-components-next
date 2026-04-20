@@ -1,3 +1,9 @@
+/**
+ * IN DEVELOPMENT — Session tracking feature.
+ * Not production-ready. Requires further testing before deployment.
+ * Requires S3-compatible storage (S3_SESSION_BUCKET) and optionally
+ * a PostSignIn webhook for full device metadata capture.
+ */
 import { type NextRequest, NextResponse } from 'next/server'
 import { UAParser } from 'ua-parser-js'
 import { introspectToken } from '@/app/logto-kit/logic/utils'
