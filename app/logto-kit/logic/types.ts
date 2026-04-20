@@ -159,7 +159,27 @@ export interface LogtoSessionLastSubmission {
   interactionEvent: 'SignIn' | 'Register' | 'ForgotPassword';
   userId: string;
   verificationRecords: LogtoSessionVerificationRecord[];
-  signInContext?: Record<string, string>;
+  signInContext?: SignInContext;
+}
+
+export interface SignInContext {
+  ip?: string;
+  userAgent?: string;
+  [key: string]: string | undefined;
+}
+
+export interface SessionDeviceInfo {
+  browser: string | null;
+  browserVersion: string | null;
+  os: string | null;
+  osVersion: string | null;
+  deviceType: string | null;
+  ip: string | null;
+}
+
+export interface SessionLastActive {
+  jti: string;
+  lastActive: string;
 }
 
 export interface SessionMeta {

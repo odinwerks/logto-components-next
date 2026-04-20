@@ -4,8 +4,9 @@ import { getAccessToken, getOrganizationToken } from '@logto/next/server-actions
 import 'server-only';
 import * as Minio from 'minio';
 import { redirect } from 'next/navigation';
+import { UAParser } from 'ua-parser-js';
 import { getLogtoConfig, getManagementApiToken } from '../../logto';
-import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse, LogtoSession, SessionMeta } from './types';
+import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse, LogtoSession, SessionMeta, SessionDeviceInfo } from './types';
 import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
 
 
@@ -871,6 +872,34 @@ function sessionMetaKey(userId: string, jti: string): string {
   return `sessions/${userId}/${jti}.json`;
 }
 
+function parseSignInContext(ua: string): SessionDeviceInfo {
+  if (!ua) return { browser: null, browserVersion: null, os: null, osVersion: null, deviceType: null, ip: null };
+  const parser = new UAParser(ua);
+  const browser = parser.getBrowser();
+  const os = parser.getOS();
+  const device = parser.getDevice();
+  return {
+    browser: browser.name || null,
+    browserVersion: browser.version || null,
+    os: os.name || null,
+    osVersion: os.version || null,
+    deviceType: device.type || null,
+    ip: null,
+  };
+}
+
+async function fetchAllSessionLastActive(userId: string): Promise<Map<string, string>> {
+  const bucket = SESSION_META_BUCKET();
+  if (!bucket) return new Map();
+
+  const metas = await listSessionMetasFromS3(userId);
+  const result = new Map<string, string>();
+  for (const meta of metas) {
+    if (meta.jti) result.set(meta.jti, meta.lastActive);
+  }
+  return result;
+}
+
 async function listSessionMetasFromS3(userId: string): Promise<import('./types').SessionMeta[]> {
   const bucket = SESSION_META_BUCKET();
   if (!bucket) return [];
@@ -1046,18 +1075,29 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
   const currentJti = introspection.sid || introspection.jti || null;
   const userId = introspection.sub || '';
 
-  console.log(`[getSessionsWithDeviceMeta] currentJti=${currentJti}, userId=${userId}`);
+  const lastActiveMap = await fetchAllSessionLastActive(userId);
 
-  // Fetch all S3-stored session metadata for this user
-  const metaMap = await fetchAllSessionMeta(userId);
+  const enrichedSessions: LogtoSession[] = sessions.map(session => {
+    const signInContext = session.lastSubmission?.signInContext;
+    const deviceInfo = parseSignInContext(signInContext?.userAgent || '');
 
-  // Match metadata to sessions by jti
-  const enrichedSessions: LogtoSession[] = sessions.map(session => ({
-    ...session,
-    meta: metaMap.get(session.payload.jti) ?? null,
-  }));
+    const meta: SessionMeta = {
+      jti: session.payload.jti,
+      userId,
+      browser: deviceInfo.browser,
+      browserVersion: deviceInfo.browserVersion,
+      os: deviceInfo.os,
+      osVersion: deviceInfo.osVersion,
+      deviceType: deviceInfo.deviceType,
+      ip: signInContext?.ip || null,
+      lastActive: lastActiveMap.get(session.payload.jti) || new Date(session.payload.loginTs * 1000).toISOString(),
+      createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
+    };
 
-  console.log(`[getSessionsWithDeviceMeta] Returning ${enrichedSessions.length} sessions, ${metaMap.size} meta records found`);
+    return { ...session, meta };
+  });
+
+  console.log(`[getSessionsWithDeviceMeta] Returning ${enrichedSessions.length} sessions`);
   return { sessions: enrichedSessions, currentJti };
 }
 
