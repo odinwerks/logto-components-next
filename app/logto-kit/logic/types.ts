@@ -131,6 +131,60 @@ export type MfaVerificationPayload =
   | { type: 'BackupCode'; payload: BackupCodeVerificationPayload };
 
 // ============================================================================
+// Session Types (from Logto Account API)
+// ============================================================================
+
+export interface LogtoSessionPayload {
+  exp: number;
+  iat: number;
+  jti: string;
+  uid: string;
+  kind: 'Session';
+  loginTs: number;
+  accountId: string;
+  authorizations?: Record<string, {
+    sid?: string;
+    grantId?: string;
+    persistsLogout?: boolean;
+  }>;
+}
+
+export interface LogtoSessionVerificationRecord {
+  id: string;
+  type: string;
+  identifier?: { type: string; value: string };
+}
+
+export interface LogtoSessionLastSubmission {
+  interactionEvent: 'SignIn' | 'Register' | 'ForgotPassword';
+  userId: string;
+  verificationRecords: LogtoSessionVerificationRecord[];
+  signInContext?: Record<string, string>;
+}
+
+export interface SessionMeta {
+  jti: string;
+  userId: string;
+  ip: string | null;
+  browser: string | null;
+  browserVersion: string | null;
+  os: string | null;
+  osVersion: string | null;
+  deviceType: string | null;
+  lastActive: string;
+  createdAt: string;
+}
+
+export interface LogtoSession {
+  payload: LogtoSessionPayload;
+  lastSubmission: LogtoSessionLastSubmission | null;
+  clientId: string | null;
+  accountId: string | null;
+  expiresAt: number;
+  meta: SessionMeta | null;
+}
+
+// ============================================================================
 // Token Types
 // ============================================================================
 
@@ -144,6 +198,8 @@ export interface OidcIntrospectionResponse {
   iss?: string;
   token_type?: string;
   organization_id?: string;
+  sid?: string; // Session ID
+  jti?: string; // JWT ID
 }
 
 // ============================================================================
