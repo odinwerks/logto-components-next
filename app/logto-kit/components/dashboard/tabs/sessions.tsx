@@ -297,7 +297,7 @@ export function SessionsTab({
             const showCurrentLabel = isCurrent || !title;
 
             return (
-              <div key={session.payload.jti} style={{
+              <div key={session.payload.uid} style={{
                 background: T.bg,
                 border: `1px solid ${T.border}`,
                 borderRadius: theme.tokens.dashboardRadius,
@@ -396,11 +396,11 @@ export function SessionsTab({
                   <Button
                     size="sm"
                     variant="danger"
-                    onClick={() => startRevokeVerification(session.payload.jti)}
-                    disabled={revokingId === session.payload.jti}
+                    onClick={() => startRevokeVerification(session.payload.uid)}
+                    disabled={revokingId === session.payload.uid}
                     theme={theme}
                   >
-                    {revokingId === session.payload.jti ? (
+                    {revokingId === session.payload.uid ? (
                       t.common.loading
                     ) : (
                       <>

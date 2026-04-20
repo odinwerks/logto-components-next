@@ -1126,18 +1126,6 @@ export async function revokeUserSession(
   console.log(`[revokeUserSession] Logto responded with status ${res.status}`);
   await throwOnApiError(res, 'Session revocation failed');
 
-  // Delete the session meta from S3
-  try {
-    const token = await getTokenForServerAction();
-    const introspection = await introspectToken(token);
-    const userId = introspection.sub || '';
-    if (userId) {
-      await deleteSessionMeta(userId, sessionId);
-    }
-  } catch (err) {
-    console.warn(`[revokeUserSession] Failed to delete session meta from S3:`, err instanceof Error ? err.message : err);
-  }
-
   console.log(`[revokeUserSession] Successfully revoked session ${sessionId}`);
 }
 
