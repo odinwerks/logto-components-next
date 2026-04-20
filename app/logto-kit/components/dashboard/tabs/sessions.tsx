@@ -26,20 +26,25 @@ interface SessionsTabProps {
 const VERIFICATION_TTL_MS = 9 * 60 * 1000;
 
 function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: string | null; size: number }) {
+  const style: React.CSSProperties = { 
+    objectFit: 'contain', 
+    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
+    display: 'block'
+  };
   if (os === 'Linux') {
-    return <img src="/os-icons/Tux.jpg" alt="Linux" width={size} height={size} style={{ borderRadius: 4, objectFit: 'contain' }} />;
+    return <img src="/os-icons/Tux.jpg" alt="Linux" width={size} height={size} style={{ ...style, borderRadius: 6 }} />;
   }
   if (os === 'Windows') {
-    return <img src="/os-icons/MacroSlop.svg" alt="Windows" width={size} height={size} style={{ objectFit: 'contain' }} />;
+    return <img src="/os-icons/MacroSlop.svg" alt="Windows" width={size} height={size} style={style} />;
   }
   if (os === 'macOS') {
-    return <img src="/os-icons/MacOS.svg" alt="macOS" width={size} height={size} style={{ objectFit: 'contain' }} />;
+    return <img src="/os-icons/MacOS.svg" alt="macOS" width={size} height={size} style={style} />;
   }
   if (os === 'iOS') {
-    return <img src="/os-icons/ios.svg" alt="iOS" width={size} height={size} style={{ objectFit: 'contain' }} />;
+    return <img src="/os-icons/ios.svg" alt="iOS" width={size} height={size} style={style} />;
   }
   if (os === 'Android') {
-    return <img src="/os-icons/Android.svg" alt="Android" width={size} height={size} style={{ objectFit: 'contain' }} />;
+    return <img src="/os-icons/Android.svg" alt="Android" width={size} height={size} style={style} />;
   }
   if (deviceType === 'mobile') return <Smartphone size={size} strokeWidth={1.5} />;
   return <Monitor size={size} strokeWidth={1.5} />;
@@ -284,84 +289,88 @@ export function SessionsTab({
               ? formatRelativeTime(meta.lastActive)
               : null;
 
+            const timeLabel = meta?.lastActive
+              ? { icon: Clock, text: formatRelativeTime(meta.lastActive), title: `Last active: ${new Date(meta.lastActive).toLocaleString()}` }
+              : { icon: Clock, text: formatRelativeTime(new Date(session.payload.loginTs * 1000).toISOString()), title: `Signed in: ${new Date(session.payload.loginTs * 1000).toLocaleString()}` };
+
             return (
               <div key={session.payload.uid} style={{
                 background: T.bg,
-                border: `1px solid ${isCurrent ? T.blueText + '40' : T.border}`,
+                border: `1px solid ${isCurrent ? T.blue : T.border}`,
                 borderRadius: radius,
                 display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                padding: '1rem 1.25rem',
+                boxShadow: isCurrent ? `0 0 0 1px ${T.blue}20` : 'none',
               }}>
                 <div style={{
-                  width: '2rem',
-                  height: '2rem',
+                  width: '3rem',
+                  height: '3rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
+                  background: tc.bgTertiary,
+                  borderRadius: '0.5rem',
+                  border: `1px solid ${T.border}`,
                 }}>
                   {hasOsIcon || deviceType
-                    ? <OsIcon os={os} deviceType={deviceType} size={22} />
-                    : <Monitor size={20} strokeWidth={1.5} />
+                    ? <OsIcon os={os} deviceType={deviceType} size={36} />
+                    : <Monitor size={32} strokeWidth={1.5} />
                   }
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 0, paddingTop: '0.125rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.375rem' }}>
                     {isCurrent && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.25rem',
-                        padding: '0.0625rem 0.375rem',
-                        fontSize: '0.625rem',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.6875rem',
                         fontFamily: T.mono,
                         background: T.greenDim,
                         color: T.greenText,
-                        border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
+                        border: `1px solid ${adj(tc.accentGreen, -40) + '55'}`,
                         letterSpacing: 0.2,
-                        borderRadius: '0.1875rem',
+                        borderRadius: '0.25rem',
+                        fontWeight: 500,
                       }}>
-                        <Check size={9} />
+                        <Check size={10} />
                         {t.sessions.thisDevice}
                       </span>
                     )}
                     {browserLabel && (
-                      <span style={{ fontFamily: T.font, fontSize: '0.8125rem', fontWeight: 500, color: T.text }}>
+                      <span style={{ fontFamily: T.font, fontSize: '0.9375rem', fontWeight: 600, color: T.text }}>
                         {browserLabel}
                       </span>
                     )}
                     {osLabel && (
                       <>
-                        <span style={{ fontSize: '0.6875rem', color: T.muted }}>·</span>
-                        <span style={{ fontSize: '0.8125rem', color: T.sub }}>{osLabel}</span>
+                        <span style={{ fontSize: '0.75rem', color: T.muted, fontWeight: 300 }}>·</span>
+                        <span style={{ fontSize: '0.9375rem', color: T.sub, fontWeight: 500 }}>{osLabel}</span>
                       </>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.6875rem', color: T.muted, marginTop: '0.125rem', flexWrap: 'wrap' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <AuthIcon size={11} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }} title={timeLabel.title}>
+                      <timeLabel.icon size={12} />
+                      {timeLabel.text}
                     </span>
                     {meta?.ip && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <MapPin size={10} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <MapPin size={12} />
                         {meta.ip}
-                      </span>
-                    )}
-                    {lastActive && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={10} />
-                        {lastActive}
                       </span>
                     )}
                   </div>
                 </div>
 
                 {isCurrent ? (
-                  <Button size="sm" variant="secondary" disabled theme={theme}>
+                  <Button size="sm" variant="secondary" disabled theme={theme} style={{ marginTop: '0.25rem' }}>
                     {t.sessions.currentSession}
                   </Button>
                 ) : (
@@ -371,6 +380,7 @@ export function SessionsTab({
                     onClick={() => startRevokeVerification(session.payload.uid)}
                     disabled={revokingId === session.payload.uid}
                     theme={theme}
+                    style={{ marginTop: '0.25rem' }}
                   >
                     {revokingId === session.payload.uid ? t.common.loading : t.sessions.revoke}
                   </Button>
