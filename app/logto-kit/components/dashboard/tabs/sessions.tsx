@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * IN DEVELOPMENT — Sessions tab component.
- * Shows device metadata (browser, OS, IP, last active) for each active session.
- * Requires session-track API and S3 storage to be fully functional.
- */
 import React, { useState, useCallback } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
@@ -30,26 +25,38 @@ interface SessionsTabProps {
 
 const VERIFICATION_TTL_MS = 9 * 60 * 1000;
 
-type OsIconProps = { size: number; color: string };
-
-function OsIcon({ os, deviceType, size, color }: OsIconProps & { os: string | null; deviceType: string | null }) {
+function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: string | null; size: number }) {
   if (os === 'Linux') {
-    return <img src="/os-icons/Tux.jpg" alt="Linux" width={size} height={size} style={{ borderRadius: 2 }} />;
+    return <img src="/os-icons/Tux.jpg" alt="Linux" width={size} height={size} style={{ borderRadius: 4, objectFit: 'contain' }} />;
   }
   if (os === 'Windows') {
-    return <img src="/os-icons/MacroSlop.svg" alt="Windows" width={size} height={size} />;
+    return <img src="/os-icons/MacroSlop.svg" alt="Windows" width={size} height={size} style={{ objectFit: 'contain' }} />;
   }
   if (os === 'macOS') {
-    return <img src="/os-icons/MacOS.svg" alt="macOS" width={size} height={size} />;
+    return <img src="/os-icons/MacOS.svg" alt="macOS" width={size} height={size} style={{ objectFit: 'contain' }} />;
   }
   if (os === 'iOS') {
-    return <img src="/os-icons/ios.svg" alt="iOS" width={size} height={size} />;
+    return <img src="/os-icons/ios.svg" alt="iOS" width={size} height={size} style={{ objectFit: 'contain' }} />;
   }
   if (os === 'Android') {
-    return <img src="/os-icons/Android.svg" alt="Android" width={size} height={size} />;
+    return <img src="/os-icons/Android.svg" alt="Android" width={size} height={size} style={{ objectFit: 'contain' }} />;
   }
-  if (deviceType === 'mobile') return <Smartphone size={size} color={color} strokeWidth={1.5} />;
-  return <Monitor size={size} color={color} strokeWidth={1.5} />;
+  if (deviceType === 'mobile') return <Smartphone size={size} strokeWidth={1.5} />;
+  return <Monitor size={size} strokeWidth={1.5} />;
+}
+
+function formatRelativeTime(isoString: string): string {
+  const now = Date.now();
+  const then = new Date(isoString).getTime();
+  const diff = now - then;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function SessionsTab({
@@ -170,60 +177,14 @@ export function SessionsTab({
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp);
-    return date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getAuthMethodLabel = (session: LogtoSession): string => {
-    const records = session.lastSubmission?.verificationRecords || [];
-    const types = records.map(r => r.type);
-    if (types.includes('Password')) return t.sessions.password;
-    if (types.includes('Social')) return t.sessions.social;
-    if (types.includes('EnterpriseSso')) return t.sessions.enterpriseSso;
-    if (types.includes('WebAuthn')) return t.sessions.webauthn;
-    if (types.includes('Totp')) return t.sessions.totp;
-    if (types.includes('BackupCode')) return t.sessions.backupCode;
-    return t.sessions.unknown;
-  };
-
-  const getAuthIcon = (method: string) => {
-    switch (method) {
-      case t.sessions.password: return Lock;
-      case t.sessions.social: return Users;
-      case t.sessions.enterpriseSso: return Shield;
-      case t.sessions.webauthn: return Key;
-      case t.sessions.totp: return Clock;
-      case t.sessions.backupCode: return Key;
-      default: return Users;
-    }
-  };
-
-  const getSessionTitle = (session: LogtoSession): string => {
-    if (session.meta?.browser) {
-      const parts: string[] = [];
-      parts.push(session.meta.browserVersion
-        ? `${session.meta.browser} ${session.meta.browserVersion}`
-        : session.meta.browser);
-      if (session.meta.os) {
-        parts.push(session.meta.osVersion ? `${session.meta.os} ${session.meta.osVersion}` : session.meta.os);
-      }
-      return parts.join(' · ');
-    }
-    return '';
-  };
-
-  const getDeviceLabel = (session: LogtoSession): string => {
-    if (session.meta?.deviceType === 'mobile') return t.sessions.mobile;
-    if (session.meta?.deviceType === 'tablet') return t.sessions.desktop;
-    if (session.meta?.deviceType) return t.sessions.desktop;
-    return '';
+  const getAuthIcon = (session: LogtoSession) => {
+    const types = (session.lastSubmission?.verificationRecords || []).map(r => r.type);
+    if (types.includes('Password')) return Lock;
+    if (types.includes('Social')) return Users;
+    if (types.includes('EnterpriseSso')) return Shield;
+    if (types.includes('WebAuthn')) return Key;
+    if (types.includes('Totp')) return Clock;
+    return Users;
   };
 
   const isCurrentSession = (session: LogtoSession): boolean => {
@@ -281,6 +242,8 @@ export function SessionsTab({
     );
   }
 
+  const radius = theme.tokens.dashboardRadius;
+
   return (
     <div>
       <div style={{ marginBottom: '1.625rem' }}>
@@ -289,14 +252,14 @@ export function SessionsTab({
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {sessions.length === 0 ? (
           <div style={{
             padding: '2rem',
             textAlign: 'center',
             background: T.bg,
             border: `1px solid ${T.border}`,
-            borderRadius: theme.tokens.dashboardRadius,
+            borderRadius: radius,
             color: T.muted,
           }}>
             {t.sessions.noSessions}
@@ -304,109 +267,96 @@ export function SessionsTab({
         ) : (
           sessions.map((session) => {
             const isCurrent = isCurrentSession(session);
-            const authMethod = getAuthMethodLabel(session);
-            const authIcon = getAuthIcon(authMethod);
             const meta = session.meta;
             const os = meta?.os ?? null;
             const deviceType = meta?.deviceType ?? null;
-            const title = getSessionTitle(session);
-            const deviceLabel = getDeviceLabel(session);
-            const showCurrentLabel = isCurrent || !title;
-            const iconColor = isCurrent ? T.blueText : T.muted;
+            const AuthIcon = getAuthIcon(session);
+
+            const browserLabel = meta?.browser
+              ? (meta.browserVersion ? `${meta.browser} ${meta.browserVersion}` : meta.browser)
+              : null;
+            const osLabel = meta?.os
+              ? (meta.osVersion ? `${meta.os} ${meta.osVersion}` : meta.os)
+              : null;
+            const hasOsIcon = os === 'Linux' || os === 'Windows' || os === 'macOS' || os === 'iOS' || os === 'Android';
+
+            const lastActive = meta?.lastActive
+              ? formatRelativeTime(meta.lastActive)
+              : null;
 
             return (
               <div key={session.payload.uid} style={{
                 background: T.bg,
-                border: `1px solid ${T.border}`,
-                borderRadius: theme.tokens.dashboardRadius,
-                padding: '1rem',
+                border: `1px solid ${isCurrent ? T.blueText + '40' : T.border}`,
+                borderRadius: radius,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '1rem',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
               }}>
                 <div style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
-                  borderRadius: '50%',
-                  background: isCurrent ? T.blue : T.muted + '20',
+                  width: '2rem',
+                  height: '2rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: iconColor,
                   flexShrink: 0,
                 }}>
-                  {isCurrent
-                    ? <Check size={16} strokeWidth={2} />
-                    : <OsIcon os={os} deviceType={deviceType} size={16} color={iconColor} />
+                  {hasOsIcon || deviceType
+                    ? <OsIcon os={os} deviceType={deviceType} size={22} />
+                    : <Monitor size={20} strokeWidth={1.5} />
                   }
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <h3 style={{
-                      fontFamily: T.font,
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      color: T.text,
-                      margin: 0,
-                    }}>
-                      {showCurrentLabel ? t.sessions.currentSession : title}
-                    </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
                     {isCurrent && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.25rem',
-                        padding: '0.125rem 0.5rem',
+                        padding: '0.0625rem 0.375rem',
                         fontSize: '0.625rem',
                         fontFamily: T.mono,
                         background: T.greenDim,
                         color: T.greenText,
                         border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
                         letterSpacing: 0.2,
-                        borderRadius: '0.25rem',
+                        borderRadius: '0.1875rem',
                       }}>
-                        <Check size={10} />
+                        <Check size={9} />
                         {t.sessions.thisDevice}
                       </span>
                     )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      {React.createElement(authIcon, { size: 12 })}
-                      <span>{authMethod}</span>
-                    </div>
-                    {deviceLabel && !title && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <OsIcon os={os} deviceType={deviceType} size={12} color={T.muted} />
-                        <span>{deviceLabel}</span>
-                      </div>
+                    {browserLabel && (
+                      <span style={{ fontFamily: T.font, fontSize: '0.8125rem', fontWeight: 500, color: T.text }}>
+                        {browserLabel}
+                      </span>
                     )}
-                    {meta?.lastActive ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Clock size={12} />
-                        <span>{t.sessions.lastActive}: {formatDate(new Date(meta.lastActive).getTime())}</span>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Clock size={12} />
-                        <span>{t.sessions.signedIn}: {formatDate(session.payload.loginTs)}</span>
-                      </div>
+                    {osLabel && (
+                      <>
+                        <span style={{ fontSize: '0.6875rem', color: T.muted }}>·</span>
+                        <span style={{ fontSize: '0.8125rem', color: T.sub }}>{osLabel}</span>
+                      </>
                     )}
                   </div>
 
-                  <div style={{ marginTop: '0.25rem', fontSize: '0.6875rem', color: T.sub, display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    {title && meta && (
-                      <span>{meta.browser}{meta.browserVersion ? ` ${meta.browserVersion}` : ''} · {meta.os}{meta.osVersion ? ` ${meta.osVersion}` : ''}</span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.6875rem', color: T.muted, marginTop: '0.125rem', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AuthIcon size={11} />
+                    </span>
                     {meta?.ip && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                         <MapPin size={10} />
                         {meta.ip}
                       </span>
                     )}
-                    <span>{t.sessions.expires}: {formatDate(session.payload.exp)}</span>
+                    {lastActive && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <Clock size={10} />
+                        {lastActive}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -422,14 +372,7 @@ export function SessionsTab({
                     disabled={revokingId === session.payload.uid}
                     theme={theme}
                   >
-                    {revokingId === session.payload.uid ? (
-                      t.common.loading
-                    ) : (
-                      <>
-                        <Trash2 size={12} />
-                        {t.sessions.revoke}
-                      </>
-                    )}
+                    {revokingId === session.payload.uid ? t.common.loading : t.sessions.revoke}
                   </Button>
                 )}
               </div>
