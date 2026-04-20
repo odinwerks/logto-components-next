@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { KeyRound, Braces, Cookie, LogOut } from 'lucide-react';
+import { KeyRound, Braces, Cookie, LogOut, Eye, EyeOff } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -20,6 +20,12 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
   const c  = theme.colors;
   const ty = theme.tokens.typography;
 
+  const [showToken, setShowToken] = useState(false);
+
+  const maskedToken = accessToken
+    ? accessToken.substring(0, 8) + '...' + accessToken.substring(accessToken.length - 4)
+    : '';
+
   // Load organization permissions client-side
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
 
@@ -32,20 +38,17 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
         .then(permissions => {
           setLoadedPermissions(permissions);
         })
-        .catch(error => {
-          console.error('[DevTab] Failed to load permissions:', error);
+        .catch(() => {
           setLoadedPermissions([]);
         });
     }
   }, [userData.customData, loadedPermissions.length]);
 
-  // Enhanced userData with loaded permissions for display
   const enhancedUserData = {
     ...userData,
     organizationPermissions: loadedPermissions.length > 0 ? loadedPermissions : userData.organizationPermissions,
   };
 
-  // ── Section wrapper (card with icon+label header) ───────────────────────
   function Section({
     icon, label, children, danger,
   }: {
@@ -87,7 +90,23 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
 
       {/* Access Token */}
       <Section icon={<KeyRound size={12} strokeWidth={2} />} label={t.raw.tokenType}>
-        <CodeBlock data={accessToken} theme={theme} maxHeight="7.5rem" t={t} />
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowToken(s => !s)}
+            style={{
+              position: 'absolute', top: '0.5rem', right: '0.5rem', zIndex: 1,
+              background: c.bgPrimary, border: `1px solid ${c.borderColor}`,
+              borderRadius: '0.25rem', padding: '0.25rem 0.5rem',
+              cursor: 'pointer', color: c.textSecondary,
+              display: 'flex', alignItems: 'center', gap: '0.25rem',
+              fontSize: '0.6875rem', fontFamily: ty.fontMono,
+            }}
+          >
+            {showToken ? <EyeOff size={11} strokeWidth={2} /> : <Eye size={11} strokeWidth={2} />}
+            {showToken ? 'Hide' : 'Reveal'}
+          </button>
+          <CodeBlock data={showToken ? accessToken : maskedToken} theme={theme} maxHeight="7.5rem" t={t} />
+        </div>
       </Section>
 
       {/* Raw JSON */}

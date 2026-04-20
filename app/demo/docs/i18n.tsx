@@ -361,8 +361,8 @@ function AddLangSection() {
       <p style={textStyle}>
         Create a new locale file, register it, and add to the available list.
       </p>
-      <CodeBlock title="Step 1: Create locale file" code={`// app/logto-kit/locales/ru-RU/index.ts
-import type { Translations } from '../index';
+      <CodeBlock title="Step 1: Create locale file" code={`// app/logto-kit/locales/ru-RU.ts
+import type { Translations } from './index';
 
 export const ruRU: Translations = {
   dashboard: { loading: 'Загрузка...', /* ... */ },

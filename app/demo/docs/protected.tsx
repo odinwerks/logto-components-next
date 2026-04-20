@@ -335,7 +335,7 @@ function ProtectedApiSection() {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,      // User's access token (from logto.accessToken)
+    token: accessToken,      // User's access token (from useLogto().accessToken)
     id: userId,             // User ID (must match token.sub)
     action: 'action-name',  // Registered action name
     payload: { /* optional data */ }
@@ -545,7 +545,7 @@ const result = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,       // logto.accessToken
+    token: accessToken,       // from useLogto().accessToken
     id: userData.id,          // must match token.sub
     action: 'destroy-economy', // registered action name
     payload: { inflation: 0 }  // current counter value
@@ -612,9 +612,7 @@ function LiveRbacDemoSection() {
         Test the Protected Actions API with curl. Get your token from the browser console using the dashboard.
       </p>
       <CodeBlock title="Get Token (from dashboard)" code={`// Open the dashboard (click user button → Dashboard)
-// Go to Dev tab → copy the Access Token
-// Or in browser console:
-console.log(logto.accessToken)`} />
+// Go to Dev tab → click "Reveal" on the Access Token → copy`} />
       <CodeBlock title="Test with Curl" code={`curl -X POST localhost:3000/api/protected \\
   -H "Content-Type: application/json" \\
   -d '{

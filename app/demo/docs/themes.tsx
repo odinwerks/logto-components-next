@@ -1010,7 +1010,7 @@ function TkAliasesSection() {
         <code style={codeStyle}>ThemeColors</code> or <code style={codeStyle}>ThemeSpec</code>.
         Used heavily in components for terse inline styles.
       </p>
-      <CodeBlock title="Usage" code={`import { tk } from '@odinwerks/logto-kit/components/handlers/theme-helpers';
+      <CodeBlock title="Usage" code={`import { tk } from './logto-kit/components/handlers/theme-helpers';
 
 function MyComponent({ themeSpec }) {
   const t = tk(themeSpec);

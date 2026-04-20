@@ -258,8 +258,9 @@ function ProviderSyncSection() {
       </table>
       <div style={noteStyle}>
         <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Event:</strong>{' '}
-        All changes dispatch a unified <code style={codeSmStyle}>preferences-changed</code>{' '}
-        event. External consumers re-read from storage.
+        All changes dispatch DOM events for cross-tab sync:
+        <code style={codeSmStyle}>theme-changed</code> (theme) and{' '}
+        <code style={codeSmStyle}>preferences-changed</code> (lang, org).
       </div>
     </SectionWrap>
   );
@@ -370,6 +371,8 @@ function WiringSection() {
       userData={result.userData}
       accessToken={result.accessToken}
       dashboard={<Dashboard />}  {/* Server Component JSX */}
+      darkThemeSpec={defaultDarkTheme}
+      lightThemeSpec={defaultLightTheme}
     >
       <DemoApp />
     </LogtoProvider>

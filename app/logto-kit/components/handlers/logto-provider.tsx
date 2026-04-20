@@ -38,6 +38,7 @@ export interface LogtoProviderProps {
   dashboard?: ReactNode;
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
+  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
   darkThemeSpec: ThemeSpec;
   lightThemeSpec: ThemeSpec;
@@ -157,6 +158,7 @@ export function LogtoProvider({
   dashboard,
   initialTheme,
   initialLang,
+  onUpdateCustomData,
   onLangChange,
   darkThemeSpec,
   lightThemeSpec,
@@ -165,6 +167,7 @@ export function LogtoProvider({
     <PreferencesProvider
       initialTheme={initialTheme}
       initialLang={initialLang}
+      onUpdateCustomData={onUpdateCustomData}
       onLangChange={onLangChange}
       darkThemeSpec={darkThemeSpec}
       lightThemeSpec={lightThemeSpec}

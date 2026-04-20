@@ -164,7 +164,7 @@ function WhatIsThisSection() {
         </thead>
         <tbody>
           <tr>
-            <td style={tdStyle}>Dashboard (profile, MFA, orgs, tokens)</td>
+            <td style={tdStyle}>Dashboard (profile, MFA, orgs, sessions with device info)</td>
             <td style={tdPathStyle}>Dashboard</td>
           </tr>
           <tr>
@@ -255,11 +255,11 @@ function EnvSection() {
           </tr>
         </tbody>
       </table>
-      <CodeBlock title="SCOPES" code={`# Minimum
-SCOPES=openid,profile,custom_data,email,phone,identities
+      <CodeBlock title="SCOPES" code={`# Minimum (includes sessions)
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 
 # With organizations
-SCOPES=openid,profile,custom_data,email,phone,identities,organizations,organization_roles`} />
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles`} />
     </SectionWrap>
   );
 }
@@ -314,6 +314,34 @@ function ConsoleSection() {
   );
 }
 
+function SessionMetaEnvSection() {
+  return (
+    <SectionWrap label="Session metadata (optional)">
+      <p style={textStyle}>
+        Session cards show browser, OS, device type, IP, and last-active timestamps
+        instead of raw client IDs. Enable via a PostSignIn webhook + S3 storage.
+      </p>
+      <CodeBlock title=".env" code={`# Session metadata bucket (separate from avatars)
+S3_SESSION_BUCKET=session-meta
+
+# Webhook signing key — from Logto Console > Webhooks
+# Leave empty during dev to skip signature verification
+LOGTO_WEBHOOK_SIGNING_KEY=`} />
+      <CodeBlock title="Logto Console → Webhooks" code={`Create webhook:
+  Name: Session Metadata
+  Endpoint: https://your-domain.com/api/webhook/logto
+  Events: PostSignIn
+  Copy signing key → LOGTO_WEBHOOK_SIGNING_KEY`} />
+      <div style={noteStyle}>
+        The bucket can share your Supabase project. Create a private{' '}
+        <code style={codeSmStyle}>session-meta</code> bucket allowing{' '}
+        <code style={codeSmStyle}>application/json</code> MIME type. The heartbeat
+        (every 5 min) keeps last-active timestamps fresh.
+      </div>
+    </SectionWrap>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 3: Replace the demo + Run
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -336,6 +364,8 @@ export default async function HomePage() {
       userData={result.userData}
       accessToken={result.accessToken}
       dashboard={<Dashboard />}
+      darkThemeSpec={defaultDarkTheme}
+      lightThemeSpec={defaultLightTheme}
     >
       <DemoApp />  {/* ← replace this */}
     </LogtoProvider>
@@ -350,6 +380,8 @@ export default async function HomePage() {
       userData={result.userData}
       accessToken={result.accessToken}
       dashboard={<Dashboard />}
+      darkThemeSpec={defaultDarkTheme}
+      lightThemeSpec={defaultLightTheme}
     >
       <YourApp />  {/* ← your app */}
     </LogtoProvider>
@@ -475,6 +507,7 @@ export default function GettingStartedDoc() {
           </div>
           <div style={colLeftStyle}>
             <AvatarEnvSection />
+            <SessionMetaEnvSection />
           </div>
         </div>
       </Section>
