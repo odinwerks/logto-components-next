@@ -25,16 +25,20 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 ./
 ├── app/
 │   ├── api/
-│   │   ├── adjust-preference/          # Update user preferences API
 │   │   ├── auth/
 │   │   │   ├── sign-in/
 │   │   │   │   └── route.ts
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
 │   │   ├── protected/
-│   │   │   └── route.ts              # Protected Actions API
+│   │   │   └── route.ts
+│   │   ├── session-track/
+│   │   │   └── route.ts
 │   │   ├── upload-avatar/
 │   │   │   └── route.ts
+│   │   ├── webhook/
+│   │   │   └── logto/
+│   │   │       └── route.ts
 │   │   └── wipe/
 │   │       └── route.ts
 │   ├── callback/
@@ -44,25 +48,26 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
 │   │   ├── nav-data.tsx             # 9-tab navigation definitions
-│   │   ├── Particles.tsx            # Particle effect background
-│   │   ├── types.ts                 # Type definitions
-│   │   ├── docs/                    # Per-tab documentation files (TSX)
-│   │   │   ├── getting-started.tsx  # Getting started guide
-│   │   │   ├── user-button.tsx      # UserButton doc — props, notes, 6 example cards
-│   │   │   ├── dashboard.tsx        # Dashboard doc — internals, providers, rendering
-│   │   │   ├── tabs-and-flows.tsx   # Tabs and flows documentation
-│   │   │   ├── protected.tsx        # Protected component + Actions API doc
-│   │   │   ├── org-switcher.tsx     # OrgSwitcher doc
-│   │   │   ├── providers.tsx         # Providers doc
-│   │   │   ├── themes.tsx           # Theme system doc
-│   │   │   ├── i18n.tsx             # i18n doc
-│   │   │   └── components/          # (empty)
-│   │   ├── logic/                    # Demo-specific components
-│   │   │   ├── PresidentControlPanel.tsx  # Protected RBAC demo
+│   │   ├── Particles.tsx            # Canvas particle animation
+│   │   ├── types.ts                # Type definitions
+│   │   ├── docs/                   # Per-tab documentation files (TSX)
+│   │   │   ├── getting-started.tsx
+│   │   │   ├── user-button.tsx
+│   │   │   ├── dashboard.tsx
+│   │   │   ├── tabs-and-flows.tsx
+│   │   │   ├── protected.tsx
+│   │   │   ├── org-switcher.tsx
+│   │   │   ├── providers.tsx
+│   │   │   ├── themes.tsx
+│   │   │   ├── i18n.tsx
+│   │   │   └── components/
+│   │   │       └── sessions.tsx   # Sessions tab documentation
+│   │   ├── logic/                  # Demo-specific components
+│   │   │   ├── PresidentControlPanel.tsx
 │   │   │   └── PresidentControlPanelClient.tsx
-│   │   └── utils/                   # Shared doc utilities
-│   │       ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
-│   │       └── Section.tsx          # SectionContainer + Section (multi-page docs)
+│   │   └── utils/
+│   │       ├── CodeBlock.tsx
+│   │       └── Section.tsx
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
@@ -73,30 +78,31 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   ├── logto-provider.tsx
 │   │   │   │   ├── theme-helpers.ts
 │   │   │   │   ├── use-avatar-upload.tsx
+│   │   │   │   ├── use-session-tracker.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.tsx
 │   │   │   │   ├── index.tsx
 │   │   │   │   ├── types.ts
+│   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx
-│   │   │   │   │   └── Toast.tsx
+│   │   │   │   │   ├── FlowModal.tsx
+│   │   │   │   │   ├── SessionMiniMap.tsx
+│   │   │   │   │   ├── SessionMapModal.tsx
+│   │   │   │   │   ├── Toast.tsx
+│   │   │   │   │   └── geo-cache.ts
 │   │   │   │   └── tabs/
+│   │   │   │       ├── dev.tsx
 │   │   │   │       ├── identities.tsx
 │   │   │   │       ├── organizations.tsx
 │   │   │   │       ├── preferences.tsx
 │   │   │   │       ├── profile.tsx
 │   │   │   │       ├── sessions.tsx
-│   │   │   │       ├── dev.tsx
 │   │   │   │       └── security.tsx
 │   │   │   └── shared/
 │   │   │       ├── Button.tsx
-│   │   │       ├── Input.tsx
-│   │   │       ├── FlowModal.tsx
-│   │   │       ├── Toast.tsx
-│   │   │       ├── geo-cache.ts
-│   │   │       ├── SessionMiniMap.tsx
-│   │   │       └── SessionMapModal.tsx
+│   │   │       └── Input.tsx
 │   │   └── userbutton/
 │   │       └── index.tsx
 │   │   ├── custom-actions/
@@ -147,6 +153,8 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 ├── .env.example
 ├── next.config.ts
 ├── next-env.d.ts
+├── public/
+│   └── os-icons/                   # OS icons for session cards (Tux.jpg, MacroSlop.svg, MacOS.svg, ios.svg, Android.svg)
 ├── package.json
 ├── README.md
 └── tsconfig.json
