@@ -6,19 +6,21 @@ import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../handlers/preferences';
+import { useSessionTracker } from '../handlers/use-session-tracker';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
+import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
 import { UserBadge } from '../userbutton';
 
 // Import MfaVerification type
-import type { MfaVerification } from '../../logic/types';
-import { Terminal } from 'lucide-react';
+import type { MfaVerification, LogtoSession } from '../../logic/types';
+import { Terminal, Monitor } from 'lucide-react';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -35,6 +37,7 @@ function getTabLabel(id: TabId, t: Translations): string {
     case 'profile': return t.tabs.profile;
     case 'preferences': return t.tabs.preferences;
     case 'security': return t.tabs.security;
+    case 'sessions': return t.tabs.sessions;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
     case 'dev': return t.tabs.dev;
@@ -91,6 +94,7 @@ function getTabIcon(id: TabId) {
   switch (id) {
     case 'profile': return UserIcon;
     case 'security': return ShieldIcon;
+    case 'sessions': return Monitor;
     case 'identities': return LinkIcon;
     case 'organizations': return BuildingIcon;
     case 'preferences': return SettingsIcon;
@@ -129,6 +133,8 @@ interface DashboardClientProps {
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
+  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
   onSignOut: () => Promise<void>;
 }
 
@@ -161,6 +167,8 @@ export function DashboardClient({
   onGenerateBackupCodes,
   onUpdatePassword,
   onDeleteAccount,
+  onGetSessionsWithDeviceMeta,
+  onRevokeSession,
   onSignOut,
 }: DashboardClientProps) {
 
@@ -186,6 +194,9 @@ export function DashboardClient({
 
   // ── Organization Data ─────────────────────────────────────────────────────
   // Organization roles and organizations now come from claims in dashboard data
+
+  // ── Session Tracking ────────────────────────────────────────────────────────
+  useSessionTracker(accessToken, userData.id);
 
 
 
@@ -436,9 +447,22 @@ export function DashboardClient({
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
             />
-          )}
+           )}
 
-          {activeTab === 'identities' && (
+            {activeTab === 'sessions' && (
+              <SessionsTab
+                userData={userData}
+                theme={themeSpec}
+                t={t}
+                onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+                onRevokeSession={onRevokeSession}
+                onVerifyPassword={onVerifyPassword}
+                onSuccess={(msg) => showToast('success', msg)}
+                onError={(msg) => showToast('error', msg)}
+              />
+            )}
+
+           {activeTab === 'identities' && (
             <IdentitiesTab userData={userData} theme={themeSpec} t={t} />
           )}
 

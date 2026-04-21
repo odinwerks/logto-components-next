@@ -895,7 +895,7 @@ async function fetchAllSessionLastActive(userId: string): Promise<Map<string, st
   const metas = await listSessionMetasFromS3(userId);
   const result = new Map<string, string>();
   for (const meta of metas) {
-    if (meta.jti) result.set(meta.jti, meta.lastActive);
+    if (meta.jti && meta.lastActive) result.set(meta.jti, meta.lastActive);
   }
   return result;
 }
@@ -1064,15 +1064,11 @@ export async function getUserSessions(verificationRecordId: string): Promise<Log
   return sessions;
 }
 
-export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<{
-  sessions: LogtoSession[];
-  currentJti: string | null;
-}> {
+export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<LogtoSession[]> {
   const sessions = await getUserSessions(verificationRecordId);
 
   const token = await getTokenForServerAction();
   const introspection = await introspectToken(token);
-  const currentJti = introspection.sid || introspection.jti || null;
   const userId = introspection.sub || '';
 
   const lastActiveMap = await fetchAllSessionLastActive(userId);
@@ -1090,15 +1086,14 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
       osVersion: deviceInfo.osVersion,
       deviceType: deviceInfo.deviceType,
       ip: signInContext?.ip || null,
-      lastActive: lastActiveMap.get(session.payload.jti) || new Date(session.payload.loginTs * 1000).toISOString(),
+      lastActive: lastActiveMap.get(session.payload.jti) || null,
       createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
     };
 
     return { ...session, meta };
   });
 
-  console.log(`[getSessionsWithDeviceMeta] Returning ${enrichedSessions.length} sessions`);
-  return { sessions: enrichedSessions, currentJti };
+  return enrichedSessions;
 }
 
 export async function revokeUserSession(

@@ -17,13 +17,17 @@
     "next": "^16.2.3",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "ua-parser-js": "^2.0.9",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/minio": "^7.1.0",
     "@types/node": "^25.6.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ua-parser-js": "^0.7.39",
+    "@types/uuid": "^10.0.0",
     "ts-unused-exports": "^11.0.1",
     "typescript": "^6.0.2"
   }

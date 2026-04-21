@@ -43,10 +43,6 @@ export default function AuthWatcher({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // ▼ BUG FIX: define refresh INSIDE the effect so it captures the correct
-    // closure. Previously it was defined in the component body, which means
-    // the event listeners always called the stale refresh from the initial render.
-    // Defining it here ensures the listeners always get the current closure.
     const refresh = () => {
       const now = Date.now();
 
@@ -59,8 +55,6 @@ export default function AuthWatcher({
       // Schedule the refresh on the next tick so rapid-fire events collapse
       timeoutRef.current = setTimeout(() => {
         lastRefreshRef.current = Date.now();
-        // useTransition keeps this refresh non-blocking — it won't freeze
-        // any urgent UI updates that happen at the same time
         startTransition(() => {
           router.refresh();
         });
@@ -68,21 +62,15 @@ export default function AuthWatcher({
     };
 
     // ── Trigger 1: Tab becomes visible ────────────────────────────────────
-    // User switches back to this tab from another — they may have signed out
-    // elsewhere, or an admin may have deleted the account in the interim.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') refresh();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // ── Trigger 2: Network reconnects ─────────────────────────────────────
-    // Device went offline and came back — session may have expired during
-    // the offline period, especially for long gaps (sleep, travel, etc.)
     window.addEventListener('online', refresh);
 
     // ── Trigger 3: Interval ───────────────────────────────────────────────
-    // Catches the "user is actively on the page for a long time" case —
-    // e.g., admin deletes account while user is idle on the dashboard.
     let intervalId: ReturnType<typeof setInterval> | null = null;
     if (refreshIntervalMs > 0) {
       intervalId = setInterval(refresh, refreshIntervalMs);
@@ -95,8 +83,6 @@ export default function AuthWatcher({
       if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
     };
   }, [router, startTransition, debounceMs, refreshIntervalMs]);
-  // ↑ All actual dependencies listed. router and startTransition are stable
-  // references from Next.js/React, so this effect runs exactly once on mount.
 
   return null;
 }

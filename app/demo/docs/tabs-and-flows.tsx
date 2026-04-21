@@ -802,10 +802,7 @@ function SessionsPropsSection() {
   userData: UserData;
   theme: ThemeSpec;
   t: Translations;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<{
-    sessions: LogtoSession[];
-    currentJti: string | null;
-  }>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (
     sessionId: string,
     revokeGrantsTarget?: 'all' | 'firstParty',
@@ -846,17 +843,11 @@ function SessionsPropsSection() {
 function SessionsApiSection() {
   return (
     <SectionWrap label="Server Actions">
-      <CodeBlock title="getSessionsWithDeviceMeta" code={`export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<{
-  sessions: LogtoSession[];
-  currentJti: string | null;
-}> {
+      <CodeBlock title="getSessionsWithDeviceMeta" code={`export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<LogtoSession[]> {
   const sessions = await getUserSessions(verificationRecordId);
 
-  const token = await getTokenForServerAction();
-  const introspection = await introspectToken(token);
-  const currentJti = introspection.sid || introspection.jti || null;
-
-  return { sessions, currentJti };
+  // ... enrich with device metadata from signInContext
+  return sessions;
 }`} />
 
       <p style={textStyle}>

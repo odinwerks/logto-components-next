@@ -22,6 +22,8 @@ import {
   generateBackupCodes,
   updateUserPassword,
   deleteUserAccount,
+  getSessionsWithDeviceMeta,
+  revokeUserSession,
   signOutUser,
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
@@ -128,6 +130,8 @@ export async function Dashboard() {
           onGenerateBackupCodes={generateBackupCodes}
           onUpdatePassword={updateUserPassword}
           onDeleteAccount={deleteUserAccount}
+          onGetSessionsWithDeviceMeta={getSessionsWithDeviceMeta}
+          onRevokeSession={revokeUserSession}
           onSignOut={signOutUser}
         />
       </PreferencesProvider>

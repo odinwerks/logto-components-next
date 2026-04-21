@@ -79,6 +79,12 @@ select:focus {
   }
 }
 
+@keyframes ldd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 0.5rem;

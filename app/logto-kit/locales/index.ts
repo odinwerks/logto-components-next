@@ -321,8 +321,8 @@ export interface KitTranslations {
     description: string;
     activeSessions: string;
     currentSession: string;
+    loggedInAt: string;
     lastActive: string;
-    signedIn: string;
     expires: string;
     authMethod: string;
     deviceId: string;
@@ -347,6 +347,7 @@ export interface KitTranslations {
     totp: string;
     backupCode: string;
     desktop: string;
+    tablet: string;
     mobile: string;
     thisDevice: string;
     verifyToView: string;
@@ -354,6 +355,12 @@ export interface KitTranslations {
     verifyPassword: string;
     verifyFailed: string;
     loadFailed: string;
+    locationUnavailable: string;
+    ipLocation: string;
+    viewInGoogleMaps: string;
+    refreshData: string;
+    satellite: string;
+    street: string;
   };
   
   // Common
