@@ -191,7 +191,7 @@ export interface SessionMeta {
   os: string | null;
   osVersion: string | null;
   deviceType: string | null;
-  lastActive: string;
+  lastActive: string | null;
   createdAt: string;
 }
 

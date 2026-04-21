@@ -6,7 +6,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP, last active), identities, organizations, MFA, and developer tools views
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP, last active) and IP geolocation minimap, identities, organizations, MFA, and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
 - **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
@@ -91,7 +91,12 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │       └── security.tsx
 │   │   │   └── shared/
 │   │   │       ├── Button.tsx
-│   │   │       └── Input.tsx
+│   │   │       ├── Input.tsx
+│   │   │       ├── FlowModal.tsx
+│   │   │       ├── Toast.tsx
+│   │   │       ├── geo-cache.ts
+│   │   │       ├── SessionMiniMap.tsx
+│   │   │       └── SessionMapModal.tsx
 │   │   └── userbutton/
 │   │       └── index.tsx
 │   │   ├── custom-actions/
@@ -1589,8 +1594,43 @@ The bucket can share the same Supabase project as avatar storage — they use se
 | `app/api/session-track/route.ts` | Heartbeat endpoint — matches UA fingerprint, updates lastActive |
 | `app/logto-kit/logic/actions.ts` | `getSessionsWithDeviceMeta()`, `fetchAllSessionMeta()`, `deleteSessionMeta()` |
 | `app/logto-kit/logic/types.ts` | `SessionMeta` interface |
-| `app/logto-kit/components/dashboard/tabs/sessions.tsx` | Sessions tab — reads `session.meta` for display |
+| `app/logto-kit/components/dashboard/tabs/sessions.tsx` | Sessions tab — reads `session.meta` for display, includes IP geolocation minimap and refresh button |
+| `app/logto-kit/components/dashboard/shared/geo-cache.ts` | Client-side ipapi.co fetcher with 5-minute TTL cache and deduplication |
+| `app/logto-kit/components/dashboard/shared/SessionMiniMap.tsx` | Static tile minimap (CartoDB dark/light @2x, zoom 13, CSS pin marker) |
+| `app/logto-kit/components/dashboard/shared/SessionMapModal.tsx` | Google Maps embed modal + &quot;View in Google Maps&quot; external link |
 | `app/logto-kit/components/handlers/use-session-tracker.tsx` | Client-side heartbeat pinger |
+
+### IP Geolocation & Minimap
+
+Each session card includes an IP geolocation minimap showing the approximate location of the session's IP address.
+
+**Architecture:**
+
+```
+Session card loads
+  → extract unique IPs from session.meta.ip
+  → fetch https://ipapi.co/{ip}/json/ for each (parallel, from browser)
+  → cache in module-level Map<ip, {geo, fetchedAt}> with 5min TTL
+  → pass geo to SessionMiniMap component
+  → minimap renders single @2x CartoDB tile (dark/light theme-aware)
+  → click minimap → SessionMapModal with Google Maps embed + external link
+```
+
+- **Geolocation API**: [ipapi.co](https://ipapi.co) — free, HTTPS, no API key, 1,000 req/day per client IP (each user's browser is a separate consumer, not your server)
+- **Minimap**: Single `@2x` tile (512px source) at zoom 13 from CartoDB (`dark_all` / `light_all` depending on theme). Red pin marker via CSS. Width: 260px, height stretches to match card (80px).
+- **Expanded modal**: Google Maps embed iframe (`output=embed`) with "View in Google Maps" link (`t=k` for satellite). No API key needed for the embed.
+- **Cache**: 5-minute client-side `Map` with deduplication of in-flight requests. "Refresh Data" button clears the cache and re-fetches sessions.
+- **Fallback**: If IP is missing or geolocation fails, shows a dashed-border placeholder with "Location unavailable".
+
+**Session card layout:**
+
+```
+┌─────────────────────────────────────────────────┐
+│ [Icon] │ Title · OS      │ [Minimap] │ [Revoke] │
+│        │ Logged on: ...  │ 260×80px  │ IP       │
+│        │ Expires: ...     │           │ City, CO │
+└─────────────────────────────────────────────────┘
+```
 
 ### Data Flow
 
