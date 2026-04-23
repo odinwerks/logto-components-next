@@ -8,41 +8,54 @@
 :root[data-theme="dark"],
 :root {
   /* Backgrounds */
-  --ldd-bg-page: #0a0a0a;
-  --ldd-bg-primary: #050505;
-  --ldd-bg-secondary: #0a0a0a;
+  --ldd-bg-page: #050505;
+  --ldd-bg-primary: #0a0a0a;
+  --ldd-bg-secondary: #111111;
   --ldd-bg-tertiary: #1a1a1a;
-  
+
   /* Text */
-  --ldd-text-primary: #d1d5db;
+  --ldd-text-primary: #e5e7eb;
   --ldd-text-secondary: #9ca3af;
   --ldd-text-tertiary: #6b7280;
-  
+
   /* Border */
-  --ldd-border-color: #374151;
+  --ldd-border-color: #1f2937;
   --ldd-border-radius: 0.375rem;
   --ldd-border-radius-sm: 0.25rem;
-  
+
   /* Accents */
-  --ldd-accent-green: #86efac;
-  --ldd-accent-yellow: #fbbf24;
+  --ldd-accent-green: #10b981;
+  --ldd-accent-yellow: #f59e0b;
   --ldd-accent-red: #ef4444;
-  --ldd-accent-blue: #60a5fa;
-  
+  --ldd-accent-blue: #3b82f6;
+
   /* Button backgrounds */
   --ldd-btn-primary-bg: #059669;
   --ldd-btn-danger-bg: #ef4444;
   --ldd-btn-secondary-bg: #1a1a1a;
-  
+
   /* Status backgrounds */
-  --ldd-success-bg: #003300;
-  --ldd-error-bg: #330000;
-  --ldd-warning-bg: #78350f;
-  
+  --ldd-success-bg: #064e3b;
+  --ldd-error-bg: #450a0a;
+  --ldd-warning-bg: #451a03;
+
   /* Typography */
   --ldd-font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  --ldd-font-sans: 'DM Sans', system-ui, sans-serif;
+  --ldd-font-mono: 'IBM Plex Mono', 'Courier New', monospace;
   --ldd-font-weight: 400;
-  
+  --ldd-size-micro: 0.5625rem;
+  --ldd-size-xs: 0.625rem;
+  --ldd-size-sm: 0.6875rem;
+  --ldd-size-base: 0.75rem;
+  --ldd-size-md: 0.8125rem;
+  --ldd-size-lg: 0.875rem;
+  --ldd-size-xl: 0.9375rem;
+  --ldd-weight-normal: 400;
+  --ldd-weight-medium: 500;
+  --ldd-weight-semibold: 600;
+  --ldd-weight-bold: 700;
+
   /* Layout */
   --ldd-sidebar-width: 20rem;
   --ldd-header-height: auto;
