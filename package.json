@@ -1,8 +1,12 @@
 {
   "name": "logto-debug-dashboard",
   "version": "0.2.0",
-  "private": true,
+  "private": false,
   "description": "A Next.js debug dashboard for Logto authentication with comprehensive user profile management",
+  "license": "Custom",
+  "repository": "https://github.com/odinwerks/logto-components-next",
+  "keywords": ["logto", "auth", "authentication", "nextjs", "debug", "dashboard"],
+  "author": "odinwerks",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
