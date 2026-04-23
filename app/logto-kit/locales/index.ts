@@ -135,7 +135,13 @@ export interface KitTranslations {
     dragDrop: string;
     browse: string;
     saveUrl: string;
+    changePhoto: string;
+    adjustPhoto: string;
+    applyCrop: string;
     removeAvatar: string;
+    deletePfpPrefix: string;
+    deletePfpHighlight: string;
+    deletePfpSuffix: string;
     avatarUpdated: string;
     avatarRemoved: string;
     avatarInvalidType: string;
