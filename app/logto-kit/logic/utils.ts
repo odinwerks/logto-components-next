@@ -6,7 +6,7 @@ import type { OidcIntrospectionResponse } from './types';
  * @returns The clean endpoint URL without trailing slash.
  * @throws Error if endpoint is missing from configuration.
  */
-export async function getCleanEndpoint(): Promise<string> {
+export function getCleanEndpoint(): string {
   const endpoint = getLogtoConfig().endpoint;
   if (!endpoint) {
     throw new Error(
@@ -23,7 +23,7 @@ export async function getCleanEndpoint(): Promise<string> {
  * @param maxLength - Maximum length (default: 200).
  * @returns The truncated text.
  */
-export async function truncateError(text: string, maxLength = 200): Promise<string> {
+export function truncateError(text: string, maxLength = 200): string {
   return text.substring(0, maxLength);
 }
 
@@ -32,7 +32,7 @@ export async function truncateError(text: string, maxLength = 200): Promise<stri
  * @param id - The user ID to validate.
  * @throws Error if the user ID contains invalid characters or is too long.
  */
-export async function assertSafeUserId(id: string): Promise<void> {
+export function assertSafeUserId(id: string): void {
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
     throw new Error('UNAUTHORIZED: userId contains invalid characters.');
   }

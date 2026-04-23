@@ -112,17 +112,17 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
 
 // ─── Fallback avatar ─────────────────────────────────────────────────────────
 
-function FallbackAvatar({ Size, shape, theme }: { Size: string; shape?: string; theme: ThemeSpec }) {
+function FallbackAvatar({ Size, shape }: { Size: string; shape?: string }) {
   const resolvedShape = getShape(shape);
   const sizeNum = parseFloat(Size);
   return (
     <div style={{
       width: Size, height: Size,
       borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
-      border: `2px solid ${theme.colors.borderColor}`,
-      background: theme.colors.bgTertiary,
+      border: '2px solid var(--ldd-border-color)',
+      background: 'var(--ldd-bg-tertiary)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: theme.colors.textTertiary,
+      color: 'var(--ldd-text-tertiary)',
     }}>
       <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
     </div>
@@ -136,13 +136,12 @@ interface AvatarCoreProps {
   Size: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData: UserData;
-  theme: ThemeSpec;
   imageFailed: boolean;
   onImageError: () => void;
 }
 
 function AvatarCore({
-  Canvas, Size, shape, userData, theme, imageFailed, onImageError,
+  Canvas, Size, shape, userData, imageFailed, onImageError,
 }: AvatarCoreProps) {
   const resolvedShape = getShape(shape);
   const mode: 'Avatar' | 'Initials' = Canvas === 'Initials' ? 'Initials' : 'Avatar';
@@ -152,13 +151,13 @@ function AvatarCore({
     width: Size,
     height: Size,
     borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
-    border: `2px solid ${theme.colors.borderColor}`,
-    background: isShowingAvatar ? 'transparent' : theme.colors.bgTertiary,
+    border: '2px solid var(--ldd-border-color)',
+    background: isShowingAvatar ? 'transparent' : 'var(--ldd-bg-tertiary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    color: theme.colors.textTertiary,
+    color: 'var(--ldd-text-tertiary)',
     fontSize: `calc(${Size} * 0.36)`,
   };
 
@@ -231,13 +230,13 @@ export function UserButton({
 
   const renderAvatar = () => {
     if (loading || !userData) {
-      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} theme={theme} />;
+      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} />;
       return null;
     }
     return (
       <AvatarCore
         Canvas={Canvas} Size={Size} shape={shape} userData={userData}
-        theme={theme} imageFailed={imageFailed}
+        imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
       />
     );
@@ -267,18 +266,18 @@ export function UserBadge({
   userData: providedUserData,
   theme: providedTheme,
 }: UserBadgeProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, theme } =
+  const { userData, loading, showFallback, imageFailed, setImageFailed } =
     useUserDisplay({ userData: providedUserData, theme: providedTheme });
 
   const renderAvatar = () => {
     if (loading || !userData) {
-      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} theme={theme} />;
+      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} />;
       return null;
     }
     return (
       <AvatarCore
         Canvas={Canvas} Size={Size} shape={shape} userData={userData}
-        theme={theme} imageFailed={imageFailed}
+        imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
       />
     );
@@ -298,16 +297,14 @@ export function UserBadge({
 export function UserCard({
   Canvas,
   Size = '2.5rem',
-  shape = 'sq',
+  shape,
   userData: providedUserData,
   theme: providedTheme,
   do: customAction,
 }: UserCardProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, theme, t, handleClick } =
+  const { userData, loading, showFallback, imageFailed, setImageFailed, t, handleClick } =
     useUserDisplay({ userData: providedUserData, theme: providedTheme, do: customAction });
   const resolvedShape = getShape(shape);
-  const c = theme.colors;
-  const ty = theme.tokens.typography;
   const borderRadius = resolvedShape === 'sq' ? '0%' : '0.625rem';
 
   const wrapperStyle: React.CSSProperties = {
@@ -318,8 +315,8 @@ export function UserCard({
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    background: c.bgSecondary,
-    border: `1px solid ${c.borderColor}`,
+    background: 'var(--ldd-bg-secondary)',
+    border: '1px solid var(--ldd-border-color)',
     borderRadius,
     transition: 'opacity 0.15s, transform 0.15s',
   };
@@ -331,12 +328,12 @@ export function UserCard({
       if (showFallback) {
         return (
           <>
-            <FallbackAvatar Size={Size} shape={shape} theme={theme} />
+            <FallbackAvatar Size={Size} shape={shape} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', textAlign: 'left' }}>
-              <span style={{ fontFamily: ty.fontMono, fontSize: ty.size.xs, color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: 'var(--ldd-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {label}
               </span>
-              <span style={{ fontFamily: ty.fontSans, fontSize: ty.size.md, fontWeight: ty.weight.medium, color: c.textPrimary }}>
+              <span style={{ fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)', color: 'var(--ldd-text-primary)' }}>
                 ...
               </span>
             </div>
@@ -352,16 +349,16 @@ export function UserCard({
       <>
         <AvatarCore
           Canvas={Canvas} Size={Size} shape={shape} userData={userData}
-          theme={theme} imageFailed={imageFailed}
+          imageFailed={imageFailed}
           onImageError={() => setImageFailed(true)}
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', minWidth: 0, textAlign: 'left' }}>
-          <span style={{ fontFamily: ty.fontMono, fontSize: ty.size.xs, color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: 'var(--ldd-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             {label}
           </span>
           <span style={{
-            fontFamily: ty.fontSans, fontSize: ty.size.md, fontWeight: ty.weight.medium,
-            color: c.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)',
+            color: 'var(--ldd-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {displayName}
           </span>

@@ -17,6 +17,7 @@ import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
 import { UserBadge } from '../userbutton';
+import { readEnv } from '../../logic/env';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -286,7 +287,7 @@ export function DashboardClient({
           {/* User Block */}
           <div style={{ padding: '1rem 0.875rem 0.9375rem', borderBottom: `1px solid ${themeColors.borderColor}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-              <UserBadge Size="2rem" Canvas="Avatar" shape="sq" />
+              <UserBadge Size="2rem" Canvas="Avatar" shape={(readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle'} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
                   style={{
@@ -410,6 +411,14 @@ export function DashboardClient({
               onUpdateBasicInfo={onUpdateBasicInfo}
               onUpdateAvatarUrl={onUpdateAvatarUrl}
               onUpdateProfile={onUpdateProfile}
+              onVerifyPassword={onVerifyPassword}
+              onSendEmailVerification={onSendEmailVerification}
+              onSendPhoneVerification={onSendPhoneVerification}
+              onVerifyCode={onVerifyCode}
+              onUpdateEmail={onUpdateEmail}
+              onUpdatePhone={onUpdatePhone}
+              onRemoveEmail={onRemoveEmail}
+              onRemovePhone={onRemovePhone}
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
               refreshData={refreshData}
@@ -430,13 +439,6 @@ export function DashboardClient({
               theme={themeSpec}
               t={t}
               onVerifyPassword={onVerifyPassword}
-              onSendEmailVerification={onSendEmailVerification}
-              onSendPhoneVerification={onSendPhoneVerification}
-              onVerifyCode={onVerifyCode}
-              onUpdateEmail={onUpdateEmail}
-              onUpdatePhone={onUpdatePhone}
-              onRemoveEmail={onRemoveEmail}
-              onRemovePhone={onRemovePhone}
               onGetMfaVerifications={onGetMfaVerifications}
               onGenerateTotpSecret={onGenerateTotpSecret}
               onAddMfaVerification={onAddMfaVerification}

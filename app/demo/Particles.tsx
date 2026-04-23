@@ -29,10 +29,16 @@ class Starfall {
   raf: number | null = null;
   resizeHandler: () => void;
   mouseHandler: (e: MouseEvent) => void;
+  isDark: boolean;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, isDark: boolean) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get canvas 2D context');
+    }
+    this.ctx = ctx;
+    this.isDark = isDark;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     this.resizeHandler = () => this.setup();
@@ -111,15 +117,16 @@ class Starfall {
     const fa = p.alpha * (0.12 + pulse * 0.88);
     const fs = p.size * (0.65 + pulse * 0.55);
     const bl = Math.abs(p.z - 0.7) * 2;
+    const [r, gBase, b] = this.isDark ? [255, 255, 255] : [80, 80, 80];
     if (bl > 0.3) this.ctx.filter = `blur(${bl}px)`;
     this.ctx.beginPath();
     this.ctx.arc(p.x, p.y, fs, 0, Math.PI * 2);
-    this.ctx.fillStyle = `rgba(255,255,255,${fa})`;
+    this.ctx.fillStyle = `rgba(${r},${gBase},${b},${fa})`;
     this.ctx.fill();
     if (pulse > 0.55 && p.z > 0.4) {
       const g = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, fs * 3);
-      g.addColorStop(0, `rgba(255,255,255,${fa * 0.12})`);
-      g.addColorStop(1, 'rgba(255,255,255,0)');
+      g.addColorStop(0, `rgba(${r},${gBase},${b},${fa * 0.12})`);
+      g.addColorStop(1, `rgba(${r},${gBase},${b},0)`);
       this.ctx.beginPath();
       this.ctx.arc(p.x, p.y, fs * 3, 0, Math.PI * 2);
       this.ctx.fillStyle = g;
@@ -131,17 +138,18 @@ class Starfall {
   comet(p: Star) {
     if (p.alpha <= 0.01) return;
     const bl = Math.abs(p.z - 0.7) * 2;
+    const [r, gBase, b] = this.isDark ? [255, 255, 255] : [80, 80, 80];
     if (bl > 0.3) this.ctx.filter = `blur(${bl}px)`;
     this.ctx.beginPath();
     this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    this.ctx.fillStyle = `rgba(255,255,255,${Math.min(p.alpha, 0.72)})`;
+    this.ctx.fillStyle = `rgba(${r},${gBase},${b},${Math.min(p.alpha, 0.72)})`;
     this.ctx.fill();
     const ex = p.x - Math.cos(p.ang!) * p.len!;
     const ey = p.y - Math.sin(p.ang!) * p.len!;
     const g = this.ctx.createLinearGradient(p.x, p.y, ex, ey);
-    g.addColorStop(0, `rgba(255,255,255,${p.alpha * 0.28})`);
-    g.addColorStop(0.5, `rgba(255,255,255,${p.alpha * 0.09})`);
-    g.addColorStop(1, 'rgba(255,255,255,0)');
+    g.addColorStop(0, `rgba(${r},${gBase},${b},${p.alpha * 0.28})`);
+    g.addColorStop(0.5, `rgba(${r},${gBase},${b},${p.alpha * 0.09})`);
+    g.addColorStop(1, `rgba(${r},${gBase},${b},0)`);
     this.ctx.strokeStyle = g;
     this.ctx.lineWidth = p.size * 1.5;
     this.ctx.lineCap = 'round';
@@ -196,14 +204,15 @@ class Starfall {
   }
 }
 
-export default function Particles() {
+export default function Particles({ theme }: { theme?: 'dark' | 'light' }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    const starfall = new Starfall(canvasRef.current);
+    const isDark = theme !== 'light';
+    const starfall = new Starfall(canvasRef.current, isDark);
     return () => starfall.destroy();
-  }, []);
+  }, [theme]);
 
   return (
     <canvas

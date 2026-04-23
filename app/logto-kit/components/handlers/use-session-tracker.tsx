@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * IN DEVELOPMENT — Session tracker hook.
+ * Session tracker hook.
  * Pings /api/session-track every 5 minutes to update lastActive timestamps.
- * Requires ENABLE_SESSION_TRACKING env var to be set to 'true' to activate.
  */
 import { useEffect, useRef } from 'react';
 
