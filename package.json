@@ -5,7 +5,14 @@
   "description": "A Next.js debug dashboard for Logto authentication with comprehensive user profile management",
   "license": "Custom",
   "repository": "https://github.com/odinwerks/logto-components-next",
-  "keywords": ["logto", "auth", "authentication", "nextjs", "debug", "dashboard"],
+  "keywords": [
+    "logto",
+    "auth",
+    "authentication",
+    "nextjs",
+    "debug",
+    "dashboard"
+  ],
   "author": "odinwerks",
   "scripts": {
     "dev": "next dev",
@@ -23,7 +30,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "ua-parser-js": "^2.0.9",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/minio": "^7.1.0",
