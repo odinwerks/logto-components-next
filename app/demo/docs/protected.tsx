@@ -2,182 +2,20 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
+import { useDocStyles } from '../utils/useDocStyles';
+import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 import { Protected } from '../../logto-kit/custom-logic';
 import PresidentControlPanel from '../logic/PresidentControlPanel';
-
-// ─── Shared styles ──────────────────────────────────────────────────────────
-
-const twoColLayoutStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '16px',
-  alignItems: 'start',
-  overflow: 'hidden',
-  boxSizing: 'border-box',
-  width: '100%',
-};
-
-const colLeftStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-  overflow: 'hidden',
-  boxSizing: 'border-box',
-  minWidth: 0,
-};
-
-const sectionWrapStyle: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.058)',
-  borderRadius: '5px',
-  overflow: 'visible',
-  background: 'rgba(255,255,255,0.01)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const sectionHeadStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderBottom: '1px solid rgba(255,255,255,0.045)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  background: 'rgba(255,255,255,0.015)',
-};
-
-const sectionDotStyle: React.CSSProperties = {
-  width: '4px',
-  height: '4px',
-  borderRadius: '50%',
-  background: 'rgba(255,255,255,0.18)',
-  flexShrink: 0,
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '9px',
-  fontWeight: 600,
-  color: 'rgba(255,255,255,0.28)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-};
-
-const sectionBodyStyle: React.CSSProperties = {
-  padding: '20px 16px',
-  overflow: 'hidden',
-  boxSizing: 'border-box',
-};
-
-const textStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.5)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.75rem',
-};
-
-const codeStyle: React.CSSProperties = {
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.75rem',
-};
-
-const codeSmStyle: React.CSSProperties = {
-  color: '#ce9178',
-  fontSize: '0.6875rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.38)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.625rem',
-  paddingLeft: '10px',
-  borderLeft: '2px solid rgba(255,255,255,0.06)',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.6875rem',
-  marginBottom: '0.75rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.35)',
-  fontWeight: 600,
-  fontSize: '0.5625rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.035)',
-  color: 'rgba(255,255,255,0.5)',
-  verticalAlign: 'top',
-  lineHeight: 1.5,
-};
-
-const tdPropStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  whiteSpace: 'nowrap',
-};
-
-const tdTypeStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#4ec9b0',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.625rem',
-};
-
-const chipStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '2px 6px',
-  borderRadius: '3px',
-  fontSize: '0.5625rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.45)',
-  letterSpacing: '0.03em',
-};
-
-// ─── Section wrappers ────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div style={sectionHeadStyle}>
-      <div style={sectionDotStyle} />
-      <span style={sectionLabelStyle}>{label}</span>
-    </div>
-  );
-}
-
-function SectionWrap({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={sectionWrapStyle}>
-      <SectionHeader label={label} />
-      <div style={{ ...sectionBodyStyle, flex: 1 }}>{children}</div>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Overview + Protected Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function RbacOverviewSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="RBAC Overview">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Permission-Based Access Control (PBAC) is implemented through Logto's organization permission system.
         Permissions are granted based on organization roles assigned to users within an organization.
       </p>
@@ -186,34 +24,34 @@ customData.Preferences.asOrg = "government"
 
 // 2. loadOrganizationPermissions(orgId) fetches perms from Logto
 // 3. Protected component checks permissions client-side before rendering`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Component</th>
-            <th style={thStyle}>Purpose</th>
-            <th style={thStyle}>Scope</th>
+            <th style={styles.thStyle}>Component</th>
+            <th style={styles.thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Scope</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>{`<Protected />`}</td>
-            <td style={tdStyle}>Conditional UI rendering</td>
-            <td style={tdStyle}>Client-side</td>
+            <td style={styles.tdPropStyle}>{`<Protected />`}</td>
+            <td style={styles.tdStyle}>Conditional UI rendering</td>
+            <td style={styles.tdStyle}>Client-side</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>POST /api/protected</td>
-            <td style={tdStyle}>Protected server actions</td>
-            <td style={tdStyle}>Server-side</td>
+            <td style={styles.tdPropStyle}>POST /api/protected</td>
+            <td style={styles.tdStyle}>Protected server actions</td>
+            <td style={styles.tdStyle}>Server-side</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Demo:</strong>{' '}
-        The app includes a President Control Panel that only appears for users with <code style={codeSmStyle}>kidnap:kids</code> permission in organization <code style={codeSmStyle}>government</code> (org id: <code style={codeSmStyle}>5b6sw6p5uzti</code>).
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Demo:</strong>{' '}
+        The app includes a President Control Panel that only appears for users with <code style={styles.codeSmStyle}>kidnap:kids</code> permission in organization <code style={styles.codeSmStyle}>government</code> (org id: <code style={styles.codeSmStyle}>5b6sw6p5uzti</code>).
         Try switching organizations to see permission-based access control in action!
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Organization Context:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Organization Context:</strong>{' '}
         All RBAC checks require an active organization selection. Use the OrgSwitcher or dashboard to select an organization.
         When "Be yourself" is selected, organization permissions are cleared and org-gated content is hidden.
       </div>
@@ -222,11 +60,12 @@ customData.Preferences.asOrg = "government"
 }
 
 function ProtectedComponentSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Protected Component">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         A client-side component that conditionally renders children based on permission checks.
-        Fetches organization permissions via <code style={codeSmStyle}>loadOrganizationPermissions(orgId)</code> and checks them against <code style={codeSmStyle}>useOrgMode().asOrg</code>.
+        Fetches organization permissions via <code style={styles.codeSmStyle}>loadOrganizationPermissions(orgId)</code> and checks them against <code style={styles.codeSmStyle}>useOrgMode().asOrg</code>.
       </p>
       <CodeBlock title="Basic Usage" code={`import { Protected } from './logto-kit';
 
@@ -237,63 +76,63 @@ export default function AdminPage() {
     </Protected>
   );
 }`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Default</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Default</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>children</td>
-            <td style={tdTypeStyle}>React.ReactNode</td>
-            <td style={tdStyle}>-</td>
-            <td style={tdStyle}>Content to render if access granted</td>
+            <td style={styles.tdPropStyle}>children</td>
+            <td style={styles.tdTypeStyle}>React.ReactNode</td>
+            <td style={styles.tdStyle}>-</td>
+            <td style={styles.tdStyle}>Content to render if access granted</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>perm</td>
-            <td style={tdTypeStyle}>string | string[]</td>
-            <td style={tdStyle}>-</td>
-            <td style={tdStyle}>Required permission(s) to check</td>
+            <td style={styles.tdPropStyle}>perm</td>
+            <td style={styles.tdTypeStyle}>string | string[]</td>
+            <td style={styles.tdStyle}>-</td>
+            <td style={styles.tdStyle}>Required permission(s) to check</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>orgId</td>
-            <td style={tdTypeStyle}>string | null</td>
-            <td style={tdStyle}>undefined</td>
-            <td style={tdStyle}>Gated to specific org; uses <code style={codeSmStyle}>asOrg</code> if undefined</td>
+            <td style={styles.tdPropStyle}>orgId</td>
+            <td style={styles.tdTypeStyle}>string | null</td>
+            <td style={styles.tdStyle}>undefined</td>
+            <td style={styles.tdStyle}>Gated to specific org; uses <code style={styles.codeSmStyle}>asOrg</code> if undefined</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>orgName</td>
-            <td style={tdTypeStyle}>string | null</td>
-            <td style={tdStyle}>undefined</td>
-            <td style={tdStyle}>Look up org by name from userData.organizations</td>
+            <td style={styles.tdPropStyle}>orgName</td>
+            <td style={styles.tdTypeStyle}>string | null</td>
+            <td style={styles.tdStyle}>undefined</td>
+            <td style={styles.tdStyle}>Look up org by name from userData.organizations</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>requireAll</td>
-            <td style={tdTypeStyle}>boolean</td>
-            <td style={tdStyle}>true</td>
-            <td style={tdStyle}>Require ALL permissions (AND) vs ANY (OR)</td>
+            <td style={styles.tdPropStyle}>requireAll</td>
+            <td style={styles.tdTypeStyle}>boolean</td>
+            <td style={styles.tdStyle}>true</td>
+            <td style={styles.tdStyle}>Require ALL permissions (AND) vs ANY (OR)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>fallback</td>
-            <td style={tdTypeStyle}>ReactNode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>null</code></td>
-            <td style={tdStyle}>Placeholder shown while loading or when access denied</td>
+            <td style={styles.tdPropStyle}>fallback</td>
+            <td style={styles.tdTypeStyle}>ReactNode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>null</code></td>
+            <td style={styles.tdStyle}>Placeholder shown while loading or when access denied</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Client-side only:</strong>{' '}
-        <code style={codeSmStyle}>{`<Protected />`}</code> is a client component (<code style={codeSmStyle}>'use client'</code>). It uses <code style={codeSmStyle}>useOrgMode()</code> and <code style={codeSmStyle}>useLogto()</code> hooks.
-        It fetches permissions via <code style={codeSmStyle}>loadOrganizationPermissions</code> and checks if <code style={codeSmStyle}>asOrg</code> matches the required <code style={codeSmStyle}>orgId</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Client-side only:</strong>{' '}
+        <code style={styles.codeSmStyle}>{`<Protected />`}</code> is a client component (<code style={styles.codeSmStyle}>'use client'</code>). It uses <code style={styles.codeSmStyle}>useOrgMode()</code> and <code style={styles.codeSmStyle}>useLogto()</code> hooks.
+        It fetches permissions via <code style={styles.codeSmStyle}>loadOrganizationPermissions</code> and checks if <code style={styles.codeSmStyle}>asOrg</code> matches the required <code style={styles.codeSmStyle}>orgId</code>.
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Best Practice — Separate Concerns:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Best Practice — Separate Concerns:</strong>{' '}
         Avoid wrapping protected content inline in your main page files. Instead, create a dedicated component
-        file for the protected UI and wrap it with <code style={codeSmStyle}>{`<Protected />`}</code> there.
+        file for the protected UI and wrap it with <code style={styles.codeSmStyle}>{`<Protected />`}</code> there.
         This keeps permission logic co-located with the component it guards.
       </div>
       <CodeBlock title="Recommended Pattern" code={`// app/admin/admin-panel.tsx
@@ -324,9 +163,10 @@ import { AdminPanel } from './admin/admin-panel';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ProtectedApiSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Protected Actions API">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Server-side API endpoint for executing permission-gated actions from the client.
         Validates tokens via OIDC introspection, checks organization membership, and verifies permissions before executing the action handler.
       </p>
@@ -341,39 +181,39 @@ function ProtectedApiSection() {
     payload: { /* optional data */ }
   })
 });`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Field</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Required</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Field</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Required</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>token</td>
-            <td style={tdTypeStyle}>string</td>
-            <td style={tdStyle}>Yes</td>
-            <td style={tdStyle}>Valid JWT access token</td>
+            <td style={styles.tdPropStyle}>token</td>
+            <td style={styles.tdTypeStyle}>string</td>
+            <td style={styles.tdStyle}>Yes</td>
+            <td style={styles.tdStyle}>Valid JWT access token</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>id</td>
-            <td style={tdTypeStyle}>string</td>
-            <td style={tdStyle}>Yes</td>
-            <td style={tdStyle}>User ID (validated against token.sub)</td>
+            <td style={styles.tdPropStyle}>id</td>
+            <td style={styles.tdTypeStyle}>string</td>
+            <td style={styles.tdStyle}>Yes</td>
+            <td style={styles.tdStyle}>User ID (validated against token.sub)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>action</td>
-            <td style={tdTypeStyle}>string</td>
-            <td style={tdStyle}>Yes</td>
-            <td style={tdStyle}>Name of registered action</td>
+            <td style={styles.tdPropStyle}>action</td>
+            <td style={styles.tdTypeStyle}>string</td>
+            <td style={styles.tdStyle}>Yes</td>
+            <td style={styles.tdStyle}>Name of registered action</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>payload</td>
-            <td style={tdTypeStyle}>unknown</td>
-            <td style={tdStyle}>No</td>
-            <td style={tdStyle}>Data passed to action handler (defaults to <code style={codeSmStyle}>{}</code> if omitted)</td>
+            <td style={styles.tdPropStyle}>payload</td>
+            <td style={styles.tdTypeStyle}>unknown</td>
+            <td style={styles.tdStyle}>No</td>
+            <td style={styles.tdStyle}>Data passed to action handler (defaults to <code style={styles.codeSmStyle}>{}</code> if omitted)</td>
           </tr>
         </tbody>
       </table>
@@ -382,6 +222,7 @@ function ProtectedApiSection() {
 }
 
 function ApiResponseSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="API Response & Errors">
       <CodeBlock title="Success Response" code={`{
@@ -393,49 +234,49 @@ function ApiResponseSection() {
   "error": "ERROR_CODE",
   "message": "Human-readable message"
 }`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Error Code</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Error Code</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>MISSING_FIELDS</td>
-            <td style={tdStyle}>Required fields (token, id, action) missing</td>
+            <td style={styles.tdPropStyle}>MISSING_FIELDS</td>
+            <td style={styles.tdStyle}>Required fields (token, id, action) missing</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>TOKEN_INVALID</td>
-            <td style={tdStyle}>Token inactive, expired, or userId mismatch</td>
+            <td style={styles.tdPropStyle}>TOKEN_INVALID</td>
+            <td style={styles.tdStyle}>Token inactive, expired, or userId mismatch</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>INTROSPECTION_ERROR</td>
-            <td style={tdStyle}>Failed to validate token via OIDC introspection</td>
+            <td style={styles.tdPropStyle}>INTROSPECTION_ERROR</td>
+            <td style={styles.tdStyle}>Failed to validate token via OIDC introspection</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>USER_DATA_ERROR</td>
-            <td style={tdStyle}>Failed to fetch user RBAC data</td>
+            <td style={styles.tdPropStyle}>USER_DATA_ERROR</td>
+            <td style={styles.tdStyle}>Failed to fetch user RBAC data</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>NO_ORG_SELECTED</td>
-            <td style={tdStyle}>User has no active organization selected</td>
+            <td style={styles.tdPropStyle}>NO_ORG_SELECTED</td>
+            <td style={styles.tdStyle}>User has no active organization selected</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>ORG_NOT_MEMBER</td>
-            <td style={tdStyle}>User not member of selected organization</td>
+            <td style={styles.tdPropStyle}>ORG_NOT_MEMBER</td>
+            <td style={styles.tdStyle}>User not member of selected organization</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>ACTION_NOT_FOUND</td>
-            <td style={tdStyle}>Requested action not registered</td>
+            <td style={styles.tdPropStyle}>ACTION_NOT_FOUND</td>
+            <td style={styles.tdStyle}>Requested action not registered</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>PERMISSION_DENIED</td>
-            <td style={tdStyle}>User lacks required permission in active organization</td>
+            <td style={styles.tdPropStyle}>PERMISSION_DENIED</td>
+            <td style={styles.tdStyle}>User lacks required permission in active organization</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>INTERNAL_ERROR</td>
-            <td style={tdStyle}>Unexpected server error (catch-all)</td>
+            <td style={styles.tdPropStyle}>INTERNAL_ERROR</td>
+            <td style={styles.tdStyle}>Unexpected server error (catch-all)</td>
           </tr>
         </tbody>
       </table>
@@ -448,11 +289,12 @@ function ApiResponseSection() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ActionRegistrationSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Action Registration">
-      <p style={textStyle}>
-        Actions are registered in <code style={codeStyle}>app/logto-kit/custom-actions/index.ts</code>{' '}
-        as async functions that return <code style={codeStyle}>{`{ requiredPerm, handler }`}</code>.
+      <p style={styles.textStyle}>
+        Actions are registered in <code style={styles.codeStyle}>app/logto-kit/custom-actions/index.ts</code>{' '}
+        as async functions that return <code style={styles.codeStyle}>{`{ requiredPerm, handler }`}</code>.
         Each action has a unique name, required permission(s), and a handler function.
       </p>
       <CodeBlock title="Registration Example" code={`// app/logto-kit/custom-actions/my-actions/do-something.ts
@@ -478,29 +320,29 @@ const actions: ActionRegistry = {
 export async function getAction(actionName: string) {
   return actions[actionName];
 }`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Handler Parameter</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Handler Parameter</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>userId</td>
-            <td style={tdTypeStyle}>string</td>
-            <td style={tdStyle}>Authenticated user ID</td>
+            <td style={styles.tdPropStyle}>userId</td>
+            <td style={styles.tdTypeStyle}>string</td>
+            <td style={styles.tdStyle}>Authenticated user ID</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>orgId</td>
-            <td style={tdTypeStyle}>string</td>
-            <td style={tdStyle}>Active organization ID</td>
+            <td style={styles.tdPropStyle}>orgId</td>
+            <td style={styles.tdTypeStyle}>string</td>
+            <td style={styles.tdStyle}>Active organization ID</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>payload</td>
-            <td style={tdTypeStyle}>unknown</td>
-            <td style={tdStyle}>Client-provided data</td>
+            <td style={styles.tdPropStyle}>payload</td>
+            <td style={styles.tdTypeStyle}>unknown</td>
+            <td style={styles.tdStyle}>Client-provided data</td>
           </tr>
         </tbody>
       </table>
@@ -509,6 +351,7 @@ export async function getAction(actionName: string) {
 }
 
 function ExamplesSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Usage Examples">
       <CodeBlock title="Protected Component Examples" code={`// Single permission
@@ -567,25 +410,26 @@ if (data.ok) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PermissionSystemSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Permission System">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         The system uses Logto's organization permissions for access control.
-        Permissions like <code style={codeSmStyle}>kidnap:kids</code> and <code style={codeSmStyle}>steal:taxes</code> are defined in Logto Console
+        Permissions like <code style={styles.codeSmStyle}>kidnap:kids</code> and <code style={styles.codeSmStyle}>steal:taxes</code> are defined in Logto Console
         organization templates and assigned to roles within organizations.
       </p>
-      <p style={textStyle}>
-        When a user selects an organization (sets <code style={codeSmStyle}>asOrg</code> in <code style={codeSmStyle}>customData.Preferences</code>),
-        the <code style={codeSmStyle}>Protected</code> component and <code style={codeSmStyle}>/api/protected</code> endpoint fetch that org's permissions
-        via <code style={codeSmStyle}>getOrganizationUserPermissions(orgId)</code> and check them against required permissions.
+      <p style={styles.textStyle}>
+        When a user selects an organization (sets <code style={styles.codeSmStyle}>asOrg</code> in <code style={styles.codeSmStyle}>customData.Preferences</code>),
+        the <code style={styles.codeSmStyle}>Protected</code> component and <code style={styles.codeSmStyle}>/api/protected</code> endpoint fetch that org's permissions
+        via <code style={styles.codeSmStyle}>getOrganizationUserPermissions(orgId)</code> and check them against required permissions.
       </p>
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ ...thStyle, paddingBottom: '8px' }}>Available Actions &amp; Required Permissions:</div>
-        <div style={noteStyle}>
-          <span style={codeSmStyle}>destroy-economy</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
-          <span style={codeSmStyle}>steal-tax-dollars</span> → requires <span style={codeSmStyle}>steal:taxes</span><br />
-          <span style={codeSmStyle}>kidnap-children</span> → requires <span style={codeSmStyle}>kidnap:kids</span><br />
-          <span style={codeSmStyle}>launch-nuke</span> → requires <span style={codeSmStyle}>launch:nuke</span>
+        <div style={{ ...styles.thStyle, paddingBottom: '8px' }}>Available Actions &amp; Required Permissions:</div>
+        <div style={styles.noteStyle}>
+          <span style={styles.codeSmStyle}>destroy-economy</span> → requires <span style={styles.codeSmStyle}>steal:taxes</span><br />
+          <span style={styles.codeSmStyle}>steal-tax-dollars</span> → requires <span style={styles.codeSmStyle}>steal:taxes</span><br />
+          <span style={styles.codeSmStyle}>kidnap-children</span> → requires <span style={styles.codeSmStyle}>kidnap:kids</span><br />
+          <span style={styles.codeSmStyle}>launch-nuke</span> → requires <span style={styles.codeSmStyle}>launch:nuke</span>
         </div>
       </div>
       <CodeBlock title="Permission Flow" code={`// 1. User selects org in OrgSwitcher or dashboard
@@ -606,9 +450,10 @@ function PermissionSystemSection() {
 }
 
 function LiveRbacDemoSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Live RBAC Demo">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Test the Protected Actions API with curl. Get your token from the browser console using the dashboard.
       </p>
       <CodeBlock title="Get Token (from dashboard)" code={`// Open the dashboard (click user button → Dashboard)
@@ -640,13 +485,13 @@ function LiveRbacDemoSection() {
 
 // 403 - No org selected
 { "ok": false, "error": "NO_ORG_SELECTED", "message": "User has no organization selected" }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How Protected works with PresidentControlPanel:</strong>{' '}
-        <code style={codeSmStyle}>PresidentControlPanel.tsx</code> wraps{' '}
-        <code style={codeSmStyle}>PresidentControlPanelClient</code> with{' '}
-        <code style={codeSmStyle}>{`<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">`}</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>How Protected works with PresidentControlPanel:</strong>{' '}
+        <code style={styles.codeSmStyle}>PresidentControlPanel.tsx</code> wraps{' '}
+        <code style={styles.codeSmStyle}>PresidentControlPanelClient</code> with{' '}
+        <code style={styles.codeSmStyle}>{`<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">`}</code>.
         This pattern (wrapping in a dedicated file) is recommended — permission logic stays co-located with the guarded component.
-        The buttons call <code style={codeSmStyle}>POST /api/protected</code> with registered actions.
+        The buttons call <code style={styles.codeSmStyle}>POST /api/protected</code> with registered actions.
       </div>
     </SectionWrap>
   );
@@ -655,15 +500,16 @@ function LiveRbacDemoSection() {
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function ProtectedDoc() {
+  const styles = useDocStyles();
   return (
     <SectionContainer>
       {/* Page 1: Overview + Protected Component */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          <div style={styles.colLeftStyle}>
             <RbacOverviewSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ProtectedComponentSection />
           </div>
         </div>
@@ -671,11 +517,11 @@ export default function ProtectedDoc() {
 
       {/* Page 2: Protected Actions API */}
       <Section id={2}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          <div style={styles.colLeftStyle}>
             <ProtectedApiSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ApiResponseSection />
           </div>
         </div>
@@ -683,11 +529,11 @@ export default function ProtectedDoc() {
 
       {/* Page 3: Action Registration + Examples */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          <div style={styles.colLeftStyle}>
             <ActionRegistrationSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ExamplesSection />
           </div>
         </div>
@@ -697,13 +543,13 @@ export default function ProtectedDoc() {
       <Section id={4}>
         <div style={{ padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           {/* Row 1: Permission System (left) + PresidentControlPanel (right) */}
-          <div style={{ ...twoColLayoutStyle, marginBottom: '16px' }}>
-            <div style={colLeftStyle}>
+          <div style={{ ...styles.twoColLayoutStyle, marginBottom: '16px' }}>
+            <div style={styles.colLeftStyle}>
               <PermissionSystemSection />
             </div>
-            <div style={colLeftStyle}>
+            <div style={styles.colLeftStyle}>
               <SectionWrap label="President Control Panel (Live Demo)">
-                <p style={textStyle}>
+                <p style={styles.textStyle}>
                   The panel below demonstrates organization-based access control. Switch to the
                   "government" organization to see it appear.
                 </p>

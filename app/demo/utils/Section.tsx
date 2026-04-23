@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import { useThemeMode } from '../../logto-kit/components/handlers/preferences';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -136,8 +137,10 @@ export function Section({ id, children }: SectionProps) {
 
 function SectionNav() {
   const { currentIdx, total, next, prev } = useSectionContext();
+  const { theme } = useThemeMode();
   const atStart = currentIdx === 0;
   const atEnd = currentIdx === total - 1;
+  const isDark = theme === 'dark';
 
   const btnStyle: React.CSSProperties = {
     display: 'flex',
@@ -145,11 +148,11 @@ function SectionNav() {
     justifyContent: 'center',
     width: '32px',
     height: '32px',
-    background: 'rgba(30,30,30,0.92)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: isDark ? 'rgba(30,30,30,0.92)' : 'rgba(255,255,255,0.92)',
+    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
     borderRadius: '6px',
     cursor: 'pointer',
-    color: 'rgba(255,255,255,0.4)',
+    color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
     transition: 'color 0.15s ease, background 0.15s ease',
     backdropFilter: 'blur(8px)',
     padding: 0,
@@ -178,7 +181,7 @@ function SectionNav() {
       <span style={{
         fontFamily: "'IBM Plex Mono', monospace",
         fontSize: '0.5625rem',
-        color: 'rgba(255,255,255,0.3)',
+        color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
         letterSpacing: '0.05em',
         userSelect: 'none',
       }}>

@@ -2,190 +2,55 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
-
-// ─── Shared styles ──────────────────────────────────────────────────────────
-
-const twoColLayoutStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '16px',
-  alignItems: 'start',
-};
-
-const colLeftStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-};
-
-const sectionWrapStyle: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.058)',
-  borderRadius: '5px',
-  overflow: 'hidden',
-  background: 'rgba(255,255,255,0.01)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const sectionHeadStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderBottom: '1px solid rgba(255,255,255,0.045)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  background: 'rgba(255,255,255,0.015)',
-};
-
-const sectionDotStyle: React.CSSProperties = {
-  width: '4px',
-  height: '4px',
-  borderRadius: '50%',
-  background: 'rgba(255,255,255,0.18)',
-  flexShrink: 0,
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '9px',
-  fontWeight: 600,
-  color: 'rgba(255,255,255,0.28)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-};
-
-const sectionBodyStyle: React.CSSProperties = {
-  padding: '20px 16px',
-};
-
-const textStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.5)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.75rem',
-};
-
-const codeStyle: React.CSSProperties = {
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.75rem',
-};
-
-const codeSmStyle: React.CSSProperties = {
-  color: '#ce9178',
-  fontSize: '0.6875rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.38)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.625rem',
-  paddingLeft: '10px',
-  borderLeft: '2px solid rgba(255,255,255,0.06)',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.6875rem',
-  marginBottom: '0.75rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.35)',
-  fontWeight: 600,
-  fontSize: '0.5625rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.035)',
-  color: 'rgba(255,255,255,0.5)',
-  verticalAlign: 'top',
-  lineHeight: 1.5,
-};
-
-const tdPathStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  whiteSpace: 'nowrap',
-};
-
-// ─── Section wrappers ────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div style={sectionHeadStyle}>
-      <div style={sectionDotStyle} />
-      <span style={sectionLabelStyle}>{label}</span>
-    </div>
-  );
-}
-
-function SectionWrap({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={sectionWrapStyle}>
-      <SectionHeader label={label} />
-      <div style={{ ...sectionBodyStyle, flex: 1 }}>{children}</div>
-    </div>
-  );
-}
+import { useDocStyles } from '../utils/useDocStyles';
+import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Overview + ENV + Pipeline
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OverviewSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Overview">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         File-based i18n system. All locales are statically imported and bundled.{' '}
-        <code style={codeStyle}>LANG_AVAILABLE</code> controls which languages appear
+        <code style={styles.codeStyle}>LANG_AVAILABLE</code> controls which languages appear
         in the Preferences tab dropdown — it does NOT dynamically import files.
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Export</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Export</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>useLangMode</td>
-            <td style={tdStyle}>Hook</td>
-            <td style={tdStyle}>{`{ lang, setLang }`}</td>
+            <td style={styles.tdPathStyle}>useLangMode</td>
+            <td style={styles.tdStyle}>Hook</td>
+            <td style={styles.tdStyle}>{`{ lang, setLang }`}</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>getAllTranslations</td>
-            <td style={tdStyle}>Function</td>
-            <td style={tdStyle}>{`Record<string, Translations>`}</td>
+            <td style={styles.tdPathStyle}>getAllTranslations</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`Record<string, Translations>`}</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>getTranslations</td>
-            <td style={tdStyle}>Function</td>
-            <td style={tdStyle}>{`Translations`}</td>
+            <td style={styles.tdPathStyle}>getTranslations</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`Translations`}</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>getSupportedLangs</td>
-            <td style={tdStyle}>Function</td>
-            <td style={tdStyle}>{`string[]`}</td>
+            <td style={styles.tdPathStyle}>getSupportedLangs</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`string[]`}</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Translations</td>
-            <td style={tdStyle}>Type</td>
-            <td style={tdStyle}>Full translation object</td>
+            <td style={styles.tdPathStyle}>Translations</td>
+            <td style={styles.tdStyle}>Type</td>
+            <td style={styles.tdStyle}>Full translation object</td>
           </tr>
         </tbody>
       </table>
@@ -200,9 +65,10 @@ function OverviewSection() {
 }
 
 function PipelineSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="How it works">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Server Component provides translations, Client Component re-renders
         on language change — no server round-trip needed.
       </p>
@@ -237,36 +103,37 @@ const t = useMemo<Translations>(
 }
 
 function EnvSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="ENV variables">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Variable</th>
-            <th style={thStyle}>Default</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Variable</th>
+            <th style={styles.thStyle}>Default</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>LANG_MAIN</td>
-            <td style={tdStyle}><code style={codeStyle}>en-US</code></td>
-            <td style={tdStyle}>Default language</td>
+            <td style={styles.tdPathStyle}>LANG_MAIN</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>en-US</code></td>
+            <td style={styles.tdStyle}>Default language</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>LANG_AVAILABLE</td>
-            <td style={tdStyle}><code style={codeStyle}>en-US</code></td>
-            <td style={tdStyle}>UI filter — which languages appear in selector</td>
+            <td style={styles.tdPathStyle}>LANG_AVAILABLE</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>en-US</code></td>
+            <td style={styles.tdStyle}>UI filter — which languages appear in selector</td>
           </tr>
         </tbody>
       </table>
       <CodeBlock title=".env" code={`LANG_MAIN=en-US
 LANG_AVAILABLE=en-US,ka-GE`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>How filtering works:</strong>{' '}
-        <code style={codeSmStyle}>getSupportedLangs()</code> parses the env, then filters
-        to only codes that exist in <code style={codeSmStyle}>AVAILABLE_LOCALES</code>.
-        If <code style={codeSmStyle}>ru-RU</code> is in env but not in the codebase, it's
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>How filtering works:</strong>{' '}
+        <code style={styles.codeSmStyle}>getSupportedLangs()</code> parses the env, then filters
+        to only codes that exist in <code style={styles.codeSmStyle}>AVAILABLE_LOCALES</code>.
+        If <code style={styles.codeSmStyle}>ru-RU</code> is in env but not in the codebase, it's
         silently dropped.
       </div>
     </SectionWrap>
@@ -278,12 +145,13 @@ LANG_AVAILABLE=en-US,ka-GE`} />
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PatternDirectSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Pattern 1: Direct imports">
-      <p style={textStyle}>
-        Import <code style={codeStyle}>useLangMode</code> +{' '}
-        <code style={codeStyle}>getAllTranslations</code> and look up{' '}
-        <code style={codeStyle}>t</code> from the map. Re-renders on language change.
+      <p style={styles.textStyle}>
+        Import <code style={styles.codeStyle}>useLangMode</code> +{' '}
+        <code style={styles.codeStyle}>getAllTranslations</code> and look up{' '}
+        <code style={styles.codeStyle}>t</code> from the map. Re-renders on language change.
       </p>
       <CodeBlock title="Client component" code={`import { useLangMode, getAllTranslations } from './logto-kit';
 
@@ -299,10 +167,11 @@ function MyComponent() {
 }
 
 function PatternHookSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Pattern 2: Custom hook">
-      <p style={textStyle}>
-        Wrap the lookup in a <code style={codeStyle}>useTranslations</code> hook
+      <p style={styles.textStyle}>
+        Wrap the lookup in a <code style={styles.codeStyle}>useTranslations</code> hook
         for cleaner usage across components.
       </p>
       <CodeBlock title="useTranslations hook" code={`import { useMemo } from 'react';
@@ -326,11 +195,12 @@ export function useTranslations(): Translations {
 }
 
 function PatternServerSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Pattern 3: Server Components">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Server Components can't use hooks. Use{' '}
-        <code style={codeStyle}>getTranslations(getMainLocale())</code> instead.
+        <code style={styles.codeStyle}>getTranslations(getMainLocale())</code> instead.
       </p>
       <CodeBlock title="Server component" code={`import { getMainLocale, getTranslations } from './logto-kit/locales';
 
@@ -340,11 +210,11 @@ export default async function MyServerComponent() {
 
   return <div>{t.common.loading}</div>;
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Limitation:</strong>{' '}
-        Server Components read the ENV default (<code style={codeSmStyle}>LANG_MAIN</code>),
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Limitation:</strong>{' '}
+        Server Components read the ENV default (<code style={styles.codeSmStyle}>LANG_MAIN</code>),
         not the user's current selection. The user's selection is stored in{' '}
-        <code style={codeSmStyle}>sessionStorage</code>, which is client-side only.
+        <code style={styles.codeSmStyle}>sessionStorage</code>, which is client-side only.
         For reactive translations, use a Client Component.
       </div>
     </SectionWrap>
@@ -356,9 +226,10 @@ export default async function MyServerComponent() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AddLangSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Adding a language">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Create a new locale file, register it, and add to the available list.
       </p>
       <CodeBlock title="Step 1: Create locale file" code={`// app/logto-kit/locales/ru-RU.ts
@@ -390,10 +261,11 @@ LANG_AVAILABLE=en-US,ka-GE,ru-RU`} />
 }
 
 function TranslationsTypeSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Translations type">
-      <p style={textStyle}>
-        The <code style={codeStyle}>Translations</code> interface defines all translation
+      <p style={styles.textStyle}>
+        The <code style={styles.codeStyle}>Translations</code> interface defines all translation
         keys. Every locale must implement this fully.
       </p>
       <CodeBlock title="Key hierarchy" code={`interface Translations {
@@ -411,9 +283,9 @@ function TranslationsTypeSection() {
   raw: { title, rawUserData, cookieActions, ... };
   common: { copy, copied, close, success, error, loading, ... };
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Tip:</strong>{' '}
-        Copy <code style={codeSmStyle}>en-US/index.ts</code> as a starting point.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Tip:</strong>{' '}
+        Copy <code style={styles.codeSmStyle}>en-US/index.ts</code> as a starting point.
         TypeScript will enforce that all keys are present.
       </div>
     </SectionWrap>
@@ -421,11 +293,12 @@ function TranslationsTypeSection() {
 }
 
 function AppTranslationsSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Kit vs App translations">
-      <p style={textStyle}>
-        The kit ships <code style={codeStyle}>KitTranslations</code> for its own UI.
-        Your app can extend it with <code style={codeStyle}>AppTranslations</code>{' '}
+      <p style={styles.textStyle}>
+        The kit ships <code style={styles.codeStyle}>KitTranslations</code> for its own UI.
+        Your app can extend it with <code style={styles.codeStyle}>AppTranslations</code>{' '}
         to add your own keys.
       </p>
       <CodeBlock title="KitTranslations (kit provides)" code={`// Kit keys — used by Dashboard, UserButton, etc.
@@ -474,9 +347,9 @@ function MyComponent() {
   // App keys work too
   // return <div>{t.app.welcome}</div>;
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Key:</strong>{' '}
-        Both share the same <code style={codeSmStyle}>useLangMode()</code> state.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Key:</strong>{' '}
+        Both share the same <code style={styles.codeSmStyle}>useLangMode()</code> state.
         When the user switches language, both kit and app components re-render
         with the new translations.
       </div>
@@ -485,11 +358,12 @@ function MyComponent() {
 }
 
 function UseLangModeSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="useLangMode hook">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Reads current language from context. Reads{' '}
-        <code style={codeStyle}>sessionStorage</code> key <code style={codeStyle}>lang-mode</code>{' '}
+        <code style={styles.codeStyle}>sessionStorage</code> key <code style={styles.codeStyle}>lang-mode</code>{' '}
         for cross-tab sync.
       </p>
       <CodeBlock title="Interface" code={`interface LangModeContextValue {
@@ -503,8 +377,8 @@ function UseLangModeSection() {
 //    { Preferences: { theme, lang: 'ka-GE', asOrg } }
 // 4. window.dispatchEvent(new Event('preferences-changed'))
 // 5. onLangChange?.() — optional callback`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Fallback paths:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Fallback paths:</strong>{' '}
         Context exists → reads from sessionStorage first. SSR → returns default.{' '}
         No context → returns stored or default.
       </div>
@@ -515,16 +389,17 @@ function UseLangModeSection() {
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function I18nDoc() {
+  const styles = useDocStyles();
   return (
     <SectionContainer>
       {/* Page 1: Overview + Pipeline + ENV */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <OverviewSection />
             <EnvSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <PipelineSection />
           </div>
         </div>
@@ -532,12 +407,12 @@ export default function I18nDoc() {
 
       {/* Page 2: Custom Components */}
       <Section id={2}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <PatternDirectSection />
             <PatternHookSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <PatternServerSection />
             <UseLangModeSection />
           </div>
@@ -546,11 +421,11 @@ export default function I18nDoc() {
 
       {/* Page 3: Adding a Language */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <AddLangSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <AppTranslationsSection />
           </div>
         </div>
