@@ -20,12 +20,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@logto/next": "^4.2.9",
+    "@logto/next": "^4.2.10",
     "ioredis": "^5.3.2",
     "kilocode": "^1.2.0",
     "lucide-react": "^1.8.0",
     "minio": "^8.0.7",
-    "next": "^16.1.6",
+    "next": "^16.2.4",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
