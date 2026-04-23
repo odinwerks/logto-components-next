@@ -40,7 +40,20 @@
 
   /* Typography */
   --ldd-font-family: 'Geist', 'Inter', system-ui, sans-serif;
+  --ldd-font-sans: 'Geist', 'Inter', system-ui, sans-serif;
+  --ldd-font-mono: 'IBM Plex Mono', 'Courier New', monospace;
   --ldd-font-weight: 400;
+  --ldd-size-micro: 0.5625rem;
+  --ldd-size-xs: 0.625rem;
+  --ldd-size-sm: 0.6875rem;
+  --ldd-size-base: 0.75rem;
+  --ldd-size-md: 0.8125rem;
+  --ldd-size-lg: 0.875rem;
+  --ldd-size-xl: 0.9375rem;
+  --ldd-weight-normal: 400;
+  --ldd-weight-medium: 500;
+  --ldd-weight-semibold: 600;
+  --ldd-weight-bold: 700;
 
   /* Layout */
   --ldd-sidebar-width: 20rem;
