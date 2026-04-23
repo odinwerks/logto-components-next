@@ -2,173 +2,19 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
-
-// ─── Shared styles ──────────────────────────────────────────────────────────
-
-const twoColLayoutStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '16px',
-  alignItems: 'stretch',
-};
-
-const colLeftStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-};
-
-const sectionWrapStyle: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.058)',
-  borderRadius: '5px',
-  overflow: 'hidden',
-  background: 'rgba(255,255,255,0.01)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const sectionHeadStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderBottom: '1px solid rgba(255,255,255,0.045)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  background: 'rgba(255,255,255,0.015)',
-};
-
-const sectionDotStyle: React.CSSProperties = {
-  width: '4px',
-  height: '4px',
-  borderRadius: '50%',
-  background: 'rgba(255,255,255,0.18)',
-  flexShrink: 0,
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '9px',
-  fontWeight: 600,
-  color: 'rgba(255,255,255,0.28)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-};
-
-const sectionBodyStyle: React.CSSProperties = {
-  padding: '20px 16px',
-};
-
-const textStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.5)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.75rem',
-};
-
-const codeStyle: React.CSSProperties = {
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.75rem',
-};
-
-const codeSmStyle: React.CSSProperties = {
-  color: '#ce9178',
-  fontSize: '0.6875rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.38)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.625rem',
-  paddingLeft: '10px',
-  borderLeft: '2px solid rgba(255,255,255,0.06)',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.6875rem',
-  marginBottom: '0.75rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.35)',
-  fontWeight: 600,
-  fontSize: '0.5625rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.035)',
-  color: 'rgba(255,255,255,0.5)',
-  verticalAlign: 'top',
-  lineHeight: 1.5,
-};
-
-const tdPropStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  whiteSpace: 'nowrap',
-};
-
-const tdTypeStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#4ec9b0',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.625rem',
-};
-
-const chipStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '2px 6px',
-  borderRadius: '3px',
-  fontSize: '0.5625rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.45)',
-  letterSpacing: '0.03em',
-};
-
-// ─── Section wrappers ────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div style={sectionHeadStyle}>
-      <div style={sectionDotStyle} />
-      <span style={sectionLabelStyle}>{label}</span>
-    </div>
-  );
-}
-
-function SectionWrap({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={sectionWrapStyle}>
-      <SectionHeader label={label} />
-      <div style={{ ...sectionBodyStyle, flex: 1 }}>{children}</div>
-    </div>
-  );
-}
+import { useDocStyles } from '../utils/useDocStyles';
+import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1 Sections
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function InternalsSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="How the Dashboard works">
-      <p style={textStyle}>
-        The <code style={codeStyle}>Dashboard</code> is a <strong>Server Component</strong> that
+      <p style={styles.textStyle}>
+        The <code style={styles.codeStyle}>Dashboard</code> is a <strong>Server Component</strong> that
         fetches user data server-side, then self-wraps with internal providers.
       </p>
       <CodeBlock title="Rendering pipeline" code={`// 1. Server Component — fetches data
@@ -182,34 +28,34 @@ return (
     </PreferencesProvider>
   </UserDataProvider>
 );`} />
-      <p style={textStyle}>
-        Hooks consumed by <code style={codeStyle}>DashboardClient</code>:
+      <p style={styles.textStyle}>
+        Hooks consumed by <code style={styles.codeStyle}>DashboardClient</code>:
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Hook</th>
-            <th style={thStyle}>Returns</th>
+            <th style={styles.thStyle}>Hook</th>
+            <th style={styles.thStyle}>Returns</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>useThemeMode()</td>
-            <td style={tdStyle}>theme, themeSpec, setTheme, toggleTheme</td>
+            <td style={styles.tdPropStyle}>useThemeMode()</td>
+            <td style={styles.tdStyle}>theme, themeSpec, setTheme, toggleTheme</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>useLangMode()</td>
-            <td style={tdStyle}>lang, setLang</td>
+            <td style={styles.tdPropStyle}>useLangMode()</td>
+            <td style={styles.tdStyle}>lang, setLang</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Note:</strong>{' '}
-        <code style={codeStyle}>useOrgMode()</code> (returns asOrg, setAsOrg) is consumed by{' '}
-        <code style={codeStyle}>OrganizationsTab</code>, not <code style={codeStyle}>DashboardClient</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
+        <code style={styles.codeStyle}>useOrgMode()</code> (returns asOrg, setAsOrg) is consumed by{' '}
+        <code style={styles.codeStyle}>OrganizationsTab</code>, not <code style={styles.codeStyle}>DashboardClient</code>.
       </div>
-      <p style={{ ...textStyle, marginBottom: 0 }}>
-        Mutations call <code style={codeStyle}>router.refresh()</code> to re-run the server
+      <p style={{ ...styles.textStyle, marginBottom: 0 }}>
+        Mutations call <code style={styles.codeStyle}>router.refresh()</code> to re-run the server
         component pipeline for fresh data.
       </p>
     </SectionWrap>
@@ -217,11 +63,12 @@ return (
 }
 
 function ProviderSyncSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Provider sync — Dashboard → External">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         The Dashboard creates <strong>isolated</strong> provider instances.
-        External consumers (like <code style={codeStyle}>LogtoProvider</code>) have
+        External consumers (like <code style={styles.codeStyle}>LogtoProvider</code>) have
         separate instances.
       </p>
       <CodeBlock title="Two separate provider trees" code={`// Dashboard (Server Component)
@@ -231,36 +78,36 @@ function ProviderSyncSection() {
 // Your app (LogtoProvider)  
 //   └─ PreferencesProvider ← INSTANCE A
 //   └─ UserDataProvider ← INSTANCE A`} />
-      <p style={textStyle}>
-        Sync via <code style={codeStyle}>sessionStorage</code> + unified event:
+      <p style={styles.textStyle}>
+        Sync via <code style={styles.codeStyle}>sessionStorage</code> + unified event:
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Storage key</th>
-            <th style={thStyle}>Dispatched by</th>
+            <th style={styles.thStyle}>Storage key</th>
+            <th style={styles.thStyle}>Dispatched by</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>theme-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setTheme()</code></td>
+            <td style={styles.tdPropStyle}>theme-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setTheme()</code></td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>lang-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setLang()</code></td>
+            <td style={styles.tdPropStyle}>lang-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setLang()</code></td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>org-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setAsOrg()</code></td>
+            <td style={styles.tdPropStyle}>org-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setAsOrg()</code></td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Event:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Event:</strong>{' '}
         All changes dispatch DOM events for cross-tab sync:
-        <code style={codeSmStyle}>theme-changed</code> (theme) and{' '}
-        <code style={codeSmStyle}>preferences-changed</code> (lang, org).
+        <code style={styles.codeSmStyle}>theme-changed</code> (theme) and{' '}
+        <code style={styles.codeSmStyle}>preferences-changed</code> (lang, org).
       </div>
     </SectionWrap>
   );
@@ -271,82 +118,84 @@ function ProviderSyncSection() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function TabStructureSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Tab configuration">
-      <p style={textStyle}>
-        Tabs configured via <code style={codeStyle}>LOAD_TABS</code> env. Comma-separated
+      <p style={styles.textStyle}>
+        Tabs configured via <code style={styles.codeStyle}>LOAD_TABS</code> env. Comma-separated
         list with alias support.
       </p>
       <CodeBlock title="ENV" code={`LOAD_TABS=profile,preferences,mfa,raw`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Tab</th>
-            <th style={thStyle}>Aliases</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Tab</th>
+            <th style={styles.thStyle}>Aliases</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>profile</td>
-            <td style={tdStyle}><span style={chipStyle}>personal</span> <span style={chipStyle}>user</span></td>
-            <td style={tdStyle}>Avatar, name</td>
+            <td style={styles.tdPropStyle}>profile</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>personal</span> <span style={styles.chipStyle}>user</span></td>
+            <td style={styles.tdStyle}>Avatar, name</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>preferences</td>
-            <td style={tdStyle}><span style={chipStyle}>prefs</span> <span style={chipStyle}>custom-data</span> <span style={chipStyle}>custom</span> <span style={chipStyle}>customdata</span></td>
-            <td style={tdStyle}>Theme, language</td>
+            <td style={styles.tdPropStyle}>preferences</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>prefs</span> <span style={styles.chipStyle}>custom-data</span> <span style={styles.chipStyle}>custom</span> <span style={styles.chipStyle}>customdata</span></td>
+            <td style={styles.tdStyle}>Theme, language</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>security</td>
-            <td style={tdStyle}><span style={chipStyle}>mfa</span> <span style={chipStyle}>2fa</span> <span style={chipStyle}>totp</span></td>
-            <td style={tdStyle}>MFA, password</td>
+            <td style={styles.tdPropStyle}>security</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>mfa</span> <span style={styles.chipStyle}>2fa</span> <span style={styles.chipStyle}>totp</span></td>
+            <td style={styles.tdStyle}>MFA, password</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>identities</td>
-            <td style={tdStyle}><span style={chipStyle}>identity</span></td>
-            <td style={tdStyle}>Social providers</td>
+            <td style={styles.tdPropStyle}>identities</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>identity</span></td>
+            <td style={styles.tdStyle}>Social providers</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>organizations</td>
-            <td style={tdStyle}><span style={chipStyle}>orgs</span> <span style={chipStyle}>org</span></td>
-            <td style={tdStyle}>Orgs, roles</td>
+            <td style={styles.tdPropStyle}>organizations</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>orgs</span> <span style={styles.chipStyle}>org</span></td>
+            <td style={styles.tdStyle}>Orgs, roles</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>dev</td>
-            <td style={tdStyle}><span style={chipStyle}>raw</span> <span style={chipStyle}>debug</span> <span style={chipStyle}>data</span></td>
-            <td style={tdStyle}>Token, cookies</td>
+            <td style={styles.tdPropStyle}>dev</td>
+            <td style={styles.tdStyle}><span style={styles.chipStyle}>raw</span> <span style={styles.chipStyle}>debug</span> <span style={styles.chipStyle}>data</span></td>
+            <td style={styles.tdStyle}>Token, cookies</td>
           </tr>
         </tbody>
       </table>
-      <p style={{ ...textStyle, marginBottom: 0 }}>
-        Tabs render via <code style={codeStyle}>activeTab</code> state in{' '}
-        <code style={codeStyle}>DashboardClient</code>.
+      <p style={{ ...styles.textStyle, marginBottom: 0 }}>
+        Tabs render via <code style={styles.codeStyle}>activeTab</code> state in{' '}
+        <code style={styles.codeStyle}>DashboardClient</code>.
       </p>
     </SectionWrap>
   );
 }
 
 function NotesSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Notes">
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Server + Client:</strong>{' '}
-        <code style={codeSmStyle}>Dashboard</code> is a Server Component wrapping{' '}
-        <code style={codeSmStyle}>DashboardClient</code> (Client Component).
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Server + Client:</strong>{' '}
+        <code style={styles.codeSmStyle}>Dashboard</code> is a Server Component wrapping{' '}
+        <code style={styles.codeSmStyle}>DashboardClient</code> (Client Component).
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Rendering modes:</strong>{' '}
-        Modal inside LogtoProvider, or full page at a route (e.g. <code style={codeSmStyle}>/dashboard</code>).
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Rendering modes:</strong>{' '}
+        Modal inside LogtoProvider, or full page at a route (e.g. <code style={styles.codeSmStyle}>/dashboard</code>).
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Toast system:</strong>{' '}
-        Built-in. All tabs report via <code style={codeSmStyle}>showToast()</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Toast system:</strong>{' '}
+        Built-in. All tabs report via <code style={styles.codeSmStyle}>showToast()</code>.
       </div>
-      <div style={{ ...noteStyle, marginBottom: 0 }}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Theme:</strong>{' '}
-        Uses <code style={codeSmStyle}>ThemeSpec</code> from{' '}
-        <code style={codeSmStyle}>PreferencesProvider</code>.
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Theme:</strong>{' '}
+        Uses <code style={styles.codeSmStyle}>ThemeSpec</code> from{' '}
+        <code style={styles.codeSmStyle}>PreferencesProvider</code>.
       </div>
     </SectionWrap>
   );
@@ -357,11 +206,12 @@ function NotesSection() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function WiringSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="The wiring (page.tsx)">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Dashboard is a Server Component JSX prop passed to the Client Component{' '}
-        <code style={codeStyle}>LogtoProvider</code>.
+        <code style={styles.codeStyle}>LogtoProvider</code>.
       </p>
       <CodeBlock title="Pre-rendered JSX as prop" code={`export default async function HomePage() {
   const result = await fetchDashboardData();
@@ -378,8 +228,8 @@ function WiringSection() {
     </LogtoProvider>
   );
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Key point:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Key point:</strong>{' '}
         Next.js allows Server Component JSX to be passed as props to Client Components.
       </div>
     </SectionWrap>
@@ -387,11 +237,12 @@ function WiringSection() {
 }
 
 function ModalSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="The modal (LogtoProvider)">
-      <p style={textStyle}>
-        <code style={codeStyle}>LogtoProvider</code> manages modal state and renders
-        the Dashboard when <code style={codeStyle}>isDashboardOpen</code> is true.
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>LogtoProvider</code> manages modal state and renders
+        the Dashboard when <code style={styles.codeStyle}>isDashboardOpen</code> is true.
       </p>
       <CodeBlock title="Modal lifecycle" code={`const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 const openDashboard = useCallback(() => setIsDashboardOpen(true), []);
@@ -417,12 +268,13 @@ useEffect(() => {
 }
 
 function ClickSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="The click (UserButton)">
-      <p style={textStyle}>
-        <code style={codeStyle}>UserButton</code>, <code style={codeStyle}>UserCard</code> use{' '}
-        <code style={codeStyle}>useUserDisplay()</code> which calls{' '}
-        <code style={codeStyle}>openDashboard()</code> from LogtoProvider context.
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>UserButton</code>, <code style={styles.codeStyle}>UserCard</code> use{' '}
+        <code style={styles.codeStyle}>useUserDisplay()</code> which calls{' '}
+        <code style={styles.codeStyle}>openDashboard()</code> from LogtoProvider context.
       </p>
       <CodeBlock title="useUserDisplay hook" code={`function useUserDisplay(opts) {
   const { openDashboard, userData } = useLogto();
@@ -435,48 +287,49 @@ function ClickSection() {
 
   return { userData, handleClick, ... };
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>UserBadge:</strong>{' '}
-        Read-only — <code style={codeSmStyle}>pointerEvents: &apos;none&apos;</code>, no click handler.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>UserBadge:</strong>{' '}
+        Read-only — <code style={styles.codeSmStyle}>pointerEvents: &apos;none&apos;</code>, no click handler.
       </div>
     </SectionWrap>
   );
 }
 
 function WhySection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Why this pattern?">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Async Server Components cannot be rendered directly from Client Components.
       </p>
       <CodeBlock title="❌ This error" code={`'use client';
 import { Dashboard } from './dashboard';
 // Error: Dashboard is an async Server Component`} />
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         The <strong>prop workaround</strong> works because:
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Rule</th>
-            <th style={thStyle}>Why</th>
+            <th style={styles.thStyle}>Rule</th>
+            <th style={styles.thStyle}>Why</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>Server → Client prop</td>
-            <td style={tdStyle}>Pre-rendered JSX passed, not imported</td>
+            <td style={styles.tdPropStyle}>Server → Client prop</td>
+            <td style={styles.tdStyle}>Pre-rendered JSX passed, not imported</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>Lazy rendering</td>
-            <td style={tdStyle}>Only rendered when <code style={codeStyle}>isDashboardOpen</code> is true</td>
+            <td style={styles.tdPropStyle}>Lazy rendering</td>
+            <td style={styles.tdStyle}>Only rendered when <code style={styles.codeStyle}>isDashboardOpen</code> is true</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>This doc file:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>This doc file:</strong>{' '}
         Is a Client Component — that&apos;s why we can&apos;t render{' '}
-        <code style={codeSmStyle}>&lt;Dashboard /&gt;</code> here.
+        <code style={styles.codeSmStyle}>&lt;Dashboard /&gt;</code> here.
       </div>
     </SectionWrap>
   );
@@ -485,15 +338,16 @@ import { Dashboard } from './dashboard';
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function DashboardDoc() {
+  const styles = useDocStyles();
   return (
     <SectionContainer>
       {/* Page 1: Internals + Provider Sync (two-column) */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <InternalsSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ProviderSyncSection />
           </div>
         </div>
@@ -501,11 +355,11 @@ export default function DashboardDoc() {
 
       {/* Page 2: Tab Structure + Notes (two-column) */}
       <Section id={2}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <TabStructureSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <NotesSection />
           </div>
         </div>
@@ -513,12 +367,12 @@ export default function DashboardDoc() {
 
       {/* Page 3: Rendering (two-column: wiring + modal/click, why) */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <WiringSection />
             <ModalSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ClickSection />
             <WhySection />
           </div>

@@ -2,157 +2,22 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
-
-// ─── Shared styles ──────────────────────────────────────────────────────────
-
-const twoColLayoutStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '16px',
-  alignItems: 'stretch',
-};
-
-const colLeftStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-};
-
-const sectionWrapStyle: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.058)',
-  borderRadius: '5px',
-  overflow: 'hidden',
-  background: 'rgba(255,255,255,0.01)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const sectionHeadStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderBottom: '1px solid rgba(255,255,255,0.045)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  background: 'rgba(255,255,255,0.015)',
-};
-
-const sectionDotStyle: React.CSSProperties = {
-  width: '4px',
-  height: '4px',
-  borderRadius: '50%',
-  background: 'rgba(255,255,255,0.18)',
-  flexShrink: 0,
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '9px',
-  fontWeight: 600,
-  color: 'rgba(255,255,255,0.28)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-};
-
-const sectionBodyStyle: React.CSSProperties = {
-  padding: '20px 16px',
-};
-
-const textStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.5)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.75rem',
-};
-
-const codeStyle: React.CSSProperties = {
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.75rem',
-};
-
-const codeSmStyle: React.CSSProperties = {
-  color: '#ce9178',
-  fontSize: '0.6875rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.38)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.625rem',
-  paddingLeft: '10px',
-  borderLeft: '2px solid rgba(255,255,255,0.06)',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.6875rem',
-  marginBottom: '0.75rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.35)',
-  fontWeight: 600,
-  fontSize: '0.5625rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.035)',
-  color: 'rgba(255,255,255,0.5)',
-  verticalAlign: 'top',
-  lineHeight: 1.5,
-};
-
-const tdPropStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  whiteSpace: 'nowrap',
-};
-
-// ─── Section wrappers ────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div style={sectionHeadStyle}>
-      <div style={sectionDotStyle} />
-      <span style={sectionLabelStyle}>{label}</span>
-    </div>
-  );
-}
-
-function SectionWrap({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={sectionWrapStyle}>
-      <SectionHeader label={label} />
-      <div style={{ ...sectionBodyStyle, flex: 1 }}>{children}</div>
-    </div>
-  );
-}
+import { useDocStyles } from '../utils/useDocStyles';
+import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Provider Hierarchy + Hydration Flow
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ProviderTreeSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Provider hierarchy">
-      <p style={textStyle}>
-        <code style={codeStyle}>LogtoProvider</code> is the all-in-one entry point.
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>LogtoProvider</code> is the all-in-one entry point.
         You only need one wrapper in your app — it creates{' '}
-        <code style={codeStyle}>PreferencesProvider</code> and{' '}
-        <code style={codeStyle}>UserDataProvider</code> internally:
+        <code style={styles.codeStyle}>PreferencesProvider</code> and{' '}
+        <code style={styles.codeStyle}>UserDataProvider</code> internally:
       </p>
       <CodeBlock title="All-in-one entry point" code={`<LogtoProvider
   userData={userData}       // from fetchDashboardData()
@@ -166,8 +31,8 @@ function ProviderTreeSection() {
 >
   <App />
 </LogtoProvider>`} />
-      <p style={textStyle}>
-        Internally, <code style={codeStyle}>LogtoProvider</code> nests two providers:
+      <p style={styles.textStyle}>
+        Internally, <code style={styles.codeStyle}>LogtoProvider</code> nests two providers:
       </p>
       <CodeBlock title="Internal structure (not user-facing)" code={`// Inside LogtoProvider:
 
@@ -188,51 +53,52 @@ function ProviderTreeSection() {
     </UserDataProvider>
   </LogtoProviderContent>
 </PreferencesProvider>`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Provider</th>
-            <th style={thStyle}>Provides</th>
-            <th style={thStyle}>Hooks</th>
-            <th style={thStyle}>User manages?</th>
+            <th style={styles.thStyle}>Provider</th>
+            <th style={styles.thStyle}>Provides</th>
+            <th style={styles.thStyle}>Hooks</th>
+            <th style={styles.thStyle}>User manages?</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>LogtoProvider</td>
-            <td style={tdStyle}>All-in-one: user data, access token, dashboard modal, preferences, unified context</td>
-            <td style={tdStyle}><code style={codeSmStyle}>useLogto()</code></td>
-            <td style={tdStyle}><strong style={{ color: '#10b981' }}>Yes</strong></td>
+            <td style={styles.tdPropStyle}>LogtoProvider</td>
+            <td style={styles.tdStyle}>All-in-one: user data, access token, dashboard modal, preferences, unified context</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useLogto()</code></td>
+            <td style={styles.tdStyle}><strong style={{ color: '#10b981' }}>Yes</strong></td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>PreferencesProvider</td>
-            <td style={tdStyle}>Theme, language, org state + persistence</td>
-            <td style={tdStyle}><code style={codeSmStyle}>useThemeMode()</code>, <code style={codeSmStyle}>useLangMode()</code>, <code style={codeSmStyle}>useOrgMode()</code></td>
-            <td style={tdStyle}>Internal — created by LogtoProvider</td>
+            <td style={styles.tdPropStyle}>PreferencesProvider</td>
+            <td style={styles.tdStyle}>Theme, language, org state + persistence</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useThemeMode()</code>, <code style={styles.codeSmStyle}>useLangMode()</code>, <code style={styles.codeSmStyle}>useOrgMode()</code></td>
+            <td style={styles.tdStyle}>Internal — created by LogtoProvider</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>UserDataProvider</td>
-            <td style={tdStyle}>Cached user data (sessionStorage-backed)</td>
-            <td style={tdStyle}><code style={codeSmStyle}>useUserDataContext()</code></td>
-            <td style={tdStyle}>Internal — created by LogtoProvider</td>
+            <td style={styles.tdPropStyle}>UserDataProvider</td>
+            <td style={styles.tdStyle}>Cached user data (sessionStorage-backed)</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useUserDataContext()</code></td>
+            <td style={styles.tdStyle}>Internal — created by LogtoProvider</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Note:</strong>{' '}
-        <code style={codeStyle}>PreferencesProvider</code> and{' '}
-        <code style={codeStyle}>UserDataProvider</code> are also exported for advanced
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
+        <code style={styles.codeStyle}>PreferencesProvider</code> and{' '}
+        <code style={styles.codeStyle}>UserDataProvider</code> are also exported for advanced
         use cases (e.g., using preference hooks outside a dashboard context), but most
-        apps only need <code style={codeStyle}>LogtoProvider</code>.
+        apps only need <code style={styles.codeStyle}>LogtoProvider</code>.
       </div>
     </SectionWrap>
   );
 }
 
 function HydrationFlowSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="How hydration works">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Server-side data flows into client-side providers through props. No manual
         wiring required.
       </p>
@@ -256,40 +122,40 @@ export default async function HomePage() {
     </LogtoProvider>
   );
 }`} />
-      <p style={textStyle}>
-        Inside <code style={codeStyle}>LogtoProvider</code>, each child provider
+      <p style={styles.textStyle}>
+        Inside <code style={styles.codeStyle}>LogtoProvider</code>, each child provider
         hydrates its state:
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Provider</th>
-            <th style={thStyle}>Initial state source</th>
-            <th style={thStyle}>Fallback chain</th>
+            <th style={styles.thStyle}>Provider</th>
+            <th style={styles.thStyle}>Initial state source</th>
+            <th style={styles.thStyle}>Fallback chain</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>PreferencesProvider</td>
-            <td style={tdStyle}><code style={codeSmStyle}>sessionStorage</code></td>
-            <td style={tdStyle}>storage → prop → ENV default → auto-detect</td>
+            <td style={styles.tdPropStyle}>PreferencesProvider</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>sessionStorage</code></td>
+            <td style={styles.tdStyle}>storage → prop → ENV default → auto-detect</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>UserDataProvider</td>
-            <td style={tdStyle}><code style={codeSmStyle}>sessionStorage</code></td>
-            <td style={tdStyle}>storage → prop (server data)</td>
+            <td style={styles.tdPropStyle}>UserDataProvider</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>sessionStorage</code></td>
+            <td style={styles.tdStyle}>storage → prop (server data)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>AuthWatcher</td>
-            <td style={tdStyle}>Placed in root layout</td>
-            <td style={tdStyle}>N/A — triggers <code style={codeSmStyle}>router.refresh()</code></td>
+            <td style={styles.tdPropStyle}>AuthWatcher</td>
+            <td style={styles.tdStyle}>Placed in root layout</td>
+            <td style={styles.tdStyle}>N/A — triggers <code style={styles.codeSmStyle}>router.refresh()</code></td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Key point:</strong>{' '}
-        Preferences are read from <code style={codeStyle}>sessionStorage</code> on mount
-        inside <code style={codeStyle}>LogtoProvider</code>. If the user previously
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Key point:</strong>{' '}
+        Preferences are read from <code style={styles.codeStyle}>sessionStorage</code> on mount
+        inside <code style={styles.codeStyle}>LogtoProvider</code>. If the user previously
         selected a theme/language, it persists across page loads without server involvement.
       </div>
     </SectionWrap>
@@ -301,80 +167,81 @@ export default async function HomePage() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function UseLogtoSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="useLogto()">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         The unified hook. Exposes user data, access token, theme, language,
         organization, and dashboard controls from a single context.
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Field</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Field</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>userData</td>
-            <td style={tdStyle}><code style={codeSmStyle}>UserData</code></td>
-            <td style={tdStyle}>Current user profile data</td>
+            <td style={styles.tdPropStyle}>userData</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>UserData</code></td>
+            <td style={styles.tdStyle}>Current user profile data</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>accessToken</td>
-            <td style={tdStyle}><code style={codeSmStyle}>string</code></td>
-            <td style={tdStyle}>JWT access token for API calls</td>
+            <td style={styles.tdPropStyle}>accessToken</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string</code></td>
+            <td style={styles.tdStyle}>JWT access token for API calls</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>theme</td>
-            <td style={tdStyle}><code style={codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
-            <td style={tdStyle}>Current theme mode</td>
+            <td style={styles.tdPropStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
+            <td style={styles.tdStyle}>Current theme mode</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>themeSpec</td>
-            <td style={tdStyle}><code style={codeSmStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Full theme object (colors, tokens, components)</td>
+            <td style={styles.tdPropStyle}>themeSpec</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Full theme object (colors, tokens, components)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setTheme()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(mode) =&gt; void</code></td>
-            <td style={tdStyle}>Set theme, persists + dispatches event</td>
+            <td style={styles.tdPropStyle}>setTheme()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(mode) =&gt; void</code></td>
+            <td style={styles.tdStyle}>Set theme, persists + dispatches event</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>toggleTheme()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>() =&gt; void</code></td>
-            <td style={tdStyle}>Swap dark &lt;→ light</td>
+            <td style={styles.tdPropStyle}>toggleTheme()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
+            <td style={styles.tdStyle}>Swap dark &lt;→ light</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>lang</td>
-            <td style={tdStyle}><code style={codeSmStyle}>string</code></td>
-            <td style={tdStyle}>Current language code (e.g. &quot;en-US&quot;)</td>
+            <td style={styles.tdPropStyle}>lang</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string</code></td>
+            <td style={styles.tdStyle}>Current language code (e.g. &quot;en-US&quot;)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setLang()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(code) =&gt; void</code></td>
-            <td style={tdStyle}>Set language, persists + dispatches event</td>
+            <td style={styles.tdPropStyle}>setLang()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(code) =&gt; void</code></td>
+            <td style={styles.tdStyle}>Set language, persists + dispatches event</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>asOrg</td>
-            <td style={tdStyle}><code style={codeSmStyle}>string | null</code></td>
-            <td style={tdStyle}>Active organization ID (null = global)</td>
+            <td style={styles.tdPropStyle}>asOrg</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string | null</code></td>
+            <td style={styles.tdStyle}>Active organization ID (null = global)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setAsOrg()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(id) =&gt; void</code></td>
-            <td style={tdStyle}>Switch organization</td>
+            <td style={styles.tdPropStyle}>setAsOrg()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(id) =&gt; void</code></td>
+            <td style={styles.tdStyle}>Switch organization</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>openDashboard()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>() =&gt; void</code></td>
-            <td style={tdStyle}>Open dashboard modal</td>
+            <td style={styles.tdPropStyle}>openDashboard()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
+            <td style={styles.tdStyle}>Open dashboard modal</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>closeDashboard()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>() =&gt; void</code></td>
-            <td style={tdStyle}>Close dashboard modal (also via ESC)</td>
+            <td style={styles.tdPropStyle}>closeDashboard()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
+            <td style={styles.tdStyle}>Close dashboard modal (also via ESC)</td>
           </tr>
         </tbody>
       </table>
@@ -393,10 +260,10 @@ function MyComponent() {
     </div>
   );
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Throws:</strong>{' '}
-        <code style={codeStyle}>useLogto()</code> throws if used outside{' '}
-        <code style={codeStyle}>LogtoProvider</code>. Unlike the other hooks, it has
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Throws:</strong>{' '}
+        <code style={styles.codeStyle}>useLogto()</code> throws if used outside{' '}
+        <code style={styles.codeStyle}>LogtoProvider</code>. Unlike the other hooks, it has
         no silent fallback.
       </div>
     </SectionWrap>
@@ -404,46 +271,47 @@ function MyComponent() {
 }
 
 function PreferenceHooksSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Preference hooks">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Three focused hooks for theme, language, and organization state. Available
-        via <code style={codeStyle}>useLogto()</code> or directly from{' '}
-        <code style={codeStyle}>PreferencesProvider</code> (created automatically
-        by <code style={codeStyle}>LogtoProvider</code>).
+        via <code style={styles.codeStyle}>useLogto()</code> or directly from{' '}
+        <code style={styles.codeStyle}>PreferencesProvider</code> (created automatically
+        by <code style={styles.codeStyle}>LogtoProvider</code>).
       </p>
 
-      <p style={{ ...textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '0.5rem' }}>
+      <p style={{ ...styles.textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '0.5rem' }}>
         useThemeMode()
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Field</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Description</th>
+            <th style={styles.thStyle}>Field</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>theme</td>
-            <td style={tdStyle}><code style={codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
-            <td style={tdStyle}>Current mode</td>
+            <td style={styles.tdPropStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
+            <td style={styles.tdStyle}>Current mode</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>themeSpec</td>
-            <td style={tdStyle}><code style={codeSmStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Full theme: colors, typography, radii, shadows, component styles</td>
+            <td style={styles.tdPropStyle}>themeSpec</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Full theme: colors, typography, radii, shadows, component styles</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setTheme()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(mode) =&gt; void</code></td>
-            <td style={tdStyle}>Persist + dispatch</td>
+            <td style={styles.tdPropStyle}>setTheme()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(mode) =&gt; void</code></td>
+            <td style={styles.tdStyle}>Persist + dispatch</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>toggleTheme()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>() =&gt; void</code></td>
-            <td style={tdStyle}>Swap dark &lt;→ light</td>
+            <td style={styles.tdPropStyle}>toggleTheme()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
+            <td style={styles.tdStyle}>Swap dark &lt;→ light</td>
           </tr>
         </tbody>
       </table>
@@ -464,24 +332,24 @@ function ThemeToggle() {
   );
 }`} />
 
-      <p style={{ ...textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '1rem' }}>
+      <p style={{ ...styles.textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '1rem' }}>
         useLangMode()
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Field</th>
-            <th style={thStyle}>Type</th>
+            <th style={styles.thStyle}>Field</th>
+            <th style={styles.thStyle}>Type</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>lang</td>
-            <td style={tdStyle}><code style={codeSmStyle}>string</code></td>
+            <td style={styles.tdPropStyle}>lang</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string</code></td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setLang()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(code: string) =&gt; void</code></td>
+            <td style={styles.tdPropStyle}>setLang()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(code: string) =&gt; void</code></td>
           </tr>
         </tbody>
       </table>
@@ -499,24 +367,24 @@ function LangSelector() {
   );
 }`} />
 
-      <p style={{ ...textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '1rem' }}>
+      <p style={{ ...styles.textStyle, fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginTop: '1rem' }}>
         useOrgMode()
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Field</th>
-            <th style={thStyle}>Type</th>
+            <th style={styles.thStyle}>Field</th>
+            <th style={styles.thStyle}>Type</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>asOrg</td>
-            <td style={tdStyle}><code style={codeSmStyle}>string | null</code></td>
+            <td style={styles.tdPropStyle}>asOrg</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string | null</code></td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setAsOrg()</td>
-            <td style={tdStyle}><code style={codeSmStyle}>(orgId: string | null) =&gt; void</code></td>
+            <td style={styles.tdPropStyle}>setAsOrg()</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(orgId: string | null) =&gt; void</code></td>
           </tr>
         </tbody>
       </table>
@@ -532,12 +400,12 @@ function OrgIndicator() {
     <button onClick={() => setAsOrg('org_123')}>Join org</button>
   );
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Outside provider:</strong>{' '}
-        All three hooks return no-op <code style={codeStyle}>set</code> functions and
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Outside provider:</strong>{' '}
+        All three hooks return no-op <code style={styles.codeStyle}>set</code> functions and
         auto-detected or default values when used outside{' '}
-        <code style={codeStyle}>PreferencesProvider</code>. No errors — silent fallback.
-        Each hook reads from <code style={codeStyle}>sessionStorage</code> first,
+        <code style={styles.codeStyle}>PreferencesProvider</code>. No errors — silent fallback.
+        Each hook reads from <code style={styles.codeStyle}>sessionStorage</code> first,
         then falls back to provider state or defaults.
       </div>
     </SectionWrap>
@@ -545,12 +413,13 @@ function OrgIndicator() {
 }
 
 function UserDataSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="useUserDataContext()">
-      <p style={textStyle}>
-        Returns cached user data from <code style={codeStyle}>UserDataProvider</code>.
-        The cache is backed by <code style={codeStyle}>sessionStorage</code> under
-        the key <code style={codeSmStyle}>user-data</code>.
+      <p style={styles.textStyle}>
+        Returns cached user data from <code style={styles.codeStyle}>UserDataProvider</code>.
+        The cache is backed by <code style={styles.codeStyle}>sessionStorage</code> under
+        the key <code style={styles.codeSmStyle}>user-data</code>.
       </p>
       <CodeBlock title="Usage" code={`'use client';
 import { useUserDataContext } from './logto-kit';
@@ -561,19 +430,19 @@ function UserAvatar() {
 
   return <img src={userData.avatar} alt={userData.name} />;
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Returns:</strong>{' '}
-        <code style={codeStyle}>UserData | null</code>. Returns{' '}
-        <code style={codeStyle}>null</code> when used outside{' '}
-        <code style={codeStyle}>UserDataProvider</code> or during SSR before hydration.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Returns:</strong>{' '}
+        <code style={styles.codeStyle}>UserData | null</code>. Returns{' '}
+        <code style={styles.codeStyle}>null</code> when used outside{' '}
+        <code style={styles.codeStyle}>UserDataProvider</code> or during SSR before hydration.
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Caching behavior:</strong>{' '}
-        On mount, if <code style={codeStyle}>sessionStorage</code> has cached data,
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Caching behavior:</strong>{' '}
+        On mount, if <code style={styles.codeStyle}>sessionStorage</code> has cached data,
         it is used immediately to avoid a flash of empty/old UI. The provider
-        updates the cache when the server-provided <code style={codeStyle}>userData</code> prop
+        updates the cache when the server-provided <code style={styles.codeStyle}>userData</code> prop
         differs from the cached version (deep comparison via{' '}
-        <code style={codeStyle}>JSON.stringify</code>).
+        <code style={styles.codeStyle}>JSON.stringify</code>).
       </div>
     </SectionWrap>
   );
@@ -584,11 +453,12 @@ function UserAvatar() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AuthWatcherSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="AuthWatcher">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         A zero-UI component that keeps auth state fresh by calling{' '}
-        <code style={codeStyle}>router.refresh()</code> on three triggers.
+        <code style={styles.codeStyle}>router.refresh()</code> on three triggers.
         Place it in your root layout — it renders nothing.
       </p>
       <CodeBlock title="Root layout" code={`import AuthWatcher from './logto-kit';
@@ -606,42 +476,42 @@ export default function RootLayout({ children }) {
     </html>
   );
 }`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Trigger</th>
-            <th style={thStyle}>Catches</th>
+            <th style={styles.thStyle}>Trigger</th>
+            <th style={styles.thStyle}>Catches</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>visibilitychange</td>
-            <td style={tdStyle}>User returns to tab — account deleted elsewhere, session revoked, role changed</td>
+            <td style={styles.tdPropStyle}>visibilitychange</td>
+            <td style={styles.tdStyle}>User returns to tab — account deleted elsewhere, session revoked, role changed</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>online</td>
-            <td style={tdStyle}>Network reconnect — session expired while offline (sleep, travel)</td>
+            <td style={styles.tdPropStyle}>online</td>
+            <td style={styles.tdStyle}>Network reconnect — session expired while offline (sleep, travel)</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>setInterval</td>
-            <td style={tdStyle}>Long-lived sessions — admin deletes account while user idle on page</td>
+            <td style={styles.tdPropStyle}>setInterval</td>
+            <td style={styles.tdStyle}>Long-lived sessions — admin deletes account while user idle on page</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
-        <code style={codeStyle}>router.refresh()</code> re-runs all Server Components
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>router.refresh()</code> re-runs all Server Components
         on the page without a full page reload. Client state (form inputs, scroll
         position, modals) is preserved.
       </p>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Debounce:</strong>{' '}
-        Set <code style={codeStyle}>debounceMs</code> to control the minimum gap between
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Debounce:</strong>{' '}
+        Set <code style={styles.codeStyle}>debounceMs</code> to control the minimum gap between
         refreshes. Prevents floods when multiple triggers fire simultaneously
         (e.g., tab focus + online at the same time).
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Disable interval:</strong>{' '}
-        Set <code style={codeStyle}>refreshIntervalMs=0</code> to disable periodic
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Disable interval:</strong>{' '}
+        Set <code style={styles.codeStyle}>refreshIntervalMs=0</code> to disable periodic
         polling. Only visibility + online triggers remain active.
       </div>
     </SectionWrap>
@@ -649,11 +519,12 @@ export default function RootLayout({ children }) {
 }
 
 function CrossTabSyncSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Cross-tab sync">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Preferences (theme, language, org) sync across browser tabs via{' '}
-        <code style={codeStyle}>sessionStorage</code> and a custom DOM event.
+        <code style={styles.codeStyle}>sessionStorage</code> and a custom DOM event.
       </p>
       <CodeBlock title="Storage keys + events" code={`// Storage keys written by setTheme(), setLang(), setAsOrg():
 sessionStorage.setItem('theme-mode', 'dark');
@@ -674,47 +545,47 @@ window.addEventListener('preferences-changed', () => {
   const lang  = sessionStorage.getItem('lang-mode');
   const org   = sessionStorage.getItem('org-mode');
 });`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Storage key</th>
-            <th style={thStyle}>Set by</th>
-            <th style={thStyle}>Read by</th>
+            <th style={styles.thStyle}>Storage key</th>
+            <th style={styles.thStyle}>Set by</th>
+            <th style={styles.thStyle}>Read by</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPropStyle}>theme-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setTheme()</code></td>
-            <td style={tdStyle}><code style={codeSmStyle}>useThemeMode()</code>, external consumers</td>
+            <td style={styles.tdPropStyle}>theme-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setTheme()</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useThemeMode()</code>, external consumers</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>lang-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setLang()</code></td>
-            <td style={tdStyle}><code style={codeSmStyle}>useLangMode()</code>, external consumers</td>
+            <td style={styles.tdPropStyle}>lang-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setLang()</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useLangMode()</code>, external consumers</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>org-mode</td>
-            <td style={tdStyle}><code style={codeSmStyle}>setAsOrg()</code></td>
-            <td style={tdStyle}><code style={codeSmStyle}>useOrgMode()</code>, external consumers</td>
+            <td style={styles.tdPropStyle}>org-mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setAsOrg()</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useOrgMode()</code>, external consumers</td>
           </tr>
           <tr>
-            <td style={tdPropStyle}>user-data</td>
-            <td style={tdStyle}><code style={codeSmStyle}>UserDataProvider</code></td>
-            <td style={tdStyle}><code style={codeSmStyle}>useUserDataContext()</code></td>
+            <td style={styles.tdPropStyle}>user-data</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>UserDataProvider</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useUserDataContext()</code></td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Why sessionStorage:</strong>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Why sessionStorage:</strong>{' '}
         Persists across page navigations within the same tab but clears when
         the tab closes. This avoids stale data on new sessions while keeping
         the current session consistent.
       </div>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Persistence:</strong>{' '}
-        If <code style={codeStyle}>onUpdateCustomData</code> is provided to{' '}
-        <code style={codeStyle}>LogtoProvider</code>, preference changes are also
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Persistence:</strong>{' '}
+        If <code style={styles.codeStyle}>onUpdateCustomData</code> is provided to{' '}
+        <code style={styles.codeStyle}>LogtoProvider</code>, preference changes are also
         persisted to Logto&apos;s Management API via the custom data endpoint.
         This survives session boundaries.
       </div>
@@ -725,15 +596,16 @@ window.addEventListener('preferences-changed', () => {
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function ProvidersDoc() {
+  const styles = useDocStyles();
   return (
     <SectionContainer>
       {/* Page 1: Provider hierarchy + Hydration flow (two-column) */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <ProviderTreeSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <HydrationFlowSection />
           </div>
         </div>
@@ -757,11 +629,11 @@ export default function ProvidersDoc() {
 
       {/* Page 3: AuthWatcher + Cross-tab sync (two-column) */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <AuthWatcherSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <CrossTabSyncSection />
           </div>
         </div>

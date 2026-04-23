@@ -2,209 +2,74 @@
 
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
-
-// ─── Shared styles ──────────────────────────────────────────────────────────
-
-const twoColLayoutStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '16px',
-  alignItems: 'start',
-};
-
-const colLeftStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-};
-
-const sectionWrapStyle: React.CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.058)',
-  borderRadius: '5px',
-  overflow: 'hidden',
-  background: 'rgba(255,255,255,0.01)',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const sectionHeadStyle: React.CSSProperties = {
-  padding: '8px 14px',
-  borderBottom: '1px solid rgba(255,255,255,0.045)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  background: 'rgba(255,255,255,0.015)',
-};
-
-const sectionDotStyle: React.CSSProperties = {
-  width: '4px',
-  height: '4px',
-  borderRadius: '50%',
-  background: 'rgba(255,255,255,0.18)',
-  flexShrink: 0,
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '9px',
-  fontWeight: 600,
-  color: 'rgba(255,255,255,0.28)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-};
-
-const sectionBodyStyle: React.CSSProperties = {
-  padding: '20px 16px',
-};
-
-const textStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.5)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.75rem',
-};
-
-const codeStyle: React.CSSProperties = {
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.75rem',
-};
-
-const codeSmStyle: React.CSSProperties = {
-  color: '#ce9178',
-  fontSize: '0.6875rem',
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  lineHeight: 1.7,
-  color: 'rgba(255,255,255,0.38)',
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  marginBottom: '0.625rem',
-  paddingLeft: '10px',
-  borderLeft: '2px solid rgba(255,255,255,0.06)',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontFamily: "'IBM Plex Mono', monospace",
-  fontSize: '0.6875rem',
-  marginBottom: '0.75rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.35)',
-  fontWeight: 600,
-  fontSize: '0.5625rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  borderBottom: '1px solid rgba(255,255,255,0.035)',
-  color: 'rgba(255,255,255,0.5)',
-  verticalAlign: 'top',
-  lineHeight: 1.5,
-};
-
-const tdPathStyle: React.CSSProperties = {
-  ...tdStyle,
-  color: '#9cdcdb',
-  fontFamily: "'IBM Plex Mono', monospace",
-  whiteSpace: 'nowrap',
-};
-
-// ─── Section wrappers ────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <div style={sectionHeadStyle}>
-      <div style={sectionDotStyle} />
-      <span style={sectionLabelStyle}>{label}</span>
-    </div>
-  );
-}
-
-function SectionWrap({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={sectionWrapStyle}>
-      <SectionHeader label={label} />
-      <div style={{ ...sectionBodyStyle, flex: 1 }}>{children}</div>
-    </div>
-  );
-}
+import { useDocStyles } from '../utils/useDocStyles';
+import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Overview + Profile
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OverviewSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Tab overview">
-      <p style={textStyle}>
-        The Dashboard renders tabs based on the <code style={codeStyle}>LOAD_TABS</code>{' '}
-        env var. <code style={codeStyle}>DashboardClient</code> maintains{' '}
-        <code style={codeStyle}>activeTab</code> state and conditionally renders
+      <p style={styles.textStyle}>
+        The Dashboard renders tabs based on the <code style={styles.codeStyle}>LOAD_TABS</code>{' '}
+        env var. <code style={styles.codeStyle}>DashboardClient</code> maintains{' '}
+        <code style={styles.codeStyle}>activeTab</code> state and conditionally renders
         each tab component.
       </p>
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Tab</th>
-            <th style={thStyle}>Props</th>
-            <th style={thStyle}>Hooks</th>
-            <th style={thStyle}>Actions</th>
+            <th style={styles.thStyle}>Tab</th>
+            <th style={styles.thStyle}>Props</th>
+            <th style={styles.thStyle}>Hooks</th>
+            <th style={styles.thStyle}>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>Profile</td>
-            <td style={tdStyle}>9</td>
-            <td style={tdStyle}>useAvatarUpload</td>
-            <td style={tdStyle}>3</td>
+            <td style={styles.tdPathStyle}>Profile</td>
+            <td style={styles.tdStyle}>9</td>
+            <td style={styles.tdStyle}>useAvatarUpload</td>
+            <td style={styles.tdStyle}>3</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Preferences</td>
-            <td style={tdStyle}>3</td>
-            <td style={tdStyle}>useThemeMode, useLangMode</td>
-            <td style={tdStyle}>0 (via context)</td>
+            <td style={styles.tdPathStyle}>Preferences</td>
+            <td style={styles.tdStyle}>3</td>
+            <td style={styles.tdStyle}>useThemeMode, useLangMode</td>
+            <td style={styles.tdStyle}>0 (via context)</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Security</td>
-            <td style={tdStyle}>20</td>
-            <td style={tdStyle}>—</td>
-            <td style={tdStyle}>15</td>
+            <td style={styles.tdPathStyle}>Security</td>
+            <td style={styles.tdStyle}>20</td>
+            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}>15</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Sessions</td>
-            <td style={tdStyle}>8</td>
-            <td style={tdStyle}>—</td>
-            <td style={tdStyle}>3</td>
+            <td style={styles.tdPathStyle}>Sessions</td>
+            <td style={styles.tdStyle}>8</td>
+            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}>3</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Identities</td>
-            <td style={tdStyle}>3</td>
-            <td style={tdStyle}>—</td>
-            <td style={tdStyle}>0</td>
+            <td style={styles.tdPathStyle}>Identities</td>
+            <td style={styles.tdStyle}>3</td>
+            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}>0</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Organizations</td>
-            <td style={tdStyle}>4</td>
-            <td style={tdStyle}>useOrgMode</td>
-            <td style={tdStyle}>1</td>
+            <td style={styles.tdPathStyle}>Organizations</td>
+            <td style={styles.tdStyle}>4</td>
+            <td style={styles.tdStyle}>useOrgMode</td>
+            <td style={styles.tdStyle}>1</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>Dev</td>
-            <td style={tdStyle}>4</td>
-            <td style={tdStyle}>—</td>
-            <td style={tdStyle}>0</td>
+            <td style={styles.tdPathStyle}>Dev</td>
+            <td style={styles.tdStyle}>4</td>
+            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}>0</td>
           </tr>
         </tbody>
       </table>
@@ -213,9 +78,9 @@ LOAD_TABS=
 
 # Show specific tabs
 LOAD_TABS=profile,preferences,mfa,organizations`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Wiring:</strong>{' '}
-        <code style={codeSmStyle}>DashboardClient</code> receives 19 server action callbacks
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Wiring:</strong>{' '}
+        <code style={styles.codeSmStyle}>DashboardClient</code> receives 19 server action callbacks
         from the Server Component pipeline. Each tab gets
         exactly the actions it needs.
       </div>
@@ -224,61 +89,62 @@ LOAD_TABS=profile,preferences,mfa,organizations`} />
 }
 
 function ProfilePropsSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Profile — props">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>userData</td>
-            <td style={tdStyle}><code style={codeStyle}>UserData</code></td>
-            <td style={tdStyle}>Full user data object</td>
+            <td style={styles.tdPathStyle}>userData</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
+            <td style={styles.tdStyle}>Full user data object</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>theme</td>
-            <td style={tdStyle}><code style={codeStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdPathStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Theme for UI rendering</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>t</td>
-            <td style={tdStyle}><code style={codeStyle}>Translations</code></td>
-            <td style={tdStyle}>i18n strings</td>
+            <td style={styles.tdPathStyle}>t</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
+            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
            <tr>
-             <td style={tdPathStyle}>onUpdateBasicInfo</td>
-             <td style={tdStyle}><code style={codeStyle}>({`{name?}`}){`=>`}Promise{`<void>`}</code></td>
-             <td style={tdStyle}>Updates display name</td>
+             <td style={styles.tdPathStyle}>onUpdateBasicInfo</td>
+             <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?}`}){`=>`}Promise{`<void>`}</code></td>
+             <td style={styles.tdStyle}>Updates display name</td>
            </tr>
           <tr>
-            <td style={tdPathStyle}>onUpdateAvatarUrl</td>
-            <td style={tdStyle}><code style={codeStyle}>(url){`=>`}Promise{`<void>`}</code></td>
-            <td style={tdStyle}>Sets avatar URL (empty = remove)</td>
+            <td style={styles.tdPathStyle}>onUpdateAvatarUrl</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<void>`}</code></td>
+            <td style={styles.tdStyle}>Sets avatar URL (empty = remove)</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>onUpdateProfile</td>
-            <td style={tdStyle}><code style={codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<void>`}</code></td>
-            <td style={tdStyle}>Updates profile fields</td>
+            <td style={styles.tdPathStyle}>onUpdateProfile</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<void>`}</code></td>
+            <td style={styles.tdStyle}>Updates profile fields</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>onSuccess</td>
-            <td style={tdStyle}><code style={codeStyle}>(msg){`=>`}void</code></td>
-            <td style={tdStyle}>Toast success</td>
+            <td style={styles.tdPathStyle}>onSuccess</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
+            <td style={styles.tdStyle}>Toast success</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>onError</td>
-            <td style={tdStyle}><code style={codeStyle}>(msg){`=>`}void</code></td>
-            <td style={tdStyle}>Toast error</td>
+            <td style={styles.tdPathStyle}>onError</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
+            <td style={styles.tdStyle}>Toast error</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>refreshData</td>
-            <td style={tdStyle}><code style={codeStyle}>{`() => void`}</code></td>
-            <td style={tdStyle}>Calls router.refresh()</td>
+            <td style={styles.tdPathStyle}>refreshData</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`() => void`}</code></td>
+            <td style={styles.tdStyle}>Calls router.refresh()</td>
           </tr>
         </tbody>
       </table>
@@ -287,6 +153,7 @@ function ProfilePropsSection() {
 }
 
 function ProfileHooksSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Profile — hooks & actions">
       <CodeBlock title="useAvatarUpload hook" code={`import { useAvatarUpload } from '../../handlers/use-avatar-upload';
@@ -302,42 +169,42 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
 });
 
 // Call upload(file) from drag-and-drop or file input handler`} />
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Return</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Return</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>upload</td>
-            <td style={tdStyle}><code style={codeStyle}>(file){`=>`}Promise{`<string|null>`}</code></td>
-            <td style={tdStyle}>Uploads file, returns URL or null on error</td>
+            <td style={styles.tdPathStyle}>upload</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(file){`=>`}Promise{`<string|null>`}</code></td>
+            <td style={styles.tdStyle}>Uploads file, returns URL or null on error</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>isUploading</td>
-            <td style={tdStyle}><code style={codeStyle}>boolean</code></td>
-            <td style={tdStyle}>Upload in progress</td>
+            <td style={styles.tdPathStyle}>isUploading</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>boolean</code></td>
+            <td style={styles.tdStyle}>Upload in progress</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>error</td>
-            <td style={tdStyle}><code style={codeStyle}>string | null</code></td>
-            <td style={tdStyle}>Error message if upload failed</td>
+            <td style={styles.tdPathStyle}>error</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>string | null</code></td>
+            <td style={styles.tdStyle}>Error message if upload failed</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>clearError</td>
-            <td style={tdStyle}><code style={codeStyle}>(){`=>`}void</code></td>
-            <td style={tdStyle}>Clears error state</td>
+            <td style={styles.tdPathStyle}>clearError</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(){`=>`}void</code></td>
+            <td style={styles.tdStyle}>Clears error state</td>
           </tr>
         </tbody>
       </table>
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Server actions:</strong>{' '}
-        <code style={codeSmStyle}>handleSaveName</code> updates display name (if non-empty)
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Server actions:</strong>{' '}
+        <code style={styles.codeSmStyle}>handleSaveName</code> updates display name (if non-empty)
         then always updates profile fields. Avatar upload uses{' '}
-        <code style={codeSmStyle}>updateAvatarUrl</code> imported directly (not the prop).
+        <code style={styles.codeSmStyle}>updateAvatarUrl</code> imported directly (not the prop).
       </div>
     </SectionWrap>
   );
@@ -348,38 +215,39 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PreferencesSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Preferences — props & hooks">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>theme</td>
-            <td style={tdStyle}><code style={codeStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdPathStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Theme for UI rendering</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>t</td>
-            <td style={tdStyle}><code style={codeStyle}>Translations</code></td>
-            <td style={tdStyle}>i18n strings</td>
+            <td style={styles.tdPathStyle}>t</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
+            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>supportedLangs</td>
-            <td style={tdStyle}><code style={codeStyle}>string[]?</code></td>
-            <td style={tdStyle}>Available language codes from LANG_AVAILABLE</td>
+            <td style={styles.tdPathStyle}>supportedLangs</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>string[]?</code></td>
+            <td style={styles.tdStyle}>Available language codes from LANG_AVAILABLE</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         No server actions called directly. Mutations go through the{' '}
-        <code style={codeStyle}>PreferencesProvider</code> context which internally
-        calls <code style={codeStyle}>updateUserCustomData</code>.
+        <code style={styles.codeStyle}>PreferencesProvider</code> context which internally
+        calls <code style={styles.codeStyle}>updateUserCustomData</code>.
       </p>
       <CodeBlock title="useThemeMode" code={`// Returns:
 //   theme: 'dark' | 'light'
@@ -395,48 +263,49 @@ setTheme('light'); // persists to sessionStorage + Logto API`} />
 
 const { lang, setLang } = useLangMode();
 setLang('ka-GE'); // persists to sessionStorage + Logto API`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Storage:</strong>{' '}
-        Both hooks read from <code style={codeSmStyle}>sessionStorage</code> (not React state)
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Storage:</strong>{' '}
+        Both hooks read from <code style={styles.codeSmStyle}>sessionStorage</code> (not React state)
         for cross-tab sync. Changes dispatch{' '}
-        <code style={codeSmStyle}>preferences-changed</code> event.
+        <code style={styles.codeSmStyle}>preferences-changed</code> event.
       </div>
     </SectionWrap>
   );
 }
 
 function IdentitiesSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Identities — read-only">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>userData</td>
-            <td style={tdStyle}><code style={codeStyle}>UserData</code></td>
-            <td style={tdStyle}>Contains identities map</td>
+            <td style={styles.tdPathStyle}>userData</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
+            <td style={styles.tdStyle}>Contains identities map</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>theme</td>
-            <td style={tdStyle}><code style={codeStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdPathStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Theme for UI rendering</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>t</td>
-            <td style={tdStyle}><code style={codeStyle}>Translations</code></td>
-            <td style={tdStyle}>i18n strings</td>
+            <td style={styles.tdPathStyle}>t</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
+            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Purely presentational. No hooks, no state, no server actions. Reads{' '}
-        <code style={codeStyle}>userData.identities</code> and renders provider icons
+        <code style={styles.codeStyle}>userData.identities</code> and renders provider icons
         (inline SVGs for google, github, discord, facebook, twitter, apple, microsoft,
         linkedin) with connection status.
       </p>
@@ -460,9 +329,10 @@ function IdentitiesSection() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SecurityOverviewSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — overview">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         The most complex tab. Manages TOTP authenticator, backup codes, password,
         email/phone, and account deletion. All mutations require identity verification
         (password or verification code).
@@ -501,9 +371,10 @@ function SecurityOverviewSection() {
 }
 
 function FlowModalSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — FlowModal">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         A generic multi-step modal used across the Security tab. Drives UI through
         password → loading → code/TOTP/new-password steps via a discriminated union.
       </p>
@@ -528,9 +399,9 @@ function FlowModalSection() {
   t: Translations;
   danger?: boolean;
 }`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Pattern:</strong>{' '}
-        Most flows start with <code style={codeSmStyle}>{`{ kind: 'password' }`}</code> —
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Pattern:</strong>{' '}
+        Most flows start with <code style={styles.codeSmStyle}>{`{ kind: 'password' }`}</code> —
         verify identity first, then proceed to the actual mutation.
       </div>
     </SectionWrap>
@@ -538,9 +409,10 @@ function FlowModalSection() {
 }
 
 function TotpSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — TOTP flows">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         TOTP (Time-based One-Time Password) authenticator setup and deletion.
       </p>
       <CodeBlock title="Enroll flow" code={`// 1. Password verification
@@ -560,10 +432,10 @@ const identity = await onVerifyPassword(pw);
 await onDeleteMfaVerification(totpFactor.id, identity.verificationRecordId);
 // 3. Refresh MFA list
 await loadMfa();`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>ISSUER:</strong>{' '}
-        Read from <code style={codeSmStyle}>MFA_ISSUER</code> env, defaults to{' '}
-        <code style={codeSmStyle}>'Logto'</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>ISSUER:</strong>{' '}
+        Read from <code style={styles.codeSmStyle}>MFA_ISSUER</code> env, defaults to{' '}
+        <code style={styles.codeSmStyle}>'Logto'</code>.
       </div>
     </SectionWrap>
   );
@@ -574,6 +446,7 @@ await loadMfa();`} />
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function BackupCodesSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — backup codes">
       <CodeBlock title="Generate flow" code={`// 1. Password verification
@@ -582,8 +455,8 @@ const identity = await onVerifyPassword(pw);
 const { codes } = await onGenerateBackupCodes(identity.verificationRecordId);
 // 3. Map to { code, used } objects for BackupCodesModal
 setBackupCodes(codes.map(code => ({ code, used: false })));`} />
-      <p style={textStyle}>
-        <code style={codeStyle}>BackupCodesModal</code> renders codes with download
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>BackupCodesModal</code> renders codes with download
         options (plain text or styled HTML). Uses Blob API for client-side file generation.
       </p>
       <CodeBlock title="BackupCodesModal features" code={`// Download as .txt
@@ -599,6 +472,7 @@ const blob = new Blob([styledHtml], { type: 'text/html' });
 }
 
 function PasswordAccountSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — password & account">
       <CodeBlock title="Change password" code={`// 1. Password verification
@@ -613,20 +487,21 @@ const badgeData = await fetchUserBadgeData();
 await onDeleteAccount(identity.verificationRecordId, badgeData.accessToken);
 // 4. Full page navigation (avoid AuthWatcher race condition)
 window.location.href = '/api/auth/sign-out';`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Note:</strong>{' '}
-        Account deletion uses <code style={codeSmStyle}>window.location.href</code>{' '}
-        (not <code style={codeSmStyle}>router.push</code>) to force full page reload,
-        avoiding race conditions with <code style={codeSmStyle}>AuthWatcher</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
+        Account deletion uses <code style={styles.codeSmStyle}>window.location.href</code>{' '}
+        (not <code style={styles.codeSmStyle}>router.push</code>) to force full page reload,
+        avoiding race conditions with <code style={styles.codeSmStyle}>AuthWatcher</code>.
       </div>
     </SectionWrap>
   );
 }
 
 function ContactRowSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Security — ContactRow">
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Reusable component for email/phone management. Each row handles its own
         modal flow independently.
       </p>
@@ -651,36 +526,37 @@ await onRemoveEmail(identity.verificationRecordId);`} />
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OrgPropsSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Organizations — props & hooks">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>userData</td>
-            <td style={tdStyle}><code style={codeStyle}>UserData</code></td>
-            <td style={tdStyle}>Contains organizations[] and organizationPermissions[]</td>
+            <td style={styles.tdPathStyle}>userData</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
+            <td style={styles.tdStyle}>Contains organizations[] and organizationPermissions[]</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>currentOrgId</td>
-            <td style={tdStyle}><code style={codeStyle}>string?</code></td>
-            <td style={tdStyle}>Server-provided active org ID</td>
+            <td style={styles.tdPathStyle}>currentOrgId</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>string?</code></td>
+            <td style={styles.tdStyle}>Server-provided active org ID</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>theme</td>
-            <td style={tdStyle}><code style={codeStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdPathStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Theme for UI rendering</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>t</td>
-            <td style={tdStyle}><code style={codeStyle}>Translations</code></td>
-            <td style={tdStyle}>i18n strings</td>
+            <td style={styles.tdPathStyle}>t</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
+            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
         </tbody>
       </table>
@@ -698,51 +574,52 @@ if (!isValid) return;
 setAsOrg(orgId);
 // 3. Refresh RSC data with new org context
 router.refresh();`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>setActiveOrg:</strong>{' '}
-        Imported directly from <code style={codeSmStyle}>custom-logic/actions/set-active-org</code>.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>setActiveOrg:</strong>{' '}
+        Imported directly from <code style={styles.codeSmStyle}>custom-logic/actions/set-active-org</code>.
         Only validates membership — does NOT persist. Persistence is done by{' '}
-        <code style={codeSmStyle}>setAsOrg</code> from the hook.
+        <code style={styles.codeSmStyle}>setAsOrg</code> from the hook.
       </div>
     </SectionWrap>
   );
 }
 
 function DevSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Dev — debug tab">
-      <table style={tableStyle}>
+      <table style={styles.tableStyle}>
         <thead>
           <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Purpose</th>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={tdPathStyle}>userData</td>
-            <td style={tdStyle}><code style={codeStyle}>UserData</code></td>
-            <td style={tdStyle}>Full user data (rendered as JSON)</td>
+            <td style={styles.tdPathStyle}>userData</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
+            <td style={styles.tdStyle}>Full user data (rendered as JSON)</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>theme</td>
-            <td style={tdStyle}><code style={codeStyle}>ThemeSpec</code></td>
-            <td style={tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdPathStyle}>theme</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdStyle}>Theme for UI rendering</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>t</td>
-            <td style={tdStyle}><code style={codeStyle}>Translations</code></td>
-            <td style={tdStyle}>i18n strings</td>
+            <td style={styles.tdPathStyle}>t</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
+            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
           <tr>
-            <td style={tdPathStyle}>accessToken</td>
-            <td style={tdStyle}><code style={codeStyle}>string</code></td>
-            <td style={tdStyle}>Raw JWT access token</td>
+            <td style={styles.tdPathStyle}>accessToken</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
+            <td style={styles.tdStyle}>Raw JWT access token</td>
           </tr>
         </tbody>
       </table>
-      <p style={textStyle}>
+      <p style={styles.textStyle}>
         Purely presentational. No hooks, no server actions. Two client-side
         navigations for cookie management:
       </p>
@@ -751,10 +628,10 @@ const handleClearCookies = () => { window.location.href = '/api/wipe'; };
 
 // Force invalidate session (signs out from Logto too)
 const handleInvalidateSession = () => { window.location.href = '/api/wipe?force=true'; };`} />
-      <div style={noteStyle}>
-        <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Why href?</strong>{' '}
-        <code style={codeSmStyle}>window.location.href</code> forces full page reload,
-        which is necessary to clear cookies/sessions. <code style={codeSmStyle}>router.push</code>{' '}
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Why href?</strong>{' '}
+        <code style={styles.codeSmStyle}>window.location.href</code> forces full page reload,
+        which is necessary to clear cookies/sessions. <code style={styles.codeSmStyle}>router.push</code>{' '}
         would not work here.
       </div>
     </SectionWrap>
@@ -763,97 +640,31 @@ const handleInvalidateSession = () => { window.location.href = '/api/wipe?force=
 
 // ─── Sessions Tab ───────────────────────────────────────────────────────────
 
-function SessionsOverviewSection() {
+function SessionsSection() {
+  const styles = useDocStyles();
   return (
     <SectionWrap label="Sessions Tab">
-      <div style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: '0.375rem', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'rgba(255,255,255,0.7)' }}>
-        <strong style={{ color: '#ffc800' }}>⚠ IN DEVELOPMENT</strong> — The sessions tab with device metadata (IP, browser, OS via S3 heartbeat/webhook) is functional but still being validated. The sessions list itself (from Logto Account API) is production-ready, but the enhanced device metadata feature requires S3 storage and optional PostSignIn webhook to be fully operational.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>See standalone doc</strong> — Full Sessions documentation
+        is in the separate <code style={styles.codeSmStyle}>Sessions</code> doc (under Components in sidebar).
       </div>
 
-      <p style={textStyle}>
-        The Sessions tab provides users with a comprehensive view of their active authentication
-        sessions across all devices. Users can see where they're currently signed in, view
-        authentication methods, and revoke individual sessions for security purposes.
+      <p style={styles.textStyle}>
+        The Sessions tab displays active user sessions from Logto's Account API.
+        Features password verification, session revocation, and IP geolocation.
       </p>
 
-      <p style={textStyle}>
-        <strong>Key Features:</strong>
-      </p>
-      <ul style={{ ...textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
-        <li>Real-time session listing from Logto Account API</li>
-        <li>Current session identification with visual indicators</li>
-        <li>Password-protected session revocation</li>
-        <li>Identity verification required before viewing sessions</li>
+      <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
+        <li>Password verification before viewing</li>
+        <li>Session revocation</li>
+        <li>IP geolocation via ipapi.co</li>
+        <li>Current session identification (via JTI)</li>
       </ul>
 
-      <div style={noteStyle}>
-        <strong>Note:</strong> Logto's Account API provides session metadata including session ID,
-        authentication method, login time, and expiry. Device metadata (IP, browser, OS) requires
-        capturing via your own infrastructure — Logto does not provide this per-session.
+      <div style={styles.warningBannerStyle}>
+        <strong style={styles.warningBannerStrongStyle}>⚠ IN DEVELOPMENT</strong> — Logto's sessions API
+        is evolving. See the standalone doc for current limitations.
       </div>
-    </SectionWrap>
-  );
-}
-
-function SessionsPropsSection() {
-  return (
-    <SectionWrap label="Props">
-      <CodeBlock title="Props" code={`interface SessionsTabProps {
-  userData: UserData;
-  theme: ThemeSpec;
-  t: Translations;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
-  onRevokeSession: (
-    sessionId: string,
-    revokeGrantsTarget?: 'all' | 'firstParty',
-    identityVerificationRecordId?: string
-  ) => Promise<void>;
-  onVerifyPassword: (password: string) => Promise<{
-    verificationRecordId: string;
-  }>;
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
-}`} />
-
-      <table style={tableStyle}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Prop</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={tdStyle}><code style={codeStyle}>onGetSessionsWithDeviceMeta</code></td>
-            <td style={tdStyle}>Server Action</td>
-            <td style={tdStyle}>Fetches sessions + current JTI via introspection</td>
-          </tr>
-          <tr>
-            <td style={tdStyle}><code style={codeStyle}>onRevokeSession</code></td>
-            <td style={tdStyle}>Server Action</td>
-            <td style={tdStyle}>Revokes session (requires identity verification)</td>
-          </tr>
-        </tbody>
-      </table>
-    </SectionWrap>
-  );
-}
-
-function SessionsApiSection() {
-  return (
-    <SectionWrap label="Server Actions">
-      <CodeBlock title="getSessionsWithDeviceMeta" code={`export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<LogtoSession[]> {
-  const sessions = await getUserSessions(verificationRecordId);
-
-  // ... enrich with device metadata from signInContext
-  return sessions;
-}`} />
-
-      <p style={textStyle}>
-        Fetches active sessions from Logto's Account API with identity verification,
-        then determines the current session via token introspection.
-      </p>
     </SectionWrap>
   );
 }
@@ -861,15 +672,16 @@ function SessionsApiSection() {
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function TabsAndFlowsDoc() {
+  const styles = useDocStyles();
   return (
     <SectionContainer>
       {/* Page 1: Overview + Profile */}
       <Section id={1}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <OverviewSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ProfilePropsSection />
             <ProfileHooksSection />
           </div>
@@ -878,11 +690,11 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 2: Preferences + Identities */}
       <Section id={2}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <PreferencesSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <IdentitiesSection />
           </div>
         </div>
@@ -890,11 +702,11 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 3: Security (Part 1) */}
       <Section id={3}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <SecurityOverviewSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <FlowModalSection />
             <TotpSection />
           </div>
@@ -903,12 +715,12 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 4: Security (Part 2) */}
       <Section id={4}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <BackupCodesSection />
             <PasswordAccountSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <ContactRowSection />
           </div>
         </div>
@@ -916,24 +728,20 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 5: Sessions */}
       <Section id={5}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
-            <SessionsOverviewSection />
-            <SessionsPropsSection />
-          </div>
-          <div style={colLeftStyle}>
-            <SessionsApiSection />
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
+            <SessionsSection />
           </div>
         </div>
       </Section>
 
       {/* Page 6: Organizations + Dev */}
       <Section id={6}>
-        <div style={{ ...twoColLayoutStyle, height: '100%', padding: '16px' }}>
-          <div style={colLeftStyle}>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
             <OrgPropsSection />
           </div>
-          <div style={colLeftStyle}>
+          <div style={styles.colLeftStyle}>
             <DevSection />
           </div>
         </div>
