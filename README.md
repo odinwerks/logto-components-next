@@ -1518,7 +1518,7 @@ function MyAvatarUploader({ userId }: { userId: string }) {
 
 ## Session Metadata (Device Info & Last Active)
 
-> **⚠️ IN DEVELOPMENT** — The device metadata feature (IP, browser, OS via S3 heartbeat and PostSignIn webhook) is functional but still being validated. The sessions list from Logto's Account API (revocation, current session indicator) is production-ready. The S3-based device enrichment requires `S3_SESSION_BUCKET`, optional webhook, and `ENABLE_SESSION_TRACKING=true` env var to be fully operational before production use.
+> **⚠️ IN DEVELOPMENT** — The device metadata feature (IP, browser, OS via S3 storage and PostSignIn webhook) is functional but still being validated. The sessions list from Logto's Account API (revocation, current session indicator) is production-ready. The S3-based device enrichment requires `S3_SESSION_BUCKET` and optional webhook to be fully operational before production use.
 
 The dashboard enriches session cards with device metadata — browser, OS, device type, IP address, and a "last active" timestamp — rather than showing raw client IDs. This is powered by two cooperating systems.
 
@@ -1606,7 +1606,7 @@ The bucket can share the same Supabase project as avatar storage — they use se
 | `app/logto-kit/components/dashboard/shared/geo-cache.ts` | Client-side ipapi.co fetcher with 5-minute TTL cache and deduplication |
 | `app/logto-kit/components/dashboard/shared/SessionMiniMap.tsx` | Static tile minimap (CartoDB dark/light @2x, zoom 13, CSS pin marker) |
 | `app/logto-kit/components/dashboard/shared/SessionMapModal.tsx` | Google Maps embed modal + &quot;View in Google Maps&quot; external link |
-| `app/logto-kit/components/handlers/use-session-tracker.tsx` | Client-side heartbeat pinger |
+| `app/logto-kit/components/handlers/use-session-tracker.tsx` | Client-side session tracker pinger |
 
 ### IP Geolocation & Minimap
 
@@ -1660,11 +1660,11 @@ Session card loads
 
 ### No Match Fallback
 
-If no S3 metadata file matches the current UA fingerprint, the heartbeat creates a new one using the `jti` from token introspection (`introspection.sid || introspection.jti`). This means the system works fully without the webhook — device info appears after the first heartbeat ping (up to 5 minutes after sign-in), with `createdAt` set to the first heartbeat time rather than the sign-in time.
+If no S3 metadata file matches the current UA fingerprint, the session tracker creates a new one using the `jti` from token introspection (`introspection.sid || introspection.jti`). This means the system works fully without the webhook — device info appears after the first tracker ping (up to 5 minutes after sign-in), with `createdAt` set to the first tracker time rather than the sign-in time.
 
 **Priority order:**
 1. **Webhook match** — exact fingerprint + exact `createdAt` (best: sign-in time IP, UA, timestamp)
-2. **Heartbeat fallback** — creates new file from introspection `jti` + request UA/IP (good: appears after first heartbeat)
+2. **Tracker fallback** — creates new file from introspection `jti` + request UA/IP (good: appears after first tracker ping)
 3. **No `jti`** — returns `{ updated: false }` if introspection doesn't return `sid`/`jti`
 
 ### Signature Verification
@@ -2052,9 +2052,9 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 
 ### Session Metadata
 - [x] Webhook route — receives PostSignIn, verifies signature, stores device metadata to S3
-- [x] Heartbeat fallback — creates metadata file when no S3 files exist (dev-friendly, no tunnel needed)
+- [x] Tracker fallback — creates metadata file when no S3 files exist (dev-friendly, no tunnel needed)
 - [x] UA fingerprint matching — browser + os + deviceType to identify current device
-- [x] lastActive updates — heartbeat keeps timestamps fresh
+- [x] lastActive updates — tracker keeps timestamps fresh
 - [x] Revocation cleanup — S3 file deleted when session is revoked
 - [x] README documentation — architecture, setup, env vars, data format
 

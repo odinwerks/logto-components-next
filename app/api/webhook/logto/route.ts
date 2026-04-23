@@ -7,13 +7,13 @@
  *
  * This webhook remains useful for pre-populating lastActive at sign-in time
  * (so the "last active" timestamp reflects the actual sign-in moment rather
- * than the first heartbeat). However it is not required — sessions will work
+ * than the first tracker ping). However it is not required — sessions will work
  * in dev and production without it.
  *
  * If configured in Logto Console, it receives PostSignIn events and stores
  * { jti, lastActive, createdAt, browser, os, ip, ... } to S3. Old S3 files
  * retain full metadata (now ignored by getSessionsWithDeviceMeta which reads
- * from signInContext). New heartbeats only write { jti, lastActive }.
+ * from signInContext). New tracker pings only write { jti, lastActive }.
  *
  * Security: LOGTO_WEBHOOK_SIGNING_KEY is validated when set. Without it,
  * signature verification is bypassed (acceptable for development).

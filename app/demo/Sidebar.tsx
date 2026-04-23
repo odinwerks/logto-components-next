@@ -235,7 +235,7 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
 
   return (
     <div style={themedSidebarStyle}>
-      <Particles />
+      <Particles theme={theme} />
 
       <div style={themedBrandStyle}>
         <div style={themedBrandIconStyle}>

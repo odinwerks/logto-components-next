@@ -5,7 +5,7 @@ import { fetchDashboardData } from './logto-kit/logic/actions';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
 import { getThemeSpec } from './logto-kit/themes';
-import DemoApp from './demo';
+import DemoApp from './demo/index';
 
 export default async function HomePage() {
   const result = await fetchDashboardData();

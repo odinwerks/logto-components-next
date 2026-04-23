@@ -54,18 +54,20 @@ export function OrganizationsTab({ userData, currentOrgId, theme, t }: Organizat
     }
   }, [activeOrgId]);
 
-  const handleOrgClick = async (orgId: string) => {
-    if (orgId === activeOrgId) return;
+const handleOrgClick = async (orgId: string) => {
+  if (orgId === activeOrgId) return;
+  try {
     const isValid = await setActiveOrg(orgId);
     if (!isValid) return;
     setIsLoading(orgId);
-    try {
-      setAsOrg(orgId);
-      router.refresh();
-    } finally {
-      setIsLoading(null);
-    }
-  };
+    setAsOrg(orgId);
+    router.refresh();
+  } catch (err) {
+    console.error('Failed to switch organization:', err);
+  } finally {
+    setIsLoading(null);
+  }
+};
 
   const handleBeYourself = () => {
     if (activeOrgId === null || activeOrgId === undefined) return;
