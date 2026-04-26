@@ -3,9 +3,7 @@
 import CodeBlock from '../utils/CodeBlock';
 import { SectionContainer, Section } from '../utils/Section';
 import { useDocStyles } from '../utils/useDocStyles';
-import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
-import { Protected } from '../../logto-kit/custom-logic';
-import PresidentControlPanel from '../logic/PresidentControlPanel';
+import { SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Overview + Protected Component
@@ -20,7 +18,7 @@ function RbacOverviewSection() {
         Permissions are granted based on organization roles assigned to users within an organization.
       </p>
       <CodeBlock title="RBAC Flow" code={`// 1. User selects organization (stored in customData.Preferences.asOrg)
-customData.Preferences.asOrg = "government"
+customData.Preferences.asOrg = "mathinators"
 
 // 2. loadOrganizationPermissions(orgId) fetches perms from Logto
 // 3. Protected component checks permissions client-side before rendering`} />
@@ -45,11 +43,6 @@ customData.Preferences.asOrg = "government"
           </tr>
         </tbody>
       </table>
-      <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Demo:</strong>{' '}
-        The app includes a President Control Panel that only appears for users with <code style={styles.codeSmStyle}>kidnap:kids</code> permission in organization <code style={styles.codeSmStyle}>government</code> (org id: <code style={styles.codeSmStyle}>5b6sw6p5uzti</code>).
-        Try switching organizations to see permission-based access control in action!
-      </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Organization Context:</strong>{' '}
         All RBAC checks require an active organization selection. Use the OrgSwitcher or dashboard to select an organization.
@@ -374,30 +367,30 @@ function ExamplesSection() {
   <AdminPanel />
 </Protected>
 
-// Organization + Permission combination (President demo)
-<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">
-  <PresidentControlPanel />
+// Organization + Permission combination
+<Protected orgId="your-org-id" perm="calc:basic">
+  <CalculatorPanel />
 </Protected>
 
 // Specific organization by name
-<Protected orgName="government" perm="steal:taxes">
-  <EvilDashboard />
+<Protected orgName="Mathinators" perm="calc:scientific">
+  <ScientificFeatures />
 </Protected>`} />
-      <CodeBlock title="Protected Actions API Example" code={`// Client-side call (like in PresidentControlPanel)
+      <CodeBlock title="Protected Actions API Example" code={`// Client-side call (like in CalculatorClient)
 const result = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,       // from useLogto().accessToken
+    token: accessToken,       // from getFreshAccessToken()
     id: userData.id,          // must match token.sub
-    action: 'destroy-economy', // registered action name
-    payload: { inflation: 0 }  // current counter value
+    action: 'calc-basic',     // registered action name
+    payload: { expression: '2+2', result: 4 }  // calculation data
   })
 });
 
 const data = await result.json();
 if (data.ok) {
-  console.log('Action succeeded:', data.data);
+  console.log('Calculation succeeded:', data.data);
 } else {
   console.error('Action failed:', data.error, data.message);
 }`} />
@@ -405,33 +398,19 @@ if (data.ok) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Page 4: Permission System + Live Demo (new layout)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 function PermissionSystemSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Permission System">
       <p style={styles.textStyle}>
         The system uses Logto's organization permissions for access control.
-        Permissions like <code style={styles.codeSmStyle}>kidnap:kids</code> and <code style={styles.codeSmStyle}>steal:taxes</code> are defined in Logto Console
-        organization templates and assigned to roles within organizations.
+        Permissions are defined in Logto Console organization templates and assigned to roles within organizations.
       </p>
       <p style={styles.textStyle}>
         When a user selects an organization (sets <code style={styles.codeSmStyle}>asOrg</code> in <code style={styles.codeSmStyle}>customData.Preferences</code>),
         the <code style={styles.codeSmStyle}>Protected</code> component and <code style={styles.codeSmStyle}>/api/protected</code> endpoint fetch that org's permissions
         via <code style={styles.codeSmStyle}>getOrganizationUserPermissions(orgId)</code> and check them against required permissions.
       </p>
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ ...styles.thStyle, paddingBottom: '8px' }}>Available Actions &amp; Required Permissions:</div>
-        <div style={styles.noteStyle}>
-          <span style={styles.codeSmStyle}>destroy-economy</span> → requires <span style={styles.codeSmStyle}>steal:taxes</span><br />
-          <span style={styles.codeSmStyle}>steal-tax-dollars</span> → requires <span style={styles.codeSmStyle}>steal:taxes</span><br />
-          <span style={styles.codeSmStyle}>kidnap-children</span> → requires <span style={styles.codeSmStyle}>kidnap:kids</span><br />
-          <span style={styles.codeSmStyle}>launch-nuke</span> → requires <span style={styles.codeSmStyle}>launch:nuke</span>
-        </div>
-      </div>
       <CodeBlock title="Permission Flow" code={`// 1. User selects org in OrgSwitcher or dashboard
 //    → setAsOrg(orgId) updates customData.Preferences.asOrg
 
@@ -463,47 +442,32 @@ function LiveRbacDemoSection() {
   -d '{
     "token": "YOUR_ACCESS_TOKEN",
     "id": "YOUR_USER_ID",
-    "action": "destroy-economy",
-    "payload": { "inflation": 0 }
+    "action": "my-action",
+    "payload": { "foo": "bar" }
   }'`} />
       <CodeBlock title="Success Response (200)" code={`{
   "ok": true,
-  "data": {
-    "success": true,
-    "message": "Inflated the economy! Dollar worth 10% less.",
-    "data": { "inflation": 10 }
-  }
+  "data": { /* handler return value */ }
 }`} />
       <CodeBlock title="Error Responses" code={`// 401 - Invalid/expired token
 { "ok": false, "error": "TOKEN_INVALID", "message": "..." }
 
 // 403 - Missing permission
-{ "ok": false, "error": "PERMISSION_DENIED", "message": "User lacks required permission: steal:taxes" }
+{ "ok": false, "error": "PERMISSION_DENIED", "message": "User lacks required permission: my:perm" }
 
 // 404 - Action not found
 { "ok": false, "error": "ACTION_NOT_FOUND", "message": "Action \\"foo\\" not found" }
 
 // 403 - No org selected
 { "ok": false, "error": "NO_ORG_SELECTED", "message": "User has no organization selected" }`} />
-      <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>How Protected works with PresidentControlPanel:</strong>{' '}
-        <code style={styles.codeSmStyle}>PresidentControlPanel.tsx</code> wraps{' '}
-        <code style={styles.codeSmStyle}>PresidentControlPanelClient</code> with{' '}
-        <code style={styles.codeSmStyle}>{`<Protected orgId="5b6sw6p5uzti" perm="kidnap:kids">`}</code>.
-        This pattern (wrapping in a dedicated file) is recommended — permission logic stays co-located with the guarded component.
-        The buttons call <code style={styles.codeSmStyle}>POST /api/protected</code> with registered actions.
-      </div>
     </SectionWrap>
   );
 }
-
-// ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function ProtectedDoc() {
   const styles = useDocStyles();
   return (
     <SectionContainer>
-      {/* Page 1: Overview + Protected Component */}
       <Section id={1}>
         <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={styles.colLeftStyle}>
@@ -515,7 +479,6 @@ export default function ProtectedDoc() {
         </div>
       </Section>
 
-      {/* Page 2: Protected Actions API */}
       <Section id={2}>
         <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={styles.colLeftStyle}>
@@ -527,7 +490,6 @@ export default function ProtectedDoc() {
         </div>
       </Section>
 
-      {/* Page 3: Action Registration + Examples */}
       <Section id={3}>
         <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={styles.colLeftStyle}>
@@ -539,26 +501,14 @@ export default function ProtectedDoc() {
         </div>
       </Section>
 
-      {/* Page 4: Permission System + Live Demo (new layout) */}
       <Section id={4}>
-        <div style={{ padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-          {/* Row 1: Permission System (left) + PresidentControlPanel (right) */}
-          <div style={{ ...styles.twoColLayoutStyle, marginBottom: '16px' }}>
-            <div style={styles.colLeftStyle}>
-              <PermissionSystemSection />
-            </div>
-            <div style={styles.colLeftStyle}>
-              <SectionWrap label="President Control Panel (Live Demo)">
-                <p style={styles.textStyle}>
-                  The panel below demonstrates organization-based access control. Switch to the
-                  "government" organization to see it appear.
-                </p>
-                <PresidentControlPanel />
-              </SectionWrap>
-            </div>
+        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          <div style={styles.colLeftStyle}>
+            <PermissionSystemSection />
           </div>
-          {/* Row 2: Live RBAC Demo (full width below) */}
-          <LiveRbacDemoSection />
+          <div style={styles.colLeftStyle}>
+            <LiveRbacDemoSection />
+          </div>
         </div>
       </Section>
     </SectionContainer>

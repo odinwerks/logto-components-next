@@ -1,23 +1,18 @@
-# Logto Dash License
+MIT License
 
-Copyright (c) 2025 [Your Name]
+Copyright (c) 2025 OdinWerks
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use,
-copy, modify, and integrate the Software into their own projects.
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-## Allowed
-- Use this Software for any purpose, including personal and commercial projects
-- Modify the Software to suit your needs
-- Build applications on top of this Software and monetize those applications
-- Share this Software with others, provided this license is included
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-## Not Allowed
-- Sell, license, or redistribute this Software as a standalone product
-- Offer this Software as a hosted service, SaaS, or any product where others pay to access it
-- Use this Software in any product or service that itself violates these terms
-
-THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER

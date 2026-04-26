@@ -87,41 +87,4 @@ export async function validateOrgMembership(userOrgs: string[], asOrg: string | 
 
 
 
-export async function validateRbac(
-  userId: string,
-  userData: RbacUserData,
-  options: {
-    perm?: string | string[]; // Changed from 'role' to 'perm'
-    requireAll?: boolean;
-  } = {}
-): Promise<RbacValidationResult> {
-  const { perm, requireAll = true } = options;
 
-  if (!perm) return { ok: true };
-
-  // Must have active organization for permission checks
-  if (!userData.asOrg) {
-    return { ok: false, error: 'NO_ORG_SELECTED', detail: 'Organization permissions require active organization' };
-  }
-
-  // Validate org membership
-  const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
-  if (!orgValidation.ok) return orgValidation;
-
-  // Check permissions in organization token
-  if (!userData.organizationPermissions) {
-    return { ok: false, error: 'PERMISSION_DENIED', detail: 'No organization permissions available' };
-  }
-
-  const requiredPerms = Array.isArray(perm) ? perm : [perm];
-  const hasPermission = requireAll
-    ? requiredPerms.every(p => userData.organizationPermissions!.includes(p))
-    : requiredPerms.some(p => userData.organizationPermissions!.includes(p));
-
-  if (!hasPermission) {
-    const detail = `Missing permission(s): ${requiredPerms.join(', ')}`;
-    return { ok: false, error: 'PERMISSION_DENIED', detail };
-  }
-
-  return { ok: true };
-}

@@ -36,9 +36,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── route.ts
 │   │   ├── upload-avatar/
 │   │   │   └── route.ts
-│   │   ├── webhook/
-│   │   │   └── logto/
-│   │   │       └── route.ts
 │   │   └── wipe/
 │   │       └── route.ts
 │   ├── callback/
@@ -63,8 +60,8 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── components/
 │   │   │       └── sessions.tsx   # Sessions tab documentation
 │   │   ├── logic/                  # Demo-specific components
-│   │   │   ├── PresidentControlPanel.tsx
-│   │   │   └── PresidentControlPanelClient.tsx
+│   │   │   ├── CalculatorPanel.tsx
+│   │   │   └── CalculatorClient.tsx
 │   │   └── utils/
 │   │       ├── CodeBlock.tsx
 │   │       └── Section.tsx
@@ -108,11 +105,9 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── custom-actions/
 │   │   │   ├── index.ts                  # Action registry and types
 │   │   │   ├── validation.ts             # RBAC validation functions
-│   │   │   └── president-actions/       # Demo action handlers
-│   │   │       ├── destroy-economy.ts
-│   │   │       ├── kidnap-children.ts
-│   │   │       ├── launch-nuke.ts
-│   │   │       └── steal-tax-dollars.ts
+│   │   │   └── calc-actions/             # Calculator action handlers
+│   │   │       ├── basic.ts
+│   │   │       └── scientific.ts
 │   │   ├── custom-logic/
 │   │   │   ├── actions/
 │   │   │   │   └── set-active-org.ts    # Set active org
@@ -249,10 +244,6 @@ S3_REGION=auto
 
 # Session metadata bucket (separate from avatars bucket)
 S3_SESSION_BUCKET=session-meta
-
-# Webhook signing key (from Logto Console > Webhooks > webhook details)
-# Leave empty during development to skip signature verification
-# LOGTO_WEBHOOK_SIGNING_KEY=your_signing_key
 ```
 
 > **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
@@ -689,6 +680,29 @@ All three components share the same props:
 
 UserCard's "Logged in as" label is automatically translated based on the provider's current language state — no `t` prop needed.
 
+### Calculator Demo
+
+A permission-gated calculator demonstrating the Protected Actions API. Located in `app/demo/logic/`.
+
+#### Files
+
+| File | Purpose |
+|------|---------|
+| `CalculatorPanel.tsx` | Wrapper with `<Protected>` gate for `calc:basic` permission |
+| `CalculatorClient.tsx` | Calculator UI, expression parser, API calls on `=` |
+| `custom-actions/calc-actions/basic.ts` | Action handler for basic operations (+, −, ×, ÷, %) |
+| `custom-actions/calc-actions/scientific.ts` | Action handler for scientific functions (sin, cos, log, etc.) |
+
+#### How It Works
+
+1. `CalculatorPanel` wraps `CalculatorClient` with `<Protected orgId="5b6sw6p5uzti" perm="calc:basic">`
+2. Pressing `=` calls `POST /api/protected` with `action: 'calc-basic'` or `'calc-scientific'`
+3. The API validates the user's org membership and permission, then executes the handler
+4. Basic operations require `calc:basic` permission; scientific functions require `calc:scientific`
+5. Session state (expression, mode) persists via `sessionStorage`
+
+See the **Protected** tab in the demo app for a live RBAC demo with the calculator.
+
 ### AuthWatcher
 
 `AuthWatcher` is a zero-UI component that automatically refreshes the page when authentication state might have changed. This keeps user data in sync without requiring manual refreshes.
@@ -781,7 +795,7 @@ import type {
 } from './logto-kit';
 ```
 
-> **Note**: The permission validation functions (`fetchUserRbacData`, `validateOrgMembership`, `validateRbac`) are exported and available for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
+> **Note**: The permission validation functions (`fetchUserRbacData`, `validateOrgMembership`) are exported and available for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
 
 ---
 

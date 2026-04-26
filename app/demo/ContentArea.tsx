@@ -15,6 +15,8 @@ const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType 
   'providers': () => import('./docs/providers'),
   'theme': () => import('./docs/themes'),
   'i18n': () => import('./docs/i18n'),
+  'sessions': () => import('./docs/components/sessions'),
+  'calculator': () => import('./docs/components/calculator'),
 };
 
 interface ContentAreaProps {

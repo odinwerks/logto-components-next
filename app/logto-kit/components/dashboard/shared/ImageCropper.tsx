@@ -253,6 +253,11 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         console.error('Failed to load image for cropping');
       };
       img.src = imageUrl;
+      return () => {
+        img.onload = null;
+        img.onerror = null;
+        img.src = '';
+      };
     }, [imageUrl]);
 
     const snapBack = useCallback(() => {
