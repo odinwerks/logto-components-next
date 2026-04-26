@@ -62,7 +62,10 @@ export function SessionMiniMap({ ip, theme, t, refreshKey, onClick, onGeoLoaded 
     setLoading(true);
     setGeoError(false);
     fetchGeo(ip).then(result => {
-      if (cancelled) return;
+      if (cancelled) {
+        setLoading(false);
+        return;
+      }
       if (result) {
         setGeo(result);
         setGeoError(false);

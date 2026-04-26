@@ -11,16 +11,12 @@ export interface ActionConfig {
 
 export type ActionRegistry = Record<string, ActionConfig>;
 
-import { getDestroyEconomy } from './president-actions/destroy-economy';
-import { getStealTaxDollars } from './president-actions/steal-tax-dollars';
-import { getKidnapChildren } from './president-actions/kidnap-children';
-import { getLaunchNuke } from './president-actions/launch-nuke';
+import { getBasicCalc } from './calc-actions/basic';
+import { getScientificCalc } from './calc-actions/scientific';
 
 const actions: ActionRegistry = {
-  'destroy-economy': (await getDestroyEconomy()),
-  'steal-tax-dollars': (await getStealTaxDollars()),
-  'kidnap-children': (await getKidnapChildren()),
-  'launch-nuke': (await getLaunchNuke()),
+  'calc-basic': (await getBasicCalc()),
+  'calc-scientific': (await getScientificCalc()),
 };
 
 export async function getAction(actionName: string): Promise<ActionConfig | undefined> {

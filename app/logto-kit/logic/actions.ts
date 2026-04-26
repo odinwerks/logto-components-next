@@ -8,6 +8,7 @@ import { UAParser } from 'ua-parser-js';
 import { getLogtoConfig, getManagementApiToken } from '../../logto';
 import type { DashboardResult, DashboardSuccess, UserData, MfaVerification, MfaVerificationPayload, OidcIntrospectionResponse, LogtoSession, SessionMeta, SessionDeviceInfo } from './types';
 import { getCleanEndpoint, truncateError, introspectToken, assertSafeUserId } from './utils';
+import { debugLog } from './debug';
 
 
 // ============================================================================
@@ -847,14 +848,14 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<str
     if (parts.length !== 3) return [];
 
     const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-    console.log(`[DEBUG] Org token scope for ${orgId}:`, payload.scope);
+    debugLog(`[getOrganizationUserPermissions] Org token scope for ${orgId}:`, payload.scope);
 
     const permissions = (payload.scope ?? '')
       .split(' ')
       .filter(Boolean)
       .filter((s: string) => !s.startsWith('openid'));
 
-    console.log(`[DEBUG] Parsed permissions for ${orgId}:`, permissions);
+    debugLog(`[getOrganizationUserPermissions] Parsed permissions for ${orgId}:`, permissions);
     return permissions;
   } catch (error) {
     console.error(`[getOrganizationUserPermissions] Failed for org ${orgId}:`, error);
@@ -987,7 +988,7 @@ async function listSessionMetasFromS3(userId: string): Promise<import('./types')
 export async function fetchAllSessionMeta(userId: string): Promise<Map<string, import('./types').SessionMeta>> {
   const bucket = SESSION_META_BUCKET();
   if (!bucket) {
-    console.log('[sessionMeta] No S3_SESSION_BUCKET configured, skipping meta fetch');
+    debugLog('[sessionMeta] No S3_SESSION_BUCKET configured, skipping meta fetch');
     return new Map();
   }
 
@@ -996,7 +997,7 @@ export async function fetchAllSessionMeta(userId: string): Promise<Map<string, i
   for (const meta of metas) {
     if (meta.jti) result.set(meta.jti, meta);
   }
-  console.log(`[sessionMeta] Fetched ${result.size} session meta records for user ${userId.substring(0, 8)}`);
+  debugLog(`[sessionMeta] Fetched ${result.size} session meta records for user ${userId.substring(0, 8)}`);
   return result;
 }
 
@@ -1020,7 +1021,7 @@ export async function deleteSessionMeta(userId: string, jti: string): Promise<vo
       if (!res.ok && res.status !== 404) {
         console.warn(`[sessionMeta] Failed to delete ${jti}: HTTP ${res.status}`);
       } else {
-        console.log(`[sessionMeta] Deleted meta for session ${jti}`);
+        debugLog(`[sessionMeta] Deleted meta for session ${jti}`);
       }
       return;
     }
@@ -1042,7 +1043,7 @@ export async function deleteSessionMeta(userId: string, jti: string): Promise<vo
     });
 
     await minio.removeObject(bucket, key);
-    console.log(`[sessionMeta] Deleted meta for session ${jti}`);
+    debugLog(`[sessionMeta] Deleted meta for session ${jti}`);
   } catch (err) {
     console.warn(`[sessionMeta] Error deleting ${jti}:`, err instanceof Error ? err.message : err);
   }
@@ -1053,14 +1054,14 @@ export async function deleteSessionMeta(userId: string, jti: string): Promise<vo
 // ============================================================================
 
 export async function getUserSessions(verificationRecordId: string): Promise<LogtoSession[]> {
-  console.log(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
+  debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
   const res = await makeRequest('/api/my-account/sessions', {
     extraHeaders: { 'logto-verification-id': verificationRecordId },
   });
   await throwOnApiError(res, 'Get sessions failed');
   const data = await res.json();
   const sessions = (data.sessions ?? []) as LogtoSession[];
-  console.log(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
+  debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
   return sessions;
 }
 
@@ -1101,8 +1102,8 @@ export async function revokeUserSession(
   revokeGrantsTarget?: 'all' | 'firstParty',
   identityVerificationRecordId?: string,
 ): Promise<void> {
-  console.log(`[revokeUserSession] Starting revocation for session ${sessionId}`);
-  console.log(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
+  debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
+  debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
 
   const extraHeaders: Record<string, string> = {};
   if (identityVerificationRecordId) {
@@ -1112,16 +1113,16 @@ export async function revokeUserSession(
   const path = `/api/my-account/sessions/${sessionId}`
     + (revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : '');
 
-  console.log(`[revokeUserSession] Calling DELETE ${path}`);
+  debugLog(`[revokeUserSession] Calling DELETE ${path}`);
   const res = await makeRequest(path, {
     method: 'DELETE',
     extraHeaders,
   });
 
-  console.log(`[revokeUserSession] Logto responded with status ${res.status}`);
+  debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
   await throwOnApiError(res, 'Session revocation failed');
 
-  console.log(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+  debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
 }
 
 export async function getUserGrants(): Promise<unknown[]> {

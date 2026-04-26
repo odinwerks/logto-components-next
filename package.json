@@ -3,27 +3,38 @@
   "version": "0.2.0",
   "private": false,
   "description": "A Next.js debug dashboard for Logto authentication with comprehensive user profile management",
-  "license": "Custom",
+  "license": "MIT",
   "repository": "https://github.com/odinwerks/logto-components-next",
+  "homepage": "https://github.com/odinwerks/logto-components-next#readme",
+  "bugs": {
+    "url": "https://github.com/odinwerks/logto-components-next/issues"
+  },
   "keywords": [
     "logto",
-    "auth",
-    "authentication",
     "nextjs",
-    "debug",
-    "dashboard"
+    "authentication",
+    "dashboard",
+    "user-management",
+    "react",
+    "typescript",
+    "oidc",
+    "oauth"
   ],
   "author": "odinwerks",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@logto/next": "^4.2.10",
     "ioredis": "^5.3.2",
     "kilocode": "^1.2.0",
-    "lucide-react": "^1.8.0",
+    "lucide-react": "^1.11.0",
     "minio": "^8.0.7",
     "next": "^16.2.4",
     "qrcode.react": "^4.2.0",
@@ -33,13 +44,17 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@types/minio": "^7.1.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^25.6.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ua-parser-js": "^0.7.39",
     "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.1.0",
     "ts-unused-exports": "^11.0.1",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^3.1.2"
   }
 }

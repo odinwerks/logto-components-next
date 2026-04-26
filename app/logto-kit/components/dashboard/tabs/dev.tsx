@@ -22,18 +22,24 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const customData = userData.customData as Record<string, unknown> | undefined;
     const prefs = customData?.Preferences as { asOrg?: string | null } | undefined;
     const activeOrgId = prefs?.asOrg;
     if (activeOrgId && loadedPermissions.length === 0) {
       loadOrganizationPermissions(activeOrgId)
         .then(permissions => {
-          setLoadedPermissions(permissions);
+          if (!controller.signal.aborted) {
+            setLoadedPermissions(permissions);
+          }
         })
         .catch(() => {
-          setLoadedPermissions([]);
+          if (!controller.signal.aborted) {
+            setLoadedPermissions([]);
+          }
         });
     }
+    return () => controller.abort();
   }, [userData.customData, loadedPermissions.length]);
 
   const enhancedUserData = {

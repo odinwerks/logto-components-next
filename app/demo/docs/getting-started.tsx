@@ -182,33 +182,7 @@ function ConsoleSection() {
   );
 }
 
-function SessionMetaEnvSection() {
-  const styles = useDocStyles();
-  return (
-    <SectionWrap label="Session metadata (optional)">
-      <p style={styles.textStyle}>
-        Session cards show browser, OS, device type, IP, and last-active timestamps
-        instead of raw client IDs. Enable via a PostSignIn webhook + S3 storage.
-      </p>
-      <CodeBlock title=".env" code={`# Session metadata bucket (separate from avatars)
-S3_SESSION_BUCKET=session-meta
 
-# Webhook signing key — from Logto Console > Webhooks
-# Leave empty during dev to skip signature verification
-LOGTO_WEBHOOK_SIGNING_KEY=`} />
-      <CodeBlock title="Logto Console → Webhooks" code={`Create webhook:
-  Name: Session Metadata
-  Endpoint: https://your-domain.com/api/webhook/logto
-  Events: PostSignIn
-  Copy signing key → LOGTO_WEBHOOK_SIGNING_KEY`} />
-      <div style={styles.noteStyle}>
-        The bucket can share your Supabase project. Create a private{' '}
-        <code style={styles.codeSmStyle}>session-meta</code> bucket allowing{' '}
-        <code style={styles.codeSmStyle}>application/json</code> MIME type.
-      </div>
-    </SectionWrap>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 3: Replace the demo + Run
@@ -380,7 +354,6 @@ export default function GettingStartedDoc() {
           </div>
           <div style={styles.colLeftStyle}>
             <AvatarEnvSection />
-            <SessionMetaEnvSection />
           </div>
         </div>
       </Section>

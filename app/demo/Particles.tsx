@@ -164,7 +164,6 @@ class Starfall {
     this.raf = requestAnimationFrame(() => this.run());
     this.t++;
     this.ctx.clearRect(0, 0, this.size.w, this.size.h);
-    this.particles.sort((a, b) => a.z - b.z);
     const { w: W, h: H } = this.size;
     this.particles.forEach((p) => {
       const ps = (p.z - 0.5) * 2;

@@ -58,6 +58,28 @@ const I18nIcon = () => (
   </svg>
 );
 
+const SessionsIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="5.5" cy="8" r="1.2" fill="currentColor" />
+    <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+    <circle cx="10.5" cy="8" r="1.2" fill="currentColor" />
+  </svg>
+);
+
+const CalculatorIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+    <rect x="5" y="4" width="6" height="2.5" rx="0.5" stroke="currentColor" strokeWidth="1" />
+    <circle cx="5.5" cy="8.5" r="0.6" fill="currentColor" />
+    <circle cx="8" cy="8.5" r="0.6" fill="currentColor" />
+    <circle cx="10.5" cy="8.5" r="0.6" fill="currentColor" />
+    <circle cx="5.5" cy="11" r="0.6" fill="currentColor" />
+    <circle cx="8" cy="11" r="0.6" fill="currentColor" />
+    <circle cx="10.5" cy="11" r="0.6" fill="currentColor" />
+  </svg>
+);
+
 const ActionsApiIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
     <path d="M9.5 2L3 9h5l-1.5 5L13 7H8L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -114,7 +136,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'component',
     icon: <ProtectedIcon />,
     desc: 'Client component that gates UI subtrees behind permission checks. Supports single string, string[], and orgId scoping. requireAll controls AND vs OR logic.',
-    sections: ['RBAC Overview', 'Protected Component', 'Protected Actions API', 'Action Registration', 'Live RBAC Demo', 'Alias System'],
+    sections: ['RBAC Overview', 'Protected Component', 'Protected Actions API', 'Action Registration', 'API Response & Errors', 'Permission System'],
   },
   {
     id: 'org-switcher',
@@ -151,6 +173,24 @@ export const NAV_ITEMS: NavItem[] = [
     icon: <I18nIcon />,
     desc: 'File-based i18n. All locales bundled statically. LANG_AVAILABLE controls the picker UI. useLangMode() for client-side, getTranslations() for server-side. Re-renders on language change without server round-trip.',
     sections: ['Overview', 'How it works', 'ENV variables', 'Direct imports', 'Custom hook', 'Adding a language'],
+  },
+  {
+    id: 'sessions',
+    label: 'Sessions',
+    code: false,
+    type: 'component',
+    icon: <SessionsIcon />,
+    desc: 'Active session management tab. Lists sessions from Logto Account API with device info and IP geolocation. Password-protected revocation. Current session identified via JTI matching.',
+    sections: ['Overview', 'Props', 'Server Actions', 'IP Geolocation', 'Limitations'],
+  },
+  {
+    id: 'calculator',
+    label: 'Calculator',
+    code: false,
+    type: 'component',
+    icon: <CalculatorIcon />,
+    desc: 'Permission-gated calculator demo. Wraps UI with <Protected>, calls /api/protected on =. Two-tier permissions: calc:basic and calc:scientific. Live demo included.',
+    sections: ['Overview', 'Files', 'Protected Gate', 'Permission Matrix', 'Permission Flow', 'API Call', 'Action Handlers', 'Live Calculator'],
   },
 ];
 
