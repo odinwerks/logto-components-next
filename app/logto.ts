@@ -66,38 +66,35 @@ function parseScopes(scopeString: string): string[] {
 }
 
 export const logtoConfig = (() => {
-  try {
-    const appId = getEnvVar('APP_ID');
-    const appSecret = getEnvVar('APP_SECRET');
-    const endpoint = getEnvVar('ENDPOINT');
-    const baseUrl = getEnvVar('BASE_URL');
-    const cookieSecret = getEnvVar('COOKIE_SECRET');
-    const scopeString = getEnvVar('SCOPES');
+  const appId = getEnvVar('APP_ID', false);
+  const appSecret = getEnvVar('APP_SECRET', false);
+  const endpoint = getEnvVar('ENDPOINT', false);
+  const baseUrl = getEnvVar('BASE_URL', false);
+  const cookieSecret = getEnvVar('COOKIE_SECRET', false);
+  const scopeString = getEnvVar('SCOPES', false);
 
-    const nodeEnv = process.env.NODE_ENV || 'development';
-
-    const resources: string[] = []; // Keep empty for regular apps
-
-    const allScopes = parseScopes(scopeString);
-
-    const config = {
-      appId,
-      appSecret,
-      endpoint,
-      baseUrl,
-      cookieSecret,
-      cookieSecure: nodeEnv === 'production',
-      resources,
-      scopes: allScopes,
-    };
-
-    // Resources can be empty for regular authentication apps
-
-    return config;
-  } catch (error) {
-    console.error('[Logto Config] Fatal error:', error);
-    throw error;
+  if (!appId || !appSecret || !endpoint || !baseUrl || !cookieSecret) {
+    console.warn('[Logto Config] Missing required environment variables. Build will continue but runtime will fail if not configured.');
   }
+
+  const nodeEnv = process.env.NODE_ENV || 'development';
+
+  const resources: string[] = [];
+
+  const allScopes = parseScopes(scopeString);
+
+  const config = {
+    appId: appId || 'build-placeholder',
+    appSecret: appSecret || 'build-placeholder',
+    endpoint: endpoint || 'https://placeholder.logto.app',
+    baseUrl: baseUrl || 'http://localhost:3000',
+    cookieSecret: cookieSecret || 'build-placeholder',
+    cookieSecure: nodeEnv === 'production',
+    resources,
+    scopes: allScopes,
+  };
+
+  return config;
 })();
 
 export const getLogtoConfig = () => logtoConfig;
