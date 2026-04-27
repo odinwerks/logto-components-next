@@ -11,13 +11,23 @@ export function useDocStyles() {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
       gap: '16px',
-      alignItems: 'start',
+      alignItems: 'stretch',
     } as React.CSSProperties,
 
     colLeftStyle: {
       display: 'flex',
       flexDirection: 'column',
       gap: '16px',
+      minWidth: 0,
+      overflow: 'hidden',
+    } as React.CSSProperties,
+
+    colRightStyle: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+      minWidth: 0,
+      overflow: 'hidden',
     } as React.CSSProperties,
 
     sectionWrapStyle: {
@@ -94,6 +104,7 @@ export function useDocStyles() {
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: '0.6875rem',
       marginBottom: '0.75rem',
+      tableLayout: 'fixed',
     } as React.CSSProperties,
 
     thStyle: {

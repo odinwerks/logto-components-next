@@ -54,7 +54,7 @@ export {
   generateBackupCodes,
   getBackupCodes,
   introspectTokenWithOrg,
-} from './actions';
+} from './actions/index';
 
 export { LogtoApiError } from './errors';
 
