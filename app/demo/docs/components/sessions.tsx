@@ -138,7 +138,6 @@ function SessionsApiSection() {
     os: string | null;
     osVersion: string | null;
     deviceType: string | null;
-    lastActive: string | null;
   };
   expiresAt: number;
 }`} />
@@ -208,11 +207,6 @@ function SessionsLimitationsSection() {
           <strong style={styles.strongNoteStyle}>Incomplete Device Metadata</strong> — Device metadata
           (browser, OS, IP) depends on Logto capturing it during login. Not all sessions have this data. Logto is working on
           improving this.
-        </div>
-
-        <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>No Last Active Time</strong> — The Account API may not provide
-          lastActive timestamp. The current implementation may not show accurate "last active" times.
         </div>
 
         <p style={{ ...styles.textStyle, marginTop: '0.75rem' }}>

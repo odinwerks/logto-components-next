@@ -168,20 +168,6 @@ export interface SignInContext {
   [key: string]: string | undefined;
 }
 
-export interface SessionDeviceInfo {
-  browser: string | null;
-  browserVersion: string | null;
-  os: string | null;
-  osVersion: string | null;
-  deviceType: string | null;
-  ip: string | null;
-}
-
-export interface SessionLastActive {
-  jti: string;
-  lastActive: string;
-}
-
 export interface SessionMeta {
   jti: string;
   userId: string;
@@ -191,7 +177,7 @@ export interface SessionMeta {
   os: string | null;
   osVersion: string | null;
   deviceType: string | null;
-  lastActive: string | null;
+  lastActive: string | null; // Always null - S3 session tracking removed
   createdAt: string;
 }
 

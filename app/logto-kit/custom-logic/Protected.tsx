@@ -96,31 +96,50 @@ export function Protected({
   const { userData } = useLogto();
   const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
   const [isLoadingPerms, setIsLoadingPerms] = useState(false);
-  const hasLoadedRef = useRef(false);
+  const loadingRef = useRef<Promise<void> | null>(null);
 
+  // Single combined effect for permission loading
   useEffect(() => {
-    if (!userData || !orgId) return;
+    // Guard: need all three to proceed
+    if (!userData || !orgId || !asOrg) {
+      setLoadedPerms([]);
+      setIsLoadingPerms(false);
+      return;
+    }
 
-    hasLoadedRef.current = false;
-    setLoadedPerms([]);
+    // Check if org matches
+    const targetOrgId = orgName
+      ? userData.organizations?.find((org) => org.name === orgName)?.id
+      : orgId;
+
+    if (!targetOrgId || asOrg !== targetOrgId) {
+      setLoadedPerms([]);
+      setIsLoadingPerms(false);
+      return;
+    }
+
+    // Start loading
+    let cancelled = false;
     setIsLoadingPerms(true);
-  }, [asOrg, userData, orgId]);
 
-  useEffect(() => {
-    if (!userData || !orgId || !asOrg) return;
-    if (hasLoadedRef.current) return;
-
-    hasLoadedRef.current = true;
-    setIsLoadingPerms(true);
-    loadOrganizationPermissions(orgId)
+    loadingRef.current = loadOrganizationPermissions(targetOrgId)
       .then((perms) => {
-        setLoadedPerms(perms);
-        setIsLoadingPerms(false);
+        if (!cancelled) {
+          setLoadedPerms(perms);
+          setIsLoadingPerms(false);
+        }
       })
       .catch(() => {
-        setIsLoadingPerms(false);
+        if (!cancelled) {
+          setIsLoadingPerms(false);
+        }
       });
-  }, [userData, orgId, asOrg]);
+
+    return () => {
+      cancelled = true;
+      loadingRef.current = null;
+    };
+  }, [userData, orgId, orgName, asOrg]);
 
   if (!userData) {
     return <>{fallback ?? null}</>;

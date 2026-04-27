@@ -367,9 +367,6 @@ export function SessionsTab({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
                     <span style={{ whiteSpace: 'nowrap' }}>{t.sessions.loggedInAt}: {formatDate(session.payload.loginTs)}</span>
-                    {meta?.lastActive && (
-                      <span style={{ whiteSpace: 'nowrap' }}>{t.sessions.lastActive}: {formatDate(meta.lastActive)}</span>
-                    )}
                   </div>
 
                   <div style={{ marginTop: '0.125rem', fontSize: '0.6875rem', color: T.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

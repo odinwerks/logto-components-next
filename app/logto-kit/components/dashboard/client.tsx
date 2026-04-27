@@ -6,7 +6,6 @@ import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../handlers/preferences';
-import { useSessionTracker } from '../handlers/use-session-tracker';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
@@ -196,11 +195,7 @@ export function DashboardClient({
   // ── Organization Data ─────────────────────────────────────────────────────
   // Organization roles and organizations now come from claims in dashboard data
 
-  // ── Session Tracking ────────────────────────────────────────────────────────
-  useSessionTracker(accessToken, userData.id);
-
-
-
+  // ── Tabs
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
 

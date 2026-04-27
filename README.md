@@ -32,8 +32,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │       └── route.ts
 │   │   ├── protected/
 │   │   │   └── route.ts
-│   │   ├── session-track/
-│   │   │   └── route.ts
 │   │   ├── upload-avatar/
 │   │   │   └── route.ts
 │   │   └── wipe/
@@ -75,7 +73,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   ├── logto-provider.tsx
 │   │   │   │   ├── theme-helpers.ts
 │   │   │   │   ├── use-avatar-upload.tsx
-│   │   │   │   ├── use-session-tracker.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.tsx
@@ -122,16 +119,34 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── index.ts
 │   │   │   └── ka-GE.ts
 │   │   ├── logic/
-│   │   │   ├── actions.ts
-│   │   │   ├── env.ts
-│   │   │   ├── errors.ts
-│   │   │   ├── i18n.ts
-│   │   │   ├── index.ts
-│   │   │   ├── preferences.ts
-│   │   │   ├── tabs.ts
-│   │   │   ├── types.ts
-│   │   │   ├── utils.ts                # Utility functions
-│   │   │   └── validation.ts
+│   │   │   ├── actions/               # Modular server actions
+│   │   │   │   ├── shared.ts          # Shared helpers (throwOnApiError, patchMyAccount)
+│   │   │   │   ├── tokens.ts          # Token helpers
+│   │   │   │   ├── request.ts         # Request helper (makeRequest)
+│   │   │   │   ├── dashboard.ts       # Dashboard data fetching
+│   │   │   │   ├── auth.ts            # Authentication (signOutUser)
+│   │   │   │   ├── profile.ts         # Profile management
+│   │   │   │   ├── verification.ts    # Email/phone verification
+│   │   │   │   ├── mfa.ts             # MFA management (TOTP, backup codes)
+│   │   │   │   ├── password.ts        # Password updates
+│   │   │   │   ├── account.ts         # Account deletion
+│   │   │   │   ├── avatar.ts          # Avatar upload (S3/Supabase)
+│   │   │   │   ├── organizations.ts   # Organization permissions
+│   │   │   │   ├── sessions.ts        # Session management
+│   │   │   │   ├── introspection.ts   # Token introspection for RBAC
+│   │   │   │   └── index.ts           # Barrel file (re-exports all)
+│   │   │   ├── actions.ts             # Re-export barrel (backwards compat)
+│   │   │   ├── debug.ts               # Debug logging utility
+│   │   │   ├── env.ts                 # Environment variable handling
+│   │   │   ├── errors.ts              # Custom error classes
+│   │   │   ├── formatting.ts          # Text formatting utilities
+│   │   │   ├── i18n.ts                # Internationalization logic
+│   │   │   ├── index.ts               # Main exports
+│   │   │   ├── preferences.ts         # Preference persistence logic
+│   │   │   ├── tabs.ts                # Tab configuration logic
+│   │   │   ├── types.ts               # TypeScript type definitions
+│   │   │   ├── utils.ts               # Utility functions (introspection, validation)
+│   │   │   └── validation.ts          # Input validation functions
 │   │   └── themes/
 │   │       ├── default/
 │   │       │   ├── dark.css
@@ -154,6 +169,16 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 ├── README.md
 └── tsconfig.json
 ```
+
+## CI/CD
+
+The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push and pull request:
+
+- **TypeScript check**: `npm run type-check`
+- **Tests**: `npm run test:run`
+- **Build**: `npm run build`
+
+The workflow uses Node.js 20 and caches npm dependencies for faster runs.
 
 ## Environment Variables
 
@@ -241,9 +266,6 @@ S3_REGION=auto
 
 # Optional: Supabase REST API (more reliable)
 # SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Session metadata bucket (separate from avatars bucket)
-S3_SESSION_BUCKET=session-meta
 ```
 
 > **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
@@ -298,7 +320,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs — one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -311,6 +333,8 @@ The demo app (`app/demo/`) is a standalone application with 9 sidebar tabs — o
 | Providers | setup | LogtoProvider, useLogto(), context hooks |
 | Theme | config | File-based theme system with dark/light CSS variables |
 | i18n | config | Translation files, language switching |
+| Sessions | component | Active session management with device info, IP geolocation, and revocation |
+| Calculator | component | Permission-gated calculator demo with live RBAC examples |
 
 Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
@@ -324,7 +348,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 9-tab navigation definitions with section hints |
+| `nav-data.tsx` | 11-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
@@ -354,7 +378,7 @@ To add documentation for a new tab:
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 9 navigation tabs covering every major logto-kit feature
+- A sidebar with 11 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -481,7 +505,6 @@ The hook returns:
 |------|------|---------|-------------|
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
-| `initialOrgId` | `string \| null` | `null` | Initial organization ID |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist preferences to Logto customData |
 | `onLangChange` | `() => void` | - | Optional callback fired when language changes |
 | `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
@@ -671,7 +694,7 @@ All three components share the same props:
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `Canvas` | `'Avatar' \| 'Initials'` | `'Initials'` | Display mode |
+| `Canvas` | `'Avatar' \| 'Initials'` | `Avatar` (when omitted) | Display mode |
 | `Size` | `string` | `'6.25rem'` (Button/Badge), `'2.5rem'` (Card) | CSS size (e.g., `'48px'`, `'3rem'`) |
 | `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape (falls back to `USER_SHAPE` ENV) |
 | `userData` | `UserData` | - | User data (optional, uses provider context if not provided) |
@@ -1305,7 +1328,8 @@ The tab system is pretty simple - look at existing tabs for examples.
 
 1. Create `app/logto-kit/locales/{locale-code}.ts`
 2. Follow the pattern in existing locale files
-3. Add to `LANG_AVAILABLE` in `.env`
+3. Register in `locales/index.ts` and add the locale code to the `LocaleCode` type
+4. Add to `LANG_AVAILABLE` in `.env`
 
 ## Cookie & Session Management
 
@@ -1529,161 +1553,6 @@ function MyAvatarUploader({ userId }: { userId: string }) {
   );
 }
 ```
-
-## Session Metadata (Device Info & Last Active)
-
-> **⚠️ IN DEVELOPMENT** — The device metadata feature (IP, browser, OS via S3 storage and PostSignIn webhook) is functional but still being validated. The sessions list from Logto's Account API (revocation, current session indicator) is production-ready. The S3-based device enrichment requires `S3_SESSION_BUCKET` and optional webhook to be fully operational before production use.
-
-The dashboard enriches session cards with device metadata — browser, OS, device type, IP address, and a "last active" timestamp — rather than showing raw client IDs. This is powered by two cooperating systems.
-
-### Architecture
-
-```
-Sign-in (Logto PostSignIn webhook)
-  → POST /api/webhook/logto
-  → Parse User-Agent → { browser, browserVersion, os, osVersion, deviceType }
-  → Store sessions/{userId}/{jti}.json to S3
-
-Dashboard load (Sessions tab)
-  → getSessionsWithDeviceMeta()
-  → Fetch Logto sessions (jti, loginTs, exp)
-  → Fetch sessions/{userId}/*.json from S3
-  → Merge by jti → rich session cards
-
-Heartbeat (every 5 min / tab focus)
-  → POST /api/session-track { accessToken, userId }
-  → Parse UA from request headers
-  → List sessions/{userId}/*.json from S3
-  → Match by browser + os + deviceType
-  → Update lastActive on the matching file
-
-Session revocation
-  → DELETE /api/my-account/sessions/{jti} (Logto Account API)
-  → DELETE sessions/{userId}/{jti}.json from S3
-```
-
-### How It Works
-
-**At sign-in**, Logto fires a PostSignIn webhook. The `/api/webhook/logto` endpoint:
-1. Verifies the `logto-signature-sha-256` HMAC signature
-2. Extracts `sessionId` (= the session's `jti`), `userAgent`, `userIp`, `userId`, `createdAt`
-3. Parses the UA string with `ua-parser-js` → browser name, browser version, OS name, OS version, device type
-4. Stores `{ jti, userId, browser, browserVersion, os, osVersion, deviceType, ip, createdAt, lastActive }` as `sessions/{userId}/{jti}.json` in S3
-
-**At dashboard load**, `getSessionsWithDeviceMeta()` fetches sessions from Logto's Account API, lists S3 metadata files for the user, and merges them by `jti`. The sessions tab then shows e.g. "Chrome 122 · macOS 14.2 · desktop · 192.168.1.1 · Last active: just now".
-
-**Heartbeat pings** (`/api/session-track`) run every 5 minutes via `useSessionTracker`. The endpoint:
-1. Validates the user's access token
-2. Parses the incoming request's `User-Agent` header
-3. Lists all `sessions/{userId}/*.json` files from S3
-4. **If fingerprint matches**: updates `lastActive` on the matched file
-5. **If no match found**: creates a new file using `jti` from token introspection + request UA/IP (fallback for dev/no-webhook)
-
-**On revocation**, `revokeUserSession()` calls the Logto Account API and deletes the corresponding S3 file.
-
-### Logto Console Setup
-
-1. Go to **Console > Webhooks > Create webhook**
-2. Name: `Session Metadata`, Endpoint: `https://your-domain.com/api/webhook/logto`
-3. Events: **PostSignIn**
-4. Copy the signing key → set as `LOGTO_WEBHOOK_SIGNING_KEY` env var
-5. Click "Send test payload" to verify the endpoint responds 200
-
-### Environment Variables
-
-```env
-# Session metadata bucket (falls back to S3_BUCKET_NAME if not set)
-S3_SESSION_BUCKET=session-meta
-
-# Webhook signing key — get from Logto Console > Webhooks > webhook details
-# Leave empty during development to skip signature verification
-LOGTO_WEBHOOK_SIGNING_KEY=your_signing_key_here
-```
-
-### S3 Bucket Setup
-
-Create a bucket named `session-meta` in your S3-compatible storage (Supabase, AWS S3, MinIO, etc.):
-- Private (service role key access only — no public access needed)
-- Allowed MIME type: `application/json`
-
-The bucket can share the same Supabase project as avatar storage — they use separate bucket names.
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `app/api/webhook/logto/route.ts` | Receives PostSignIn webhooks, verifies signature, stores device metadata to S3 |
-| `app/api/session-track/route.ts` | Heartbeat endpoint — matches UA fingerprint, updates lastActive |
-| `app/logto-kit/logic/actions.ts` | `getSessionsWithDeviceMeta()`, `fetchAllSessionMeta()`, `deleteSessionMeta()` |
-| `app/logto-kit/logic/types.ts` | `SessionMeta` interface |
-| `app/logto-kit/components/dashboard/tabs/sessions.tsx` | Sessions tab — reads `session.meta` for display, includes IP geolocation minimap and refresh button |
-| `app/logto-kit/components/dashboard/shared/geo-cache.ts` | Client-side ipapi.co fetcher with 5-minute TTL cache and deduplication |
-| `app/logto-kit/components/dashboard/shared/SessionMiniMap.tsx` | Static tile minimap (CartoDB dark/light @2x, zoom 13, CSS pin marker) |
-| `app/logto-kit/components/dashboard/shared/SessionMapModal.tsx` | Google Maps embed modal + &quot;View in Google Maps&quot; external link |
-| `app/logto-kit/components/handlers/use-session-tracker.tsx` | Client-side session tracker pinger |
-
-### IP Geolocation & Minimap
-
-Each session card includes an IP geolocation minimap showing the approximate location of the session's IP address.
-
-**Architecture:**
-
-```
-Session card loads
-  → extract unique IPs from session.meta.ip
-  → fetch https://ipapi.co/{ip}/json/ for each (parallel, from browser)
-  → cache in module-level Map<ip, {geo, fetchedAt}> with 5min TTL
-  → pass geo to SessionMiniMap component
-  → minimap renders single @2x CartoDB tile (dark/light theme-aware)
-  → click minimap → SessionMapModal with Google Maps embed + external link
-```
-
-- **Geolocation API**: [ipapi.co](https://ipapi.co) — free, HTTPS, no API key, 1,000 req/day per client IP (each user's browser is a separate consumer, not your server)
-- **Minimap**: Single `@2x` tile (512px source) at zoom 13 from CartoDB (`dark_all` / `light_all` depending on theme). Red pin marker via CSS. Width: 260px, height stretches to match card (80px).
-- **Expanded modal**: Google Maps embed iframe (`output=embed`) with "View in Google Maps" link (`t=k` for satellite). No API key needed for the embed.
-- **Cache**: 5-minute client-side `Map` with deduplication of in-flight requests. "Refresh Data" button clears the cache and re-fetches sessions.
-- **Fallback**: If IP is missing or geolocation fails, shows a dashed-border placeholder with "Location unavailable".
-
-**Session card layout:**
-
-```
-┌─────────────────────────────────────────────────┐
-│ [Icon] │ Title · OS      │ [Minimap] │ [Revoke] │
-│        │ Logged on: ...  │ 260×80px  │ IP       │
-│        │ Expires: ...     │           │ City, CO │
-└─────────────────────────────────────────────────┘
-```
-
-### Data Flow
-
-```json
-// sessions/{userId}/{jti}.json — stored by the webhook at sign-in
-{
-  "jti": "abc123def456",
-  "userId": "pbxqomjqadyj",
-  "browser": "Chrome",
-  "browserVersion": "122",
-  "os": "macOS",
-  "osVersion": "14.2",
-  "deviceType": "desktop",
-  "ip": "203.0.113.42",
-  "createdAt": "2026-04-19T12:00:00Z",
-  "lastActive": "2026-04-19T12:05:00Z"
-}
-```
-
-### No Match Fallback
-
-If no S3 metadata file matches the current UA fingerprint, the session tracker creates a new one using the `jti` from token introspection (`introspection.sid || introspection.jti`). This means the system works fully without the webhook — device info appears after the first tracker ping (up to 5 minutes after sign-in), with `createdAt` set to the first tracker time rather than the sign-in time.
-
-**Priority order:**
-1. **Webhook match** — exact fingerprint + exact `createdAt` (best: sign-in time IP, UA, timestamp)
-2. **Tracker fallback** — creates new file from introspection `jti` + request UA/IP (good: appears after first tracker ping)
-3. **No `jti`** — returns `{ updated: false }` if introspection doesn't return `sid`/`jti`
-
-### Signature Verification
-
-Logto signs webhook payloads using HMAC-SHA256. The signature is in the `logto-signature-sha-256` request header. Set `LOGTO_WEBHOOK_SIGNING_KEY` to the signing key from Logto Console. Leave it empty during development to skip verification.
 
 ## Server Actions
 
@@ -2063,14 +1932,6 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 - [x] OIDC token introspection for security
 - [x] User ID matching prevents cross-user uploads
 - [x] Automatic URL update to Logto profile
-
-### Session Metadata
-- [x] Webhook route — receives PostSignIn, verifies signature, stores device metadata to S3
-- [x] Tracker fallback — creates metadata file when no S3 files exist (dev-friendly, no tunnel needed)
-- [x] UA fingerprint matching — browser + os + deviceType to identify current device
-- [x] lastActive updates — tracker keeps timestamps fresh
-- [x] Revocation cleanup — S3 file deleted when session is revoked
-- [x] README documentation — architecture, setup, env vars, data format
 
 ### Conquer All.
 - [ ] [Conquer All.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
