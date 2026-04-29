@@ -125,7 +125,7 @@ function EnvSection() {
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 
 # With organizations
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles`} />
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations`} />
     </SectionWrap>
   );
 }
@@ -205,7 +205,6 @@ export default async function HomePage() {
   return (
     <LogtoProvider
       userData={result.userData}
-      accessToken={result.accessToken}
       dashboard={<Dashboard />}
       darkThemeSpec={defaultDarkTheme}
       lightThemeSpec={defaultLightTheme}
@@ -221,7 +220,6 @@ export default async function HomePage() {
   return (
     <LogtoProvider
       userData={result.userData}
-      accessToken={result.accessToken}
       dashboard={<Dashboard />}
       darkThemeSpec={defaultDarkTheme}
       lightThemeSpec={defaultLightTheme}

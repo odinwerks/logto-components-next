@@ -164,12 +164,18 @@ function ProtectedApiSection() {
         Validates tokens via OIDC introspection, checks organization membership, and verifies permissions before executing the action handler.
       </p>
       <CodeBlock title="Endpoint" code={`POST /api/protected`} />
-      <CodeBlock title="Request Format" code={`const response = await fetch('/api/protected', {
+      <CodeBlock title="Request Format" code={`import { getFreshAccessToken } from './logto-kit/logic/actions';
+
+// Inside a client component — get token via server action, userId from context
+const { userData } = useLogto();
+const freshToken = await getFreshAccessToken();
+
+const response = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,      // User's access token (from useLogto().accessToken)
-    id: userId,             // User ID (must match token.sub)
+    token: freshToken,      // fresh access token from server action
+    id: userData.id,        // User ID (must match token.sub)
     action: 'action-name',  // Registered action name
     payload: { /* optional data */ }
   })

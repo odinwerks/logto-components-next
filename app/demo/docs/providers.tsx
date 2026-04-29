@@ -21,7 +21,6 @@ function ProviderTreeSection() {
       </p>
       <CodeBlock title="All-in-one entry point" code={`<LogtoProvider
   userData={userData}       // from fetchDashboardData()
-  accessToken={accessToken} // from fetchDashboardData()
   dashboard={<Dashboard />} // Server Component JSX
   initialTheme="dark"       // optional — falls back to storage or ENV
   initialLang="en-US"       // optional — falls back to storage or default
@@ -43,7 +42,6 @@ function ProviderTreeSection() {
 >
   <LogtoProviderContent     // ← exposes useLogto()
     userData={userData}
-    accessToken={accessToken}
     dashboard={dashboard}
   >
     <UserDataProvider        // ← created automatically
@@ -65,7 +63,7 @@ function ProviderTreeSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>LogtoProvider</td>
-            <td style={styles.tdStyle}>All-in-one: user data, access token, dashboard modal, preferences, unified context</td>
+            <td style={styles.tdStyle}>All-in-one: user data, dashboard modal, preferences, unified context</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useLogto()</code></td>
             <td style={styles.tdStyle}><strong style={{ color: '#10b981' }}>Yes</strong></td>
           </tr>
@@ -106,12 +104,11 @@ function HydrationFlowSection() {
 export default async function HomePage() {
   const result = await fetchDashboardData();
   //    ↑ calls Logto Management API
-  //    returns { userData, accessToken }
+  //    returns { userData } — no access token (kept server-side)
 
   return (
     <LogtoProvider
       userData={result.userData}
-      accessToken={result.accessToken}
       dashboard={<Dashboard />}
       initialTheme="dark"
       onUpdateCustomData={updateUserCustomData}
@@ -171,7 +168,7 @@ function UseLogtoSection() {
   return (
     <SectionWrap label="useLogto()">
       <p style={styles.textStyle}>
-        The unified hook. Exposes user data, access token, theme, language,
+        The unified hook. Exposes user data, theme, language,
         organization, and dashboard controls from a single context.
       </p>
       <table style={styles.tableStyle}>
@@ -187,11 +184,6 @@ function UseLogtoSection() {
             <td style={styles.tdPropStyle}>userData</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>UserData</code></td>
             <td style={styles.tdStyle}>Current user profile data</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPropStyle}>accessToken</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>string</code></td>
-            <td style={styles.tdStyle}>JWT access token for API calls</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>theme</td>
