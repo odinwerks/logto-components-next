@@ -64,7 +64,6 @@ export interface MfaVerification {
 
 export interface TotpSecret {
   secret: string;
-  secretQrCode: string;
 }
 
 export interface BackupCode {

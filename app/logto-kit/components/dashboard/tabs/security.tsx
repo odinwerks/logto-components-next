@@ -20,7 +20,7 @@ interface SecurityTabProps {
   t: Translations;
   onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
   onGetMfaVerifications: () => Promise<MfaVerification[]>;
-  onGenerateTotpSecret: () => Promise<{ secret: string; secretQrCode: string }>;
+  onGenerateTotpSecret: () => Promise<{ secret: string }>;
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
