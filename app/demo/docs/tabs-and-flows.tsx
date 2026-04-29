@@ -159,7 +159,6 @@ function ProfileHooksSection() {
       <CodeBlock title="useAvatarUpload hook" code={`import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 
 const { upload, isUploading, error, clearError } = useAvatarUpload({
-  userId: userData.id,
   onSuccess: async (url) => {
     await updateAvatarUrl(url); // imported directly from logic/actions
     onSuccess(t.profile.avatarUpdated);
@@ -353,14 +352,14 @@ function SecurityOverviewSection() {
   onRemovePhone: (identityVerId) => Promise<void>;
   // MFA
   onGetMfaVerifications: () => Promise<MfaVerification[]>;
-  onGenerateTotpSecret: () => Promise<{ secret: string; secretQrCode: string }>;
+  onGenerateTotpSecret: () => Promise<{ secret: string }>;
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   // Password
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   // Account
-  onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
   // Toasts
   onSuccess: (message) => void;
   onError: (message) => void;
@@ -481,11 +480,9 @@ const identity = await onVerifyPassword(pw);
 await onUpdatePassword(newPassword, identity.verificationRecordId);`} />
       <CodeBlock title="Delete account" code={`// 1. Password verification (or new-password if no password set)
 const identity = await onVerifyPassword(pw);
-// 2. Get access token
-const badgeData = await fetchUserBadgeData();
-// 3. Delete account
-await onDeleteAccount(identity.verificationRecordId, badgeData.accessToken);
-// 4. Full page navigation (avoid AuthWatcher race condition)
+// 2. Delete account (token derived server-side)
+await onDeleteAccount(identity.verificationRecordId);
+// 3. Full page navigation (avoid AuthWatcher race condition)
 window.location.href = '/api/auth/sign-out';`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
@@ -615,7 +612,7 @@ function DevSection() {
           <tr>
             <td style={styles.tdPathStyle}>accessToken</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
-            <td style={styles.tdStyle}>Raw JWT access token</td>
+            <td style={styles.tdStyle}>Access token fetched lazily via <code style={styles.codeStyle}>getCurrentAccessToken()</code> (dev-only server action)</td>
           </tr>
         </tbody>
       </table>
@@ -623,11 +620,17 @@ function DevSection() {
         Purely presentational. No hooks, no server actions. Two client-side
         navigations for cookie management:
       </p>
-      <CodeBlock title="Cookie actions" code={`// Clear cookies (stale cookie recovery)
-const handleClearCookies = () => { window.location.href = '/api/wipe'; };
+      <CodeBlock title="Cookie actions" code={`// Clear cookies (stale cookie recovery) — POST-only
+const handleClearCookies = async () => {
+  await fetch('/api/wipe', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = '/';
+};
 
-// Force invalidate session (signs out from Logto too)
-const handleInvalidateSession = () => { window.location.href = '/api/wipe?force=true'; };`} />
+// Force invalidate session (signs out from Logto too) — POST-only
+const handleInvalidateSession = async () => {
+  await fetch('/api/wipe?force=true', { method: 'POST', credentials: 'same-origin' });
+  window.location.href = '/';
+};`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Why href?</strong>{' '}
         <code style={styles.codeSmStyle}>window.location.href</code> forces full page reload,

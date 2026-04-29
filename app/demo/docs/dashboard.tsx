@@ -219,7 +219,6 @@ function WiringSection() {
   return (
     <LogtoProvider
       userData={result.userData}
-      accessToken={result.accessToken}
       dashboard={<Dashboard />}  {/* Server Component JSX */}
       darkThemeSpec={defaultDarkTheme}
       lightThemeSpec={defaultLightTheme}
