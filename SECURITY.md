@@ -2,110 +2,63 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.2.x   | :white_check_mark: |
-| < 0.2   | :x:                |
+| Version | Supported |
+|---------|-----------|
+| 0.3.x   | ✅ Yes    |
+| 0.2.x   | ❌ No — upgrade to 0.3.0 |
+| < 0.2   | ❌ No     |
 
-This project is currently in early development (pre-1.0). Breaking changes may occur between minor versions.
+## Threat Model
+
+logto-dash is a **self-hosted authentication dashboard** intended for developers building on top of Logto. Its security threat model:
+
+**Trusted:**
+- The server runtime environment (env vars, server-side session cookies, `'use server'` actions)
+- Logto's own API responses (treated as authoritative after token validation)
+
+**Untrusted:**
+- All inputs arriving from the browser (FormData, server action arguments, route handler body)
+- User-supplied strings of any kind (names, emails, IDs, codes, URLs)
+
+**Out of scope:**
+- Physical access to the server
+- Compromised infrastructure
+- Attacks on the Logto instance itself (report to [Logto's security policy](https://github.com/logto-io/logto/blob/master/SECURITY.md))
+
+## Security Guarantees (What the Library Enforces)
+
+- **No access token in the browser.** The Logto access token never reaches client-side JavaScript in production builds. The Dev tab (which shows it) is disabled in `NODE_ENV=production`.
+- **Same-origin enforcement.** Non-Server-Action route handlers (`/api/wipe`, `/api/auth/sign-out`) validate the `Origin`/`Referer` header against `BASE_URL` on every POST. GET requests return 405.
+- **Input validation at trust boundaries.** Every `'use server'` function validates its client-supplied arguments before performing any privileged operation. IDs are restricted to `[A-Za-z0-9_-]{1,128}`. Types are asserted against allowlists. Complex inputs (customData) are whitelist-filtered.
+- **Error message sanitisation.** In production, errors returned to the browser are fixed error codes. Raw upstream text (which can contain email addresses, request details, and internal information) is discarded client-side and retained only in server-side logs.
+- **Mass-assignment prevention.** `updateUserCustomData` accepts only the `Preferences` key, and within it only `asOrg`, `themeMode`, and `language`. All other keys are dropped silently.
+- **Security headers.** Every response includes CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy headers.
+
+## Non-Guarantees (What You Must Do)
+
+- **Narrow your M2M app's permissions in Logto Console.** The library's M2M client credential is only used for account deletion. In the Logto Console, the M2M app should have *only* the "User data → Delete user" permission assigned. The `scope: 'all'` in the code requests everything the Console grants — granting less in the Console is the enforcing layer.
+- **Set `SUPABASE_SERVICE_ROLE_KEY` to a bucket-scoped key, not the service-role key.** If you use Supabase storage for avatars, generate a bucket-scoped secret instead of the service-role key which has full database access.
+- **Use `HTTPS` in production.** HSTS only activates when the connection is HTTPS. Run behind a reverse proxy (Nginx, Caddy, Cloudflare) with TLS.
+- **Update the CSP `connect-src` after forking.** The default CSP in `next.config.ts` includes `*.nebakoploba.org` (the example Logto endpoint). Replace this with your own Logto endpoint before deploying.
+- **Your own API routes.** Security enforced here applies to logto-dash's own API surface. Routes you add to the app are your responsibility.
+- **Audit trail requires a custom transport.** The `audit()` primitive is wired into all mutation actions (account deletion, password change, MFA enroll/remove, avatar upload) but produces **no output in production** by default. To activate audit logging, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`. Without it, security-relevant mutations are not logged.
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security vulnerability, please report it responsibly.
+**Please do not open a public GitHub issue for security vulnerabilities.**
 
-### How to Report
+Email: [see repository for contact] or open a [private GitHub advisory](https://github.com/odinwerks/logto-components-next/security/advisories/new).
 
-**Please do NOT report security vulnerabilities through public GitHub issues.**
+Include:
+- Description of the vulnerability
+- Steps to reproduce
+- Affected version(s)
+- Suggested fix (optional)
 
-Instead, please report them via one of the following methods:
+We aim to acknowledge reports within 48 hours and publish a fix within 14 days for critical issues.
 
-1. **GitHub Security Advisory** (preferred):
-   - Go to the [Security tab](https://github.com/odinwerks/logto-components-next/security) in the repository
-   - Click "Report a vulnerability"
-   - Fill out the form with details about the vulnerability
+## Past Security Issues
 
-2. **Email**:
-   - Send an email to the repository maintainers
-   - Include "SECURITY" in the subject line
-   - Provide a detailed description of the vulnerability
-
-### What to Include
-
-Please provide the following information:
-
-- **Description**: A clear description of the vulnerability
-- **Steps to reproduce**: Step-by-step instructions to reproduce the issue
-- **Impact**: What an attacker could accomplish by exploiting this vulnerability
-- **Affected versions**: Which versions are affected
-- **Possible fix**: If you have suggestions for fixing the issue
-
-### Response Timeline
-
-- **Initial response**: Within 48 hours
-- **Vulnerability confirmation**: Within 7 days
-- **Fix development**: Depends on severity, typically 1-14 days
-- **Disclosure**: After a fix is released
-
-### Disclosure Policy
-
-- We follow responsible disclosure practices
-- We will credit researchers who report vulnerabilities (unless anonymity is requested)
-- We request that you do not disclose the vulnerability publicly until a fix is available
-
-## Security Considerations
-
-This application handles sensitive authentication data. Key security features include:
-
-### Token Handling
-
-- Access tokens and ID tokens are handled securely
-- Tokens are never logged (debug mode excludes sensitive values)
-- Token introspection is performed server-side for protected actions
-
-### Authentication
-
-- OAuth 2.0 / OIDC flow via Logto
-- Session management with secure cookies
-- CSRF protection via Logto SDK
-
-### Protected Actions API
-
-- Token validation via OIDC introspection
-- Organization membership verification
-- Permission-based access control (RBAC)
-
-### Data Protection
-
-- User tokens are never exposed in client-side code (except in dev tab with DEBUG=true)
-- Session data is stored securely
-- Custom data persistence is handled through Logto's API
-
-## Security Best Practices for Contributors
-
-When contributing to this project:
-
-1. **Never commit secrets**: No API keys, tokens, or credentials
-2. **Sanitize user input**: Always validate and sanitize user-provided data
-3. **Use parameterized queries**: When interacting with databases
-4. **Follow least privilege**: Only request necessary permissions
-5. **Log responsibly**: Never log sensitive data (tokens, passwords, PII)
-6. **Keep dependencies updated**: Check for security advisories
-
-## Known Security Limitations
-
-1. **Avatar uploads**: Require S3-compatible storage configuration. Without proper configuration, uploads will fail.
-2. **Protected Actions API**: Requires proper RBAC configuration in Logto Console.
-3. **Organization context**: Requires `organizations` and `organization_roles` scopes.
-
-## Security Updates
-
-Security updates will be announced via:
-
-- GitHub Security Advisories
-- Release notes
-
-Subscribe to repository releases to stay informed about security updates.
-
----
-
-Thank you for helping keep Logto Dash secure!
+| Version | Issue | Fix |
+|---------|-------|-----|
+| 0.2.0   | Access token exposed to browser; CSRF logout via GET; path injection in session/MFA actions; error text user enumeration; base64url JWT decode bug; mass-assignment in customData | Fixed in 0.3.0 — see CHANGELOG |

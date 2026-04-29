@@ -28,17 +28,6 @@ export function truncateError(text: string, maxLength = 200): string {
 }
 
 /**
- * Validates that a user ID contains only safe characters (alphanumeric, underscore, hyphen).
- * @param id - The user ID to validate.
- * @throws Error if the user ID contains invalid characters or is too long.
- */
-export function assertSafeUserId(id: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
-    throw new Error('UNAUTHORIZED: userId contains invalid characters.');
-  }
-}
-
-/**
  * Introspects an OIDC token to validate its active status and claims.
  * @param token - The access token to introspect.
  * @returns The OIDC introspection response containing active status and claims.

@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/custom-actions';
 import { fetchUserRbacData, validateOrgMembership } from '../../logto-kit/custom-actions/validation';
 import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
-import { introspectToken, assertSafeUserId } from '../../logto-kit/logic/utils';
+import { introspectToken } from '../../logto-kit/logic/utils';
+import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
+import { isDev } from '../../logto-kit/logic/dev-mode';
 
 function apiError(error: string, message: string, status: number) {
-  return NextResponse.json({ ok: false, error, message }, { status });
+  return NextResponse.json(
+    { ok: false, error, message: isDev ? message : error },
+    { status }
+  );
 }
 
 interface ProtectedRequestBody {
@@ -31,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await assertSafeUserId(id);
+      assertSafeUserId(id);
     } catch (error) {
       return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
     }
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
     const actionConfig = await getAction(action);
 
     if (!actionConfig) {
-      return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
+      return apiError('ACTION_NOT_FOUND', isDev ? `Action "${action}" not found` : 'Action not found', 404);
     }
 
     const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
@@ -83,7 +88,7 @@ export async function POST(request: NextRequest) {
     const hasPermission = requiredPerms.every(perm => userPermissions.includes(perm));
 
     if (!hasPermission) {
-      return apiError('PERMISSION_DENIED', `User lacks required permission: ${requiredPerms.join(', ')}`, 403);
+      return apiError('PERMISSION_DENIED', isDev ? `User lacks required permission: ${requiredPerms.join(', ')}` : 'Insufficient permissions', 403);
     }
 
     const result = await actionConfig.handler({

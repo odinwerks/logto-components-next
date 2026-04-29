@@ -23,3 +23,21 @@ jobs:
         run: npm run test:run
       - name: Build
         run: npm run build
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+      - name: Check for secret patterns
+        uses: gitleaks/gitleaks-action@e6dab246340401bf53eec993b8f05aebe80ac636  # v2.3.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,25 +1,59 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { KeyRound, Braces, Cookie, LogOut } from 'lucide-react';
+import { KeyRound, Braces, Cookie, LogOut, ShieldAlert } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
 import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
+import { getCurrentAccessToken } from '../../../logic/actions/debug-token';
+import { isDev } from '../../../logic/dev-mode';
 
 interface DevTabProps {
-  userData:    UserData;
-  theme:       ThemeSpec;
-  t:           Translations;
-  accessToken: string;
+  userData: UserData;
+  theme:    ThemeSpec;
+  t:        Translations;
 }
 
-export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
+export function DevTab({ userData, theme, t }: DevTabProps) {
   const cs = theme.components;
   const c  = theme.colors;
 
+  // Hard gate: in production this component renders nothing. Defense in depth
+  // on top of the server-side filter in logic/tabs.ts that strips 'dev' from
+  // LOAD_TABS when NODE_ENV !== 'development'.
+  if (!isDev) {
+    return (
+      <div style={{
+        padding: '2rem',
+        textAlign: 'center',
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        color: c.textSecondary,
+      }}>
+        <ShieldAlert size={28} color={c.textTertiary} strokeWidth={1.5} style={{ marginBottom: '0.75rem' }} />
+        <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+          Dev tab is disabled in production builds.
+        </p>
+        <p style={{ fontSize: '0.75rem', color: c.textTertiary, lineHeight: 1.5 }}>
+          Set <code style={{ fontFamily: 'monospace' }}>NODE_ENV=development</code> to view debug info.
+        </p>
+      </div>
+    );
+  }
+
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  // Lazy-fetch the access token server-side. The server action refuses to
+  // return anything in production (see debug-token.ts).
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentAccessToken().then(token => {
+      if (!cancelled) setAccessToken(token);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,15 +114,23 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
     );
   }
 
-  const handleClearCookies       = () => { window.location.href = '/api/wipe'; };
-  const handleInvalidateSession  = () => { window.location.href = '/api/wipe?force=true'; };
+  // Wipe endpoints are POST-only now (Phase 3); submit via a hidden form
+  // with same-origin credentials so the server's origin-guard passes.
+  const handleWipe = async (force: boolean) => {
+    const url = force ? '/api/wipe?force=true' : '/api/wipe';
+    await fetch(url, { method: 'POST', credentials: 'same-origin' });
+    window.location.href = '/';
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
 
-      {/* Access Token */}
+      {/* Access Token — dev only, lazy-fetched */}
       <Section icon={<KeyRound size={12} strokeWidth={2} />} label={t.raw.tokenType}>
-        <CodeBlock data={accessToken} theme={theme} maxHeight="7.5rem" t={t} />
+        {accessToken
+          ? <CodeBlock data={accessToken} theme={theme} maxHeight="7.5rem" t={t} />
+          : <p style={{ fontSize: '0.75rem', color: c.textTertiary, fontFamily: 'monospace' }}>Loading…</p>
+        }
       </Section>
 
       {/* Raw JSON */}
@@ -99,11 +141,11 @@ export function DevTab({ userData, theme, t, accessToken }: DevTabProps) {
       {/* Cookie actions */}
       <Section icon={<Cookie size={12} strokeWidth={2} />} label={t.raw.cookieActions}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={handleClearCookies} style={cs.buttons.chipBlue}>
+          <button onClick={() => handleWipe(false)} style={cs.buttons.chipBlue}>
             <Cookie size={11} strokeWidth={2} />
             {t.raw.clearCookiesLabel}
           </button>
-          <button onClick={handleInvalidateSession} style={cs.buttons.chipGreen}>
+          <button onClick={() => handleWipe(true)} style={cs.buttons.chipGreen}>
             <LogOut size={11} strokeWidth={2} />
             {t.raw.invalidateSession}
           </button>

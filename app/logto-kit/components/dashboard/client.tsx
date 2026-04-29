@@ -132,7 +132,7 @@ interface DashboardClientProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteAccount: (identityVerificationRecordId: string, accessToken: string) => Promise<void>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
   onSignOut: () => Promise<void>;
@@ -185,12 +185,10 @@ export function DashboardClient({
 
   // ── User Data ──────────────────────────────────────────────────────────────
   const [userData, setUserData] = useState<UserData>(initialData.userData);
-  const [accessToken, setAccessToken] = useState<string>(initialData.accessToken);
 
   useEffect(() => {
     setUserData(initialData.userData);
-    setAccessToken(initialData.accessToken);
-  }, [initialData.userData, initialData.accessToken]);
+  }, [initialData.userData]);
 
   // ── Organization Data ─────────────────────────────────────────────────────
   // Organization roles and organizations now come from claims in dashboard data
@@ -468,7 +466,7 @@ export function DashboardClient({
           )}
 
           {activeTab === 'dev' && (
-            <DevTab userData={userData} theme={themeSpec} t={t} accessToken={accessToken} />
+            <DevTab userData={userData} theme={themeSpec} t={t} />
           )}
 
         </div>

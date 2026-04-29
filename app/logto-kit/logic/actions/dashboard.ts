@@ -9,7 +9,7 @@ import { getCleanEndpoint } from '../utils';
 import { debugLog } from '../debug';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
-import { throwOnApiError } from './shared';
+import { throwOnApiError } from '../errors';
 import { redirect } from 'next/navigation';
 
 // ============================================================================
@@ -68,7 +68,8 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 function handleAuthFetchError(error: unknown, label: string): never {
   console.error(`${label}:`, error);
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes('Cookies can only be modified')) redirect('/api/wipe');
+  // /api/wipe is POST-only; broken-cookie state gets cleared by sign-in redirect.
+  if (msg.includes('Cookies can only be modified')) redirect('/api/auth/sign-in');
   redirect('/api/auth/sign-in');
 }
 
@@ -79,7 +80,7 @@ function handleAuthFetchError(error: unknown, label: string): never {
 /**
  * Fetches dashboard data for the authenticated user.
  * Used in RSC (React Server Components).
- * @returns DashboardResult containing user data and access token.
+ * @returns DashboardResult containing user data (no access token — kept server-side).
  */
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
@@ -98,7 +99,6 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
         throw new Error('Failed to fetch user info');
       }
 
-      const token = await getTokenForServerAction();
 
       // Extract activeOrgId from customData.Preferences.asOrg
       const customData = userInfo.custom_data as Record<string, unknown> | undefined;
@@ -147,7 +147,6 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
       return {
         success: true,
         userData,
-        accessToken: token,
         activeOrgId,
       };
     });
@@ -166,20 +165,18 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
 /**
  * Fetches lightweight user data for UserBadge component.
- * @returns DashboardResult containing user data and access token.
+ * @returns DashboardResult containing user data (no access token — kept server-side).
  */
 export async function fetchUserBadgeData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      const token = await getTokenForServerAction();
       const res = await makeRequest('/api/my-account');
 
-      await throwOnApiError(res, 'Logto API');
+      await throwOnApiError(res, 'FETCH_FAILED', 'dashboard-fetch');
 
       return {
         success: true,
         userData: await res.json() as UserData,
-        accessToken: token,
       };
     });
 

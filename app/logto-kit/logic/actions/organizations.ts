@@ -3,11 +3,13 @@
 import { getOrganizationToken } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
 import { debugLog } from '../debug';
+import { decodeLogtoAccessToken } from '../guards';
 
 /**
  * Gets the user's permissions for a specific organization.
- * @param orgId - The organization ID.
- * @returns Array of permission strings.
+ * Uses @logto/js::decodeAccessToken (base64url-correct) instead of
+ * the previous manual Buffer.from(..., 'base64') decode that silently
+ * produced garbage for tokens containing '-' or '_' characters.
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<string[]> {
   try {
@@ -17,13 +19,10 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<str
       return [];
     }
 
-    const parts = orgToken.split('.');
-    if (parts.length !== 3) return [];
+    const claims = decodeLogtoAccessToken(orgToken);
+    debugLog(`[getOrganizationUserPermissions] Org token scope for ${orgId}:`, claims.scope);
 
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-    debugLog(`[getOrganizationUserPermissions] Org token scope for ${orgId}:`, payload.scope);
-
-    const permissions = (payload.scope ?? '')
+    const permissions = ((claims.scope as string | undefined) ?? '')
       .split(' ')
       .filter(Boolean)
       .filter((s: string) => !s.startsWith('openid'));

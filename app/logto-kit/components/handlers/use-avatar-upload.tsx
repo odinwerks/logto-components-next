@@ -1,10 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchUserBadgeData } from '@/app/logto-kit/logic/actions'
+import { uploadAvatar } from '@/app/logto-kit/logic/actions'
 
 export interface UseAvatarUploadOptions {
-  userId: string
+  /**
+   * @deprecated The user ID is now derived server-side from the session.
+   * Kept in the API for backwards compatibility but ignored.
+   */
+  userId?: string
   onSuccess?: (url: string) => void
   onError?: (message: string) => void
 }
@@ -16,11 +20,18 @@ export interface UseAvatarUploadReturn {
   clearError: () => void
 }
 
+/**
+ * Upload an avatar image for the currently signed-in user.
+ *
+ * Security model (Phase 1): the access token and userId are NOT sent from
+ * the client. `uploadAvatar` is a Server Action — Next.js enforces
+ * same-origin automatically, and the server derives the authenticated user
+ * from its own session cookie.
+ */
 export function useAvatarUpload({
-  userId,
   onSuccess,
   onError,
-}: UseAvatarUploadOptions): UseAvatarUploadReturn {
+}: UseAvatarUploadOptions = {}): UseAvatarUploadReturn {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,42 +48,20 @@ export function useAvatarUpload({
       setError(null)
 
       try {
-        const badgeData = await fetchUserBadgeData()
-
-        if (!badgeData.success || !badgeData.accessToken) {
-          throw new Error('Could not retrieve session token. Are you logged in?')
-        }
-
-        const { accessToken } = badgeData
-
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('accessToken', accessToken)
-        formData.append('userId', userId)
 
-        const uploadRes = await fetch('/api/upload-avatar', {
-          method: 'POST',
-          body: formData,
-        })
+        const { url } = await uploadAvatar(formData)
 
-        const uploadBody = await uploadRes.json().catch(() => ({})) as {
-          url?: string
-          error?: string
+        if (!url) {
+          throw new Error('UPLOAD_FAILED')
         }
 
-        if (!uploadRes.ok) {
-          throw new Error(uploadBody.error ?? `Upload failed (HTTP ${uploadRes.status}).`)
-        }
-
-        if (!uploadBody.url) {
-          throw new Error('Upload succeeded but no URL was returned. Check server logs.')
-        }
-
-        onSuccessRef.current?.(uploadBody.url)
-        return uploadBody.url
+        onSuccessRef.current?.(url)
+        return url
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : 'An unexpected error occurred.'
+          err instanceof Error ? err.message : 'UPLOAD_FAILED'
         setError(message)
         onErrorRef.current?.(message)
         return null
@@ -80,7 +69,7 @@ export function useAvatarUpload({
         setIsUploading(false)
       }
     },
-    [userId],
+    [],
   )
 
   const clearError = useCallback(() => setError(null), [])

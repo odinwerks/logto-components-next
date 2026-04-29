@@ -1,89 +1,94 @@
 'use server';
 
 import { getManagementApiToken } from '../../../logto';
-import { getCleanEndpoint, introspectToken, assertSafeUserId } from '../utils';
+import { getCleanEndpoint, introspectToken } from '../utils';
+import { assertSafeUserId } from '../guards';
 import { makeRequest } from './request';
-import { throwOnApiError } from './shared';
-
-/**
- * Validates a user token via introspection.
- * @param accessToken - The access token to validate.
- * @param userId - The expected user ID.
- */
-async function validateUserToken(accessToken: string, userId: string): Promise<void> {
-  await assertSafeUserId(userId);
-  
-  const introspection = await introspectToken(accessToken);
-  
-  if (!introspection.active) {
-    throw new Error('UNAUTHORIZED: token is not active or has been revoked.');
-  }
-  
-  if (introspection.sub !== userId) {
-    throw new Error('UNAUTHORIZED: token subject does not match the provided userId.');
-  }
-}
+import { throwOnApiError } from '../errors';
+import { getTokenForServerAction } from './tokens';
 
 /**
  * Permanently deletes the currently authenticated user's account.
  *
- * The Logto Account API has no self-delete endpoint — deletion goes through
- * the Management API. `getManagementApiToken` in logto.ts handles the
- * client-credentials grant so this action stays clean.
+ * Security model (Phase 1, Finding 1):
+ *
+ *   - The client DOES NOT supply the access token. The server derives it
+ *     from the session cookie via `getTokenForServerAction()`.
+ *   - The client DOES NOT supply the user ID. The server derives it from
+ *     the introspected token's `sub` claim.
+ *   - This prevents both (a) the access token from being exposed to the
+ *     browser and (b) any IDOR attempt that tries to delete another user's
+ *     account by passing someone else's userId.
+ *
+ * The M2M token used for the final Management API call is minted with the
+ * narrowest scope needed (see logto.ts :: getManagementApiToken).
  *
  * Flow:
- *   1. Confirms the session is valid and reads `userId` from claims.
- *   2. Verifies the Account API still accepts the bearer token.
- *   3. Calls `getManagementApiToken()` from logto.ts.
- *   4. Deletes the user via `DELETE /api/users/{userId}`.
+ *   1. Fetch user's access token from session cookie.
+ *   2. Introspect it; reject if inactive or subject missing.
+ *   3. Validate the subject format (defense in depth).
+ *   4. Mint an M2M token scoped to user deletion.
+ *   5. DELETE /api/users/{userId} with the M2M token.
  *
- * IMPORTANT: This action deliberately does NOT call signOut() or redirect().
- * Calling signOut() inside a server action fires Next.js redirect() which races
- * with AuthWatcher's router.refresh() interval — the result is a cascade of
- * "failed to fetch" errors as AuthWatcher keeps hitting a torn-down session.
+ * This action deliberately does NOT call signOut() or redirect(). Calling
+ * signOut() inside a server action fires Next.js redirect() which races
+ * with AuthWatcher's router.refresh() interval. The client is responsible
+ * for POSTing to /api/auth/sign-out after this resolves.
  *
- * Instead, this action returns cleanly and the CLIENT navigates to
- * /api/auth/sign-out via window.location.href. That route handler calls
- * signOut() in isolation, with no concurrent RSC re-renders in flight.
- *
- * @param identityVerificationRecordId - Verification record for identity (unused but kept for API consistency).
- * @param accessToken - The access token for validation.
+ * @param identityVerificationRecordId - Opaque ID from a prior password
+ *   verification. Only used to document intent; Logto enforces the actual
+ *   verification via the preceding verifyPasswordForIdentity() flow that
+ *   minted this record.
  */
 export async function deleteUserAccount(
   identityVerificationRecordId: string,
-  accessToken: string,
 ): Promise<void> {
-  // This is a server action - proxy handles auth, we just need user ID from API
-  // ── Step 1: get user data to find userId ────────────────────────────────
+  // ── Require the caller to have completed password verification ─────────
+  if (
+    typeof identityVerificationRecordId !== 'string' ||
+    identityVerificationRecordId.length === 0
+  ) {
+    throw new Error('MISSING_VERIFICATION');
+  }
+
+  // ── Derive token + userId server-side (never trust the client) ─────────
+  const sessionToken = await getTokenForServerAction();
+  const introspection = await introspectToken(sessionToken);
+
+  if (!introspection.active) {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  const userId = introspection.sub;
+  if (!userId) {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  // Defense in depth: reject if the subject has an unexpected shape.
+  assertSafeUserId(userId);
+
+  // ── Sanity-check the account session before destructive work ───────────
   const accountCheck = await makeRequest('/api/my-account');
   if (!accountCheck.ok) {
-    throw new Error('Could not verify account session before deletion.');
+    throw new Error('UNAUTHORIZED');
   }
 
-  const userData = await accountCheck.json();
-  const userId = userData.id;
-
-  if (!userId) {
-    throw new Error('User ID not found.');
-  }
-
-  // ── Step 2: validate user token via introspection ────────────────────────
-  await validateUserToken(accessToken, userId);
-
-  // ── Step 3: get Management API token (M2M, lives in logto.ts) ────────────
+  // ── Mint narrowly-scoped M2M token and delete the user ─────────────────
   const mgmtToken = await getManagementApiToken();
   const cleanEndpoint = await getCleanEndpoint();
 
-  // ── Step 4: delete via Management API ────────────────────────────────────
-  const deleteRes = await fetch(`${cleanEndpoint}/api/users/${userId}`, {
+  const deleteRes = await fetch(`${cleanEndpoint}/api/users/${encodeURIComponent(userId)}`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${mgmtToken}`,
     },
   });
 
-  await throwOnApiError(deleteRes, 'Account deletion failed');
+  await throwOnApiError(deleteRes, 'DELETE_FAILED', 'account-delete');
 
-  // Return cleanly. The client (security.tsx handleDeleteAccount) is
-  // responsible for navigating to /api/auth/sign-out after this resolves.
+  // Audit the deletion — this is the last thing we do before returning.
+  const { audit } = await import('../audit');
+  await audit({ actor: userId, action: 'account.delete', resource: userId });
+
+  // Client navigates to /api/auth/sign-out after this resolves (POST).
 }

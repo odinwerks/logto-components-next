@@ -132,6 +132,11 @@ export async function getManagementApiToken(): Promise<string> {
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     resource,
+    // 'all' here requests every management scope granted to this M2M app in the
+    // Logto Console. The actual blast radius is determined by Console permissions,
+    // NOT this string. To minimise risk, ensure the M2M app in Console has ONLY
+    // the "User data → Delete user" permission assigned.
+    // See SECURITY.md for setup instructions.
     scope: 'all',
   });
 

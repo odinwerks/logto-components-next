@@ -105,7 +105,6 @@ export async function Dashboard() {
         <DashboardClient
           initialData={{
             userData: result.userData,
-            accessToken: result.accessToken,
           }}
           currentOrgId={resolvedOrg ?? undefined}
           translations={translations}
