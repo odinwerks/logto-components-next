@@ -1,11 +1,12 @@
 'use server';
 
 import { getCleanEndpoint } from '../logic/utils';
+import { decodeLogtoAccessToken } from '../logic/guards';
 
 interface RbacUserData {
   organizations: string[];
   asOrg: string | null;
-  organizationPermissions?: string[]; // Permission scopes from organization token
+  organizationPermissions?: string[];
 }
 
 interface RbacValidationResult {
@@ -38,18 +39,14 @@ export async function fetchUserRbacData(token: string, overrideOrgId?: string | 
 
   let organizationPermissions: string[] | undefined;
 
-  // If user has active org, get permissions via Management API
   if (asOrg) {
     try {
-      const { getOrganizationUserPermissions } = await import('../logic/actions');
-      // Extract userId from JWT token
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-        const userId = payload.sub;
-        if (userId) {
-          organizationPermissions = await getOrganizationUserPermissions(asOrg);
-        }
+      // Use @logto/js-based decode (base64url-correct) to extract sub from token.
+      // The token was already introspected and validated by the caller (/api/protected).
+      const claims = decodeLogtoAccessToken(token);
+      if (claims.sub) {
+        const { getOrganizationUserPermissions } = await import('../logic/actions');
+        organizationPermissions = await getOrganizationUserPermissions(asOrg);
       }
     } catch (error) {
       console.warn('[fetchUserRbacData] Failed to get org permissions:', error);
@@ -74,7 +71,3 @@ export async function validateOrgMembership(userOrgs: string[], asOrg: string | 
 
   return { ok: true };
 }
-
-
-
-

@@ -38,7 +38,6 @@ export default async function HomePage() {
     <main style={{ minHeight: '100vh' }}>
       <LogtoProvider
         userData={result.userData}
-        accessToken={result.accessToken}
         dashboard={<Dashboard />}
         darkThemeSpec={darkThemeSpec}
         lightThemeSpec={lightThemeSpec}

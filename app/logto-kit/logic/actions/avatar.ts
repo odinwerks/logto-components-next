@@ -1,7 +1,9 @@
 'use server';
 
 import * as Minio from 'minio';
-import { introspectToken, assertSafeUserId } from '../utils';
+import { introspectToken } from '../utils';
+import { assertSafeUserId } from '../guards';
+import { getTokenForServerAction } from './tokens';
 
 // ============================================================================
 // Constants
@@ -34,7 +36,7 @@ async function supabaseStorageHeaders(
 ): Promise<Record<string, string>> {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.');
+    throw new Error('UPLOAD_FAILED');
   }
   return {
     Authorization: `Bearer ${serviceRoleKey}`,
@@ -47,7 +49,7 @@ async function supabaseStorageHeaders(
 
 function supabaseRestBase(): string {
   const rawEndpoint = process.env.S3_ENDPOINT;
-  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.');
+  if (!rawEndpoint) throw new Error('UPLOAD_FAILED');
   return rawEndpoint.replace(/\/s3\/?$/, '');
 }
 
@@ -68,8 +70,9 @@ async function uploadViaSupabase(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText);
-    throw new Error(`Storage upload failed (HTTP ${res.status}). Check your S3 and Supabase configuration.`);
+    // Log detail server-side; never surface to client.
+    console.warn(`[uploadViaSupabase] HTTP ${res.status}`);
+    throw new Error('UPLOAD_FAILED');
   }
 }
 
@@ -106,10 +109,9 @@ async function uploadViaMinIO(
   const secretKey = process.env.S3_SECRET_ACCESS_KEY;
   const rawEndpoint = process.env.S3_ENDPOINT;
 
-  if (!accessKey || !secretKey) {
-    throw new Error('Set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY, or set SUPABASE_SERVICE_ROLE_KEY to use the Supabase REST path.');
+  if (!accessKey || !secretKey || !rawEndpoint) {
+    throw new Error('UPLOAD_FAILED');
   }
-  if (!rawEndpoint) throw new Error('S3_ENDPOINT is not set.');
 
   const parsed = new URL(rawEndpoint);
   const useSSL = parsed.protocol === 'https:';
@@ -131,7 +133,8 @@ async function uploadViaMinIO(
       'Cache-Control': 'public, max-age=0, must-revalidate',
     });
   } catch (err) {
-    throw new Error('Storage upload failed. Please check your S3 configuration and credentials.');
+    console.warn('[uploadViaMinIO] putObject failed', err instanceof Error ? err.message : err);
+    throw new Error('UPLOAD_FAILED');
   }
 }
 
@@ -177,37 +180,12 @@ async function deleteOldAvatars(bucket: string, userId: string, newExt: string):
   }
 }
 
-/**
- * Validates a user token via introspection.
- * @param accessToken - The access token to validate.
- * @param userId - The expected user ID.
- */
-async function validateUserToken(accessToken: string, userId: string): Promise<void> {
-  await assertSafeUserId(userId);
-  
-  const introspection = await introspectToken(accessToken);
-  
-  if (!introspection.active) {
-    throw new Error('UNAUTHORIZED: token is not active or has been revoked.');
-  }
-  
-  if (introspection.sub !== userId) {
-    throw new Error('UNAUTHORIZED: token subject does not match the provided userId.');
-  }
-}
-
 // ============================================================================
 // MIME Detection
 // ============================================================================
 
-/**
- * Detects the MIME type from file bytes using magic numbers.
- * @param bytes - The file bytes.
- * @returns The detected MIME type or null if not recognized.
- */
 function detectMimeFromBytes(bytes: Buffer): string | null {
   for (const [mime, [prefix, at]] of Object.entries(MAGIC_BYTES)) {
-    // Check prefix bytes first
     if (bytes.length < prefix.length) continue;
 
     let match = true;
@@ -216,7 +194,6 @@ function detectMimeFromBytes(bytes: Buffer): string | null {
     }
     if (!match) continue;
 
-    // Check additional bytes (for WebP, which checks bytes 8-11)
     if (at.length > 0) {
       if (bytes.length < 8 + at.length) continue;
       for (let i = 0; i < at.length; i++) {
@@ -229,60 +206,82 @@ function detectMimeFromBytes(bytes: Buffer): string | null {
 }
 
 // ============================================================================
-// Avatar Upload Action
+// Avatar Upload Server Action
 // ============================================================================
 
 /**
- * Uploads a user avatar to S3-compatible storage.
- * @param formData - FormData containing 'file', 'accessToken', and 'userId'.
+ * Uploads an avatar for the currently authenticated user.
+ *
+ * Security model (Phase 1, Finding 1 + Phase 3, Finding 3):
+ *
+ *   - FormData carries ONLY the file. The access token and user ID are
+ *     derived server-side from the session cookie — never accepted from
+ *     the client.
+ *   - Next.js Server Actions enforce same-origin at the framework level,
+ *     eliminating CSRF from cross-site origins.
+ *
+ * Validation:
+ *   - MIME declared vs magic-bytes detected (rejects MIME spoofing).
+ *   - File size ≤ 2 MB.
+ *   - MIME in allowlist.
+ *
+ * Storage path is `${userId}/you.${ext}`. userId is asserted safe to
+ * prevent any path-traversal attempt.
+ *
+ * @param formData FormData containing a single `file` field.
  * @returns Object containing the public URL of the uploaded avatar.
  */
 export async function uploadAvatar(
   formData: FormData,
 ): Promise<{ url: string }> {
-  const rawFile = formData.get('file');
-  const rawAccessToken = formData.get('accessToken');
-  const rawUserId = formData.get('userId');
+  // ── Derive token + userId server-side ────────────────────────────────
+  const sessionToken = await getTokenForServerAction();
+  const introspection = await introspectToken(sessionToken);
 
-  if (!(rawFile instanceof File) || typeof rawAccessToken !== 'string' || typeof rawUserId !== 'string') {
-    throw new Error('Bad request — file, accessToken, and userId are all required and must be correct types.');
+  if (!introspection.active) {
+    throw new Error('UNAUTHORIZED');
   }
+  const userId = introspection.sub;
+  if (!userId) {
+    throw new Error('UNAUTHORIZED');
+  }
+  assertSafeUserId(userId);
 
+  // ── Extract and validate file ────────────────────────────────────────
+  const rawFile = formData.get('file');
+  if (!(rawFile instanceof File)) {
+    throw new Error('UPLOAD_INVALID_TYPE');
+  }
   const file = rawFile;
-  const accessToken = rawAccessToken;
-  const userId = rawUserId;
 
   if (!(ALLOWED_MIME as readonly string[]).includes(file.type)) {
-    throw new Error(`Invalid file type "${file.type}". Allowed: ${ALLOWED_MIME.join(', ')}.`);
+    throw new Error('UPLOAD_INVALID_TYPE');
   }
 
   if (file.size > MAX_BYTES) {
-    throw new Error(`File is ${(file.size / 1024 / 1024).toFixed(2)} MB — limit is 2 MB.`);
+    throw new Error('UPLOAD_TOO_LARGE');
   }
 
   const arrayBuf = await file.arrayBuffer();
   const bytes = Buffer.from(arrayBuf);
   const detectedMime = detectMimeFromBytes(bytes);
   if (!detectedMime || detectedMime !== file.type) {
-    throw new Error(`File content does not match declared type "${file.type}". Upload rejected.`);
+    throw new Error('UPLOAD_INVALID_TYPE');
   }
 
-  await validateUserToken(accessToken, userId);
-
+  // ── Storage config ───────────────────────────────────────────────────
   const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, '');
   if (!publicBase) {
-    throw new Error(
-      'S3_PUBLIC_URL is not set. It must be the public-facing base URL for ' +
-        'reading objects — NOT the S3 API endpoint.',
-    );
+    throw new Error('UPLOAD_FAILED');
   }
 
   const bucket = process.env.S3_BUCKET_NAME;
-  if (!bucket) throw new Error('S3_BUCKET_NAME is not set.');
+  if (!bucket) throw new Error('UPLOAD_FAILED');
 
   const ext = MIME_TO_EXT[file.type] || 'png';
   const key = `${userId}/you.${ext}`;
 
+  // ── Upload ───────────────────────────────────────────────────────────
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     await uploadViaSupabase(bucket, key, bytes, file.type);
   } else {
@@ -290,6 +289,9 @@ export async function uploadAvatar(
   }
 
   await deleteOldAvatars(bucket, userId, ext);
+
+  const { audit } = await import('../audit');
+  await audit({ actor: userId, action: 'avatar.upload', resource: userId });
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` };
 }

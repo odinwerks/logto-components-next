@@ -20,6 +20,7 @@ export const ALL_TABS: TabId[] = [
 
 // ENV value aliases — lets operators use friendly names
 import { readEnv } from './env';
+import { isDev } from './dev-mode';
 
 const TAB_ALIASES: Record<string, TabId> = {
   // profile aliases
@@ -79,8 +80,8 @@ export function getLoadedTabs(): TabId[] {
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
-    // ENV not set → show all tabs in default order
-    return [...ALL_TABS];
+    // ENV not set → show all tabs in default order (minus 'dev' in prod).
+    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
   }
 
   const seen = new Set<TabId>();
@@ -102,10 +103,15 @@ export function getLoadedTabs(): TabId[] {
     }
   }
 
-  if (result.length === 0) {
-    console.warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to all tabs.');
-    return [...ALL_TABS];
+  // Security: strip 'dev' tab in production regardless of LOAD_TABS setting.
+  // The DevTab component displays the user's access token and raw JSON, which
+  // is a debugging feature that must never ship to real end users.
+  const filtered = isDev ? result : result.filter(id => id !== 'dev');
+
+  if (filtered.length === 0) {
+    console.warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to safe defaults.');
+    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
   }
 
-  return result;
+  return filtered;
 }

@@ -168,3 +168,71 @@ Open a GitHub issue with the `question` label or start a discussion in the Discu
 ---
 
 Thank you for contributing to Logto Dash!
+
+---
+
+## Security Checklist for New Server Actions
+
+Every `'use server'` function is a trust boundary — the browser can call it with arbitrary arguments. Follow this checklist before merging:
+
+**1. Validate every client-supplied parameter at the entry point**
+
+```ts
+// ✅ Correct: validate at the top before any privileged work
+export async function myAction(id: string, type: string): Promise<void> {
+  assertSafeLogtoId(id, 'id');           // from logic/guards.ts
+  assertMyEnum(type);                    // your allowlist guard
+  // ... now safe to use id and type
+}
+
+// ❌ Wrong: using the param without prior validation
+export async function myAction(id: string): Promise<void> {
+  await makeRequest(`/api/something/${id}`); // path injection risk
+}
+```
+
+**2. Never accept an `accessToken` or `userId` from the client**
+
+```ts
+// ✅ Correct: derive both server-side
+const token = await getTokenForServerAction();
+const { sub: userId } = await introspectToken(token);
+
+// ❌ Wrong: accepting from the client
+export async function myAction(userId: string, accessToken: string) { ... }
+```
+
+**3. Use `encodeURIComponent()` or `safeUrl()` for every path interpolation**
+
+```ts
+// ✅ Correct
+const path = `/api/thing/${encodeURIComponent(id)}`;
+
+// ❌ Wrong
+const path = `/api/thing/${id}`;
+```
+
+**4. Map errors to fixed codes before throwing**
+
+```ts
+// ✅ Correct
+if (!res.ok) {
+  throw new Error('UPDATE_FAILED');   // fixed code, safe to bubble to client
+}
+
+// ❌ Wrong
+if (!res.ok) {
+  throw new Error(await res.text());  // leaks upstream detail in prod
+}
+```
+
+Use `throwOnApiError(res, label)` from `logic/actions/shared.ts` — it handles the `isDev` switch automatically.
+
+**5. Write a regression test for each validator**
+
+Add a test to `logic/guards.test.ts` or a colocated `*.test.ts` file. Tests must cover:
+- At least 2 valid inputs (accepted)
+- Path traversal / injection attempt (rejected)
+- Empty/null input (rejected)
+
+Run `npm test` to confirm green before opening a PR.

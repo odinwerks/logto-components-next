@@ -8,7 +8,6 @@ import { UserDataProvider } from './user-data-context';
 
 interface LogtoContextValue {
   userData: UserData;
-  accessToken: string;
   theme: 'dark' | 'light';
   themeSpec: ThemeSpec;
   setTheme: (theme: 'dark' | 'light') => void;
@@ -34,7 +33,6 @@ export function useLogto(): LogtoContextValue {
 export interface LogtoProviderProps {
   children: ReactNode;
   userData: UserData;
-  accessToken: string;
   dashboard?: ReactNode;
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
@@ -46,12 +44,10 @@ export interface LogtoProviderProps {
 
 function LogtoProviderContent({
   userData,
-  accessToken,
   dashboard,
   children,
 }: {
   userData: UserData;
-  accessToken: string;
   dashboard?: ReactNode;
   children: ReactNode;
 }) {
@@ -79,7 +75,6 @@ function LogtoProviderContent({
 
   const contextValue: LogtoContextValue = {
     userData,
-    accessToken,
     theme,
     themeSpec,
     setTheme,
@@ -154,7 +149,6 @@ function LogtoProviderContent({
 export function LogtoProvider({
   children,
   userData,
-  accessToken,
   dashboard,
   initialTheme,
   initialLang,
@@ -174,7 +168,6 @@ export function LogtoProvider({
     >
       <LogtoProviderContent
         userData={userData}
-        accessToken={accessToken}
         dashboard={dashboard}
       >
         {children}

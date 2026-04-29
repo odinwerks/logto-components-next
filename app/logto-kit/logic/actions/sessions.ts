@@ -4,9 +4,10 @@ import { UAParser } from 'ua-parser-js';
 import type { LogtoSession, SessionMeta } from '../types';
 import { introspectToken } from '../utils';
 import { debugLog } from '../debug';
+import { assertSafeLogtoId, assertRevokeGrantsTarget } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
-import { throwOnApiError } from './shared';
+import { throwOnApiError } from '../errors';
 
 // ============================================================================
 // User Agent Parsing
@@ -42,11 +43,12 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
  * @returns Array of LogtoSession objects.
  */
 export async function getUserSessions(verificationRecordId: string): Promise<LogtoSession[]> {
+  assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
   debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
   const res = await makeRequest('/api/my-account/sessions', {
     extraHeaders: { 'logto-verification-id': verificationRecordId },
   });
-  await throwOnApiError(res, 'Get sessions failed');
+  await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
   const data = await res.json();
   const sessions = (data.sessions ?? []) as LogtoSession[];
   debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
@@ -99,6 +101,10 @@ export async function revokeUserSession(
   revokeGrantsTarget?: 'all' | 'firstParty',
   identityVerificationRecordId?: string,
 ): Promise<void> {
+  assertSafeLogtoId(sessionId, 'sessionId');
+  assertRevokeGrantsTarget(revokeGrantsTarget);
+  if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
   debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
   debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
 
@@ -107,17 +113,17 @@ export async function revokeUserSession(
     extraHeaders['logto-verification-id'] = identityVerificationRecordId;
   }
 
-  const path = `/api/my-account/sessions/${sessionId}`
-    + (revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : '');
+  const qs = revokeGrantsTarget ? `?revokeGrantsTarget=${encodeURIComponent(revokeGrantsTarget)}` : '';
+  const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}${qs}`;
 
-  debugLog(`[revokeUserSession] Calling DELETE ${path}`);
-  const res = await makeRequest(path, {
+  debugLog(`[revokeUserSession] Calling DELETE ${safePath}`);
+  const res = await makeRequest(safePath, {
     method: 'DELETE',
     extraHeaders,
   });
 
   debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
-  await throwOnApiError(res, 'Session revocation failed');
+  await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
 
   debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
 }
@@ -132,7 +138,7 @@ export async function revokeUserSession(
  */
 export async function getUserGrants(): Promise<unknown[]> {
   const res = await makeRequest('/api/my-account/grants');
-  await throwOnApiError(res, 'Get grants failed');
+  await throwOnApiError(res, 'FETCH_FAILED', 'get-grants');
   const data = await res.json();
   return data.grants ?? [];
 }
@@ -146,14 +152,17 @@ export async function revokeUserGrant(
   grantId: string,
   identityVerificationRecordId?: string,
 ): Promise<void> {
+  assertSafeLogtoId(grantId, 'grantId');
+  if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
   const extraHeaders: Record<string, string> = {};
   if (identityVerificationRecordId) {
     extraHeaders['logto-verification-id'] = identityVerificationRecordId;
   }
 
-  const res = await makeRequest(`/api/my-account/grants/${grantId}`, {
+  const res = await makeRequest(`/api/my-account/grants/${encodeURIComponent(grantId)}`, {
     method: 'DELETE',
     extraHeaders,
   });
-  await throwOnApiError(res, 'Grant revocation failed');
+  await throwOnApiError(res, 'GRANT_REVOKE_FAILED', 'grant-revoke');
 }
