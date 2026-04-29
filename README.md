@@ -15,9 +15,9 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
-- **Cookie Recovery**: Automatic handling of stale cookie contexts via /api/wipe route.
+- **Cookie Recovery**: Automatic handling of stale cookie contexts via POST /api/wipe route.
 - **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get caught at the request layer if problematic.
-- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) gated behind `DEBUG=true` env var.
+- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated. The Dev tab is only visible in `NODE_ENV=development`.
 
 ## Project Structure
 
@@ -31,8 +31,6 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── sign-out/
 │   │   │       └── route.ts
 │   │   ├── protected/
-│   │   │   └── route.ts
-│   │   ├── upload-avatar/
 │   │   │   └── route.ts
 │   │   └── wipe/
 │   │       └── route.ts
@@ -97,8 +95,8 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   └── shared/
 │   │   │       ├── Button.tsx
 │   │   │       └── Input.tsx
-│   │   └── userbutton/
-│   │       └── index.tsx
+│   │   ├── userbutton/
+│   │   │   └── index.tsx
 │   │   ├── custom-actions/
 │   │   │   ├── index.ts                  # Action registry and types
 │   │   │   ├── validation.ts             # RBAC validation functions
@@ -180,6 +178,20 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that
 
 The workflow uses Node.js 20 and caches npm dependencies for faster runs.
 
+## Security Architecture (v0.3.0)
+
+v0.3.0 introduced dedicated security modules for defense-in-depth:
+
+| Module | Location | Purpose |
+|--------|----------|---------|
+| `origin-guard.ts` | `logic/origin-guard.ts` | CSRF protection — validates `Origin`/`Referer` header on all non-Server-Action API routes |
+| `guards.ts` | `logic/guards.ts` | Input validators for all trust boundaries — IDs, user IDs, MFA types, custom data |
+| `audit.ts` | `logic/audit.ts` | Audit log primitive — emits structured events for mutations (no-op until you provide a custom transport) |
+| `dev-mode.ts` | `logic/dev-mode.ts` | `NODE_ENV` gate — strips dev-only features at runtime in non-development environments |
+| `debug-token.ts` | `logic/actions/debug-token.ts` | Dev-only Server Action for token access (refused by server in production) |
+
+To activate audit logging, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`.
+
 ## Environment Variables
 
 ### Required
@@ -193,7 +205,7 @@ COOKIE_SECRET=your-random-secret
 
 # Scopes (comma-separated, required - no defaults)
 # Must include: openid,profile,custom_data,email,phone,identities,sessions
-# Add: organizations,organization_roles for org features
+# Add: organizations for org features
 # Add: offline_access for refresh tokens
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 ```
@@ -580,13 +592,12 @@ LogtoProvider is a convenience wrapper that combines `UserDataProvider` and `Pre
 import { LogtoProvider, useLogto } from './logto-kit';
 
 function MyComponent() {
-  const { userData, accessToken } = useLogto();
+  const { userData, openDashboard } = useLogto();
   // ...
 }
 
 <LogtoProvider 
-  userData={userData} 
-  accessToken={token}
+  userData={userData}
   initialTheme="dark"
   initialLang="en-US"
   onUpdateCustomData={updateCustomData}
@@ -600,7 +611,6 @@ function MyComponent() {
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `userData` | `UserData` | — | The user data object |
-| `accessToken` | `string` | — | JWT or opaque access token |
 | `dashboard` | `ReactNode` | - | Optional dashboard modal content |
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
@@ -617,7 +627,7 @@ The `useLogto()` hook provides access to user data, authentication, and all pref
 import { useLogto } from './logto-kit';
 
 function MyComponent() {
-  const { userData, accessToken, openDashboard, theme, themeSpec, lang, setLang, asOrg, setAsOrg } = useLogto();
+  const { userData, openDashboard, theme, themeSpec, lang, setLang, asOrg, setAsOrg } = useLogto();
   // ...
 }
 ```
@@ -627,7 +637,6 @@ Returns:
 | Field | Type | Description |
 |-------|------|-------------|
 | `userData` | `UserData` | Current user data |
-| `accessToken` | `string` | JWT or opaque access token |
 | `theme` | `'dark' \| 'light'` | Current theme mode |
 | `themeSpec` | `ThemeSpec` | Full theme specification (colors, components, tokens) |
 | `setTheme` | `(theme: 'dark' \| 'light') => void` | Set theme mode |
@@ -904,13 +913,18 @@ A secure API endpoint for executing permission-gated actions from the client.
 **Endpoint:** `POST /api/protected`
 
 ```tsx
-// Client-side usage
+import { getFreshAccessToken } from './logto-kit/logic/actions';
+
+// Inside a client component — get userData from context, token from server action
+const { userData } = useLogto();
+const freshToken = await getFreshAccessToken();
+
 const response = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: accessToken,
-    id: userId,
+    token: freshToken,
+    id: userData.id,
     action: 'explode-earth',
     payload: { force: true }
   })
@@ -1114,7 +1128,7 @@ BASE_URL=http://localhost:3000
 COOKIE_SECRET=your_cookie_secret
 
 # Scopes (must include org scopes ON TOP of the required ones)
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations
 
 # M2M for Management API
 LOGTO_M2M_APP_ID=your_m2m_app_id
@@ -1127,7 +1141,7 @@ LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 
 #### Logto Console Setup
 
-1. **Application Scopes**: Add `organizations` and `organization_roles`
+1. **Application Scopes**: Add `organizations`
 2. **M2M Application**: Create a Machine-to-Machine app with:
    - Permissions to read organization roles and user data
    - Add to environment variables above
@@ -1345,11 +1359,19 @@ This means users don't need to re-authenticate just because their access token e
 
 ### Manual Cookie Wipe
 
-Visit `/api/wipe` to manually clear cookies. Useful for debugging.
+Send a POST request to `/api/wipe` to manually clear cookies (GET returns 405). Useful for debugging:
+
+```bash
+curl -X POST http://localhost:3000/api/wipe -H "Cookie: <your-session-cookie>"
+```
 
 ### Force Sign-Out
 
-Visit `/api/wipe?force=true` to completely sign out - clears both app cookies AND the Logto session.
+POST to `/api/wipe` with query parameter `?force=true` to completely sign out — clears both app cookies AND the Logto session:
+
+```bash
+curl -X POST "http://localhost:3000/api/wipe?force=true" -H "Cookie: <your-session-cookie>"
+```
 
 ## User Preferences & JSON Schema
 
@@ -1406,18 +1428,20 @@ The dashboard supports user avatar uploads via drag-and-drop or file browser. Wh
 
 ### Architecture
 
+Avatar upload is implemented as a **Next.js Server Action** (`uploadAvatar()` in `app/logto-kit/logic/actions/avatar.ts`). There is no intermediate API route — the client calls the action directly:
+
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌───────────┐
-│   Client    │────▶│  API Route       │────▶│  Server Action  │────▶│  S3       │
-│             │     │  /api/upload-    │     │  uploadAvatar   │     │  Storage  │
-│ 1. Select   │     │    avatar        │     │                 │     │           │
-│ 2. Get      │     │ 1. Receive       │     │ 1. Validate     │     │ {userId}/ │
-│    token    │     │    FormData      │     │    token        │     │   you.png │
-│ 3. POST     │     │ 2. Call action   │     │ 2. Upload to    │     │           │
-│ 4. Get URL  │◀────│ 3. Return URL    │◀────│    S3           │◀────│           │
-└─────────────┘     └──────────────────┘     └─────────────────┘     └───────────┘
-      │
-      │ 5. Push URL to Logto
+┌─────────────┐     ┌─────────────────────────────────┐     ┌───────────┐
+│   Client    │────▶│  Server Action: uploadAvatar()  │────▶│  S3       │
+│             │     │  (app/logto-kit/logic/actions/  │     │  Storage  │
+│ 1. Select   │     │   avatar.ts)                    │     │           │
+│    file     │     │                                 │     │ {userId}/ │
+│ 2. Call     │     │ 1. Derive token + userId        │     │   you.png │
+│    action   │     │    server-side from session     │     │           │
+│ 3. Get URL  │◀────│ 2. Validate file (MIME + size)  │◀────│           │
+└─────────────┘     │ 3. Upload to S3                 │     └───────────┘
+      │             └─────────────────────────────────┘
+      │ 4. Push URL to Logto
       ▼
 ┌─────────────────┐
 │  Logto Account  │
@@ -1428,14 +1452,11 @@ The dashboard supports user avatar uploads via drag-and-drop or file browser. Wh
 
 ### Security
 
-The upload is protected by two-layer validation:
+The access token and user ID are **derived server-side** from the session cookie — they are never accepted from the client. This prevents token leakage and cross-user upload attempts.
 
-1. **Token Validation**: Calls Logto's OIDC introspection endpoint to verify the token is `active: true`
-2. **User ID Match**: Verifies the token's `sub` claim matches the submitted `userId`
+Server Actions enforce same-origin at the framework level, eliminating CSRF from cross-site origins.
 
-This prevents users from uploading avatars for other users. If user A tries to upload with userId = "userB", the request is rejected with `UNAUTHORIZED: token subject does not match the provided userId.`
-
-> **Note**: This same security pattern is also used for account deletion - the user's token must be valid and belong to the account being deleted.
+> **Note**: The same server-side credential derivation pattern is used for account deletion — the server never trusts client-supplied tokens or user IDs.
 
 ### Environment Variables
 
@@ -1516,13 +1537,12 @@ The avatar upload system consists of:
 
 | File | Purpose |
 |------|---------|
-| `app/api/upload-avatar/route.ts` | API route that handles HTTP requests |
+| `app/logto-kit/logic/actions/avatar.ts` | Server Action — validates file, derives auth from session, uploads to S3 |
 | `app/logto-kit/components/handlers/use-avatar-upload.tsx` | React hook for client-side upload logic |
-| `app/logto-kit/logic/actions.ts` | Server action with `uploadAvatar()` function |
 
 The hook (`useAvatarUpload`) is already integrated into the Profile tab component. It:
-1. Fetches the user's access token via `fetchUserBadgeData()`
-2. Sends the file + token + userId to the API route
+1. Builds a `FormData` with only the `file` field
+2. Calls the `uploadAvatar()` Server Action directly
 3. On success, automatically updates the avatar in Logto via `updateAvatarUrl()`
 
 ### Usage in Custom Components
@@ -1532,9 +1552,8 @@ You can use the avatar upload hook in your own components:
 ```tsx
 import { useAvatarUpload } from './logto-kit';
 
-function MyAvatarUploader({ userId }: { userId: string }) {
+function MyAvatarUploader() {
   const { upload, isUploading, error } = useAvatarUpload({
-    userId,
     onSuccess: (url) => console.log('Uploaded to:', url),
     onError: (msg) => console.error('Failed:', msg),
   });
@@ -1610,8 +1629,8 @@ await updateAvatarUrl('https://example.com/avatar.png');
 // Update password (requires identity verification first)
 await updateUserPassword('newPassword123', 'verificationRecordId');
 
-// Delete account (requires identity verification and access token)
-await deleteUserAccount('verificationRecordId', 'accessToken');
+// Delete account (requires identity verification record ID; access token is derived server-side)
+await deleteUserAccount('verificationRecordId');
 
 // Sign out and clear cookies
 await signOutUser();
@@ -1624,7 +1643,8 @@ await signOutUser();
 const mfaList = await getMfaVerifications();
 
 // Generate TOTP secret for new enrollment
-const { secret, secretQrCode } = await generateTotpSecret();
+const { secret } = await generateTotpSecret();
+// Use `secret` with qrcode.react to generate a scannable QR code
 
 // Add MFA verification (takes 2 args: verification payload + identity verification record ID)
 await addMfaVerification({ type: 'Totp', payload: { secret, code: '123456' } }, 'verificationRecordId');
@@ -1673,14 +1693,11 @@ await removeUserPhone('verificationRecordId');
 // Upload avatar (returns the public URL)
 const { url } = await uploadAvatar(formData);
 
-// FormData must contain:
+// FormData must contain ONLY:
 // - file: File object (JPEG, PNG, WebP, GIF, max 2MB)
-// - accessToken: string
-// - userId: string
+// The access token and user ID are derived server-side from the session cookie.
 const formData = new FormData();
 formData.append('file', fileInput.files[0]);
-formData.append('accessToken', accessToken);
-formData.append('userId', userId);
 ```
 
 ## Installation

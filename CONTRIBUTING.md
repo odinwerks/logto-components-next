@@ -127,16 +127,25 @@ npm run build
 npm run start
 ```
 
-## Testing Changes
+## Testing
 
-There is currently no automated test suite. Please test manually:
+The project includes an automated test suite powered by [Vitest](https://vitest.dev/).
 
-1. **Authentication Flow**: Sign in, sign out, session persistence
-2. **Dashboard**: All tabs load correctly, data displays properly
-3. **Theme Switching**: Dark/light modes work correctly
-4. **i18n**: Language switching works (if applicable)
-5. **Avatar Upload**: Upload works with valid storage configuration (optional)
-6. **Protected Components**: Permission gates work correctly (optional)
+```bash
+# Run tests interactively (watch mode)
+npm run test
+
+# Run tests once (CI mode)
+npm run test:run
+```
+
+Tests live in the following files:
+- `app/logto-kit/logic/guards.test.ts` — input validators for all trust boundaries
+- `app/logto-kit/logic/origin-guard.test.ts` — CSRF/origin validation
+- `app/logto-kit/logic/errors.test.ts` — error utilities
+- `app/logto-kit/logic/dev-mode.test.ts` — NODE_ENV gate for dev-only features
+
+CI runs `npm run test:run` automatically on every push and pull request.
 
 ### Manual Testing Checklist
 
@@ -148,7 +157,7 @@ There is currently no automated test suite. Please test manually:
 - [ ] Theme toggle works
 - [ ] Language switch works (if multiple languages configured)
 - [ ] Sessions tab shows active sessions
-- [ ] Dev tab shows tokens (when `DEBUG=true`)
+- [ ] Dev tab shows tokens (only visible in `NODE_ENV=development`)
 
 ## Reporting Issues
 
@@ -226,7 +235,14 @@ if (!res.ok) {
 }
 ```
 
-Use `throwOnApiError(res, label)` from `logic/actions/shared.ts` — it handles the `isDev` switch automatically.
+For new server actions, import `throwOnApiError` directly from `../logic/errors` — it accepts a typed `ErrorCode` fallback and an optional operation string:
+
+```ts
+import { throwOnApiError } from '../logic/errors';
+await throwOnApiError(res, 'UPDATE_FAILED', 'operationName');
+```
+
+The `shared.ts` version (`throwOnApiError(res, label)`) is a legacy shim retained for backwards compatibility; do not use it in new code.
 
 **5. Write a regression test for each validator**
 
