@@ -308,9 +308,9 @@ export function FlowModal({
 
           {step.kind === 'totp-scan' && (
               <>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '1.125rem' }}>
-                  <div style={{ background: c.bgPrimary, padding: '0.75rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: 'flex-start' }}>
-                    <QRCodeSVG value={step.totpUri} size={140} />
+                <div style={{ display: 'flex', gap: '1.25rem' }}>
+                  <div style={{ background: '#fff', padding: '0.375rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: 'flex-start' }}>
+                    <QRCodeSVG value={step.totpUri} size={152} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.6, marginBottom: '0.75rem' }}>
@@ -346,34 +346,34 @@ export function FlowModal({
                         {copied ? <Check size={'0.8125rem'} color={T.greenText} strokeWidth={1.5} /> : <Copy size={'0.8125rem'} color={T.muted} strokeWidth={1.5} />}
                       </button>
                     </div>
-                  </div>
-                </div>
 
-                <HR theme={theme} />
-                <div style={{ marginTop: '1rem' }}>
-                  <Lbl theme={theme}>6-digit code from your app</Lbl>
-                  <Input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="000000"
-                    maxLength={6}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && code.length === 6)
-                        onTotpSubmit?.(code, step.secret, step.identityVerificationId);
-                    }}
-                    theme={theme}
-                    style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                  <Button onClick={onClose} theme={theme}>Cancel</Button>
-                  <Button variant="primary"
-                    onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
-                    disabled={code.length !== 6} theme={theme}
-                  >
-                    Activate <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
-                  </Button>
+                    <HR theme={theme} />
+                    <Lbl theme={theme}>6-digit code from your app</Lbl>
+                    <Input
+                      value={code}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setCode(val);
+                        if (val.length === 6) {
+                          onTotpSubmit?.(val, step.secret, step.identityVerificationId);
+                        }
+                      }}
+                      placeholder="000000"
+                      maxLength={6}
+                      autoFocus
+                      theme={theme}
+                      style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
+                      <Button onClick={onClose} theme={theme}>Cancel</Button>
+                      <Button variant="primary"
+                        onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
+                        disabled={code.length !== 6} theme={theme}
+                      >
+                        Activate <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}

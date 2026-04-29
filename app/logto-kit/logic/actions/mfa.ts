@@ -18,9 +18,9 @@ export async function getMfaVerifications(): Promise<MfaVerification[]> {
 
 /**
  * Generates a new TOTP secret for MFA setup.
- * @returns Object containing secret and secretQrCode.
+ * @returns Object containing the secret.
  */
-export async function generateTotpSecret(): Promise<{ secret: string; secretQrCode: string }> {
+export async function generateTotpSecret(): Promise<{ secret: string }> {
   const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
     method: 'POST',
   });

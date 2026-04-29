@@ -249,9 +249,6 @@ export function CalculatorClient() {
     });
   }, []);
 
-  const updateDisplay = useCallback(() => {
-  }, []);
-
   const smartParen = useCallback(() => {
     flush();
     setState(prev => {
@@ -274,8 +271,7 @@ export function CalculatorClient() {
         };
       }
     });
-    updateDisplay();
-  }, [flush, updateDisplay]);
+  }, [flush]);
 
   const handleCalculate = useCallback(async (result: number) => {
     if (!userData?.id) {

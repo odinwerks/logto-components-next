@@ -14,16 +14,6 @@ interface RbacValidationResult {
   detail?: string;
 }
 
-
-
-
-function hasPermission(userPermissions: string[], required: string): boolean {
-  if (userPermissions.includes('*')) return true;
-  return userPermissions.includes(required);
-}
-
-
-
 export async function fetchUserRbacData(token: string, overrideOrgId?: string | null): Promise<RbacUserData> {
   const cleanEndpoint = await getCleanEndpoint();
   const res = await fetch(`${cleanEndpoint}/oidc/me`, {
