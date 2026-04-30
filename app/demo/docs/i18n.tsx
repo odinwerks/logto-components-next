@@ -394,7 +394,7 @@ export default function I18nDoc() {
     <SectionContainer>
       {/* Page 1: Overview + Pipeline + ENV */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OverviewSection />
             <EnvSection />
@@ -407,7 +407,7 @@ export default function I18nDoc() {
 
       {/* Page 2: Custom Components */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <PatternDirectSection />
             <PatternHookSection />
@@ -421,7 +421,7 @@ export default function I18nDoc() {
 
       {/* Page 3: Adding a Language */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <AddLangSection />
           </div>

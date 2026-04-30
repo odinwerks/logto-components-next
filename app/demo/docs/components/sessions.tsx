@@ -224,7 +224,7 @@ export default function SessionsDoc() {
     <SectionContainer>
       {/* Page 1: Overview + Props */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <SessionsOverviewSection />
           </div>
@@ -236,7 +236,7 @@ export default function SessionsDoc() {
 
       {/* Page 2: API + Geolocation */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <SessionsApiSection />
           </div>
@@ -248,7 +248,7 @@ export default function SessionsDoc() {
 
       {/* Page 3: Limitations */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
             <SessionsLimitationsSection />
           </div>
