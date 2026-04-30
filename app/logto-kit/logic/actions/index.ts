@@ -47,6 +47,7 @@ export {
   generateTotpSecret,
   addMfaVerification,
   deleteMfaVerification,
+  replaceTotpVerification,
   generateBackupCodes,
   getBackupCodes,
 } from './mfa';

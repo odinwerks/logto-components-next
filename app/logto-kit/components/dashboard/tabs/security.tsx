@@ -22,6 +22,7 @@ interface SecurityTabProps {
   onGenerateTotpSecret: () => Promise<{ secret: string }>;
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
+  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
@@ -43,6 +44,7 @@ export function SecurityTab({
   onVerifyPassword,
   onGetMfaVerifications, onGenerateTotpSecret,
   onAddMfaVerification, onDeleteMfaVerification,
+  onReplaceTotpVerification,
   onGenerateBackupCodes,
   onUpdatePassword,
   onDeleteAccount,
@@ -84,10 +86,6 @@ export function SecurityTab({
     setTotpStep({ kind: 'loading', message: 'Verifying password…' });
     try {
       const identity = await onVerifyPassword(pw);
-      if (totpFactor) {
-        setTotpStep({ kind: 'loading', message: 'Removing old authenticator…' });
-        await onDeleteMfaVerification(totpFactor.id, identity.verificationRecordId);
-      }
       setTotpStep({ kind: 'loading', message: 'Generating secret…' });
       const { secret } = await onGenerateTotpSecret();
       const account = userData.profile?.givenName || userData.username || 'user';
@@ -102,7 +100,11 @@ export function SecurityTab({
   const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string) => {
     setTotpStep({ kind: 'loading', message: 'Activating…' });
     try {
-      await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerificationId);
+      if (totpFactor) {
+        await onReplaceTotpVerification(secret, code, identityVerificationId);
+      } else {
+        await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerificationId);
+      }
       onSuccess(t.mfa.totpEnrolled);
       closeTotp();
       await loadMfa();
