@@ -135,3 +135,26 @@ export async function getBackupCodes(
 
   return res.json();
 }
+
+export async function replaceTotpVerification(
+  secret: string,
+  code: string,
+  identityVerificationRecordId: string
+): Promise<void> {
+  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+  const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
+    method: 'PUT',
+    body: { secret, code },
+    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+  });
+
+  await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-replace');
+
+  try {
+    const { audit } = await import('../audit');
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.totp.replace' });
+  } catch { }
+}

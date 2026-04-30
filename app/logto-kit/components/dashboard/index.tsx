@@ -19,6 +19,7 @@ import {
   generateTotpSecret,
   addMfaVerification,
   deleteMfaVerification,
+  replaceTotpVerification,
   generateBackupCodes,
   updateUserPassword,
   deleteUserAccount,
@@ -126,6 +127,7 @@ export async function Dashboard() {
           onGenerateTotpSecret={generateTotpSecret}
           onAddMfaVerification={addMfaVerification}
           onDeleteMfaVerification={deleteMfaVerification}
+          onReplaceTotpVerification={replaceTotpVerification}
           onGenerateBackupCodes={generateBackupCodes}
           onUpdatePassword={updateUserPassword}
           onDeleteAccount={deleteUserAccount}

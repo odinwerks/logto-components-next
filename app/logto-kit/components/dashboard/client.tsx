@@ -130,6 +130,7 @@ interface DashboardClientProps {
   onGenerateTotpSecret: () => Promise<{ secret: string }>;
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
+  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<void>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
@@ -164,6 +165,7 @@ export function DashboardClient({
   onGenerateTotpSecret,
   onAddMfaVerification,
   onDeleteMfaVerification,
+  onReplaceTotpVerification,
   onGenerateBackupCodes,
   onUpdatePassword,
   onDeleteAccount,
@@ -436,6 +438,7 @@ export function DashboardClient({
               onGenerateTotpSecret={onGenerateTotpSecret}
               onAddMfaVerification={onAddMfaVerification}
               onDeleteMfaVerification={onDeleteMfaVerification}
+              onReplaceTotpVerification={onReplaceTotpVerification}
               onGenerateBackupCodes={onGenerateBackupCodes}
               onUpdatePassword={onUpdatePassword}
               onDeleteAccount={onDeleteAccount}
