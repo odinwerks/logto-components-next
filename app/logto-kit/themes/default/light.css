@@ -3,7 +3,7 @@
  * OG Terminal/Hacker Aesthetic (Light Variant)
  * ============================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+/* Font loaded via next/font in layout.tsx — no @import needed */
 
 :root[data-theme="light"] {
   /* Backgrounds */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
@@ -295,7 +295,7 @@ export function DashboardClient({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {userData.profile?.givenName ?? t.dashboard.defaultUserName}
+                  {[userData.profile?.givenName, userData.profile?.familyName].filter(Boolean).join(' ') || userData.username || userData.primaryEmail || t.dashboard.defaultUserName}
                 </p>
                 <p
                   style={{
@@ -315,7 +315,7 @@ export function DashboardClient({
           </div>
 
           {/* Nav */}
-          <nav style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}>
+          <nav role="tablist" aria-label={t.dashboard.account} style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}>
             <p
               style={{
                 fontFamily: 'var(--font-ibm-plex-mono)',
@@ -333,63 +333,35 @@ export function DashboardClient({
               const Icon = getTabIcon(tabId);
               const isActive = activeTab === tabId;
               return (
-                <button
+                <NavButton
                   key={tabId}
+                  tabId={tabId}
+                  isActive={isActive}
+                  label={getTabLabel(tabId, t)}
+                  Icon={Icon}
+                  themeColors={themeColors}
+                  themeMode={themeSpec.mode}
                   onClick={() => setActiveTab(tabId)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5625rem',
-                    width: '100%',
-                    padding: '0.4375rem 0.625rem',
-                    background: isActive ? themeColors.bgSecondary : 'transparent',
-                    border: 'none',
-                    borderLeft: `0.125rem solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
-                    color: isActive ? themeColors.textPrimary : themeColors.textTertiary,
-                    fontFamily: 'var(--font-ibm-plex-mono)',
-                    fontWeight: 500,
-                    fontSize: '0.8125rem',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    marginBottom: '0.125rem',
-                  }}
-                >
-                  <Icon size={13} color={isActive ? themeColors.accentBlue : themeColors.textTertiary} />
-                  {getTabLabel(tabId, t)}
-                </button>
+                />
               );
             })}
           </nav>
 
           {/* Sign Out */}
           <div style={{ padding: '0.375rem 0.5rem 0.75rem', borderTop: `1px solid ${themeColors.borderColor}` }}>
-            <button
+            <SignOutButton
+              label={t.common.signOut}
+              themeColors={themeColors}
+              themeMode={themeSpec.mode}
               onClick={handleSignOut}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5625rem',
-                width: '100%',
-                padding: '0.4375rem 0.625rem',
-                background: 'transparent',
-                border: 'none',
-                borderLeft: '0.125rem solid transparent',
-                color: themeColors.textTertiary,
-                fontFamily: 'var(--font-ibm-plex-mono)',
-                fontWeight: 500,
-                fontSize: '0.8125rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-              >
-              <LogoutIcon size={13} />
-              {t.common.signOut}
-            </button>
+            />
           </div>
         </div>
 
         {/* Content */}
         <div
+          role="tabpanel"
+          aria-labelledby={`tab-${activeTab}`}
           style={{
             flex: 1,
             padding: '1.75rem 2rem',
@@ -398,6 +370,7 @@ export function DashboardClient({
             boxSizing: 'border-box',
           }}
         >
+          <div key={activeTab} style={{ animation: 'fadeIn 0.12s ease' }}>
           {activeTab === 'profile' && (
             <ProfileTab
               userData={userData}
@@ -472,12 +445,110 @@ export function DashboardClient({
             <DevTab userData={userData} theme={themeSpec} t={t} />
           )}
 
+          </div>{/* end fade wrapper */}
         </div>
       </div>
 
       {/* Toasts */}
       <ToastContainer messages={toasts} onDismiss={dismissToast} theme={themeSpec} />
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NavButton — isolated to avoid hooks-in-loops
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NavButton({
+  tabId, isActive, label, Icon, themeColors, themeMode, onClick,
+}: {
+  tabId: string;
+  isActive: boolean;
+  label: string;
+  Icon: React.ComponentType<{ size?: number; color?: string }>;
+  themeColors: { bgSecondary: string; accentBlue: string; textPrimary: string; textTertiary: string };
+  themeMode: 'dark' | 'light';
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const hoverBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+
+  return (
+    <button
+      id={`tab-${tabId}`}
+      role="tab"
+      aria-selected={isActive}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5625rem',
+        width: '100%',
+        padding: '0.4375rem 0.625rem',
+        background: isActive ? themeColors.bgSecondary : hovered ? hoverBg : 'transparent',
+        border: 'none',
+        borderLeft: `0.125rem solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
+        color: isActive ? themeColors.textPrimary : themeColors.textTertiary,
+        fontFamily: 'var(--font-ibm-plex-mono)',
+        fontWeight: 500,
+        fontSize: '0.8125rem',
+        cursor: 'pointer',
+        textAlign: 'left',
+        marginBottom: '0.125rem',
+        transition: 'background 0.12s ease, color 0.12s ease',
+      }}
+    >
+      <Icon size={13} color={isActive ? themeColors.accentBlue : themeColors.textTertiary} />
+      {label}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SignOutButton — faint-red destructive style with hover
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SignOutButton({
+  label, themeColors, themeMode, onClick,
+}: {
+  label: string;
+  themeColors: { accentRed: string; textTertiary: string };
+  themeMode: 'dark' | 'light';
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const dimRed = themeMode === 'dark' ? 'rgba(239,68,68,0.55)' : 'rgba(185,28,28,0.6)';
+  const fullRed = themeMode === 'dark' ? 'rgba(239,68,68,0.9)' : 'rgb(185,28,28)';
+  const hoverBg = themeMode === 'dark' ? 'rgba(239,68,68,0.07)' : 'rgba(185,28,28,0.05)';
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5625rem',
+        width: '100%',
+        padding: '0.4375rem 0.625rem',
+        background: hovered ? hoverBg : 'transparent',
+        border: 'none',
+        borderLeft: '0.125rem solid transparent',
+        color: hovered ? fullRed : dimRed,
+        fontFamily: 'var(--font-ibm-plex-mono)',
+        fontWeight: 500,
+        fontSize: '0.8125rem',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'background 0.12s ease, color 0.12s ease',
+      }}
+    >
+      <LogoutIcon size={13} color="currentColor" />
+      {label}
+    </button>
   );
 }
 

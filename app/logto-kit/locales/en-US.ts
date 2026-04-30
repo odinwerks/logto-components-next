@@ -71,6 +71,8 @@ export const enUS: Translations = {
     confirmDeleteAccount: 'Enter your password to permanently delete your account.',
     accountDeleted: 'Your account has been deleted.',
     passwordChangeFailed: 'Password change failed',
+    twoFactorAuth: 'Two-factor authentication',
+    reconfigure: 'Reconfigure',
   },
   
   // Sidebar
@@ -145,6 +147,7 @@ export const enUS: Translations = {
     usernamePlaceholder: 'Enter username (optional)',
     emailPlaceholder: 'Enter email',
     phonePlaceholder: 'Enter phone',
+    contactAndCredentials: 'Contact & credentials',
   },
   
   // Verification
@@ -222,6 +225,12 @@ export const enUS: Translations = {
     rawHeading: 'RAW ORGANIZATIONS DATA',
     active: '(active)',
     beYourself: 'Be yourself (global)',
+    orgPermissions: 'ORGANIZATION PERMISSIONS',
+    selectOrgForRoles: 'Select an organization above to see your roles.',
+    orgPermissionsDesc: 'Organization-specific permissions from organization tokens.',
+    selectOrgForPermissions: 'Select an organization above to see your permissions.',
+    loadingPermissions: 'Loading permissions...',
+    noActiveOrg: 'No active organization',
   },
   
   // MFA tab

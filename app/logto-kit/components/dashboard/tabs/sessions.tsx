@@ -263,8 +263,29 @@ export function SessionsTab({
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: T.muted }}>
-        {t.common.loading}...
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            background: T.bg,
+            border: `1px solid ${T.border}`,
+            borderRadius: theme.tokens.dashboardRadius,
+            height: '5rem',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 0.875rem',
+            gap: '0.75rem',
+            opacity: 1 - i * 0.2,
+          }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.25rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '55%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+              <div style={{ height: '0.5rem', borderRadius: '0.25rem', background: T.raised, width: '35%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15 + 0.1}s` }} />
+            </div>
+            <div style={{ width: '5rem', height: '5rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+            <div style={{ width: '4rem', height: '1.75rem', borderRadius: '0.25rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+          </div>
+        ))}
       </div>
     );
   }
@@ -343,7 +364,7 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: '80px',
+                height: '5rem',
               }}>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 0 0 0.875rem' }}>
                   <OsIcon os={os} deviceType={deviceType} size={40} />

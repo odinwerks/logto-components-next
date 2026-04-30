@@ -2,7 +2,7 @@
  * Global Styles - Logto Debug Dashboard
  * ============================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+/* IBM Plex Mono is loaded via next/font/google in layout.tsx — removed redundant @import */
 
 /* Import theme CSS */
 @import './logto-kit/themes/default/dark.css';
@@ -83,6 +83,11 @@ select:focus {
   to {
     transform: rotate(360deg);
   }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 
 /* Scrollbar styling */

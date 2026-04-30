@@ -81,8 +81,10 @@ const handleOrgClick = async (orgId: string) => {
   };
 
   const OrgCard = ({ org, isSelected }: { org: { id: string; name: string }; isSelected: boolean }) => (
-    <div
+    <button
       onClick={() => handleOrgClick(org.id)}
+      role="radio"
+      aria-checked={isSelected}
       style={{
         padding:         '0.625rem 0.75rem',
         background:      isSelected ? `${c.accentBlue}15` : c.bgPrimary,
@@ -95,6 +97,8 @@ const handleOrgClick = async (orgId: string) => {
         opacity:         isLoading === org.id ? 0.6 : 1,
         transition:      'all 0.15s ease',
         boxShadow:       isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+        width:           '100%',
+        textAlign:       'left',
       }}
     >
       <div>
@@ -105,13 +109,13 @@ const handleOrgClick = async (orgId: string) => {
           fontFamily: ty.fontMono 
         }}>
           {org.name}
-          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: ty.size.micro }}>{t.organizations.active || '(active)'}</span>}
+      {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: ty.size.micro }}>{t.organizations.active}</span>}
         </div>
         <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
           {t.organizations.idLabel}: {org.id}
         </div>
       </div>
-    </div>
+    </button>
   );
 
   return (
@@ -128,8 +132,8 @@ const handleOrgClick = async (orgId: string) => {
         ) : (
           <>
             {/* Be Yourself button */}
-            {activeOrgId && (
-              <div 
+              {activeOrgId && (
+              <button
                 onClick={handleBeYourself}
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -142,10 +146,12 @@ const handleOrgClick = async (orgId: string) => {
                   color: c.textSecondary,
                   fontSize: ty.size.sm,
                   fontFamily: ty.fontMono,
+                  width: '100%',
+                  textAlign: 'left',
                 }}
               >
-                ← {t.organizations.beYourself || 'Be yourself (global)'}
-              </div>
+                ← {t.organizations.beYourself}
+              </button>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {organizations.map(org => (
@@ -161,20 +167,20 @@ const handleOrgClick = async (orgId: string) => {
       </div>
 
       {/* Roles */}
-      <p style={cs.text.sectionLabel}>{t.organizations.orgRoles || 'ORGANIZATION ROLES'}</p>
+      <p style={cs.text.sectionLabel}>{t.organizations.orgRoles}</p>
       <div style={cs.surfaces.well}>
         <p style={{ ...cs.text.mutedMono, marginBottom: '0.75rem' }}>
           {activeOrgId
-            ? (t.organizations.rolesDescription || 'Your roles within the active organization.')
-            : 'Select an organization above to see your roles.'
+            ? t.organizations.rolesDescription
+            : t.organizations.selectOrgForRoles
           }
         </p>
 
         {organizationRoles.length === 0 ? (
           <div style={cs.surfaces.emptyState}>
             {activeOrgId
-              ? (t.organizations.noRoles || 'No roles assigned in this organization')
-              : 'Select an organization to see roles'
+              ? t.organizations.noRoles
+              : t.organizations.selectOrgForRoles
             }
           </div>
         ) : (
@@ -198,7 +204,7 @@ const handleOrgClick = async (orgId: string) => {
                     {t.organizations.organizationLabel || 'Organization'}: {org?.name || role.organizationId}
                   </div>
                   <div style={{ color: c.textTertiary, fontSize: ty.size.micro, marginTop: '0.125rem', fontFamily: ty.fontMono }}>
-                    {t.organizations.roleIdLabel || 'Role ID'}: {role.id}
+                    {t.organizations.roleIdLabel}: {role.id}
                   </div>
                 </div>
               );
@@ -208,18 +214,18 @@ const handleOrgClick = async (orgId: string) => {
       </div>
 
       {/* Permissions */}
-      <p style={cs.text.sectionLabel}>{t.organizations.orgs || 'ORGANIZATIONS'} PERMISSIONS</p>
+      <p style={cs.text.sectionLabel}>{t.organizations.orgPermissions}</p>
       <div style={cs.surfaces.well}>
         <p style={{ ...cs.text.mutedMono, marginBottom: '0.75rem' }}>
           {activeOrgId
-            ? 'Organization-specific permissions from organization tokens.'
-            : 'Select an organization above to see your permissions.'
+            ? t.organizations.orgPermissionsDesc
+            : t.organizations.selectOrgForPermissions
           }
         </p>
 
         {organizationPermissions.length === 0 ? (
           <div style={cs.surfaces.emptyState}>
-            {activeOrgId ? 'Loading permissions...' : 'No active organization'}
+            {activeOrgId ? t.organizations.loadingPermissions : t.organizations.noActiveOrg}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

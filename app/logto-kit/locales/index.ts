@@ -86,6 +86,8 @@ export interface KitTranslations {
     confirmDeleteAccount: string;
     accountDeleted: string;
     passwordChangeFailed: string;
+    twoFactorAuth: string;
+    reconfigure: string;
   };
 
   // Sidebar
@@ -160,6 +162,7 @@ export interface KitTranslations {
     usernamePlaceholder: string;
     emailPlaceholder: string;
     phonePlaceholder: string;
+    contactAndCredentials: string;
   };
   
   // Verification
@@ -237,6 +240,12 @@ export interface KitTranslations {
     rawHeading: string;
     active: string;
     beYourself: string;
+    orgPermissions: string;
+    selectOrgForRoles: string;
+    orgPermissionsDesc: string;
+    selectOrgForPermissions: string;
+    loadingPermissions: string;
+    noActiveOrg: string;
   };
   
   // MFA tab

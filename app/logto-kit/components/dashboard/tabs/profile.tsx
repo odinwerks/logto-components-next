@@ -287,7 +287,7 @@ export function ProfileTab({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '0.75rem',
-                    minHeight: '200px',
+                    minHeight: '12.5rem',
                     borderRadius: '0.375rem',
                   }}
                 >
@@ -379,10 +379,10 @@ export function ProfileTab({
       )}
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <div style={{ position: 'relative', width: '96px', height: '96px', flexShrink: 0 }}>
+        <div style={{ position: 'relative', width: '6rem', height: '6rem', flexShrink: 0 }}>
             <UserBadge
               Canvas={savedAvatarUrl ? 'Avatar' : 'Initials'}
-              Size="96px"
+              Size="6rem"
               shape={avatarShape}
               userData={{
                 ...userData,
@@ -463,7 +463,7 @@ export function ProfileTab({
         </div>
       </div>
 
-      <SL theme={theme}>{t.security.contactAndCredentials}</SL>
+      <SL theme={theme}>{t.profile.contactAndCredentials}</SL>
       <Card theme={theme}>
         <ContactRow
           label={t.security.email}

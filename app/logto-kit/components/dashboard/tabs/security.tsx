@@ -300,7 +300,7 @@ export function SecurityTab({
       </Card>
 
       {/* ── Two-factor authentication ── */}
-      <SL theme={theme}>Two-factor authentication</SL>
+      <SL theme={theme}>{t.security.twoFactorAuth}</SL>
       <Card theme={theme}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
@@ -311,7 +311,7 @@ export function SecurityTab({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5625rem', marginBottom: '0.1875rem' }}>
                   <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
-                    Authenticator app
+                    {t.mfa.authenticatorApp}
                   </p>
                   {totpFactor && (
                     <span style={{
@@ -321,7 +321,7 @@ export function SecurityTab({
                       border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
                       letterSpacing: 0.2,
                     }}>
-                      <Check size={'0.5625rem'} color={T.greenText} strokeWidth={1.5} /> Active
+                      <Check size={'0.5625rem'} color={T.greenText} strokeWidth={1.5} /> {t.mfa.authenticatorActive}
                     </span>
                   )}
                 </div>
@@ -338,7 +338,7 @@ export function SecurityTab({
               {totpFactor ? (
                 <>
                   <Button size="sm" variant="ghost" onClick={openTotp} theme={theme}>
-                    <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> Reconfigure
+                    <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.security.reconfigure}
                   </Button>
                   <Button size="sm" variant="danger" onClick={openDelTotp} theme={theme}>
                     <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
@@ -361,7 +361,7 @@ export function SecurityTab({
       </Card>
 
       {/* ── Backup codes ── */}
-      <SL theme={theme}>Backup codes</SL>
+      <SL theme={theme}>{t.mfa.backupCodesTitle}</SL>
       <Card theme={theme}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
@@ -372,7 +372,7 @@ export function SecurityTab({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5625rem', marginBottom: '0.1875rem' }}>
                   <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
-                    Recovery codes
+                    {t.mfa.recoveryCodes}
                   </p>
                   {backupFactor?.remainCodes !== undefined && (
                     <span style={{
@@ -381,12 +381,12 @@ export function SecurityTab({
                       background: T.raised, color: T.sub,
                       border: `1px solid ${T.border}`, letterSpacing: 0.2,
                     }}>
-                      {backupFactor.remainCodes} remaining
+                      {backupFactor.remainCodes} {t.mfa.remaining}
                     </span>
                   )}
                 </div>
                 <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.muted, lineHeight: 1.55 }}>
-                  Single-use codes for account recovery.
+                  {t.mfa.singleUseCodes}
                 </p>
               </div>
             </div>
