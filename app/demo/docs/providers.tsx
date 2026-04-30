@@ -593,7 +593,7 @@ export default function ProvidersDoc() {
     <SectionContainer>
       {/* Page 1: Provider hierarchy + Hydration flow (two-column) */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <ProviderTreeSection />
           </div>
@@ -610,7 +610,7 @@ export default function ProvidersDoc() {
           flexDirection: 'column',
           gap: '16px',
           padding: '16px',
-          height: '100%',
+          minHeight: '100%',
           overflow: 'auto',
         }}>
           <UseLogtoSection />
@@ -621,7 +621,7 @@ export default function ProvidersDoc() {
 
       {/* Page 3: AuthWatcher + Cross-tab sync (two-column) */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <AuthWatcherSection />
           </div>

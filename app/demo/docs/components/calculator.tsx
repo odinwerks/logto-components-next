@@ -311,7 +311,7 @@ export default function CalculatorDoc() {
   return (
     <SectionContainer>
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OverviewSection />
           </div>
@@ -322,7 +322,7 @@ export default function CalculatorDoc() {
       </Section>
 
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <ProtectedGateSection />
           </div>
@@ -333,7 +333,7 @@ export default function CalculatorDoc() {
       </Section>
 
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <PermissionFlowSection />
           </div>
@@ -344,7 +344,7 @@ export default function CalculatorDoc() {
       </Section>
 
       <Section id={4}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <ActionHandlersSection />
           </div>

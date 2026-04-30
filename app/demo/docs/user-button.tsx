@@ -179,7 +179,7 @@ export default function UserButtonDoc() {
           gridTemplateColumns: '1fr 1fr',
           gap: '16px',
           alignItems: 'stretch',
-          height: '100%',
+          minHeight: '100%',
           padding: '16px',
         }}>
           {/* Left: Quick start + Notes stacked */}

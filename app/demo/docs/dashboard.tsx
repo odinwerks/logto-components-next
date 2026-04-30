@@ -123,51 +123,45 @@ function TabStructureSection() {
     <SectionWrap label="Tab configuration">
       <p style={styles.textStyle}>
         Tabs configured via <code style={styles.codeStyle}>LOAD_TABS</code> env. Comma-separated
-        list with alias support.
+        list of tab names.
       </p>
-      <CodeBlock title="ENV" code={`LOAD_TABS=profile,preferences,mfa,raw`} />
+      <CodeBlock title="ENV" code={`LOAD_TABS=profile,security,organizations`} />
       <table style={styles.tableStyle}>
         <thead>
           <tr>
             <th style={styles.thStyle}>Tab</th>
-            <th style={styles.thStyle}>Aliases</th>
             <th style={styles.thStyle}>Purpose</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>profile</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>personal</span> <span style={styles.chipStyle}>user</span></td>
-            <td style={styles.tdStyle}>Avatar, name</td>
+            <td style={styles.tdStyle}>Avatar, display name</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>preferences</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>prefs</span> <span style={styles.chipStyle}>custom-data</span> <span style={styles.chipStyle}>custom</span> <span style={styles.chipStyle}>customdata</span></td>
             <td style={styles.tdStyle}>Theme, language</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>security</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>mfa</span> <span style={styles.chipStyle}>2fa</span> <span style={styles.chipStyle}>totp</span></td>
-            <td style={styles.tdStyle}>MFA, password</td>
+            <td style={styles.tdStyle}>MFA, password, email/phone</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>identities</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>identity</span></td>
-            <td style={styles.tdStyle}>Social providers</td>
+            <td style={styles.tdStyle}>Social providers (read-only)</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>organizations</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>orgs</span> <span style={styles.chipStyle}>org</span></td>
-            <td style={styles.tdStyle}>Orgs, roles</td>
+            <td style={styles.tdStyle}>Orgs, roles, org switching</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>dev</td>
-            <td style={styles.tdStyle}><span style={styles.chipStyle}>raw</span> <span style={styles.chipStyle}>debug</span> <span style={styles.chipStyle}>data</span></td>
-            <td style={styles.tdStyle}>Token, cookies</td>
+            <td style={styles.tdStyle}>Token, cookies, debug data</td>
           </tr>
         </tbody>
       </table>
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>
+        Leave <code style={styles.codeStyle}>LOAD_TABS</code> empty to show all tabs.
         Tabs render via <code style={styles.codeStyle}>activeTab</code> state in{' '}
         <code style={styles.codeStyle}>DashboardClient</code>.
       </p>
@@ -187,10 +181,6 @@ function NotesSection() {
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Rendering modes:</strong>{' '}
         Modal inside LogtoProvider, or full page at a route (e.g. <code style={styles.codeSmStyle}>/dashboard</code>).
-      </div>
-      <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Toast system:</strong>{' '}
-        Built-in. All tabs report via <code style={styles.codeSmStyle}>showToast()</code>.
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Theme:</strong>{' '}
@@ -342,7 +332,7 @@ export default function DashboardDoc() {
     <SectionContainer>
       {/* Page 1: Internals + Provider Sync (two-column) */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <InternalsSection />
           </div>
@@ -354,7 +344,7 @@ export default function DashboardDoc() {
 
       {/* Page 2: Tab Structure + Notes (two-column) */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <TabStructureSection />
           </div>
@@ -366,7 +356,7 @@ export default function DashboardDoc() {
 
       {/* Page 3: Rendering (two-column: wiring + modal/click, why) */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <WiringSection />
             <ModalSection />

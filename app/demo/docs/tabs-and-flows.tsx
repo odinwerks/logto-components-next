@@ -31,43 +31,43 @@ function OverviewSection() {
         <tbody>
           <tr>
             <td style={styles.tdPathStyle}>Profile</td>
-            <td style={styles.tdStyle}>9</td>
+            <td style={styles.tdStyle}>6 + common</td>
             <td style={styles.tdStyle}>useAvatarUpload</td>
             <td style={styles.tdStyle}>3</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Preferences</td>
-            <td style={styles.tdStyle}>3</td>
+            <td style={styles.tdStyle}>1 + common</td>
             <td style={styles.tdStyle}>useThemeMode, useLangMode</td>
             <td style={styles.tdStyle}>0 (via context)</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Security</td>
-            <td style={styles.tdStyle}>20</td>
+            <td style={styles.tdStyle}>17 + common</td>
             <td style={styles.tdStyle}>—</td>
             <td style={styles.tdStyle}>15</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Sessions</td>
-            <td style={styles.tdStyle}>8</td>
+            <td style={styles.tdStyle}>5 + common</td>
             <td style={styles.tdStyle}>—</td>
             <td style={styles.tdStyle}>3</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Identities</td>
-            <td style={styles.tdStyle}>3</td>
+            <td style={styles.tdStyle}>common only</td>
             <td style={styles.tdStyle}>—</td>
             <td style={styles.tdStyle}>0</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Organizations</td>
-            <td style={styles.tdStyle}>4</td>
+            <td style={styles.tdStyle}>1 + common</td>
             <td style={styles.tdStyle}>useOrgMode</td>
             <td style={styles.tdStyle}>1</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Dev</td>
-            <td style={styles.tdStyle}>4</td>
+            <td style={styles.tdStyle}>1 + common</td>
             <td style={styles.tdStyle}>—</td>
             <td style={styles.tdStyle}>0</td>
           </tr>
@@ -77,12 +77,12 @@ function OverviewSection() {
 LOAD_TABS=
 
 # Show specific tabs
-LOAD_TABS=profile,preferences,mfa,organizations`} />
+LOAD_TABS=profile,preferences,security,organizations`} />
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Wiring:</strong>{' '}
-        <code style={styles.codeSmStyle}>DashboardClient</code> receives 19 server action callbacks
-        from the Server Component pipeline. Each tab gets
-        exactly the actions it needs.
+        <strong style={styles.strongNoteStyle}>Common props:</strong>{' '}
+        Every tab receives <code style={styles.codeSmStyle}>userData: UserData</code>,{' '}
+        <code style={styles.codeSmStyle}>theme: ThemeSpec</code>, and{' '}
+        <code style={styles.codeSmStyle}>t: Translations</code>. These are omitted from individual prop tables below.
       </div>
     </SectionWrap>
   );
@@ -102,25 +102,10 @@ function ProfilePropsSection() {
         </thead>
         <tbody>
           <tr>
-            <td style={styles.tdPathStyle}>userData</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-            <td style={styles.tdStyle}>Full user data object</td>
+            <td style={styles.tdPathStyle}>onUpdateBasicInfo</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?}`}){`=>`}Promise{`<void>`}</code></td>
+            <td style={styles.tdStyle}>Updates display name</td>
           </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n strings</td>
-          </tr>
-           <tr>
-             <td style={styles.tdPathStyle}>onUpdateBasicInfo</td>
-             <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?}`}){`=>`}Promise{`<void>`}</code></td>
-             <td style={styles.tdStyle}>Updates display name</td>
-           </tr>
           <tr>
             <td style={styles.tdPathStyle}>onUpdateAvatarUrl</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<void>`}</code></td>
@@ -227,16 +212,6 @@ function PreferencesSection() {
         </thead>
         <tbody>
           <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n strings</td>
-          </tr>
-          <tr>
             <td style={styles.tdPathStyle}>supportedLangs</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>string[]?</code></td>
             <td style={styles.tdStyle}>Available language codes from LANG_AVAILABLE</td>
@@ -248,17 +223,8 @@ function PreferencesSection() {
         <code style={styles.codeStyle}>PreferencesProvider</code> context which internally
         calls <code style={styles.codeStyle}>updateUserCustomData</code>.
       </p>
-      <CodeBlock title="useThemeMode" code={`// Returns:
-//   theme: 'dark' | 'light'
-//   themeSpec: ThemeSpec
-//   setTheme: (theme) => void
-//   toggleTheme: () => void
-
-const { theme: activeMode, setTheme } = useThemeMode();
-setTheme('light'); // persists to sessionStorage + Logto API`} />
-      <CodeBlock title="useLangMode" code={`// Returns:
-//   lang: string
-//   setLang: (lang) => void
+      <CodeBlock title="useThemeMode / useLangMode" code={`const { theme, setTheme, toggleTheme } = useThemeMode();
+setTheme('light'); // persists to sessionStorage + Logto API
 
 const { lang, setLang } = useLangMode();
 setLang('ka-GE'); // persists to sessionStorage + Logto API`} />
@@ -276,32 +242,6 @@ function IdentitiesSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Identities — read-only">
-      <table style={styles.tableStyle}>
-        <thead>
-          <tr>
-            <th style={styles.thStyle}>Prop</th>
-            <th style={styles.thStyle}>Type</th>
-            <th style={styles.thStyle}>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={styles.tdPathStyle}>userData</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-            <td style={styles.tdStyle}>Contains identities map</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n strings</td>
-          </tr>
-        </tbody>
-      </table>
       <p style={styles.textStyle}>
         Purely presentational. No hooks, no state, no server actions. Reads{' '}
         <code style={styles.codeStyle}>userData.identities</code> and renders provider icons
@@ -334,37 +274,38 @@ function SecurityOverviewSection() {
       <p style={styles.textStyle}>
         The most complex tab. Manages TOTP authenticator, backup codes, password,
         email/phone, and account deletion. All mutations require identity verification
-        (password or verification code).
+        (password or verification code). 20 props total, grouped by concern:
       </p>
-      <CodeBlock title="Props (19 total)" code={`interface SecurityTabProps {
-  userData: UserData;
-  theme: ThemeSpec;
-  t: Translations;
-  // Identity verification
-  onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
-  onSendEmailVerification: (email: string) => Promise<{ verificationId: string }>;
-  onSendPhoneVerification: (phone: string) => Promise<{ verificationId: string }>;
-  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<{ verificationRecordId: string }>;
-  // Email/Phone
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onRemoveEmail: (identityVerId) => Promise<void>;
-  onRemovePhone: (identityVerId) => Promise<void>;
-  // MFA
-  onGetMfaVerifications: () => Promise<MfaVerification[]>;
-  onGenerateTotpSecret: () => Promise<{ secret: string }>;
-  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
-  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
-  // Password
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
-  // Account
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
-  // Toasts
-  onSuccess: (message) => void;
-  onError: (message) => void;
-}
-// Note: Actual count is 20 props (includes onSuccess + onError)`} />
+      <table style={styles.tableStyle}>
+        <thead>
+          <tr>
+            <th style={styles.thStyle}>Group</th>
+            <th style={styles.thStyle}>Props</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={styles.tdPropStyle}>verification</td>
+            <td style={styles.tdStyle}>onVerifyPassword, onVerifyCode, onSendEmailVerification, onSendPhoneVerification</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>email / phone</td>
+            <td style={styles.tdStyle}>onUpdateEmail, onUpdatePhone, onRemoveEmail, onRemovePhone</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>MFA</td>
+            <td style={styles.tdStyle}>onGetMfaVerifications, onGenerateTotpSecret, onAddMfaVerification, onDeleteMfaVerification, onGenerateBackupCodes</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>password / account</td>
+            <td style={styles.tdStyle}>onUpdatePassword, onDeleteAccount</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>toasts</td>
+            <td style={styles.tdStyle}>onSuccess, onError</td>
+          </tr>
+        </tbody>
+      </table>
     </SectionWrap>
   );
 }
@@ -536,24 +477,9 @@ function OrgPropsSection() {
         </thead>
         <tbody>
           <tr>
-            <td style={styles.tdPathStyle}>userData</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-            <td style={styles.tdStyle}>Contains organizations[] and organizationPermissions[]</td>
-          </tr>
-          <tr>
             <td style={styles.tdPathStyle}>currentOrgId</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>string?</code></td>
             <td style={styles.tdStyle}>Server-provided active org ID</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n strings</td>
           </tr>
         </tbody>
       </table>
@@ -594,21 +520,6 @@ function DevSection() {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style={styles.tdPathStyle}>userData</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-            <td style={styles.tdStyle}>Full user data (rendered as JSON)</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPathStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n strings</td>
-          </tr>
           <tr>
             <td style={styles.tdPathStyle}>accessToken</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
@@ -680,7 +591,7 @@ export default function TabsAndFlowsDoc() {
     <SectionContainer>
       {/* Page 1: Overview + Profile */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OverviewSection />
           </div>
@@ -693,7 +604,7 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 2: Preferences + Identities */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <PreferencesSection />
           </div>
@@ -705,7 +616,7 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 3: Security (Part 1) */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <SecurityOverviewSection />
           </div>
@@ -718,7 +629,7 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 4: Security (Part 2) */}
       <Section id={4}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <BackupCodesSection />
             <PasswordAccountSection />
@@ -731,7 +642,7 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 5: Sessions */}
       <Section id={5}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
             <SessionsSection />
           </div>
@@ -740,7 +651,7 @@ export default function TabsAndFlowsDoc() {
 
       {/* Page 6: Organizations + Dev */}
       <Section id={6}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OrgPropsSection />
           </div>

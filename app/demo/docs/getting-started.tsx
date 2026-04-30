@@ -6,7 +6,7 @@ import { useDocStyles } from '../utils/useDocStyles';
 import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Page 1: Clone + ENV
+// Page 1: What + Clone
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function WhatIsThisSection() {
@@ -161,28 +161,24 @@ S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars`
 function ConsoleSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Logto Console">
-      <p style={styles.textStyle}>
-        Create two applications in your Logto tenant:
-      </p>
-      <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>1. Regular Web App</strong>
-        <br />• Redirect URI: <code style={styles.codeSmStyle}>http://localhost:3000/callback</code>
-        <br />• Post sign-out redirect: <code style={styles.codeSmStyle}>http://localhost:3000/</code>
-        <br />• Enable Account API (Settings → Account → Account API)
-      </div>
-      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-        <strong style={styles.strongNoteStyle}>2. M2M App</strong>
-        <br />• Purpose: Account deletion + Management API access
-        <br />• Assign permission: <code style={styles.codeSmStyle}>User data → Write</code>
-        <br />• Copy APP_ID → <code style={styles.codeSmStyle}>LOGTO_M2M_APP_ID</code>
-        <br />• Copy APP_SECRET → <code style={styles.codeSmStyle}>LOGTO_M2M_APP_SECRET</code>
+    <SectionWrap label="Logto Console — create 2 apps">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+          <strong style={styles.strongNoteStyle}>Traditional Web App</strong>
+          <br />• Redirect URI: <code style={styles.codeSmStyle}>localhost:3000/callback</code>
+          <br />• Post sign-out: <code style={styles.codeSmStyle}>localhost:3000/</code>
+          <br />• Enable Account API
+        </div>
+        <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+          <strong style={styles.strongNoteStyle}>M2M App</strong>
+          <br />• Assign: <code style={styles.codeSmStyle}>User data → Write</code>
+          <br />• Copy ID → <code style={styles.codeSmStyle}>LOGTO_M2M_APP_ID</code>
+          <br />• Copy Secret → <code style={styles.codeSmStyle}>LOGTO_M2M_APP_SECRET</code>
+        </div>
       </div>
     </SectionWrap>
   );
 }
-
-
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 3: Replace the demo + Run
@@ -192,11 +188,7 @@ function ReplaceSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Replace the demo">
-      <p style={styles.textStyle}>
-        The repo ships with a self-documenting demo app. Replace{' '}
-        <code style={styles.codeStyle}>&lt;DemoApp /&gt;</code> with your own component.
-      </p>
-      <CodeBlock title="app/page.tsx (current)" code={`import DemoApp from './demo'; // ← this is the demo
+      <CodeBlock title="app/page.tsx" code={`import DemoApp from './demo'; // ← this is the demo
 
 export default async function HomePage() {
   const result = await fetchDashboardData();
@@ -209,30 +201,10 @@ export default async function HomePage() {
       darkThemeSpec={defaultDarkTheme}
       lightThemeSpec={defaultLightTheme}
     >
-      <DemoApp />  {/* ← replace this */}
+      <DemoApp />  {/* ← replace with your <App /> */}
     </LogtoProvider>
   );
 }`} />
-      <CodeBlock title="app/page.tsx (yours)" code={`export default async function HomePage() {
-  const result = await fetchDashboardData();
-  if (!result.success) { /* ... */ }
-
-  return (
-    <LogtoProvider
-      userData={result.userData}
-      dashboard={<Dashboard />}
-      darkThemeSpec={defaultDarkTheme}
-      lightThemeSpec={defaultLightTheme}
-    >
-      <YourApp />  {/* ← your app */}
-    </LogtoProvider>
-  );
-}`} />
-      <p style={styles.textStyle}>
-        That's it. The <code style={styles.codeStyle}>LogtoProvider</code>,{' '}
-        <code style={styles.codeStyle}>Dashboard</code>, auth middleware, API routes — all
-        stay the same. You just swap in your own app component.
-      </p>
     </SectionWrap>
   );
 }
@@ -257,17 +229,13 @@ function UsageSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Using the kit in your app">
-      <p style={styles.textStyle}>
-        Inside <code style={styles.codeStyle}>LogtoProvider</code>, everything works:
-      </p>
-      <CodeBlock title="Import from logto-kit" code={`import {
+      <CodeBlock title="Import" code={`import {
   useLogto, useThemeMode, useLangMode,
   UserButton, UserBadge, UserCard,
   Protected, OrgSwitcher,
 } from './logto-kit';`} />
       <CodeBlock title="Example" code={`function Header() {
   const { userData, openDashboard } = useLogto();
-
   return (
     <header>
       <span>Hello, {userData.name}</span>
@@ -276,13 +244,6 @@ function UsageSection() {
     </header>
   );
 }`} />
-      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-        <strong style={styles.strongNoteStyle}>Important:</strong>{' '}
-        All components are designed to work inside{' '}
-        <code style={styles.codeSmStyle}>LogtoProvider</code>. Without it,{' '}
-        <code style={styles.codeSmStyle}>useLogto()</code> returns empty data and
-        avatar components show fallback icons after 1.5s.
-      </div>
     </SectionWrap>
   );
 }
@@ -333,7 +294,7 @@ export default function GettingStartedDoc() {
     <SectionContainer>
       {/* Page 1: What + Clone */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <WhatIsThisSection />
           </div>
@@ -345,7 +306,7 @@ export default function GettingStartedDoc() {
 
       {/* Page 2: ENV + Console */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <EnvSection />
             <ConsoleSection />
@@ -358,7 +319,7 @@ export default function GettingStartedDoc() {
 
       {/* Page 3: Replace + Run + Use */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <ReplaceSection />
             <RunSection />

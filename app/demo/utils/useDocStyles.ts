@@ -19,7 +19,7 @@ export function useDocStyles() {
       flexDirection: 'column',
       gap: '16px',
       minWidth: 0,
-      overflow: 'hidden',
+      overflow: 'visible',
     } as React.CSSProperties,
 
     colRightStyle: {
@@ -27,7 +27,7 @@ export function useDocStyles() {
       flexDirection: 'column',
       gap: '16px',
       minWidth: 0,
-      overflow: 'hidden',
+      overflow: 'visible',
     } as React.CSSProperties,
 
     sectionWrapStyle: {

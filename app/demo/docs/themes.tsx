@@ -1221,7 +1221,7 @@ export default function ThemesDoc() {
     <SectionContainer>
       {/* Page 1: Architecture + Color tokens (two-column) */}
       <Section id={1}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <ArchitectureSection />
           </div>
@@ -1233,7 +1233,7 @@ export default function ThemesDoc() {
 
       {/* Page 2: Typography + Radii/Shadows (two-column) */}
       <Section id={2}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <TypographySection />
           </div>
@@ -1245,7 +1245,7 @@ export default function ThemesDoc() {
 
       {/* Page 3: Component styles (two-column) */}
       <Section id={3}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <TextStylesSection />
             <SurfacesSection />
@@ -1258,7 +1258,7 @@ export default function ThemesDoc() {
 
       {/* Page 4: More components + tk() + CSS vars (two-column) */}
       <Section id={4}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <BadgesToastsSection />
             <CodeTabsSection />
@@ -1271,7 +1271,7 @@ export default function ThemesDoc() {
 
       {/* Page 5: tk() + CSS vars (two-column) */}
       <Section id={5}>
-        <div style={{ ...styles.twoColLayoutStyle, height: '100%', padding: '16px' }}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <TkAliasesSection />
           </div>
@@ -1288,7 +1288,7 @@ export default function ThemesDoc() {
           flexDirection: 'column',
           gap: '16px',
           padding: '16px',
-          height: '100%',
+          minHeight: '100%',
           overflow: 'auto',
         }}>
           <CustomThemeSection />
