@@ -71,6 +71,8 @@ export const kaGE: Translations = {
     confirmDeleteAccount: 'შეიყვანეთ პაროლი თქვენი ანგარიშის სამუდამოდ წასაშლელად.',
     accountDeleted: 'თქვენი ანგარიში წაიშალა.',
     passwordChangeFailed: 'პაროლის შეცვლა ვერ მოხერხდა',
+    twoFactorAuth: 'ორფაქტორიანი აუთენტიფიკაცია',
+    reconfigure: 'თავიდან კონფიგურაცია',
   },
   
   // Sidebar
@@ -145,6 +147,7 @@ export const kaGE: Translations = {
     usernamePlaceholder: 'შეიყვანეთ მომხმარებლის სახელი (არასავალდებულო)',
     emailPlaceholder: 'შეიყვანეთ ელფოსტა',
     phonePlaceholder: 'შეიყვანეთ ტელეფონი',
+    contactAndCredentials: 'კონტაქტი და რექვიზიციები',
   },
   
   // Verification
@@ -222,6 +225,12 @@ export const kaGE: Translations = {
     rawHeading: 'ორგანიზაციების ნედლი მონაცემები',
     active: '(აქტიური)',
     beYourself: 'იყავი თავი (გლობალური)',
+    orgPermissions: 'ორგანიზაციის ნებართვები',
+    selectOrgForRoles: 'აირჩიეთ ორგანიზაცია ზემოთ, რომ ნახოთ თქვენი როლები.',
+    orgPermissionsDesc: 'ორგანიზაციაზე სპეციფიკური ნებართვები.',
+    selectOrgForPermissions: 'აირჩიეთ ორგანიზაცია ზემოთ, რომ ნახოთ ნებართვები.',
+    loadingPermissions: 'ნებართვების ჩატვირთვა...',
+    noActiveOrg: 'აქტიური ორგანიზაცია არ არის',
   },
   
   // MFA tab
