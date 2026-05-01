@@ -25,6 +25,7 @@ import {
   deleteUserAccount,
   getSessionsWithDeviceMeta,
   revokeUserSession,
+  revokeAllOtherSessions,
   signOutUser,
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
@@ -133,6 +134,7 @@ export async function Dashboard() {
           onDeleteAccount={deleteUserAccount}
           onGetSessionsWithDeviceMeta={getSessionsWithDeviceMeta}
           onRevokeSession={revokeUserSession}
+          onRevokeAllOtherSessions={revokeAllOtherSessions}
           onSignOut={signOutUser}
         />
       </PreferencesProvider>

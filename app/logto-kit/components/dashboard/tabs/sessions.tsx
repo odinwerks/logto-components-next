@@ -19,6 +19,7 @@ interface SessionsTabProps {
   t: Translations;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -52,6 +53,7 @@ export function SessionsTab({
   t,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
+  onRevokeAllOtherSessions,
   onVerifyPassword,
   onSuccess,
   onError,
@@ -61,6 +63,7 @@ export function SessionsTab({
   const [sessions, setSessions] = useState<LogtoSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokingAll, setRevokingAll] = useState(false);
   const [modalStep, setModalStep] = useState<PasswordModalStep | null>(null);
   const [modalError, setModalError] = useState<string>('');
   const [modalPurpose, setModalPurpose] = useState<'view' | 'revoke'>('view');
@@ -143,6 +146,26 @@ export function SessionsTab({
     await loadSessions();
   }, [loadSessions]);
 
+  const handleRevokeAll = useCallback(async () => {
+    if (!isVerificationValid) {
+      setRevokingId('__all__');
+      setModalPurpose('revoke');
+      setModalStep({ kind: 'password' });
+      setModalError('');
+      return;
+    }
+    setRevokingAll(true);
+    try {
+      await onRevokeAllOtherSessions(verificationRecordId!);
+      onSuccess(t.sessions.revoked);
+      await loadSessions();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t.sessions.revokeFailed);
+    } finally {
+      setRevokingAll(false);
+    }
+  }, [isVerificationValid, verificationRecordId, onRevokeAllOtherSessions, onSuccess, onError, loadSessions, t]);
+
   const startViewVerification = () => {
     setModalPurpose('view');
     setModalStep({ kind: 'password' });
@@ -173,7 +196,11 @@ export function SessionsTab({
         setVerificationExpiry(Date.now() + VERIFICATION_TTL_MS);
       }
 
-      await onRevokeSession(revokingId!, 'firstParty', vid);
+      if (revokingId === '__all__') {
+        await onRevokeAllOtherSessions(vid);
+      } else {
+        await onRevokeSession(revokingId!, 'firstParty', vid);
+      }
       onSuccess(t.sessions.revoked);
       await loadSessions();
       setModalStep(null);
@@ -183,6 +210,7 @@ export function SessionsTab({
       setModalStep({ kind: 'password' });
     } finally {
       setRevokingId(null);
+      setRevokingAll(false);
     }
   };
 
@@ -290,45 +318,64 @@ export function SessionsTab({
     );
   }
 
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (a.meta?.isCurrent && !b.meta?.isCurrent) return -1;
+    if (!a.meta?.isCurrent && b.meta?.isCurrent) return 1;
+    return b.payload.loginTs - a.payload.loginTs;
+  });
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.625rem' }}>
         <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65, margin: 0 }}>
           {t.sessions.description}
         </p>
-        <button
-          onClick={handleRefresh}
-          disabled={loading}
-          style={{
-            fontFamily: T.font,
-            fontSize: '0.6875rem',
-            fontWeight: 500,
-            color: T.muted,
-            background: 'none',
-            border: `1px solid ${T.border}`,
-            borderRadius: theme.tokens.dashboardRadius,
-            padding: '0.3125rem 0.75rem',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.5 : 1,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            transition: 'background 0.15s, color 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            if (!loading) {
-              e.currentTarget.style.background = theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-              e.currentTarget.style.color = T.text;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'none';
-            e.currentTarget.style.color = T.muted;
-          }}
-        >
-          <RefreshCw size={12} strokeWidth={1.5} />
-          {t.sessions.refreshData}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+          {sessions.some(s => s.meta?.isCurrent) && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={handleRevokeAll}
+              disabled={revokingAll || loading || revokingId === '__all__'}
+              theme={theme}
+            >
+              {revokingAll ? t.common.loading : t.sessions.revokeAll}
+            </Button>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            style={{
+              fontFamily: T.font,
+              fontSize: '0.6875rem',
+              fontWeight: 500,
+              color: T.muted,
+              background: 'none',
+              border: `1px solid ${T.border}`,
+              borderRadius: theme.tokens.dashboardRadius,
+              padding: '0.3125rem 0.75rem',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.color = T.text;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+              e.currentTarget.style.color = T.muted;
+            }}
+          >
+            <RefreshCw size={12} strokeWidth={1.5} />
+            {t.sessions.refreshData}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -344,7 +391,7 @@ export function SessionsTab({
             {t.sessions.noSessions}
           </div>
         ) : (
-          sessions.map((session) => {
+          sortedSessions.map((session) => {
             const meta = session.meta;
             const os = meta?.os ?? null;
             const deviceType = meta?.deviceType ?? null;
@@ -384,6 +431,31 @@ export function SessionsTab({
                     }}>
                       {title || t.sessions.unknown}
                     </h3>
+                    {session.meta?.isCurrent && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        background: theme.mode === 'dark' ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.12)',
+                        color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
+                        fontSize: '0.625rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.06em',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '9999px',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}>
+                        <span style={{
+                          width: '0.4rem',
+                          height: '0.4rem',
+                          borderRadius: '50%',
+                          background: 'currentColor',
+                          display: 'inline-block',
+                        }} />
+                        {t.sessions.thisDevice}
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
@@ -405,22 +477,34 @@ export function SessionsTab({
                 />
 
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => startRevokeVerification(session.payload.uid)}
-                    disabled={revokingId === session.payload.uid}
-                    theme={theme}
-                  >
-                    {revokingId === session.payload.uid ? (
-                      t.common.loading
-                    ) : (
-                      <>
-                        <Trash2 size={12} />
-                        {t.sessions.revoke}
-                      </>
-                    )}
-                  </Button>
+                  {session.meta?.isCurrent ? (
+                    <span style={{
+                      fontFamily: T.font,
+                      fontSize: '0.6875rem',
+                      color: T.muted,
+                      padding: '0.3125rem 0.75rem',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {t.sessions.thisDevice}
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => startRevokeVerification(session.payload.uid)}
+                      disabled={!!revokingId || revokingAll}
+                      theme={theme}
+                    >
+                      {revokingId === session.payload.uid ? (
+                        t.common.loading
+                      ) : (
+                        <>
+                          <Trash2 size={12} />
+                          {t.sessions.revoke}
+                        </>
+                      )}
+                    </Button>
+                  )}
                   {ipLabel && (
                     <span style={{ fontSize: '0.625rem', color: T.sub, whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.3 }}>
                       {ip && <span>{ip}</span>}

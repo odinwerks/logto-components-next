@@ -82,6 +82,9 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
       ip: signInContext?.ip || null,
       lastActive: null,
       createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
+      // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
+      // once the isCurrent field lands in the Logto Account API sessions response.
+      isCurrent: session.isCurrent ?? false,
     };
 
     return { ...session, meta };
@@ -126,6 +129,49 @@ export async function revokeUserSession(
   await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
 
   debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+}
+
+/**
+ * Revokes all sessions except the caller's current session.
+ *
+ * Safety guard: throws if no session is tagged `isCurrent: true` in the
+ * API response. This prevents accidentally revoking every session
+ * (including the active one) before Logto ships the isCurrent field
+ * (PRs logto-io/logto#8728–8731). When isCurrent is unavailable, every
+ * session would appear non-current and this guard aborts with an error.
+ *
+ * @param verificationRecordId - Verification record obtained via password challenge.
+ */
+export async function revokeAllOtherSessions(verificationRecordId: string): Promise<void> {
+  assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+  debugLog('[revokeAllOtherSessions] Fetching sessions');
+
+  const sessions = await getUserSessions(verificationRecordId);
+
+  const currentSession = sessions.find(s => s.isCurrent === true);
+  if (!currentSession) {
+    throw new Error('Cannot identify current session — isCurrent not yet available from Logto.');
+  }
+
+  const othersToRevoke = sessions.filter(s => s.isCurrent !== true);
+  debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
+
+  const results = await Promise.allSettled(
+    othersToRevoke.map(s =>
+      revokeUserSession(s.payload.uid, 'firstParty', verificationRecordId)
+    )
+  );
+
+  const failures = results.filter(r => r.status === 'rejected');
+  if (failures.length > 0) {
+    const count = failures.length;
+    const total = othersToRevoke.length;
+    throw new Error(
+      `Failed to revoke ${count} of ${total} session(s). The remaining sessions may still be active.`
+    );
+  }
+
+  debugLog('[revokeAllOtherSessions] All other sessions revoked');
 }
 
 // ============================================================================
