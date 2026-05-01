@@ -136,6 +136,7 @@ interface DashboardClientProps {
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<void>;
   onSignOut: () => Promise<void>;
 }
 
@@ -171,6 +172,7 @@ export function DashboardClient({
   onDeleteAccount,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
+  onRevokeAllOtherSessions,
   onSignOut,
 }: DashboardClientProps) {
 
@@ -427,6 +429,7 @@ export function DashboardClient({
                 t={t}
                 onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
                 onRevokeSession={onRevokeSession}
+                onRevokeAllOtherSessions={onRevokeAllOtherSessions}
                 onVerifyPassword={onVerifyPassword}
                 onSuccess={(msg) => showToast('success', msg)}
                 onError={(msg) => showToast('error', msg)}

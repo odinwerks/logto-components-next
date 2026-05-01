@@ -69,6 +69,7 @@ export {
   getUserSessions,
   getSessionsWithDeviceMeta,
   revokeUserSession,
+  revokeAllOtherSessions,
   getUserGrants,
   revokeUserGrant,
 } from './sessions';
