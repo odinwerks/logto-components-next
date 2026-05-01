@@ -431,31 +431,6 @@ export function SessionsTab({
                     }}>
                       {title || t.sessions.unknown}
                     </h3>
-                    {session.meta?.isCurrent && (
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        background: theme.mode === 'dark' ? 'rgba(52, 199, 89, 0.15)' : 'rgba(52, 199, 89, 0.12)',
-                        color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
-                        fontSize: '0.625rem',
-                        fontWeight: 600,
-                        letterSpacing: '0.06em',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '9999px',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                      }}>
-                        <span style={{
-                          width: '0.4rem',
-                          height: '0.4rem',
-                          borderRadius: '50%',
-                          background: 'currentColor',
-                          display: 'inline-block',
-                        }} />
-                        {t.sessions.thisDevice}
-                      </span>
-                    )}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
@@ -479,12 +454,26 @@ export function SessionsTab({
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
                   {session.meta?.isCurrent ? (
                     <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
                       fontFamily: T.font,
                       fontSize: '0.6875rem',
-                      color: T.muted,
+                      fontWeight: 600,
                       padding: '0.3125rem 0.75rem',
+                      borderRadius: '0.25rem',
                       whiteSpace: 'nowrap',
+                      border: theme.mode === 'dark' ? '1px solid #34c759' : '1px solid #2ea843',
+                      background: theme.mode === 'dark' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(52, 199, 89, 0.15)',
+                      color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
                     }}>
+                      <span style={{
+                        width: '0.4rem',
+                        height: '0.4rem',
+                        borderRadius: '50%',
+                        background: 'currentColor',
+                        display: 'inline-block',
+                      }} />
                       {t.sessions.thisDevice}
                     </span>
                   ) : (
