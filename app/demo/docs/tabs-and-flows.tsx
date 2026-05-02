@@ -565,19 +565,27 @@ function SessionsSection() {
 
       <p style={styles.textStyle}>
         The Sessions tab displays active user sessions from Logto's Account API.
-        Features password verification, session revocation, and IP geolocation.
+        Features password verification, current session identification, last-active timestamps,
+        session revocation, and IP geolocation.
       </p>
 
       <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>Password verification before viewing</li>
-        <li>Session revocation</li>
-        <li>IP geolocation via ipapi.co</li>
-        <li>Current session identification (via JTI)</li>
+        <li>Current session badge via <code style={styles.codeSmStyle}>isCurrent</code> flag — green "This device" indicator</li>
+        <li><code style={styles.codeSmStyle}>lastActiveAt</code> — null / "Active now" / ISO timestamp per session</li>
+        <li>Automatic 30s heartbeat via <code style={styles.codeSmStyle}>SessionHeartbeat</code> component in root layout</li>
+        <li>Individual session revocation and "Revoke all other sessions"</li>
+        <li>IP geolocation minimap via ipapi.co</li>
       </ul>
 
-      <div style={styles.warningBannerStyle}>
-        <strong style={styles.warningBannerStrongStyle}>⚠ IN DEVELOPMENT</strong> — Logto's sessions API
-        is evolving. See the standalone doc for current limitations.
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Logto fork required</strong> — The{' '}
+        <code style={styles.codeSmStyle}>isCurrent</code> flag, <code style={styles.codeSmStyle}>lastActiveAt</code>,
+        and heartbeat endpoint require a patched Logto backend. See{' '}
+        <a href="https://github.com/logto-io/logto/pull/8748" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor }}>
+          upstream PR #8748
+        </a>{' '}
+        for status. Until merged, run Logto from the fork branch.
       </div>
     </SectionWrap>
   );
