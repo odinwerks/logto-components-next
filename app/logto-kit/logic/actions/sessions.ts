@@ -80,7 +80,7 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
       osVersion: deviceInfo.osVersion,
       deviceType: deviceInfo.deviceType,
       ip: signInContext?.ip || null,
-      lastActive: null,
+      lastActive: session.lastActiveAt ?? null,
       createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
       // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
       // once the isCurrent field lands in the Logto Account API sessions response.

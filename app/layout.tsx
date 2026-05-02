@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { IBM_Plex_Mono, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import AuthWatcher from './logto-kit/components/handlers/auth-watcher';
+import SessionHeartbeat from './logto-kit/components/handlers/session-heartbeat';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -47,6 +48,7 @@ export default function RootLayout({
       </head>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable}`}>
         <AuthWatcher />
+        <SessionHeartbeat />
         {children}
       </body>
     </html>

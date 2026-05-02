@@ -361,6 +361,7 @@ export const kaGE: Translations = {
     refreshData: 'განახლება',
     satellite: 'სატელიტი',
     street: 'ქუჩა',
+    activeNow: 'ახლა აქტიური',
   },
 
   // Common

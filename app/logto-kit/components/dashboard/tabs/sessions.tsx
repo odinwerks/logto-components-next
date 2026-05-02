@@ -411,7 +411,7 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: '5rem',
+                minHeight: '5rem',
               }}>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 0 0 0.875rem' }}>
                   <OsIcon os={os} deviceType={deviceType} size={40} />
@@ -440,6 +440,22 @@ export function SessionsTab({
                   <div style={{ marginTop: '0.125rem', fontSize: '0.6875rem', color: T.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <span>{t.sessions.expires}: {formatDate(session.payload.exp)}</span>
                   </div>
+
+                  {meta?.lastActive && (
+                    <div style={{ marginTop: '0.125rem', fontSize: '0.6875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
+                      {meta.lastActive === 'now' ? (
+                        <span style={{
+                          color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
+                          fontWeight: 600,
+                        }}>
+                          {t.sessions.activeNow}
+                        </span>
+                      ) : (
+                        <span style={{ color: T.sub }}>{formatDate(meta.lastActive)}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <SessionMiniMap

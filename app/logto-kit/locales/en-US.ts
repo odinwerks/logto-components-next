@@ -361,6 +361,7 @@ loggedInAt: 'Logged on',
     refreshData: 'Refresh',
     satellite: 'Satellite',
     street: 'Street',
+    activeNow: 'Active now',
   },
   
   // Common

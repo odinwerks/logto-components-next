@@ -64,6 +64,9 @@ export { uploadAvatar } from './avatar';
 // Organization Permissions
 export { getOrganizationUserPermissions } from './organizations';
 
+// Heartbeat
+export { recordHeartbeat } from './heartbeat';
+
 // Session Management
 export { 
   getUserSessions,
