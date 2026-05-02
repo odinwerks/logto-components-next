@@ -6,7 +6,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP, last active) and IP geolocation minimap, identities, organizations, MFA, and developer tools views
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA, and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
 - **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
@@ -67,6 +67,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── components/
 │   │   │   ├── handlers/
 │   │   │   │   ├── auth-watcher.tsx
+│   │   │   │   ├── session-heartbeat.tsx
 │   │   │   │   ├── preferences.tsx
 │   │   │   │   ├── logto-provider.tsx
 │   │   │   │   ├── theme-helpers.ts
@@ -131,6 +132,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   ├── avatar.ts          # Avatar upload (S3/Supabase)
 │   │   │   │   ├── organizations.ts   # Organization permissions
 │   │   │   │   ├── sessions.ts        # Session management
+│   │   │   │   ├── heartbeat.ts       # Session heartbeat (recordHeartbeat server action)
 │   │   │   │   ├── introspection.ts   # Token introspection for RBAC
 │   │   │   │   └── index.ts           # Barrel file (re-exports all)
 │   │   │   ├── actions.ts             # Re-export barrel (backwards compat)
@@ -1356,6 +1358,21 @@ The dashboard handles stale cookies automatically. When the Logto access token g
 5. Dashboard loads normally
 
 This means users don't need to re-authenticate just because their access token expired - the system handles it transparently.
+
+### Sessions Tab — Logto Fork Required
+
+> **⚠️ NOTE**: The Sessions tab's advanced features (`isCurrent` flag, `lastActiveAt`, heartbeat endpoint) require a patched Logto backend.
+> Until [upstream PR #8748](https://github.com/logto-io/logto/pull/8748) is merged, you must run Logto from the fork branch:
+> [`odinwerks/logto — feat/session-last-active-at`](https://github.com/odinwerks/logto/tree/feat/session-last-active-at)
+>
+> A subset branch with only the `isCurrent` flag (no heartbeat/lastActiveAt) is available at
+> [`feat/iscurrent-v1.39`](https://github.com/odinwerks/logto/tree/feat/iscurrent-v1.39).
+
+The Sessions tab features include:
+- **`isCurrent` badge** — The session backing the current request is marked with a green "This device" badge
+- **`lastActiveAt`** — Each session shows when it was last active (`null` / `"Active now"` / ISO timestamp)
+- **Automatic heartbeat** — A zero-UI `SessionHeartbeat` component fires `recordHeartbeat()` every 30s and on tab focus
+- **Revoke all other sessions** — Safe-guarded: aborts if no `isCurrent` session is identified
 
 ### Manual Cookie Wipe
 
