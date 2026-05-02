@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { X, ExternalLink } from 'lucide-react';
@@ -20,6 +20,7 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
   const c = theme.colors;
   const isDark = theme.mode === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
 
   const locationLabel = [geo.city, geo.region, geo.country].filter(Boolean).join(', ') || t.sessions.ipLocation;
 
@@ -93,6 +94,34 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
     };
   }, [geo.lat, geo.lon, isDark, c.accentRed]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchAddress = async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${geo.lat}&lon=${geo.lon}&format=json&zoom=16&accept-language=en`
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const addr = data.address ?? {};
+        const parts = [
+          addr.road ?? addr.pedestrian ?? addr.footway ?? addr.path,
+          addr.neighbourhood ?? addr.suburb,
+          addr.city ?? addr.town ?? addr.village ?? addr.municipality,
+          addr.country,
+        ].filter(Boolean);
+        if (parts.length > 0) setResolvedAddress(parts.join(', '));
+      } catch {
+        // silent — fall back to locationLabel
+      }
+    };
+
+    fetchAddress();
+    return () => { cancelled = true; };
+  }, [geo.lat, geo.lon]);
+
   return (
     <div
       style={{
@@ -147,7 +176,7 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
                 margin: 0,
               }}
             >
-              {locationLabel}
+              {resolvedAddress ?? locationLabel}
             </p>
             <p
               style={{
