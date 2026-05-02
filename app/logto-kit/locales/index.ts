@@ -372,7 +372,8 @@ export interface KitTranslations {
     loadFailed: string;
     locationUnavailable: string;
     ipLocation: string;
-    viewInGoogleMaps: string;
+    viewOnOpenStreetMap: string;
+    viewOnGoogleMaps: string;
     refreshData: string;
     satellite: string;
     street: string;

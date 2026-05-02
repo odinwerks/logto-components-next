@@ -33,6 +33,7 @@
   "dependencies": {
     "@logto/next": "^4.2.10",
     "lucide-react": "^1.11.0",
+    "maplibre-gl": "^5.24.0",
     "minio": "^8.0.7",
     "next": "^16.2.4",
     "qrcode.react": "^4.2.0",

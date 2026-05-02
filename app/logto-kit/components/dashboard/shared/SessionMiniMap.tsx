@@ -148,7 +148,7 @@ const containerStyle: React.CSSProperties = {
         borderLeft: `1px solid ${theme.colors.borderColor}`,
         background: isDark ? '#1a1a2e' : '#e8e8f0',
       }}
-      title={t.sessions.viewInGoogleMaps}
+      title={t.sessions.viewOnOpenStreetMap}
     >
       <img
         src={tileSrc}
