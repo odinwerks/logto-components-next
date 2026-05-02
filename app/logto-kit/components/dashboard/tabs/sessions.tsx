@@ -411,7 +411,7 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                minHeight: '5rem',
+                height: '5rem',
               }}>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 0 0 0.875rem' }}>
                   <OsIcon os={os} deviceType={deviceType} size={40} />
