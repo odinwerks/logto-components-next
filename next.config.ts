@@ -30,6 +30,8 @@ function buildConnectSrc(): string {
     'https://ipapi.co',
     'https://*.basemaps.cartocdn.com',
     'https://*.supabase.co',
+    // Nominatim reverse geocoding (OSM)
+    'https://nominatim.openstreetmap.org',
     'wss:',
   ].join(' ');
 }
