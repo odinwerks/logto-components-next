@@ -376,6 +376,7 @@ export interface KitTranslations {
     refreshData: string;
     satellite: string;
     street: string;
+    activeNow: string;
   };
   
   // Common

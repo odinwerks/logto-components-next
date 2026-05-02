@@ -37,6 +37,14 @@ function buildConnectSrc(): string {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Suppress Next.js 16 dev-mode Server Action argument tracing.
+  // The default traces every SA call with its first argument serialised —
+  // this leaks sensitive values (passwords, tokens) to stdout in development.
+  // In production, no arguments are ever logged regardless of this setting.
+  logging: {
+    serverFunctions: false,
+  },
+
   async headers() {
     return [
       {
@@ -111,3 +119,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

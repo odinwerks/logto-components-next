@@ -175,7 +175,7 @@ export interface SessionMeta {
   os: string | null;
   osVersion: string | null;
   deviceType: string | null;
-  lastActive: string | null; // Always null - S3 session tracking removed
+  lastActive: string | null; // Populated from session.lastActiveAt ?? null
   createdAt: string;
   /**
    * Enriched UI-facing value derived from `LogtoSession.isCurrent ?? false`.
@@ -202,6 +202,7 @@ export interface LogtoSession {
    * not this field directly.
    */
   isCurrent?: boolean;
+  lastActiveAt?: string | null;
   meta: SessionMeta | null;
 }
 
