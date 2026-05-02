@@ -21,7 +21,7 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
   const isDark = theme.mode === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const locationLabel = [geo.city, geo.region, geo.country].filter(Boolean).join(', ') || t.sessions.ipLocation;
+  const locationLabel = [...new Set([geo.city, geo.region, geo.country].filter(Boolean))].join(', ') || t.sessions.ipLocation;
 
   const osmLink = `https://www.openstreetmap.org/?mlat=${geo.lat}&mlon=${geo.lon}#map=14/${geo.lat}/${geo.lon}`;
   const googleMapsLink = `https://www.google.com/maps?q=${geo.lat},${geo.lon}`;
