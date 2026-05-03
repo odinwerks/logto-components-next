@@ -6,10 +6,11 @@ import type { UserData, MfaVerification, MfaVerificationPayload } from '../../..
 import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { adj, tk } from '../../handlers/theme-helpers';
-import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Lock, Shield } from 'lucide-react';
+import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Lock, Shield, Fingerprint, Pencil } from 'lucide-react';
+import { startRegistration } from '@simplewebauthn/browser';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
-import { FlowModal, BackupCodesModal } from '../shared/FlowModal';
+import { FlowModal, BackupCodesModal, type ModalStep } from '../shared/FlowModal';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
 import { readEnv } from '../../../logic/env';
 
@@ -26,18 +27,14 @@ interface SecurityTabProps {
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
+  onRequestWebAuthnRegistration: () => Promise<{ registrationOptions: unknown; verificationRecordId: string }>;
+  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
+  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<void>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
 
 const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
-
-type ModalStep =
-  | { kind: 'password' }
-  | { kind: 'loading'; message: string }
-  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
-  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
-  | { kind: 'new-password'; verificationRecordId: string };
 
 export function SecurityTab({
   userData, theme, t,
@@ -48,6 +45,9 @@ export function SecurityTab({
   onGenerateBackupCodes,
   onUpdatePassword,
   onDeleteAccount,
+  onRequestWebAuthnRegistration,
+  onVerifyAndLinkWebAuthn,
+  onRenamePasskey,
   onSuccess, onError,
 }: SecurityTabProps) {
   const tc = theme.colors;
@@ -69,6 +69,7 @@ export function SecurityTab({
 
   const totpFactor   = mfaList.find(v => v.type === 'Totp');
   const backupFactor = mfaList.find(v => v.type === 'BackupCode');
+  const webAuthnFactors = mfaList.filter(v => v.type === 'WebAuthn');
 
   const fmt = (d: string) => new Date(d).toLocaleString(undefined, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -171,6 +172,93 @@ export function SecurityTab({
     }
   };
 
+  // ── Passkey registration ──
+  const [passkeyRegStep, setPasskeyRegStep] = useState<ModalStep | null>(null);
+  const [webAuthnSupported, setWebAuthnSupported] = useState(true); // optimistic default
+
+  useEffect(() => {
+    import('@simplewebauthn/browser').then(({ browserSupportsWebAuthn }) => {
+      setWebAuthnSupported(browserSupportsWebAuthn());
+    });
+  }, []);
+
+  // ── Passkey deletion ──
+  const [delPasskeyStep, setDelPasskeyStep] = useState<ModalStep | null>(null);
+  const [passkeyToDelete, setPasskeyToDelete] = useState<string | null>(null);
+
+  // ── Passkey rename ──
+  const [renamePasskeyStep, setRenamePasskeyStep] = useState<ModalStep | null>(null);
+  const [passkeyToRename, setPasskeyToRename] = useState<string | null>(null);
+
+  const handlePasskeyRegPassword = async (pw: string) => {
+    setPasskeyRegStep({ kind: 'loading', message: t.mfa.verifying });
+    try {
+      const identity = await onVerifyPassword(pw);
+      setPasskeyRegStep({ kind: 'loading', message: t.mfa.checkDevice });
+      const { registrationOptions, verificationRecordId } = await onRequestWebAuthnRegistration();
+      // browser ceremony — native prompt appears here
+      const registrationResponse = await startRegistration({ optionsJSON: registrationOptions as Parameters<typeof startRegistration>[0]['optionsJSON'] });
+      setPasskeyRegStep({ kind: 'loading', message: t.mfa.linkingPasskey });
+      await onVerifyAndLinkWebAuthn(registrationResponse, verificationRecordId, identity.verificationRecordId);
+      onSuccess(t.mfa.passkeyAdded);
+      setPasskeyRegStep(null);
+      await loadMfa();
+    } catch (err) {
+      // User cancelled the browser's WebAuthn prompt — close silently
+      if (err instanceof Error && (err.name === 'NotAllowedError' || err.message.includes('not allowed'))) {
+        setPasskeyRegStep(null);
+        return;
+      }
+      onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+      setPasskeyRegStep(null);
+    }
+  };
+
+  const handleDelPasskeyPw = async (pw: string) => {
+    if (!passkeyToDelete) return;
+    setDelPasskeyStep({ kind: 'loading', message: t.mfa.removing });
+    try {
+      const identity = await onVerifyPassword(pw);
+      await onDeleteMfaVerification(passkeyToDelete, identity.verificationRecordId);
+      onSuccess(t.mfa.passkeyDeleted);
+      setDelPasskeyStep(null);
+      setPasskeyToDelete(null);
+      await loadMfa();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+      setDelPasskeyStep(null);
+      setPasskeyToDelete(null);
+    }
+  };
+
+  const handleRenamePasskeyPw = async (pw: string) => {
+    if (!passkeyToRename) return;
+    setRenamePasskeyStep({ kind: 'loading', message: t.mfa.verifying });
+    try {
+      const identity = await onVerifyPassword(pw);
+      setRenamePasskeyStep({ kind: 'rename-passkey', verificationRecordId: identity.verificationRecordId, passkeyId: passkeyToRename });
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+      setRenamePasskeyStep(null);
+      setPasskeyToRename(null);
+    }
+  };
+
+  const handleRenamePasskeySubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
+    setRenamePasskeyStep({ kind: 'loading', message: t.mfa.verifying });
+    try {
+      await onRenamePasskey(passkeyId, name, verificationRecordId);
+      onSuccess(t.mfa.passkeyRenamed);
+      setRenamePasskeyStep(null);
+      setPasskeyToRename(null);
+      await loadMfa();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t.mfa.verificationFailed);
+      setRenamePasskeyStep(null);
+      setPasskeyToRename(null);
+    }
+  };
+
   return (
     <div>
       {/* TOTP setup modal */}
@@ -268,6 +356,47 @@ export function SecurityTab({
           onPasswordSubmit={handleDeleteAccount}
           onClose={() => setDeleteStep(null)}
           danger
+          theme={theme}
+          t={t}
+        />
+      )}
+
+      {/* Register passkey modal */}
+      {passkeyRegStep && (
+        <FlowModal
+          title={t.mfa.registerPasskey}
+          subtitle={t.mfa.registerPasskeyDesc}
+          step={passkeyRegStep}
+          onPasswordSubmit={handlePasskeyRegPassword}
+          onClose={() => setPasskeyRegStep(null)}
+          theme={theme}
+          t={t}
+        />
+      )}
+
+      {/* Delete passkey modal */}
+      {delPasskeyStep && (
+        <FlowModal
+          title={t.mfa.deletePasskey}
+          subtitle={t.mfa.deletePasskeyDesc}
+          step={delPasskeyStep}
+          onPasswordSubmit={handleDelPasskeyPw}
+          onClose={() => { setDelPasskeyStep(null); setPasskeyToDelete(null); }}
+          danger
+          theme={theme}
+          t={t}
+        />
+      )}
+
+      {/* Rename passkey modal */}
+      {renamePasskeyStep && (
+        <FlowModal
+          title={t.mfa.renamePasskey}
+          subtitle={t.mfa.renamePasskeyDesc}
+          step={renamePasskeyStep}
+          onPasswordSubmit={handleRenamePasskeyPw}
+          onRenamePasskeySubmit={handleRenamePasskeySubmit}
+          onClose={() => { setRenamePasskeyStep(null); setPasskeyToRename(null); }}
           theme={theme}
           t={t}
         />
@@ -396,6 +525,81 @@ export function SecurityTab({
               </Button>
             </div>
           </div>
+        </div>
+      </Card>
+
+      {/* ── Passkeys ── */}
+      <SL theme={theme}>{t.mfa.passkeys}</SL>
+      <Card theme={theme}>
+        <div style={{ padding: '1rem 1.25rem' }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: webAuthnFactors.length > 0 ? '0.875rem' : 0 }}>
+            <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'center' }}>
+              <IconBox theme={theme} color={webAuthnFactors.length > 0 ? 'blue' : undefined}>
+                <Fingerprint size={'0.9375rem'} color={webAuthnFactors.length > 0 ? T.blueText : T.muted} strokeWidth={1.5} />
+              </IconBox>
+              <div>
+                <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text }}>
+                  {t.mfa.passkeys}
+                </p>
+                <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.muted, lineHeight: 1.55 }}>
+                  {t.mfa.passkeyDescription}
+                </p>
+                {!webAuthnSupported && (
+                  <p style={{ fontFamily: T.mono, fontSize: '0.625rem', color: T.muted, marginTop: '0.25rem' }}>
+                    {t.mfa.webauthnNotSupported}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button size="sm" variant="primary" onClick={() => {
+              if (!webAuthnSupported) {
+                onError(t.mfa.webauthnNotSupported);
+                return;
+              }
+              setPasskeyRegStep({ kind: 'password' });
+            }} theme={theme}>
+              <Plus size={'0.6875rem'} color={theme.mode === 'dark' ? '#fff' : theme.colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
+            </Button>
+          </div>
+
+          {/* Empty state */}
+          {webAuthnFactors.length === 0 && !mfaLoading && (
+            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted, paddingTop: '0.25rem' }}>
+              {t.mfa.noPasskeys}
+            </p>
+          )}
+
+          {/* Passkey list */}
+          {webAuthnFactors.map((passkey, idx) => (
+            <div key={passkey.id}>
+              {idx > 0 && <HR theme={theme} />}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', paddingTop: idx > 0 ? '0.875rem' : 0 }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', minWidth: 0 }}>
+                  <IconBox theme={theme} color="blue">
+                    <Key size={'0.9375rem'} color={T.blueText} strokeWidth={1.5} />
+                  </IconBox>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {passkey.name || t.mfa.passkey}
+                    </p>
+                    <p style={{ fontFamily: T.mono, fontSize: '0.625rem', color: T.muted }}>
+                      {t.mfa.created}: {fmt(passkey.createdAt)}
+                      {passkey.lastUsedAt && ` · ${t.mfa.lastUsed}: ${fmt(passkey.lastUsedAt)}`}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} theme={theme}>
+                    <Pencil size={'0.6875rem'} strokeWidth={1.5} /> {t.profile.edit}
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => { setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} theme={theme}>
+                    <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 

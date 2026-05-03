@@ -29,12 +29,22 @@ vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}));
 // Import after mocks
 import { SessionMapModal } from './SessionMapModal';
 
+// Duplicate city/region — deduplication should collapse these
 const mockGeo: GeoLocation = {
   lat: 41.7151,
   lon: 44.8271,
   city: 'Tbilisi',
   region: 'Tbilisi',
   country: 'Georgia',
+};
+
+// All-distinct values — nothing should be deduplicated
+const mockGeoUnique: GeoLocation = {
+  lat: 39.7447,
+  lon: -75.5484,
+  city: 'Wilmington',
+  region: 'Delaware',
+  country: 'US',
 };
 
 const mockTheme: ThemeSpec = {
@@ -104,6 +114,7 @@ const mockTranslations: Translations = {
     locationUnavailable: 'Location unavailable',
     ipLocation: 'IP Location',
     viewOnOpenStreetMap: 'View on OpenStreetMap',
+    viewOnGoogleMaps: 'View on Google Maps',
     refreshData: 'Refresh',
     satellite: 'Satellite',
     street: 'Street',
@@ -133,7 +144,7 @@ describe('SessionMapModal', () => {
     expect(container.querySelector('div[style*="420px"]')).toBeDefined();
   });
 
-  it('should show location label in header', () => {
+  it('should show deduplicated location label when city and region match', () => {
     render(
       <SessionMapModal
         geo={mockGeo}
@@ -144,8 +155,23 @@ describe('SessionMapModal', () => {
       />
     );
 
-    // Location label is city, region, country
-    expect(screen.getByText('Tbilisi, Tbilisi, Georgia')).toBeDefined();
+    // city === region ('Tbilisi'), so Set deduplicates — country survives
+    expect(screen.getByText('Tbilisi, Georgia')).toBeDefined();
+  });
+
+  it('should show full location label when all fields are distinct', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeoUnique}
+        ip="192.168.1.1"
+        theme={mockTheme}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    // All distinct — nothing deduplicated
+    expect(screen.getByText('Wilmington, Delaware, US')).toBeDefined();
   });
 
   it('should have link to OpenStreetMap (not Google Maps)', () => {
@@ -214,7 +240,7 @@ describe('SessionMapModal', () => {
     expect(MockMap).toHaveBeenCalledWith(
       expect.objectContaining({
         center: [mockGeo.lon, mockGeo.lat],
-        zoom: 13,
+        zoom: 14,
       })
     );
   });
@@ -257,7 +283,7 @@ describe('SessionMapModal', () => {
 
     const callArgs = MockMap.mock.calls[0][0] as { style: { sources: { carto: { tiles: string[] } } } };
     const tiles = callArgs.style.sources.carto.tiles;
-    expect(tiles[0]).toContain('light_all');
+    expect(tiles[0]).toContain('voyager');
     expect(tiles[0]).toContain('cartocdn.com');
   });
 });

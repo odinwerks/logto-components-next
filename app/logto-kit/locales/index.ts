@@ -314,6 +314,24 @@ export interface KitTranslations {
     recoveryCodes: string;
     remaining: string;
     singleUseCodes: string;
+    passkeys: string;
+    passkeyDescription: string;
+    passkey: string;
+    noPasskeys: string;
+    addPasskey: string;
+    registerPasskey: string;
+    registerPasskeyDesc: string;
+    checkDevice: string;
+    linkingPasskey: string;
+    passkeyAdded: string;
+    renamePasskey: string;
+    renamePasskeyDesc: string;
+    newPasskeyName: string;
+    passkeyRenamed: string;
+    deletePasskey: string;
+    deletePasskeyDesc: string;
+    passkeyDeleted: string;
+    webauthnNotSupported: string;
   };
   
   // Dev tab

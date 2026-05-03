@@ -12,6 +12,7 @@ import {
   assertUsername,
   assertHttpUrl,
   assertVerificationCode,
+  assertPasskeyName,
 } from './guards';
 import { ValidationError } from './validation';
 
@@ -347,5 +348,42 @@ describe('assertVerificationCode', () => {
   it('rejects wrong length', () => {
     expect(() => assertVerificationCode('12345')).toThrow(ValidationError);
     expect(() => assertVerificationCode('1234567')).toThrow(ValidationError);
+  });
+});
+
+// ============================================================================
+// assertPasskeyName
+// ============================================================================
+
+describe('assertPasskeyName', () => {
+  it('accepts valid passkey names', () => {
+    expect(() => assertPasskeyName('My MacBook')).not.toThrow();
+    expect(() => assertPasskeyName('Touch ID')).not.toThrow();
+    expect(() => assertPasskeyName('YubiKey 5C NFC')).not.toThrow();
+    expect(() => assertPasskeyName('a'.repeat(64))).not.toThrow(); // exactly 64 chars
+  });
+
+  it('throws on empty string', () => {
+    expect(() => assertPasskeyName('')).toThrow(ValidationError);
+  });
+
+  it('throws on whitespace-only string', () => {
+    expect(() => assertPasskeyName('   ')).toThrow(ValidationError);
+  });
+
+  it('throws on string over 64 characters', () => {
+    expect(() => assertPasskeyName('a'.repeat(65))).toThrow(ValidationError);
+  });
+
+  it('throws on string with control characters', () => {
+    expect(() => assertPasskeyName('name\x00inject')).toThrow(ValidationError);
+    expect(() => assertPasskeyName('name\x01inject')).toThrow(ValidationError);
+    expect(() => assertPasskeyName('name\x1Finject')).toThrow(ValidationError);
+  });
+
+  it('throws on non-string input', () => {
+    expect(() => assertPasskeyName(null as unknown as string)).toThrow(ValidationError);
+    expect(() => assertPasskeyName(undefined as unknown as string)).toThrow(ValidationError);
+    expect(() => assertPasskeyName(123 as unknown as string)).toThrow(ValidationError);
   });
 });
