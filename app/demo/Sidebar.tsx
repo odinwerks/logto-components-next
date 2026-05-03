@@ -3,10 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCard } from '../logto-kit/components/userbutton';
 import { useThemeMode } from '../logto-kit/components/handlers/preferences';
-import Particles from './Particles';
 import type { NavItem } from './types';
-
-const showParticles = process.env.NEXT_PUBLIC_DEMO_PARTICLES !== 'false';
 
 interface SidebarProps {
   items: NavItem[];
@@ -237,8 +234,6 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
 
   return (
     <div style={themedSidebarStyle}>
-      {showParticles && <Particles theme={theme} />}
-
       <div style={themedBrandStyle}>
         <div style={themedBrandIconStyle}>
           <BrandIcon />
