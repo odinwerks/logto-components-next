@@ -16,6 +16,7 @@ services:
         NEXT_PUBLIC_USER_SHAPE:         ${NEXT_PUBLIC_USER_SHAPE:-circle}
         NEXT_PUBLIC_NAME_TYPE:          ${NEXT_PUBLIC_NAME_TYPE:-given_family}
         NEXT_PUBLIC_LOAD_TABS:          ${NEXT_PUBLIC_LOAD_TABS:-profile,preferences,security,organizations,identities}
+        NEXT_PUBLIC_DEMO_PARTICLES:     ${NEXT_PUBLIC_DEMO_PARTICLES:-true}
     networks:
       - dash-net
     # Port 2999 is NOT exposed to the host — only cloudflared can reach it

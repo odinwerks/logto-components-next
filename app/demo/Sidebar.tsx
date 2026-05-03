@@ -6,6 +6,8 @@ import { useThemeMode } from '../logto-kit/components/handlers/preferences';
 import Particles from './Particles';
 import type { NavItem } from './types';
 
+const showParticles = process.env.NEXT_PUBLIC_DEMO_PARTICLES !== 'false';
+
 interface SidebarProps {
   items: NavItem[];
   activeId: string;
@@ -235,7 +237,7 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
 
   return (
     <div style={themedSidebarStyle}>
-      <Particles theme={theme} />
+      {showParticles && <Particles theme={theme} />}
 
       <div style={themedBrandStyle}>
         <div style={themedBrandIconStyle}>
