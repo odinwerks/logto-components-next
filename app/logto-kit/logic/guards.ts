@@ -149,12 +149,12 @@ export function decodeLogtoAccessToken(token: unknown): AccessTokenClaims {
  * If downstream devs extend this, they must update this allowlist. Having
  * the list in one place makes it auditable.
  */
-const PREFERENCES_ALLOWED_KEYS = ['asOrg', 'themeMode', 'language'] as const;
+const PREFERENCES_ALLOWED_KEYS = ['asOrg', 'theme', 'lang'] as const;
 
 type PreferencesShape = {
   asOrg?: string | null;
-  themeMode?: 'light' | 'dark' | 'system';
-  language?: string;
+  theme?: 'light' | 'dark';
+  lang?: string;
 };
 
 /**
@@ -163,8 +163,8 @@ type PreferencesShape = {
  *
  * Validates:
  *   - asOrg: safe Logto ID or null
- *   - themeMode: one of 'light' | 'dark' | 'system'
- *   - language: alphanumeric + hyphen, ≤16 chars (BCP 47 shape)
+ *   - theme: one of 'light' | 'dark'
+ *   - lang: alphanumeric + hyphen, ≤16 chars (BCP 47 shape)
  *
  * Throws `ValidationError` if any present key has a bad value.
  * Silently drops unknown keys (no throw — downstream must not be able to
@@ -191,17 +191,17 @@ export function pickPreferences(input: unknown): PreferencesShape {
       } else {
         throw new ValidationError('INVALID_ORG_ID', 'Preferences.asOrg');
       }
-    } else if (key === 'themeMode') {
-      if (value === 'light' || value === 'dark' || value === 'system') {
-        out.themeMode = value;
+    } else if (key === 'theme') {
+      if (value === 'light' || value === 'dark') {
+        out.theme = value;
       } else {
-        throw new ValidationError('INVALID_THEME_MODE', 'Preferences.themeMode');
+        throw new ValidationError('INVALID_THEME_MODE', 'Preferences.theme');
       }
-    } else if (key === 'language') {
+    } else if (key === 'lang') {
       if (typeof value === 'string' && /^[A-Za-z0-9-]{1,16}$/.test(value)) {
-        out.language = value;
+        out.lang = value;
       } else {
-        throw new ValidationError('INVALID_LANGUAGE', 'Preferences.language');
+        throw new ValidationError('INVALID_LANGUAGE', 'Preferences.lang');
       }
     }
   }
