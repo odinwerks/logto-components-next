@@ -44,7 +44,7 @@ interface ProfileTabProps {
   userData:          UserData;
   theme:             ThemeSpec;
   t:                 Translations;
-  onUpdateBasicInfo: (updates: { name?: string }) => Promise<void>;
+  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
   onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
@@ -71,20 +71,45 @@ export function ProfileTab({
   const c  = theme.colors;
   const ty = theme.tokens.typography;
 
+  const _rawNameType = readEnv('NAME_TYPE') ?? 'given_family';
+  const nameType: 'given_family' | 'username' | 'full' =
+    (_rawNameType === 'given_family' || _rawNameType === 'username' || _rawNameType === 'full')
+      ? _rawNameType
+      : 'given_family';
+
   const [givenName,   setGivenName]   = useState(userData.profile?.givenName  ?? '');
   const [familyName,  setFamilyName]  = useState(userData.profile?.familyName ?? '');
+  const [username,    setUsername]    = useState(userData.username ?? '');
   const [nameLoading, setNameLoading] = useState(false);
 
-  const nameChanged =
-    givenName  !== (userData.profile?.givenName  ?? '') ||
-    familyName !== (userData.profile?.familyName ?? '');
+  const nameChanged = nameType === 'given_family'
+    ? (givenName  !== (userData.profile?.givenName  ?? '') ||
+       familyName !== (userData.profile?.familyName ?? ''))
+    : nameType === 'username'
+      ? username !== (userData.username ?? '')
+      : (username !== (userData.username ?? '') ||
+         givenName  !== (userData.profile?.givenName  ?? '') ||
+         familyName !== (userData.profile?.familyName ?? ''));
 
   const handleSaveName = useCallback(async () => {
     setNameLoading(true);
     try {
-      const name = `${givenName} ${familyName}`.trim();
-      if (name) await onUpdateBasicInfo({ name });
-      await onUpdateProfile({ givenName, familyName });
+      if (nameType === 'given_family') {
+        const name = `${givenName} ${familyName}`.trim();
+        if (name) await onUpdateBasicInfo({ name });
+        await onUpdateProfile({ givenName, familyName });
+      } else if (nameType === 'username') {
+        await onUpdateBasicInfo({ username });
+      } else { // full
+        const nameFieldsChanged =
+          givenName  !== (userData.profile?.givenName  ?? '') ||
+          familyName !== (userData.profile?.familyName ?? '');
+        const name = `${givenName} ${familyName}`.trim();
+        const basicUpdates: { name?: string; username?: string } = { username };
+        if (name) basicUpdates.name = name;
+        await onUpdateBasicInfo(basicUpdates);
+        if (nameFieldsChanged) await onUpdateProfile({ givenName, familyName });
+      }
       onSuccess(t.profile.profileUpdated);
       refreshData();
     } catch (err) {
@@ -92,12 +117,13 @@ export function ProfileTab({
     } finally {
       setNameLoading(false);
     }
-  }, [givenName, familyName, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
+  }, [nameType, givenName, familyName, username, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
 
   const handleDiscardName = useCallback(() => {
     setGivenName(userData.profile?.givenName  ?? '');
     setFamilyName(userData.profile?.familyName ?? '');
-  }, [userData]);
+    if (nameType !== 'given_family') setUsername(userData.username ?? '');
+  }, [userData, nameType]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
@@ -109,6 +135,10 @@ export function ProfileTab({
   const cropPreviewUrlRef = useRef<string | null>(null);
 
   useEffect(() => { cropPreviewUrlRef.current = cropPreviewUrl; }, [cropPreviewUrl]);
+
+  useEffect(() => {
+    setUsername(userData.username ?? '');
+  }, [userData.username]);
 
   const { upload, isUploading, clearError } = useAvatarUpload({
     userId: userData.id,
@@ -421,46 +451,82 @@ export function ProfileTab({
             </button>
           </div>
 
-          <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start' }}>
-            <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
-            <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
-            <div />
-            <Input
-              value={givenName}
-              onChange={e => setGivenName(e.target.value)}
-              placeholder={t.profile.firstNamePlaceholder}
-              theme={theme}
-              style={{ padding: '0.375rem 0.75rem' }}
-            />
-            <Input
-              value={familyName}
-              onChange={e => setFamilyName(e.target.value)}
-              placeholder={t.profile.lastNamePlaceholder}
-              theme={theme}
-              style={{ padding: '0.375rem 0.75rem' }}
-            />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {nameChanged && (
-                <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
-                  {t.profile.discard}
-                </Button>
-              )}
-              <Button
-                variant="primary"
-                onClick={handleSaveName}
-                disabled={!nameChanged || nameLoading}
-                theme={theme}
-                style={{ padding: '0.375rem 0.875rem' }}
-              >
-                {nameLoading
-                  ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
-                  : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
-                }
-              </Button>
-            </div>
+          <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.75rem' }}>
+            {/* Username row — shown in username and full modes */}
+            {(nameType === 'username' || nameType === 'full') && (
+              <div style={{ width: '100%' }}>
+                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                  <Input
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder={t.profile.usernamePlaceholder}
+                    theme={theme}
+                    style={{ padding: '0.375rem 0.75rem', flex: 1 }}
+                  />
+                  {/* Buttons only inside username div in username-only mode */}
+                  {nameType === 'username' && (
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      {nameChanged && (
+                        <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                          {t.profile.discard}
+                        </Button>
+                      )}
+                      <Button variant="primary" onClick={handleSaveName} disabled={!nameChanged || nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                        {nameLoading
+                          ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
+                          : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
+                        }
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Given/Family grid — shown in given_family and full modes */}
+            {(nameType === 'given_family' || nameType === 'full') && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
+                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
+                <div />
+                <Input
+                  value={givenName}
+                  onChange={e => setGivenName(e.target.value)}
+                  placeholder={t.profile.firstNamePlaceholder}
+                  theme={theme}
+                  style={{ padding: '0.375rem 0.75rem' }}
+                />
+                <Input
+                  value={familyName}
+                  onChange={e => setFamilyName(e.target.value)}
+                  placeholder={t.profile.lastNamePlaceholder}
+                  theme={theme}
+                  style={{ padding: '0.375rem 0.75rem' }}
+                />
+                {/* Buttons in grid for given_family and full modes */}
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {nameChanged && (
+                      <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                        {t.profile.discard}
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveName}
+                      disabled={!nameChanged || nameLoading}
+                      theme={theme}
+                      style={{ padding: '0.375rem 0.875rem' }}
+                    >
+                      {nameLoading
+                        ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
+                        : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
+                      }
+                    </Button>
+                  </div>
+              </div>
+            )}
           </div>
-        </div>
       </div>
 
       <SL theme={theme}>{t.profile.contactAndCredentials}</SL>

@@ -12,6 +12,7 @@ const NEXT_PUBLIC_ENV: Record<string, string | undefined> = {
   LANG_AVAILABLE: process.env.NEXT_PUBLIC_LANG_AVAILABLE,
   LOAD_TABS: process.env.NEXT_PUBLIC_LOAD_TABS,
   MFA_ISSUER: process.env.NEXT_PUBLIC_MFA_ISSUER,
+  NAME_TYPE: process.env.NEXT_PUBLIC_NAME_TYPE,
 };
 
 /**
