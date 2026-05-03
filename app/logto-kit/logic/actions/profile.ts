@@ -46,7 +46,7 @@ export async function updateUserProfile(profile: {
  *
  * Only the `Preferences` key is allowed through; all others are dropped
  * (mass-assignment protection). Within Preferences, only whitelisted keys
- * (asOrg, themeMode, language) are accepted.
+ * (asOrg, theme, lang) are accepted.
  */
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<void> {
   const rawPrefs = (customData.Preferences ?? {}) as unknown;
