@@ -48,11 +48,11 @@ services:
       # ── Debug (set DEBUG=true to enable verbose server logging) ───────────
       - DEBUG=${DEBUG:-}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:2999/"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "node -e \"require('net').createConnection(2999,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})\""]
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 20s
     restart: unless-stopped
 
   # ── Cloudflare Tunnel ────────────────────────────────────────────────────────
