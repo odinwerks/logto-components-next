@@ -297,7 +297,7 @@ export function SessionsTab({
             background: T.bg,
             border: `1px solid ${T.border}`,
             borderRadius: theme.tokens.dashboardRadius,
-            height: '5rem',
+            height: '5.5rem',
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
@@ -310,7 +310,7 @@ export function SessionsTab({
               <div style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '55%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
               <div style={{ height: '0.5rem', borderRadius: '0.25rem', background: T.raised, width: '35%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15 + 0.1}s` }} />
             </div>
-            <div style={{ width: '5rem', height: '5rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+            <div style={{ width: '5rem', height: '5.5rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
             <div style={{ width: '4rem', height: '1.75rem', borderRadius: '0.25rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
           </div>
         ))}
@@ -411,7 +411,7 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: '5rem',
+                height: '5.5rem',
               }}>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 0 0 0.875rem' }}>
                   <OsIcon os={os} deviceType={deviceType} size={40} />
