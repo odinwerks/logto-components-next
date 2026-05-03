@@ -13,7 +13,7 @@ const appStyle: React.CSSProperties = {
 };
 
 export default function DemoApp() {
-  const [activeId, setActiveId] = useState('dashboard');
+  const [activeId, setActiveId] = useState('getting-started');
 
   const activeItem = NAV_ITEMS.find((item) => item.id === activeId) || NAV_ITEMS[0];
 
