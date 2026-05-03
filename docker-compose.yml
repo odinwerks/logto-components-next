@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
       # NEXT_PUBLIC_* vars are baked into the client bundle at build time.
       # They are sourced from your .env file when you run `docker compose build`.
-      # Set BASE_URL to your public CF tunnel URL before building.
+      # Set PUBLIC_BASE_URL in .env to your public CF tunnel URL.
       args:
         NEXT_PUBLIC_THEME:              ${NEXT_PUBLIC_THEME:-Default}
         NEXT_PUBLIC_LANG_MAIN:          ${NEXT_PUBLIC_LANG_MAIN:-en-US}
@@ -29,7 +29,7 @@ services:
       - APP_ID=${APP_ID}
       - APP_SECRET=${APP_SECRET}
       - ENDPOINT=${ENDPOINT}
-      - BASE_URL=${BASE_URL}
+      - BASE_URL=${PUBLIC_BASE_URL}
       - COOKIE_SECRET=${COOKIE_SECRET}
       - SCOPES=${SCOPES}
       # ── M2M (account deletion, RBAC) ─────────────────────────────────────
