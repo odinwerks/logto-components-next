@@ -286,6 +286,69 @@ function AuthFlowSection() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Page 4: Docker + Cloudflare Tunnel
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function DockerSetupSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Deploy with Docker + CF Tunnel">
+      <p style={styles.textStyle}>
+        The repo ships with a <code style={styles.codeStyle}>Dockerfile</code> and{' '}
+        <code style={styles.codeStyle}>docker-compose.yml</code>. Two services:{' '}
+        <code style={styles.codeStyle}>logto-dash</code> (Next.js) and{' '}
+        <code style={styles.codeStyle}>cloudflared</code> (CF tunnel). Port 3000 is{' '}
+        never exposed to the host — only cloudflared reaches it internally.
+      </p>
+      <CodeBlock
+        title="Step 1 — Set BASE_URL + tunnel token in .env"
+        code={`# Baked into the image at build time — must match your public URL
+BASE_URL=https://dash.yourdomain.org
+
+# Cloudflare Zero Trust → Networks → Tunnels → Create a tunnel
+CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token`}
+      />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>BASE_URL</strong>{' '}
+        is used for OIDC redirect URIs. Set it to your public CF tunnel URL{' '}
+        before building — it cannot be changed at runtime.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function DockerBuildSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Configure tunnel → build → run">
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Step 2 — Cloudflare dashboard:</strong>{' '}
+        in your tunnel's public hostname settings, point your domain to{' '}
+        <code style={styles.codeSmStyle}>http://logto-dash:3000</code>
+      </div>
+      <CodeBlock
+        title="Step 3 — Build & start"
+        code={`docker compose build
+docker compose up -d`}
+      />
+      <CodeBlock
+        title="Updating after code changes"
+        code={`git pull
+docker compose build
+docker compose up -d`}
+      />
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>NEXT_PUBLIC_* vars</strong>{' '}
+        are baked into the client bundle at build time. If you change any{' '}
+        <code style={styles.codeSmStyle}>NEXT_PUBLIC_*</code> var in{' '}
+        <code style={styles.codeSmStyle}>.env</code>, rebuild:{' '}
+        <code style={styles.codeSmStyle}>docker compose build --no-cache</code>
+      </div>
+    </SectionWrap>
+  );
+}
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function GettingStartedDoc() {
@@ -327,6 +390,18 @@ export default function GettingStartedDoc() {
           <div style={styles.colLeftStyle}>
             <UsageSection />
             <AuthFlowSection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 4: Docker + CF Tunnel */}
+      <Section id={4}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
+            <DockerSetupSection />
+          </div>
+          <div style={styles.colLeftStyle}>
+            <DockerBuildSection />
           </div>
         </div>
       </Section>
