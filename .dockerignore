@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Dependencies (reinstalled inside the image)
+node_modules
+
+# Next.js build output (rebuilt inside the image)
+.next
+
+# Environment files — pass secrets via docker-compose environment, never bake them in
+.env
+.env.local
+.env.development
+.env.production
+# Keep .env.example so it's available for documentation purposes inside the image
+# (harmless — no secrets)
+
+# OS / editor noise
+.DS_Store
+*.swp
+*.swo
+
+# Docs
+*.md
+!README.md
+
+# Test artifacts
+coverage/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Misc
+.turbo

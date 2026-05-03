@@ -37,6 +37,10 @@ function buildConnectSrc(): string {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Required for Docker: generates a self-contained .next/standalone output
+  // that includes only the minimal server files (no full node_modules copy).
+  output: 'standalone',
+
   // Suppress Next.js 16 dev-mode Server Action argument tracing.
   // The default traces every SA call with its first argument serialised —
   // this leaks sensitive values (passwords, tokens) to stdout in development.

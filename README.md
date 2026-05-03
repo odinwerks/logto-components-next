@@ -181,6 +181,79 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that
 
 The workflow uses Node.js 20 and caches npm dependencies for faster runs.
 
+## Docker Deployment
+
+The project ships with a `Dockerfile`, `.dockerignore`, and `docker-compose.yml` for deploying behind a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | 3-stage build: install deps → `next build` (with `NEXT_PUBLIC_*` baked in) → minimal standalone runtime |
+| `.dockerignore` | Excludes `node_modules`, `.next`, `.env*`, test files from build context |
+| `docker-compose.yml` | Two services: `logto-dash` (app) + `cloudflared` (CF tunnel), on an internal bridge network |
+
+### Architecture
+
+```
+Internet → Cloudflare Tunnel → cloudflared (container)
+                                      ↓
+                              dash-net (bridge)
+                                      ↓
+                         logto-dash:3000 (not exposed to host)
+```
+
+Port 3000 is never mapped to the Docker host — only `cloudflared` can reach it on the internal `dash-net` network.
+
+### Quick Start
+
+**1. Fill in your `.env`**
+
+Copy `.env.example` → `.env` and populate all required vars. Then set:
+
+```env
+# Your public CF tunnel URL — baked into the image at build time
+BASE_URL=https://dash.yourdomain.org
+
+# From: Cloudflare Zero Trust → Networks → Tunnels → Create a tunnel
+CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
+```
+
+> `BASE_URL` is used by the Logto SDK for OIDC redirect URIs and origin checking. It must match the public URL before you build — it cannot be changed at runtime.
+
+**2. Configure tunnel routing in the Cloudflare dashboard**
+
+In your tunnel's public hostname settings, point your domain to:
+```
+http://logto-dash:3000
+```
+
+**3. Build and run**
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+**Updating after code changes:**
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+### NEXT_PUBLIC_* Vars and Docker
+
+`NEXT_PUBLIC_*` variables are inlined into the client-side JavaScript bundle at **build time** by the Next.js compiler. They cannot be changed at runtime without rebuilding.
+
+The `docker-compose.yml` passes them as `build.args` sourced from your `.env` file. If you change any `NEXT_PUBLIC_*` variable, rebuild the image:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
 ## Security Architecture (v0.3.0)
 
 v0.3.0 introduced dedicated security modules for defense-in-depth:
