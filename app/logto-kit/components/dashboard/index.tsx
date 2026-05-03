@@ -27,6 +27,9 @@ import {
   revokeUserSession,
   revokeAllOtherSessions,
   signOutUser,
+  requestWebAuthnRegistration,
+  verifyAndLinkWebAuthn,
+  renamePasskey,
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
@@ -132,6 +135,9 @@ export async function Dashboard() {
           onGenerateBackupCodes={generateBackupCodes}
           onUpdatePassword={updateUserPassword}
           onDeleteAccount={deleteUserAccount}
+          onRequestWebAuthnRegistration={requestWebAuthnRegistration}
+          onVerifyAndLinkWebAuthn={verifyAndLinkWebAuthn}
+          onRenamePasskey={renamePasskey}
           onGetSessionsWithDeviceMeta={getSessionsWithDeviceMeta}
           onRevokeSession={revokeUserSession}
           onRevokeAllOtherSessions={revokeAllOtherSessions}

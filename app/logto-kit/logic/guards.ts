@@ -275,6 +275,18 @@ function stripControlChars(s: string): string {
   return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
+export function assertPasskeyName(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new ValidationError('INVALID_FIELD_TYPE', 'name');
+  }
+  if (value.trim().length > 64) {
+    throw new ValidationError('FIELD_TOO_LONG', 'name');
+  }
+  if (value !== stripControlChars(value)) {
+    throw new ValidationError('INVALID_CHARS', 'name');
+  }
+}
+
 export function assertNameField(
   value: unknown,
   field: string,

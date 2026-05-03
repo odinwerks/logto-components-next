@@ -134,6 +134,9 @@ interface DashboardClientProps {
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
   onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
+  onRequestWebAuthnRegistration: () => Promise<{ registrationOptions: unknown; verificationRecordId: string }>;
+  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
+  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<void>;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<void>;
@@ -170,6 +173,9 @@ export function DashboardClient({
   onGenerateBackupCodes,
   onUpdatePassword,
   onDeleteAccount,
+  onRequestWebAuthnRegistration,
+  onVerifyAndLinkWebAuthn,
+  onRenamePasskey,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
@@ -417,6 +423,9 @@ export function DashboardClient({
               onGenerateBackupCodes={onGenerateBackupCodes}
               onUpdatePassword={onUpdatePassword}
               onDeleteAccount={onDeleteAccount}
+              onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+              onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+              onRenamePasskey={onRenamePasskey}
               onSuccess={(msg) => showToast('success', msg)}
               onError={(msg) => showToast('error', msg)}
             />

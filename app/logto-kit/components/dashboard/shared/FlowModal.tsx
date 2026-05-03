@@ -35,7 +35,8 @@ export type ModalStep =
   | { kind: 'loading'; message: string }
   | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
   | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
-  | { kind: 'new-password'; verificationRecordId: string };
+  | { kind: 'new-password'; verificationRecordId: string }
+  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };
 
 export function PasswordVerifyModal({
   title, subtitle, step, onPasswordSubmit, onClose, passwordError, theme, t, danger,
@@ -153,7 +154,7 @@ function HR({ theme }: { theme: ThemeSpec }) {
 }
 
 export function FlowModal({
-  title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onClose,
+  title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
   passwordError, extra, theme, t, danger,
 }: {
   title: string;
@@ -163,6 +164,7 @@ export function FlowModal({
   onCodeSubmit?: (code: string) => void;
   onTotpSubmit?: (code: string, secret: string, identityVerificationId: string) => void;
   onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string) => void;
+  onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string) => void;
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
@@ -196,6 +198,7 @@ export function FlowModal({
   const [code, setCode] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [renameVal, setRenameVal] = useState('');
 
   const dangerColor = c.accentRed;
 
@@ -404,6 +407,26 @@ export function FlowModal({
                 <Button onClick={onClose} theme={theme}>Cancel</Button>
                 <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} theme={theme}>
                   {danger ? t.security.deleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : c.contrastText} strokeWidth={1.5} />
+                </Button>
+              </div>
+            </>
+          )}
+
+          {step.kind === 'rename-passkey' && (
+            <>
+              <Lbl theme={theme}>{t.mfa.newPasskeyName}</Lbl>
+              <Input
+                type="text"
+                value={renameVal}
+                onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId); }}
+                theme={theme}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
+                <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
+                <Button variant="primary" onClick={() => renameVal.trim() && onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)} disabled={!renameVal.trim()} theme={theme}>
+                  {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>

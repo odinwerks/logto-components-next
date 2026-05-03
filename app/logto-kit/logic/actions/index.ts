@@ -52,6 +52,9 @@ export {
   getBackupCodes,
 } from './mfa';
 
+// WebAuthn / Passkey Management
+export { requestWebAuthnRegistration, verifyAndLinkWebAuthn, renamePasskey } from './webauthn';
+
 // Password Management
 export { updateUserPassword } from './password';
 
