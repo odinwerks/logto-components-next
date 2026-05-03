@@ -18,11 +18,11 @@ services:
         NEXT_PUBLIC_LOAD_TABS:          ${NEXT_PUBLIC_LOAD_TABS:-profile,preferences,security,organizations,identities}
     networks:
       - dash-net
-    # Port 3000 is NOT exposed to the host — only cloudflared can reach it
+    # Port 2999 is NOT exposed to the host — only cloudflared can reach it
     # via the internal dash-net network. Remove the comment below if you need
     # direct host access for debugging:
     # ports:
-    #   - "3000:3000"
+    #   - "2999:2999"
     environment:
       - NODE_ENV=production
       # ── Core Logto config ─────────────────────────────────────────────────
@@ -48,7 +48,7 @@ services:
       # ── Debug (set DEBUG=true to enable verbose server logging) ───────────
       - DEBUG=${DEBUG:-}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:2999/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -56,9 +56,9 @@ services:
     restart: unless-stopped
 
   # ── Cloudflare Tunnel ────────────────────────────────────────────────────────
-  # Routes traffic from your public CF tunnel URL to logto-dash:3000 internally.
+  # Routes traffic from your public CF tunnel URL to logto-dash:2999 internally.
   # Configure the tunnel routing in the Cloudflare dashboard:
-  #   Public hostname → http://logto-dash:3000
+  #   Public hostname → http://logto-dash:2999
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run
