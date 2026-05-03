@@ -6,12 +6,12 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 
 - **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA, and developer tools views
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn), and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
 - **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
-- **MFA Management**: TOTP enrollment and backup codes generation. WebAuthn support planned for future release. 
+- **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn passkey management (register, rename, delete). Uses `@simplewebauthn/browser` for the browser ceremony.
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
@@ -127,6 +127,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   ├── profile.ts         # Profile management
 │   │   │   │   ├── verification.ts    # Email/phone verification
 │   │   │   │   ├── mfa.ts             # MFA management (TOTP, backup codes)
+│   │   │   │   ├── webauthn.ts         # WebAuthn passkey management (register, rename)
 │   │   │   │   ├── password.ts        # Password updates
 │   │   │   │   ├── account.ts         # Account deletion
 │   │   │   │   ├── avatar.ts          # Avatar upload (S3/Supabase)
@@ -187,7 +188,7 @@ v0.3.0 introduced dedicated security modules for defense-in-depth:
 | Module | Location | Purpose |
 |--------|----------|---------|
 | `origin-guard.ts` | `logic/origin-guard.ts` | CSRF protection — validates `Origin`/`Referer` header on all non-Server-Action API routes |
-| `guards.ts` | `logic/guards.ts` | Input validators for all trust boundaries — IDs, user IDs, MFA types, custom data |
+| `guards.ts` | `logic/guards.ts` | Input validators for all trust boundaries — IDs, user IDs, MFA types, passkey names, custom data |
 | `audit.ts` | `logic/audit.ts` | Audit log primitive — emits structured events for mutations (no-op until you provide a custom transport) |
 | `dev-mode.ts` | `logic/dev-mode.ts` | `NODE_ENV` gate — strips dev-only features at runtime in non-development environments |
 | `debug-token.ts` | `logic/actions/debug-token.ts` | Dev-only Server Action for token access (refused by server in production) |
@@ -1220,7 +1221,7 @@ Available tab IDs with their display aliases:
 |--------|---------|-------------|
 | `profile` | `personal`, `user` | User profile and basic info |
 | `preferences` | `prefs`, `custom-data`, `custom`, `customdata` | User preferences and settings |
-| `security` | `mfa`, `2fa`, `totp` | Multi-factor authentication management |
+| `security` | `mfa`, `2fa`, `totp` | Multi-factor authentication management (TOTP, backup codes, passkeys) |
 | `sessions` | `session`, `devices`, `activity` | Active session management and device overview |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
@@ -1621,6 +1622,9 @@ import {
   deleteMfaVerification,
   generateBackupCodes,
   getBackupCodes,
+  requestWebAuthnRegistration,
+  verifyAndLinkWebAuthn,
+  renamePasskey,
 } from './logto-kit';
 ```
 
@@ -1675,6 +1679,28 @@ const { codes } = await generateBackupCodes('verificationRecordId');
 // Get existing backup codes
 const backupCodes = await getBackupCodes('verificationRecordId');
 ```
+
+### WebAuthn Passkeys
+
+```tsx
+// Request registration options from Logto
+const { registrationOptions, verificationRecordId } = await requestWebAuthnRegistration();
+
+// Client-side: run browser ceremony with @simplewebauthn/browser
+import { startRegistration } from '@simplewebauthn/browser';
+const response = await startRegistration({ optionsJSON: registrationOptions });
+
+// Verify and link the passkey to the account
+await verifyAndLinkWebAuthn(response, verificationRecordId, identityVerificationRecordId);
+
+// Rename a passkey
+await renamePasskey('passkey-verification-id', 'My MacBook', identityVerificationRecordId);
+
+// Delete a passkey (uses existing deleteMfaVerification)
+await deleteMfaVerification('passkey-verification-id', identityVerificationRecordId);
+```
+
+> **Note**: WebAuthn requires configuring `webauthnRelatedOrigins` in your Logto tenant's Account Center settings to allow cross-origin passkey operations from your app's domain.
 
 ### Identity Verification
 
