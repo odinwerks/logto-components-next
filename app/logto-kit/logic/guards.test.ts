@@ -165,8 +165,8 @@ describe('decodeLogtoAccessToken', () => {
 
 describe('pickPreferences', () => {
   it('passes through allowed keys', () => {
-    const result = pickPreferences({ asOrg: 'org-123', themeMode: 'dark', language: 'en-US' });
-    expect(result).toEqual({ asOrg: 'org-123', themeMode: 'dark', language: 'en-US' });
+    const result = pickPreferences({ asOrg: 'org-123', theme: 'dark', lang: 'en-US' });
+    expect(result).toEqual({ asOrg: 'org-123', theme: 'dark', lang: 'en-US' });
   });
 
   it('silently drops unknown keys', () => {
@@ -191,14 +191,14 @@ describe('pickPreferences', () => {
     expect(() => pickPreferences({ asOrg: '../../../etc/passwd' })).toThrow(ValidationError);
   });
 
-  it('throws for invalid themeMode', () => {
-    expect(() => pickPreferences({ themeMode: 'purple' })).toThrow(ValidationError);
-    expect(() => pickPreferences({ themeMode: 'dark; DROP TABLE' })).toThrow(ValidationError);
+  it('throws for invalid theme', () => {
+    expect(() => pickPreferences({ theme: 'purple' })).toThrow(ValidationError);
+    expect(() => pickPreferences({ theme: 'dark; DROP TABLE' })).toThrow(ValidationError);
   });
 
-  it('throws for invalid language', () => {
-    expect(() => pickPreferences({ language: 'a'.repeat(17) })).toThrow(ValidationError);
-    expect(() => pickPreferences({ language: '../etc' })).toThrow(ValidationError);
+  it('throws for invalid lang', () => {
+    expect(() => pickPreferences({ lang: 'a'.repeat(17) })).toThrow(ValidationError);
+    expect(() => pickPreferences({ lang: '../etc' })).toThrow(ValidationError);
   });
 
   it('returns empty object for null/undefined input', () => {
