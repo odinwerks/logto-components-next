@@ -54,6 +54,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WebAuthn passkey management** in Security tab — register, rename, and delete passkeys via Logto Account API
+  - New server actions: `requestWebAuthnRegistration`, `verifyAndLinkWebAuthn`, `renamePasskey` (`logic/actions/webauthn.ts`)
+  - `assertPasskeyName` guard in `guards.ts` — validates non-empty, ≤64 chars, no control chars
+  - FlowModal extended with `rename-passkey` step type
+  - Browser support detection with `browserSupportsWebAuthn()` from `@simplewebauthn/browser`
+  - User cancel (NotAllowedError) handled gracefully — modal closes silently
+  - 27 new tests (19 action + 8 guard)
+  - 18 new i18n keys with Georgian translations
+
+### Fixed
+
+- **SessionMapModal tests** — 3 pre-existing test failures fixed:
+  - Location label test updated for intentional Set-based deduplication (test both dedup and non-dedup cases)
+  - Zoom level test corrected from 13 to 14 (original typo)
+  - Light theme tile assertion updated from `light_all` to `voyager` (intentional design choice)
+  - Mock translations object completed (added missing `viewOnGoogleMaps`)
+
 ## [0.2.0] - 2025-01-27
 
 ### Added
