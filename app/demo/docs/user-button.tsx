@@ -65,13 +65,13 @@ function PropsSection() {
           <tr>
             <td style={styles.tdPropStyle}>userData</td>
             <td style={styles.tdTypeStyle}>UserData</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>Optional override. Reads LogtoProvider context if omitted.</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>theme</td>
             <td style={styles.tdTypeStyle}>ThemeSpec</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
           </tr>
           <tr>
@@ -104,7 +104,7 @@ function NotesSection() {
     <SectionWrap label="Notes">
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Data resolution priority:</strong>{' '}
-        prop — LogtoProvider context — fallback user icon (after 1.5s timeout).
+        prop - LogtoProvider context - fallback user icon (after 1.5s timeout).
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Shape fallback:</strong>{' '}
@@ -118,7 +118,7 @@ function NotesSection() {
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>i18n:</strong>{' '}
-        UserCard&apos;s &quot;Logged in as&quot; label auto-translates — no <code style={styles.codeStyle}>t</code> prop needed.
+        UserCard&apos;s &quot;Logged in as&quot; label auto-translates - no <code style={styles.codeStyle}>t</code> prop needed.
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Image fallback:</strong>{' '}
@@ -280,7 +280,7 @@ export default function UserButtonDoc() {
                 </ExampleCard>
 
                 <ExampleCard
-                  label="do — open URL"
+                  label="do - open URL"
                   subLabel="window.open in a new tab"
                   code={`const url = 'https://music.youtube.com/watch?v=l6t4gx8vCMI';
 <UserButton Size="72px" do={() => window.open(url, '_blank')} />`}

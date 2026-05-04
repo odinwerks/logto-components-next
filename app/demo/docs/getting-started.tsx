@@ -67,9 +67,9 @@ cd logto-components-next`} />
       <CodeBlock title="Install" code={`npm install`} />
       <p style={styles.textStyle}>
         The repo is a working Next.js app. The{' '}
-        <code style={styles.codeStyle}>app/logto-kit/</code> folder contains the kit — you
+        <code style={styles.codeStyle}>app/logto-kit/</code> folder contains the kit - you
         don't touch it. The <code style={styles.codeStyle}>app/demo/</code> folder is the
-        self-documenting showcase — you replace it.
+        self-documenting showcase - you replace it.
       </p>
     </SectionWrap>
   );
@@ -161,7 +161,7 @@ S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars`
 function ConsoleSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Logto Console — create 2 apps">
+    <SectionWrap label="Logto Console - create 2 apps">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
           <strong style={styles.strongNoteStyle}>Traditional Web App</strong>
@@ -299,11 +299,11 @@ function DockerSetupSection() {
         <code style={styles.codeStyle}>docker-compose.yml</code>. Two services:{' '}
         <code style={styles.codeStyle}>logto-dash</code> (Next.js) and{' '}
         <code style={styles.codeStyle}>cloudflared</code> (CF tunnel). Port 3000 is{' '}
-        never exposed to the host — only cloudflared reaches it internally.
+        never exposed to the host - only cloudflared reaches it internally.
       </p>
       <CodeBlock
-        title="Step 1 — Set BASE_URL + tunnel token in .env"
-        code={`# Baked into the image at build time — must match your public URL
+        title="Step 1 - Set BASE_URL + tunnel token in .env"
+        code={`# Baked into the image at build time - must match your public URL
 BASE_URL=https://dash.yourdomain.org
 
 # Cloudflare Zero Trust → Networks → Tunnels → Create a tunnel
@@ -312,7 +312,7 @@ CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token`}
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>BASE_URL</strong>{' '}
         is used for OIDC redirect URIs. Set it to your public CF tunnel URL{' '}
-        before building — it cannot be changed at runtime.
+        before building - it cannot be changed at runtime.
       </div>
     </SectionWrap>
   );
@@ -323,12 +323,12 @@ function DockerBuildSection() {
   return (
     <SectionWrap label="Configure tunnel → build → run">
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Step 2 — Cloudflare dashboard:</strong>{' '}
+        <strong style={styles.strongNoteStyle}>Step 2 - Cloudflare dashboard:</strong>{' '}
         in your tunnel's public hostname settings, point your domain to{' '}
         <code style={styles.codeSmStyle}>http://logto-dash:3000</code>
       </div>
       <CodeBlock
-        title="Step 3 — Build & start"
+        title="Step 3 - Build & start"
         code={`docker compose build
 docker compose up -d`}
       />

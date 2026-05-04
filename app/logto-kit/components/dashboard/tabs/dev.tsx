@@ -114,8 +114,8 @@ export function DevTab({ userData, theme, t }: DevTabProps) {
     );
   }
 
-  // Wipe endpoints are POST-only now (Phase 3); submit via a hidden form
-  // with same-origin credentials so the server's origin-guard passes.
+  // Wipe endpoints accept both GET and POST; we use POST with same-origin
+  // credentials so the server's origin-guard provides CSRF protection.
   const handleWipe = async (force: boolean) => {
     const url = force ? '/api/wipe?force=true' : '/api/wipe';
     await fetch(url, { method: 'POST', credentials: 'same-origin' });

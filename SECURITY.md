@@ -28,7 +28,7 @@ logto-dash is a **self-hosted authentication dashboard** intended for developers
 ## Security Guarantees (What the Library Enforces)
 
 - **No access token in the browser.** The Logto access token never reaches client-side JavaScript in production builds. The Dev tab (which shows it) is disabled in `NODE_ENV=production`.
-- **Same-origin enforcement.** Non-Server-Action route handlers (`/api/wipe`, `/api/auth/sign-out`) validate the `Origin`/`Referer` header against `BASE_URL` on every POST. GET requests return 405.
+- **Same-origin enforcement.** Non-Server-Action route handlers (`/api/wipe`, `/api/auth/sign-out`) validate the `Origin`/`Referer` header against `BASE_URL` on every POST. GET requests perform cookie clearing or sign-out for browser redirect flows. POST requests require same-origin validation.
 - **Input validation at trust boundaries.** Every `'use server'` function validates its client-supplied arguments before performing any privileged operation. IDs are restricted to `[A-Za-z0-9_-]{1,128}`. Types are asserted against allowlists. Complex inputs (customData) are whitelist-filtered.
 - **Error message sanitisation.** In production, errors returned to the browser are fixed error codes. Raw upstream text (which can contain email addresses, request details, and internal information) is discarded client-side and retained only in server-side logs.
 - **Mass-assignment prevention.** `updateUserCustomData` accepts only the `Preferences` key, and within it only `asOrg`, `themeMode`, and `language`. All other keys are dropped silently.
@@ -47,7 +47,8 @@ logto-dash is a **self-hosted authentication dashboard** intended for developers
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Email: [see repository for contact] or open a [private GitHub advisory](https://github.com/odinwerks/logto-components-next/security/advisories/new).
+To report a security vulnerability, please use GitHub's private vulnerability reporting:
+https://github.com/odinwerks/logto-components-next/security/advisories/new
 
 Include:
 - Description of the vulnerability

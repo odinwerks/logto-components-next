@@ -85,7 +85,7 @@ function ProtectedComponentSection() {
           <tr>
             <td style={styles.tdPropStyle}>perm</td>
             <td style={styles.tdTypeStyle}>string | string[]</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>Required permission(s)</td>
           </tr>
           <tr>
@@ -116,7 +116,7 @@ function ProtectedComponentSection() {
       </table>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Client-side only:</strong>{' '}
-        Uses <code style={styles.codeSmStyle}>useOrgMode()</code> and <code style={styles.codeSmStyle}>useLogto()</code> hooks — must be inside <code style={styles.codeSmStyle}>LogtoProvider</code>.
+        Uses <code style={styles.codeSmStyle}>useOrgMode()</code> and <code style={styles.codeSmStyle}>useLogto()</code> hooks - must be inside <code style={styles.codeSmStyle}>LogtoProvider</code>.
       </div>
     </SectionWrap>
   );
@@ -298,7 +298,7 @@ function PermissionSystemSection() {
     <SectionWrap label="Permission flow">
       <p style={styles.textStyle}>
         Both <code style={styles.codeSmStyle}>{`<Protected />`}</code> and{' '}
-        <code style={styles.codeSmStyle}>/api/protected</code> follow the same steps —
+        <code style={styles.codeSmStyle}>/api/protected</code> follow the same steps  - 
         just client-side vs server-side:
       </p>
       <CodeBlock title="Steps" code={`// 1. Resolve active org (asOrg from customData.Preferences)

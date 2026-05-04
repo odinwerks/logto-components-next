@@ -4,11 +4,25 @@ import { getLogtoConfig } from '../../../logto';
 import { checkSameOrigin } from '../../../logto-kit/logic/origin-guard';
 
 /**
- * GET is no longer supported. Previously this allowed CSRF-based sign-out
- * via a cross-origin image tag or link. POST + origin-check stops that.
+ * GET performs sign-out via Logto server actions.
+ * This is a convenience handler for browser navigation (not CSRF-safe).
+ * For CSRF-safe sign-out, use POST instead.
  */
 export async function GET() {
-  return NextResponse.json({ error: 'METHOD_NOT_ALLOWED' }, { status: 405 });
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+
+  try {
+    await signOut(getLogtoConfig());
+  } catch (err) {
+    // signOut() throws NEXT_REDIRECT on success — let Next.js handle it.
+    if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err;
+    // Any other error: log server-side, return safe redirect.
+    console.error('[sign-out] GET: signOut failed, redirecting:', err instanceof Error ? err.message : err);
+    return NextResponse.redirect(new URL('/', baseUrl));
+  }
+
+  // Defensive fallback — signOut() should always throw NEXT_REDIRECT.
+  return NextResponse.redirect(new URL('/', baseUrl));
 }
 
 export async function POST(request: NextRequest) {

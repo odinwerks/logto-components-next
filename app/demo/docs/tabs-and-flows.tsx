@@ -44,19 +44,19 @@ function OverviewSection() {
           <tr>
             <td style={styles.tdPathStyle}>Security</td>
             <td style={styles.tdStyle}>17 + common</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>15</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Sessions</td>
             <td style={styles.tdStyle}>5 + common</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>3</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Identities</td>
             <td style={styles.tdStyle}>common only</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>0</td>
           </tr>
           <tr>
@@ -68,7 +68,7 @@ function OverviewSection() {
           <tr>
             <td style={styles.tdPathStyle}>Dev</td>
             <td style={styles.tdStyle}>1 + common</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>0</td>
           </tr>
         </tbody>
@@ -91,7 +91,7 @@ LOAD_TABS=profile,preferences,security,organizations`} />
 function ProfilePropsSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Profile — props">
+    <SectionWrap label="Profile - props">
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -140,7 +140,7 @@ function ProfilePropsSection() {
 function ProfileHooksSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Profile — hooks & actions">
+    <SectionWrap label="Profile - hooks & actions">
       <CodeBlock title="useAvatarUpload hook" code={`import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 
 const { upload, isUploading, error, clearError } = useAvatarUpload({
@@ -201,7 +201,7 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
 function PreferencesSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Preferences — props & hooks">
+    <SectionWrap label="Preferences - props & hooks">
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -241,7 +241,7 @@ setLang('ka-GE'); // persists to sessionStorage + Logto API`} />
 function IdentitiesSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Identities — read-only">
+    <SectionWrap label="Identities - read-only">
       <p style={styles.textStyle}>
         Purely presentational. No hooks, no state, no server actions. Reads{' '}
         <code style={styles.codeStyle}>userData.identities</code> and renders provider icons
@@ -270,7 +270,7 @@ function IdentitiesSection() {
 function SecurityOverviewSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — overview">
+    <SectionWrap label="Security - overview">
       <p style={styles.textStyle}>
         The most complex tab. Manages TOTP authenticator, backup codes, password,
         email/phone, and account deletion. All mutations require identity verification
@@ -313,7 +313,7 @@ function SecurityOverviewSection() {
 function FlowModalSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — FlowModal">
+    <SectionWrap label="Security - FlowModal">
       <p style={styles.textStyle}>
         A generic multi-step modal used across the Security tab. Drives UI through
         password → loading → code/TOTP/new-password steps via a discriminated union.
@@ -341,7 +341,7 @@ function FlowModalSection() {
 }`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Pattern:</strong>{' '}
-        Most flows start with <code style={styles.codeSmStyle}>{`{ kind: 'password' }`}</code> —
+        Most flows start with <code style={styles.codeSmStyle}>{`{ kind: 'password' }`}</code>  - 
         verify identity first, then proceed to the actual mutation.
       </div>
     </SectionWrap>
@@ -351,7 +351,7 @@ function FlowModalSection() {
 function TotpSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — TOTP flows">
+    <SectionWrap label="Security - TOTP flows">
       <p style={styles.textStyle}>
         TOTP (Time-based One-Time Password) authenticator setup and deletion.
       </p>
@@ -388,7 +388,7 @@ await loadMfa();`} />
 function BackupCodesSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — backup codes">
+    <SectionWrap label="Security - backup codes">
       <CodeBlock title="Generate flow" code={`// 1. Password verification
 const identity = await onVerifyPassword(pw);
 // 2. Generate codes (returns string[])
@@ -414,7 +414,7 @@ const blob = new Blob([styledHtml], { type: 'text/html' });
 function PasswordAccountSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — password & account">
+    <SectionWrap label="Security - password & account">
       <CodeBlock title="Change password" code={`// 1. Password verification
 const identity = await onVerifyPassword(pw);
 // 2. Set new password
@@ -438,7 +438,7 @@ window.location.href = '/api/auth/sign-out';`} />
 function ContactRowSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Security — ContactRow">
+    <SectionWrap label="Security - ContactRow">
       <p style={styles.textStyle}>
         Reusable component for email/phone management. Each row handles its own
         modal flow independently.
@@ -466,7 +466,7 @@ await onRemoveEmail(identity.verificationRecordId);`} />
 function OrgPropsSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Organizations — props & hooks">
+    <SectionWrap label="Organizations - props & hooks">
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -500,7 +500,7 @@ router.refresh();`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>setActiveOrg:</strong>{' '}
         Imported directly from <code style={styles.codeSmStyle}>custom-logic/actions/set-active-org</code>.
-        Only validates membership — does NOT persist. Persistence is done by{' '}
+        Only validates membership - does NOT persist. Persistence is done by{' '}
         <code style={styles.codeSmStyle}>setAsOrg</code> from the hook.
       </div>
     </SectionWrap>
@@ -510,7 +510,7 @@ router.refresh();`} />
 function DevSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Dev — debug tab">
+    <SectionWrap label="Dev - debug tab">
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -531,13 +531,13 @@ function DevSection() {
         Purely presentational. No hooks, no server actions. Two client-side
         navigations for cookie management:
       </p>
-      <CodeBlock title="Cookie actions" code={`// Clear cookies (stale cookie recovery) — POST-only
+      <CodeBlock title="Cookie actions" code={`// Clear cookies (stale cookie recovery) - POST (CSRF-safe)
 const handleClearCookies = async () => {
   await fetch('/api/wipe', { method: 'POST', credentials: 'same-origin' });
   window.location.href = '/';
 };
 
-// Force invalidate session (signs out from Logto too) — POST-only
+// Force invalidate session (signs out from Logto too) - POST (CSRF-safe)
 const handleInvalidateSession = async () => {
   await fetch('/api/wipe?force=true', { method: 'POST', credentials: 'same-origin' });
   window.location.href = '/';
@@ -559,7 +559,7 @@ function SessionsSection() {
   return (
     <SectionWrap label="Sessions Tab">
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>See standalone doc</strong> — Full Sessions documentation
+        <strong style={styles.strongNoteStyle}>See standalone doc</strong> - Full Sessions documentation
         is in the separate <code style={styles.codeSmStyle}>Sessions</code> doc (under Components in sidebar).
       </div>
 
@@ -571,15 +571,15 @@ function SessionsSection() {
 
       <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>Password verification before viewing</li>
-        <li>Current session badge via <code style={styles.codeSmStyle}>isCurrent</code> flag — green "This device" indicator</li>
-        <li><code style={styles.codeSmStyle}>lastActiveAt</code> — null / "Active now" / ISO timestamp per session</li>
+        <li>Current session badge via <code style={styles.codeSmStyle}>isCurrent</code> flag - green "This device" indicator</li>
+        <li><code style={styles.codeSmStyle}>lastActiveAt</code> - null / "Active now" / ISO timestamp per session</li>
         <li>Automatic 30s heartbeat via <code style={styles.codeSmStyle}>SessionHeartbeat</code> component in root layout</li>
         <li>Individual session revocation and "Revoke all other sessions"</li>
         <li>IP geolocation minimap via ipapi.co</li>
       </ul>
 
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Logto fork required</strong> — The{' '}
+        <strong style={styles.strongNoteStyle}>Logto fork required</strong> - The{' '}
         <code style={styles.codeSmStyle}>isCurrent</code> flag, <code style={styles.codeSmStyle}>lastActiveAt</code>,
         and heartbeat endpoint require a patched Logto backend. See{' '}
         <a href="https://github.com/logto-io/logto/pull/8748" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor }}>

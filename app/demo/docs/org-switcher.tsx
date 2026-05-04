@@ -18,11 +18,11 @@ function OverviewSection() {
       </p>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>OrgSwitcherWrapper</strong>{' '}
-        — Server Component. Fetches org data from Logto automatically. Drop it in and it works.
+        - Server Component. Fetches org data from Logto automatically. Drop it in and it works.
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: '12px' }}>
         <strong style={styles.strongNoteStyle}>OrgSwitcher</strong>{' '}
-        — Client Component. You provide the org list. Use when you already have org data.
+        - Client Component. You provide the org list. Use when you already have org data.
       </div>
       <CodeBlock title="Import" code={`import {
   OrgSwitcher,
@@ -89,14 +89,14 @@ function OrgSwitcherPropsSection() {
         <strong style={styles.strongNoteStyle}>OrgSwitcherWrapper props:</strong>{' '}
         Just <code style={styles.codeSmStyle}>theme: ThemeSpec</code> and{' '}
         <code style={styles.codeSmStyle}>t: Translations</code>. It fetches orgs via{' '}
-        <code style={styles.codeSmStyle}>getLogtoContext()</code> internally — no org data needed from you.
+        <code style={styles.codeSmStyle}>getLogtoContext()</code> internally - no org data needed from you.
       </div>
     </SectionWrap>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Page 2: Flow — useOrgMode + setActiveOrg + switching
+// Page 2: Flow - useOrgMode + setActiveOrg + switching
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OrgModeSection() {
@@ -112,7 +112,7 @@ function OrgModeSection() {
 //      { Preferences: { theme, lang, asOrg: 'org-123' } }
 //   + dispatches 'preferences-changed' event for cross-tab sync
 
-setAsOrg(null); // "be yourself" — clears org context`} />
+setAsOrg(null); // "be yourself" - clears org context`} />
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Three fallback paths:</strong>{' '}
         Context exists → real setter. SSR → no-op. No context, client → no-op.
@@ -126,12 +126,12 @@ function ServerActionSection() {
   return (
     <SectionWrap label="setActiveOrg server action">
       <p style={styles.textStyle}>
-        Validates org membership via JWT claims. Does <strong>not</strong> persist anything —
+        Validates org membership via JWT claims. Does <strong>not</strong> persist anything  - 
         that's <code style={styles.codeStyle}>setAsOrg</code>'s job.
       </p>
       <CodeBlock title="Signature" code={`export async function setActiveOrg(orgId: string | null): Promise<boolean>
 // Returns true if user is a member of orgId (or orgId is null).
-// Validates against JWT claims — fast, can't forge org membership.`} />
+// Validates against JWT claims - fast, can't forge org membership.`} />
     </SectionWrap>
   );
 }
@@ -143,7 +143,7 @@ function SwitchingFlowSection() {
       <CodeBlock title="OrgSwitcher.handleChange" code={`const handleChange = async (newOrgId: string) => {
   const orgIdToSet = newOrgId || null;
 
-  // 1. Validate (skip for "be yourself" — null is always valid)
+  // 1. Validate (skip for "be yourself" - null is always valid)
   if (orgIdToSet !== null) {
     const isValid = await setActiveOrg(orgIdToSet);
     if (!isValid) return;

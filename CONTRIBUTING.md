@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Logto Dash! This document provide
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 25+
 - npm, pnpm, or yarn
 - A Logto instance (cloud or self-hosted) for testing
 
@@ -33,16 +33,7 @@ Thank you for your interest in contributing to Logto Dash! This document provide
 
 ### Environment Configuration
 
-See the README.md for detailed environment variable configuration. At minimum, you need:
-
-```env
-APP_ID=your-app-id
-APP_SECRET=your-app-secret
-ENDPOINT=https://your-tenant.logto.app
-BASE_URL=http://localhost:3000
-COOKIE_SECRET=your-random-secret
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions
-```
+See the README.md for detailed environment variable configuration. Copy `.env.example` to `.env` and fill in your values — the example file is the authoritative reference for all required and optional variables.
 
 ## Pull Request Process
 
@@ -145,7 +136,7 @@ Tests live in the following files:
 - `app/logto-kit/logic/errors.test.ts` — error utilities
 - `app/logto-kit/logic/dev-mode.test.ts` — NODE_ENV gate for dev-only features
 
-CI runs `npm run test:run` automatically on every push and pull request.
+Run `npm run test:run` and `npm run type-check` locally before pushing. There is currently no automated CI pipeline.
 
 ### Manual Testing Checklist
 

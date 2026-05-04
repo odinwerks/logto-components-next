@@ -295,7 +295,7 @@ import { readEnv } from '../logic/env';
 
 /** Active theme folder name from ENV (default: 'default') */
 export function getThemeName(): string {
-  return (readEnv('THEME') || 'default').trim();
+  return (readEnv('THEME') || 'default').trim().toLowerCase();
 }
 
 /** Default mode from ENV (default: 'dark') */

@@ -1,23 +1,23 @@
 # Logto components kit.
 
-Is a modular Next.js app. A base upon which you can build your own app. Think of it as a quick start pre-built. Includes a dashboard, a user button, providers for user data, safe implementation of Logto's Auth system, theme and language handlers, custom action runners, etc.
+A modular Next.js app that provides a base for building with a dashboard, user button, providers for user data, Logto Auth integration, theme and language handlers, and custom action runners.
 
 ## Features
 
-- **Semi-Clean Production-ish UI**: Modern, professional styling with squared buttons, consistent theming, and polished components
+- **Semi-Clean Production-ish UI**: Squared buttons, CSS-variable theming, and a set of UI components
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
 - **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn), and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
-- **Theme System**: File-based theme system with dark/light CSS variables — requires code registration in `themes/index.ts`
+- **Theme System**: File-based theme system with dark/light CSS variables - requires code registration in `themes/index.ts`
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
 - **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn passkey management (register, rename, delete). Uses `@simplewebauthn/browser` for the browser ceremony.
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
-- **Cookie Recovery**: Automatic handling of stale cookie contexts via POST /api/wipe route.
-- **Proxy-routed Auth**: Route protection happens in middleware before page rendering, all protected calls and requests get caught at the request layer if problematic.
-- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated. The Dev tab is only visible in `NODE_ENV=development`.
+- **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
+- **Route Protection**: Middleware (`proxy.ts`) checks authentication before page rendering and redirects unauthenticated requests to sign-in.
+- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated. The Dev tab is only visible when `NODE_ENV` is `development` or `test`.
 
 ## Project Structure
 
@@ -40,7 +40,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 9-tab navigation definitions
+│   │   ├── nav-data.tsx             # 11-tab navigation definitions
 │   │   ├── Particles.tsx            # Canvas particle animation
 │   │   ├── types.ts                # Type definitions
 │   │   ├── docs/                   # Per-tab documentation files (TSX)
@@ -54,16 +54,21 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── themes.tsx
 │   │   │   ├── i18n.tsx
 │   │   │   └── components/
+│   │   │       ├── calculator.tsx
 │   │   │       └── sessions.tsx   # Sessions tab documentation
 │   │   ├── logic/                  # Demo-specific components
 │   │   │   ├── CalculatorPanel.tsx
 │   │   │   └── CalculatorClient.tsx
 │   │   └── utils/
 │   │       ├── CodeBlock.tsx
-│   │       └── Section.tsx
+│   │       ├── Section.tsx
+│   │       ├── SectionComponents.tsx
+│   │       └── useDocStyles.ts
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
+│   │   ├── actions/
+│   │   │   └── load-org-permissions.ts
 │   │   ├── components/
 │   │   │   ├── handlers/
 │   │   │   │   ├── auth-watcher.tsx
@@ -80,7 +85,9 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx
+│   │   │   │   │   ├── ContactRow.tsx
 │   │   │   │   │   ├── FlowModal.tsx
+│   │   │   │   │   ├── ImageCropper.tsx
 │   │   │   │   │   ├── SessionMiniMap.tsx
 │   │   │   │   │   ├── SessionMapModal.tsx
 │   │   │   │   │   ├── Toast.tsx
@@ -93,11 +100,11 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   │       ├── profile.tsx
 │   │   │   │       ├── sessions.tsx
 │   │   │   │       └── security.tsx
-│   │   │   └── shared/
-│   │   │       ├── Button.tsx
-│   │   │       └── Input.tsx
-│   │   ├── userbutton/
-│   │   │   └── index.tsx
+│   │   │   ├── shared/
+│   │   │   │   ├── Button.tsx
+│   │   │   │   └── Input.tsx
+│   │   │   └── userbutton/
+│   │   │       └── index.tsx
 │   │   ├── custom-actions/
 │   │   │   ├── index.ts                  # Action registry and types
 │   │   │   ├── validation.ts             # RBAC validation functions
@@ -140,7 +147,7 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │   │   ├── debug.ts               # Debug logging utility
 │   │   │   ├── env.ts                 # Environment variable handling
 │   │   │   ├── errors.ts              # Custom error classes
-│   │   │   ├── formatting.ts          # Text formatting utilities
+│   │   │   ├── formatting.ts          # Text formatting utilities (formatPhone)
 │   │   │   ├── i18n.ts                # Internationalization logic
 │   │   │   ├── index.ts               # Main exports
 │   │   │   ├── preferences.ts         # Preference persistence logic
@@ -157,29 +164,26 @@ Is a modular Next.js app. A base upon which you can build your own app. Think of
 │   │       │   ├── dark.css
 │   │       │   ├── index.ts
 │   │       │   └── light.css
-│   │       └── index.ts
+│   │       ├── index.ts
+│   │       └── shared.ts
 │   ├── logto.ts
 │   └── page.tsx
 ├── proxy.ts
 ├── .env.example
+├── docker-entrypoint.sh
 ├── next.config.ts
 ├── next-env.d.ts
 ├── public/
-│   └── os-icons/                   # OS icons for session cards (Tux.jpg, MacroSlop.svg, MacOS.svg, ios.svg, Android.svg)
+│   ├── os-icons/                   # OS icons for session cards (Tux.jpg, MacroSlop.svg, MacOS.svg, ios.svg, Android.svg)
+│   └── robots.txt
 ├── package.json
 ├── README.md
-└── tsconfig.json
+├── tsconfig.json
+├── vitest.config.ts
+└── vitest.setup.ts
 ```
 
-## CI/CD
-
-The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push and pull request:
-
-- **TypeScript check**: `npm run type-check`
-- **Tests**: `npm run test:run`
-- **Build**: `npm run build`
-
-The workflow uses Node.js 20 and caches npm dependencies for faster runs.
+Test files (`.test.ts` / `.test.tsx`) are co-located alongside their source modules - guards, validation, sessions, webauthn, dev-mode, errors, origin-guard, profile, and more.
 
 ## Docker Deployment
 
@@ -200,10 +204,10 @@ Internet → Cloudflare Tunnel → cloudflared (container)
                                       ↓
                               dash-net (bridge)
                                       ↓
-                         logto-dash:3000 (not exposed to host)
+                         logto-dash:2999 (not exposed to host)
 ```
 
-Port 3000 is never mapped to the Docker host — only `cloudflared` can reach it on the internal `dash-net` network.
+Port 2999 is never mapped to the Docker host - only `cloudflared` can reach it on the internal `dash-net` network.
 
 ### Quick Start
 
@@ -212,20 +216,20 @@ Port 3000 is never mapped to the Docker host — only `cloudflared` can reach it
 Copy `.env.example` → `.env` and populate all required vars. Then set:
 
 ```env
-# Your public CF tunnel URL — baked into the image at build time
-BASE_URL=https://dash.yourdomain.org
+# Your public CF tunnel URL - mapped to BASE_URL at container runtime
+PUBLIC_BASE_URL=https://dash.yourdomain.org
 
 # From: Cloudflare Zero Trust → Networks → Tunnels → Create a tunnel
 CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
 ```
 
-> `BASE_URL` is used by the Logto SDK for OIDC redirect URIs and origin checking. It must match the public URL before you build — it cannot be changed at runtime.
+> `PUBLIC_BASE_URL` is your public CF tunnel URL. The container maps it to `BASE_URL` at runtime, which the Logto SDK uses for OIDC redirect URIs and origin checking. For local development (`npm run dev`), set `BASE_URL=http://localhost:3000` instead.
 
 **2. Configure tunnel routing in the Cloudflare dashboard**
 
 In your tunnel's public hostname settings, point your domain to:
 ```
-http://logto-dash:3000
+http://logto-dash:2999
 ```
 
 **3. Build and run**
@@ -260,11 +264,11 @@ v0.3.0 introduced dedicated security modules for defense-in-depth:
 
 | Module | Location | Purpose |
 |--------|----------|---------|
-| `origin-guard.ts` | `logic/origin-guard.ts` | CSRF protection — validates `Origin`/`Referer` header on all non-Server-Action API routes |
-| `guards.ts` | `logic/guards.ts` | Input validators for all trust boundaries — IDs, user IDs, MFA types, passkey names, custom data |
-| `audit.ts` | `logic/audit.ts` | Audit log primitive — emits structured events for mutations (no-op until you provide a custom transport) |
-| `dev-mode.ts` | `logic/dev-mode.ts` | `NODE_ENV` gate — strips dev-only features at runtime in non-development environments |
-| `debug-token.ts` | `logic/actions/debug-token.ts` | Dev-only Server Action for token access (refused by server in production) |
+| `origin-guard.ts` | `app/logto-kit/logic/origin-guard.ts` | CSRF protection - validates `Origin`/`Referer` header on all non-Server-Action API routes |
+| `guards.ts` | `app/logto-kit/logic/guards.ts` | Input validators for all trust boundaries - IDs, user IDs, MFA types, passkey names, custom data |
+| `audit.ts` | `app/logto-kit/logic/audit.ts` | Audit log primitive - emits structured events for mutations (no-op until you provide a custom transport) |
+| `dev-mode.ts` | `app/logto-kit/logic/dev-mode.ts` | `NODE_ENV` gate - strips dev-only features at runtime in non-development/test environments |
+| `debug-token.ts` | `app/logto-kit/logic/actions/debug-token.ts` | Dev-only Server Action for token access (refused by server in production) |
 
 To activate audit logging, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`.
 
@@ -323,6 +327,16 @@ DEFAULT_THEME_MODE=dark
 USER_SHAPE=circle
 ```
 
+### Name Type Configuration
+
+```env
+# Controls how user names are displayed in the Profile tab (default: given_family)
+# given_family - shows Given Name + Family Name fields
+# username      - shows Username field
+# full          - shows all three (Given Name, Family Name, Username)
+NAME_TYPE=given_family
+```
+
 ### MFA Configuration
 
 ```env
@@ -330,6 +344,8 @@ USER_SHAPE=circle
 # Name that will show up in the TOTP QR code issuer field
 MFA_ISSUER=YourAppName
 ```
+
+> **WebAuthn Origins**: For WebAuthn passkey operations to work from your app's domain, you must configure `webauthnRelatedOrigins` in your Logto tenant's Account Center settings. This allows cross-origin passkey operations from your deployed app domain.
 
 ### i18n Configuration
 
@@ -339,6 +355,14 @@ LANG_MAIN=en-US
 
 # Available languages
 LANG_AVAILABLE=en-US,ka-GE
+```
+
+### Debug Logging
+
+```env
+# Set to true to enable verbose server-side debug logging
+# (token introspection, API request flow, permission checks)
+# DEBUG=true
 ```
 
 ### S3 Storage (for Avatar Upload)
@@ -358,11 +382,23 @@ S3_REGION=auto
 
 > **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
 
+### NEXT_PUBLIC_* Variants
+
+All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`.
+
+### Docker-Only Variables
+
+```env
+# Public base URL for Docker deployment - mapped to BASE_URL at container runtime
+# Must match your Cloudflare Tunnel domain
+PUBLIC_BASE_URL=https://dash.yourdomain.org
+```
+
 ## Theme System
 
 Themes are user-created and ENV-selected. Each theme lives in its own folder under `app/logto-kit/themes/` and is activated by setting the `THEME` environment variable.
 
-> **Important:** Adding a theme requires a code change. You must register the theme in `themes/index.ts` — setting `THEME` in `.env` alone is not enough.
+> **Important:** Adding a theme requires a code change. You must register the theme in `themes/index.ts` - setting `THEME` in `.env` alone is not enough.
 
 Themes are loaded from `app/logto-kit/themes/{THEME}/`:
 
@@ -408,7 +444,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs — one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs - one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -424,7 +460,7 @@ The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs — 
 | Sessions | component | Active session management with device info, IP geolocation, and revocation |
 | Calculator | component | Permission-gated calculator demo with live RBAC examples |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation — a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
 ### How It Works
 
@@ -434,29 +470,32 @@ The demo app consists of:
 |------|---------|
 | `index.tsx` | Demo page entry point |
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
-| `ContentArea.tsx` | Main content area — lazy-loads doc files from the registry |
+| `ContentArea.tsx` | Main content area - lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
 | `nav-data.tsx` | 11-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
-| `docs/getting-started.tsx` | Getting started guide — clone, configure, avatar upload, Logto Console |
-| `docs/user-button.tsx` | UserButton documentation — Quick Start, Props table, Notes, 6 example cards |
-| `docs/dashboard.tsx` | Dashboard documentation — Internals, Provider Sync, Tab Structure, Rendering (3 pages) |
-| `docs/tabs-and-flows.tsx` | Detailed tabs documentation — props, hooks, actions for all dashboard tabs (5 pages) |
-| `docs/org-switcher.tsx` | OrgSwitcher documentation — props, wrapper, useOrgMode, setActiveOrg |
-| `docs/providers.tsx` | Providers documentation — LogtoProvider, hooks reference |
-| `docs/themes.tsx` | Theme system documentation — dual system, color tokens, custom themes |
-| `docs/i18n.tsx` | i18n documentation — file-based locales, useLangMode, adding languages |
-| `docs/protected.tsx` | Protected component and API documentation — permission-based access control, server actions, examples (4 pages) |
+| `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
+| `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
+| `docs/dashboard.tsx` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (3 pages) |
+| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (5 pages) |
+| `docs/org-switcher.tsx` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
+| `docs/providers.tsx` | Providers documentation - LogtoProvider, hooks reference |
+| `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
+| `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
+| `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
+| `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
-| `utils/Section.tsx` | `SectionContainer` and `Section` — multi-page split with keyboard navigation |
+| `utils/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
+| `utils/SectionComponents.tsx` | Pre-built page components for documentation (Badge, Note, StepList, Table) |
+| `utils/useDocStyles.ts` | Shared CSS-in-JS styles for documentation pages |
 
 ### Documentation Format
 
 Each doc file in `docs/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
 
 Typical layout:
-- **Two-column grid** — Left and right sections side by side (matching `user-button.tsx` pattern)
-- **Single column** — For detailed content like the Security tab's FlowModal architecture
+- **Two-column grid** - Left and right sections side by side (matching `user-button.tsx` pattern)
+- **Single column** - For detailed content like the Security tab's FlowModal architecture
 
 To add documentation for a new tab:
 1. Create `app/demo/docs/{tab-id}.tsx`
@@ -496,15 +535,15 @@ import CodeBlock from '../utils/CodeBlock';
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `code` | `string` | — | The code string to display |
+| `code` | `string` | - | The code string to display |
 | `lang` | `'tsx' \| 'ts' \| 'bash'` | `'tsx'` | Language label shown in the title bar |
-| `title` | `string` | — | Optional title shown above the code block |
+| `title` | `string` | - | Optional title shown above the code block |
 
 Features: regex-based TSX tokenizer (no external deps), horizontal scroll for long lines, `marginBottom: 6px`, `#1e1e1e` background.
 
 #### SectionContainer & Section
 
-A multi-page layout system. `SectionContainer` is the viewport that manages page transitions via CSS `translateY` — each `Section` child is a full-height page stacked vertically. Pages slide up/down with a cubic-bezier transition.
+A multi-page layout system. `SectionContainer` is the viewport that manages page transitions via CSS `translateY` - each `Section` child is a full-height page stacked vertically. Pages slide up/down with a cubic-bezier transition.
 
 ```tsx
 import { SectionContainer, Section } from '../utils/Section';
@@ -513,10 +552,10 @@ export default function MyDoc() {
   return (
     <SectionContainer>
       <Section id={1}>
-        {/* Page 1 content — Quick Start, Props table */}
+        {/* Page 1 content - Quick Start, Props table */}
       </Section>
       <Section id={2}>
-        {/* Page 2 content — Example cards */}
+        {/* Page 2 content - Example cards */}
       </Section>
     </SectionContainer>
   );
@@ -529,7 +568,7 @@ Features: ArrowUp/ArrowDown keyboard navigation, bottom-right nav buttons with p
 
 The dashboard provides a `PreferencesProvider` that combines theme and language management. It exports both `useThemeMode()` and `useLangMode()` hooks.
 
-> **Important**: All hooks (`useThemeMode`, `useLangMode`, `useOrgMode`, `useUserDataContext`) must be used within their provider contexts. Using them outside will return no-op values with silent failures — the component will appear to work but changes won't persist.
+> **Important**: All hooks (`useThemeMode`, `useLangMode`, `useOrgMode`, `useUserDataContext`) must be used within their provider contexts. Using them outside will return no-op values with silent failures - the component will appear to work but changes won't persist.
 
 #### useThemeMode Hook
 
@@ -595,8 +634,8 @@ The hook returns:
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist preferences to Logto customData |
 | `onLangChange` | `() => void` | - | Optional callback fired when language changes |
-| `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
-| `lightThemeSpec` | `ThemeSpec` | — | **Required.** Light theme specification object |
+| `darkThemeSpec` | `ThemeSpec` | - | **Required.** Dark theme specification object |
+| `lightThemeSpec` | `ThemeSpec` | - | **Required.** Light theme specification object |
 
 When `onUpdateCustomData` is provided, theme and language changes are automatically synced to Logto for cross-device persistence.
 
@@ -686,14 +725,14 @@ function MyComponent() {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `userData` | `UserData` | — | The user data object |
+| `userData` | `UserData` | - | The user data object |
 | `dashboard` | `ReactNode` | - | Optional dashboard modal content |
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data (forwarded to PreferencesProvider) |
 | `onLangChange` | `() => void` | - | Callback fired when language changes |
-| `darkThemeSpec` | `ThemeSpec` | — | **Required.** Dark theme specification object |
-| `lightThemeSpec` | `ThemeSpec` | — | **Required.** Light theme specification object |
+| `darkThemeSpec` | `ThemeSpec` | - | **Required.** Dark theme specification object |
+| `lightThemeSpec` | `ThemeSpec` | - | **Required.** Light theme specification object |
 
 #### useLogto Hook
 
@@ -725,6 +764,8 @@ Returns:
 | `closeDashboard` | `() => void` | Close the dashboard modal |
 
 Use this hook to access user data, theme, language, and dashboard controls anywhere within `LogtoProvider`.
+
+> **Security note (v0.3.0)**: `accessToken` was removed from browser exposure - it is now only available server-side via `getTokenForServerAction()`. The `useLogto()` hook no longer exposes raw tokens to the client.
 
 #### SessionStorage Caching
 
@@ -765,10 +806,10 @@ import { UserButton, UserBadge, UserCard } from './logto-kit';
 // Non-interactive badge
 <UserBadge Size="32px" Canvas="Avatar" shape="sq" />
 
-// User card — avatar + "Logged in as" + name (click opens dashboard)
+// User card - avatar + "Logged in as" + name (click opens dashboard)
 <UserCard Size="32px" shape="rsq" />
 
-// Inside Dashboard — no props needed, uses provider context
+// Inside Dashboard - no props needed, uses provider context
 <UserButton Size="32px" />
 <UserCard Size="32px" shape="circle" />
 ```
@@ -786,7 +827,7 @@ All three components share the same props:
 | `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected from provider if not provided) |
 | `do` | `() => void` | - | Custom click handler (Button and Card only; defaults to `openDashboard`) |
 
-UserCard's "Logged in as" label is automatically translated based on the provider's current language state — no `t` prop needed.
+UserCard's "Logged in as" label is automatically translated based on the provider's current language state - no `t` prop needed.
 
 ### Calculator Demo
 
@@ -954,7 +995,7 @@ import { Protected } from './logto-kit';
 </Protected>
 ```
 
-**Best Practice — Separate Concerns:**
+**Best Practice - Separate Concerns:**
 
 Avoid wrapping protected content inline in your main page files. Instead, create a dedicated component file for the protected UI and wrap it with `<Protected />` there. This keeps permission logic co-located with the component it guards:
 
@@ -976,7 +1017,7 @@ export function AdminPanel() {
 // app/page.tsx
 import { AdminPanel } from './admin/admin-panel';
 
-// Just import and use — permissions are encapsulated
+// Just import and use - permissions are encapsulated
 <AdminPanel />
 ```
 
@@ -991,7 +1032,7 @@ A secure API endpoint for executing permission-gated actions from the client.
 ```tsx
 import { getFreshAccessToken } from './logto-kit/logic/actions';
 
-// Inside a client component — get userData from context, token from server action
+// Inside a client component - get userData from context, token from server action
 const { userData } = useLogto();
 const freshToken = await getFreshAccessToken();
 
@@ -1109,9 +1150,9 @@ import { OrgSwitcher } from './logto-kit';
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `organizations` | `OrganizationData[]` | — | List of organizations to display |
+| `organizations` | `OrganizationData[]` | - | List of organizations to display |
 | `currentOrgId` | `string` | - | Currently active organization ID |
-| `theme` | `ThemeSpec` | — | Theme specification for styling |
+| `theme` | `ThemeSpec` | - | Theme specification for styling |
 | `t` | `{ organizations?: { beYourself?: string } }` | - | Optional translations |
 
 **Features:**
@@ -1124,7 +1165,7 @@ import { OrgSwitcher } from './logto-kit';
 
 ### setActiveOrg() - Server Action
 
-Validates org membership. Does NOT persist the selection — use `useOrgMode().setAsOrg()` for that.
+Validates org membership. Does NOT persist the selection - use `useOrgMode().setAsOrg()` for that.
 
 ```tsx
 import { setActiveOrg } from './logto-kit';
@@ -1326,11 +1367,13 @@ LOAD_TABS=user,custom-data,2fa,devices,identities,organization,data
 
 ## Implementation Patterns
 
-This section explains how to integrate and extend the dashboard. The whole point of this app is that you can drop the Dashboard component into any part of your app and it just works.
+This section explains how to integrate and extend the dashboard. The Dashboard is a Server Component passed as a JSX prop to LogtoProvider, which renders it as a centered modal.
 
 ### Where Auth Happens
 
-All route protection happens in `proxy.ts` (which acts as middleware). This runs BEFORE the page renders, so unauthenticated users never even see the page - they get redirected to sign-in first.
+All route protection happens in `proxy.ts` (which serves as Next.js middleware - Next.js 16 allows custom middleware file names). This runs BEFORE the page renders, so unauthenticated users never even see the page - they get redirected to sign-in first.
+
+> **CSP connect-src**: `next.config.ts` dynamically builds the `connect-src` CSP directive from the `ENDPOINT` env var (no hardcoded domains). Allowed external domains: `ipapi.co` (IP geolocation), `basemaps.cartocdn.com` (map tiles), `supabase.co` (avatar storage), `wss:` (HMR in dev).
 
 Here's the basic flow:
 ```
@@ -1411,7 +1454,7 @@ The tab system is pretty simple - look at existing tabs for examples.
 1. Create a folder in `app/logto-kit/themes/{your-theme}/`
 2. Add `dark.css` and `light.css` with your CSS variables
 3. Add `index.ts` exporting `{ yourThemeDarkTheme, yourThemeLightTheme }` as `ThemeSpec` objects
-4. **Register the theme in `app/logto-kit/themes/index.ts`** — import your exports and add a case to `resolveTheme()`
+4. **Register the theme in `app/logto-kit/themes/index.ts`** - import your exports and add a case to `resolveTheme()`
 5. Set `THEME=your-theme` in `.env`
 
 ### Adding a Language
@@ -1427,30 +1470,31 @@ The dashboard handles stale cookies automatically. When the Logto access token g
 
 1. Request to fetch data fails
 2. System detects "stale cookie" error
-3. Redirects to `/api/wipe` which clears the stale cookie
-4. User is redirected home - fresh token is obtained from valid session
+3. Browser is redirected to `GET /api/wipe` which clears all app cookies
+4. Browser is redirected to `/` - a fresh token is obtained from the valid Logto session
 5. Dashboard loads normally
 
-This means users don't need to re-authenticate just because their access token expired - the system handles it transparently.
+`/api/wipe` supports both `GET` (browser navigation - redirect-based flow) and `POST` (CSRF-safe fetch for programmatic use).
 
-### Sessions Tab — Logto Fork Required
+### Sessions Tab - Logto Fork Required
 
-> **⚠️ NOTE**: The Sessions tab's advanced features (`isCurrent` flag, `lastActiveAt`, heartbeat endpoint) require a patched Logto backend.
+> **⚠️ NOTE**: Basic session listing (session IDs, timestamps, device info) works with any Logto version. The Sessions tab's advanced features (`isCurrent` flag, `lastActiveAt`, heartbeat endpoint) require a patched Logto backend.
 > Until [upstream PR #8748](https://github.com/logto-io/logto/pull/8748) is merged, you must run Logto from the fork branch:
-> [`odinwerks/logto — feat/session-last-active-at`](https://github.com/odinwerks/logto/tree/feat/session-last-active-at)
+> [`odinwerks/logto - feat/session-last-active-at`](https://github.com/odinwerks/logto/tree/feat/session-last-active-at)
 >
 > A subset branch with only the `isCurrent` flag (no heartbeat/lastActiveAt) is available at
 > [`feat/iscurrent-v1.39`](https://github.com/odinwerks/logto/tree/feat/iscurrent-v1.39).
 
 The Sessions tab features include:
-- **`isCurrent` badge** — The session backing the current request is marked with a green "This device" badge
-- **`lastActiveAt`** — Each session shows when it was last active (`null` / `"Active now"` / ISO timestamp)
-- **Automatic heartbeat** — A zero-UI `SessionHeartbeat` component fires `recordHeartbeat()` every 30s and on tab focus
-- **Revoke all other sessions** — Safe-guarded: aborts if no `isCurrent` session is identified
+- **`isCurrent` badge** - The session backing the current request is marked with a green "This device" badge
+- **`lastActiveAt`** - Each session shows when it was last active (`null` / `"Active now"` / ISO timestamp)
+- **IP geolocation minimap** - Sessions are shown on an interactive map via `SessionMiniMap` / `SessionMapModal`. IP geolocation lookups are cached with a 5-minute TTL via `geo-cache.ts`.
+- **Automatic heartbeat** - A zero-UI `SessionHeartbeat` component fires `recordHeartbeat()` every 30s and on tab focus
+- **Revoke all other sessions** - Safe-guarded: aborts if no `isCurrent` session is identified
 
 ### Manual Cookie Wipe
 
-Send a POST request to `/api/wipe` to manually clear cookies (GET returns 405). Useful for debugging:
+Navigate to `/api/wipe` in a browser (GET) to clear all app cookies and be redirected to `/`. Or send a POST request programmatically:
 
 ```bash
 curl -X POST http://localhost:3000/api/wipe -H "Cookie: <your-session-cookie>"
@@ -1458,7 +1502,7 @@ curl -X POST http://localhost:3000/api/wipe -H "Cookie: <your-session-cookie>"
 
 ### Force Sign-Out
 
-POST to `/api/wipe` with query parameter `?force=true` to completely sign out — clears both app cookies AND the Logto session:
+POST to `/api/wipe` with query parameter `?force=true` to completely sign out - clears both app cookies AND the Logto session:
 
 ```bash
 curl -X POST "http://localhost:3000/api/wipe?force=true" -H "Cookie: <your-session-cookie>"
@@ -1513,13 +1557,13 @@ This ensures that:
 
 ## Avatar Upload
 
-The dashboard supports user avatar uploads via drag-and-drop or file browser. When a user uploads an image, it's stored in S3-compatible storage and the URL is automatically saved to their Logto profile.
+The dashboard supports user avatar uploads via drag-and-drop or file browser. The Profile tab includes a canvas-based **ImageCropper** (`app/logto-kit/components/dashboard/shared/ImageCropper.tsx`) for pre-crop before upload. Email and phone management in the Profile tab uses **ContactRow** (`shared/ContactRow.tsx`) with verification flows driven by **FlowModal**. When a user uploads an image, it's stored in S3-compatible storage and the URL is automatically saved to their Logto profile.
 
 > **Security Note**: The previous URL input box has been removed. Users can only upload images via drag-and-drop or file browser. This prevents malicious URL injection attacks. If storage is not configured in production, uploads will fail with a clear error message.
 
 ### Architecture
 
-Avatar upload is implemented as a **Next.js Server Action** (`uploadAvatar()` in `app/logto-kit/logic/actions/avatar.ts`). There is no intermediate API route — the client calls the action directly:
+Avatar upload is implemented as a **Next.js Server Action** (`uploadAvatar()` in `app/logto-kit/logic/actions/avatar.ts`). The client calls the Protected Actions API (`POST /api/protected/`), which validates auth and delegates to the server action:
 
 ```
 ┌─────────────┐     ┌─────────────────────────────────┐     ┌───────────┐
@@ -1543,11 +1587,11 @@ Avatar upload is implemented as a **Next.js Server Action** (`uploadAvatar()` in
 
 ### Security
 
-The access token and user ID are **derived server-side** from the session cookie — they are never accepted from the client. This prevents token leakage and cross-user upload attempts.
+The access token and user ID are **derived server-side** from the session cookie - they are never accepted from the client. This prevents token leakage and cross-user upload attempts.
 
 Server Actions enforce same-origin at the framework level, eliminating CSRF from cross-site origins.
 
-> **Note**: The same server-side credential derivation pattern is used for account deletion — the server never trusts client-supplied tokens or user IDs.
+> **Note**: The same server-side credential derivation pattern is used for account deletion - the server never trusts client-supplied tokens or user IDs.
 
 ### Environment Variables
 
@@ -1628,7 +1672,7 @@ The avatar upload system consists of:
 
 | File | Purpose |
 |------|---------|
-| `app/logto-kit/logic/actions/avatar.ts` | Server Action — validates file, derives auth from session, uploads to S3 |
+| `app/logto-kit/logic/actions/avatar.ts` | Server Action - validates file, derives auth from session, uploads to S3 |
 | `app/logto-kit/components/handlers/use-avatar-upload.tsx` | React hook for client-side upload logic |
 
 The hook (`useAvatarUpload`) is already integrated into the Profile tab component. It:
@@ -1673,6 +1717,7 @@ All server actions are exported from `logto-kit` and can be used in your own cus
 ```tsx
 import {
   fetchDashboardData,
+  fetchUserBadgeData,
   signOutUser,
   updateUserBasicInfo,
   updateUserProfile,
@@ -1693,11 +1738,20 @@ import {
   generateTotpSecret,
   addMfaVerification,
   deleteMfaVerification,
+  replaceTotpVerification,
   generateBackupCodes,
   getBackupCodes,
   requestWebAuthnRegistration,
   verifyAndLinkWebAuthn,
   renamePasskey,
+  getUserSessions,
+  getSessionsWithDeviceMeta,
+  revokeUserSession,
+  revokeAllOtherSessions,
+  getUserGrants,
+  revokeUserGrant,
+  getOrganizationUserPermissions,
+  recordHeartbeat,
 } from './logto-kit';
 ```
 
@@ -1724,7 +1778,7 @@ await updateAvatarUrl('https://example.com/avatar.png');
 await updateUserPassword('newPassword123', 'verificationRecordId');
 
 // Delete account (requires identity verification record ID; access token is derived server-side)
-await deleteUserAccount('verificationRecordId');
+await deleteUserAccount('identityVerificationRecordId');
 
 // Sign out and clear cookies
 await signOutUser();
@@ -1745,6 +1799,9 @@ await addMfaVerification({ type: 'Totp', payload: { secret, code: '123456' } }, 
 
 // Delete MFA method
 await deleteMfaVerification('mfaVerificationId', 'verificationRecordId');
+
+// Replace an existing TOTP verification (unlinks old, links new)
+await replaceTotpVerification({ secret: 'new-totp-secret', code: '123456' }, 'verificationRecordId');
 
 // Generate backup codes
 const { codes } = await generateBackupCodes('verificationRecordId');
@@ -1774,6 +1831,49 @@ await deleteMfaVerification('passkey-verification-id', identityVerificationRecor
 ```
 
 > **Note**: WebAuthn requires configuring `webauthnRelatedOrigins` in your Logto tenant's Account Center settings to allow cross-origin passkey operations from your app's domain.
+
+### Sessions & Grants
+
+```tsx
+// Get all user sessions (raw from Logto API)
+const sessions = await getUserSessions('identityVerificationRecordId');
+
+// Get sessions with device metadata (browser, OS, IP geo-location)
+const sessionsWithMeta = await getSessionsWithDeviceMeta('identityVerificationRecordId');
+
+// Revoke a single session
+await revokeUserSession('sessionId', 'identityVerificationRecordId');
+
+// Revoke all sessions except the current one
+await revokeAllOtherSessions('identityVerificationRecordId');
+
+// Get OAuth grants (third-party app consents)
+const grants = await getUserGrants();
+
+// Revoke a grant (third-party app consent)
+await revokeUserGrant('grantId');
+```
+
+### Organization Permissions
+
+```tsx
+// Get all permissions for a user in a specific organization
+const permissions = await getOrganizationUserPermissions('org-123');
+// Returns: string[] (e.g., ['read:users', 'write:users'])
+```
+
+### Utilities
+
+```tsx
+import { formatPhone, sanitizeLogtoError } from './logto-kit';
+
+// Format a raw E.164 phone number for display
+const displayPhone = formatPhone('+12345678901');
+// → "+1 (234) 567-8901"
+
+// Sanitize Logto error messages for safe user-facing display
+const message = sanitizeLogtoError(rawError);
+```
 
 ### Identity Verification
 
@@ -1834,12 +1934,33 @@ npm run dev
 npm run build
 ```
 
+## Testing
+
+The project uses **Vitest** with `jsdom` for browser-like test environment. Test files (`.test.ts` / `.test.tsx`) are co-located alongside their source modules.
+
+```bash
+# Run all tests
+npm run test:run
+
+# Watch mode
+npm test
+```
+
+**Test coverage** (10+ test files):
+- Security: `origin-guard.test.ts`, `guards.test.ts`, `dev-mode.test.ts`
+- Logic: `validation.test.ts`, `errors.test.ts`
+- Actions: `sessions.test.ts`, `webauthn.test.ts`
+- Components: `profile.test.tsx`, `SessionMapModal.test.tsx`
+- Custom logic: `set-active-org.test.ts`
+
+Configuration: `vitest.config.ts` and `vitest.setup.ts` at the project root.
+
 ## Todo
 
 > **⚠️ Organization/RBAC features are FUNCTIONAL but NOT PRODUCTION READY**
 > Extensive testing required before production use. APIs may change.
 
-### Security TODO — Enhanced Session Context Validation
+### Security TODO - Enhanced Session Context Validation
 
 **Goal**: Prevent stolen tokens from being used to call Protected API actions by validating session context (user agent, GEO location) against Logto's native session data.
 
@@ -1859,7 +1980,7 @@ Imagine: User (SEDH - evil dingus hacker) steals a token:
 | ✅ Org membership | User is member of the selected organization |
 | ✅ Permission check | User has required permission for action |
 
-#### New Security Pipeline — Session Context Validation
+#### New Security Pipeline - Session Context Validation
 
 | Check | Data Source | Purpose |
 |-------|-------------|---------|
@@ -1902,9 +2023,9 @@ Imagine: User (SEDH - evil dingus hacker) steals a token:
 4. Integrate into Protected Actions API (`/api/protected`)
    - Add security validation after token introspection, before org validation
    - New error codes:
-     - `SESSION_CONTEXT_MISMATCH` (403) — Request context doesn't match any active session
-     - `GEO_MISMATCH` (403) — Request location doesn't match session
-     - `UA_MISMATCH` (403) — Request device doesn't match session
+     - `SESSION_CONTEXT_MISMATCH` (403) - Request context doesn't match any active session
+     - `GEO_MISMATCH` (403) - Request location doesn't match session
+     - `UA_MISMATCH` (403) - Request device doesn't match session
 
 **Phase 2: Travel Mode UI**
 
@@ -1996,7 +2117,7 @@ Note: Session context (IP, user agent, GEO) is provided by Logto v1.38.0+ via th
 
 #### Discussion Notes (for future reference)
 
-- **IP matching excluded**: IPs change too frequently (NAT, VPN, dynamic allocation) — not useful for security
+- **IP matching excluded**: IPs change too frequently (NAT, VPN, dynamic allocation) - not useful for security
 - **Country matching sufficient**: Store country only, not exact location (privacy + no PII liability)
 - **Any session match**: If user has 3 sessions (phone, laptop, tablet), request matching ANY is sufficient
 - **Step-up auth deferred**: Could be implemented later but adds complexity (Logto's verification API)
@@ -2055,8 +2176,8 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 - [x] Auto-fetch user data when used outside Dashboard
 - [x] Priority system: prop → context → fetch
 - [x] Fallback user icon after 1.5s timeout
-- [x] UserCard component — wider card with avatar + "Logged in as" + name
-- [x] Shared useUserDisplay hook — all three components use provider context
+- [x] UserCard component - wider card with avatar + "Logged in as" + name
+- [x] Shared useUserDisplay hook - all three components use provider context
 - [x] Translations resolved from provider lang state (no t prop needed)
 
 ### Avatar Upload
