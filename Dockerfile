@@ -3,7 +3,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Install all dependencies
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -16,7 +16,7 @@ RUN npm ci
 # the client bundle by the Next.js compiler and cannot be changed at runtime.
 # Pass them via docker-compose build.args (sourced from your .env file).
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -52,7 +52,7 @@ RUN npm run build
 # Copies only the minimal standalone output produced by output: 'standalone'.
 # Runs as a non-root user for container security.
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:25-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
