@@ -41,53 +41,46 @@ export async function updateUserProfile(profile: {
 }
 
 /**
- * Updates the user's custom data, merging with existing data to preserve
- * keys set by other apps on the same Logto tenant.
+ * Updates the user's custom data Preferences.
  *
  * Only the `Preferences` key is allowed through; all others are dropped
  * (mass-assignment protection). Within Preferences, only whitelisted keys
  * (asOrg, theme, lang) are accepted.
+ *
+ * NOTE: Logto's Account API uses 'replace' mode for customData — a PATCH with
+ * { customData: { Preferences: {...} } } would wipe all other top-level customData
+ * keys set by other apps, Logto Console, or other flows. We must GET first, merge
+ * the Preferences delta into the full customData, then PATCH the merged result.
+ *
+ * There is a narrow race window between GET and PATCH; for user preference fields
+ * (theme, lang, org) simultaneous conflicting writes are extremely rare and the
+ * last-write-wins outcome is acceptable.
  */
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<void> {
   const rawPrefs = (customData.Preferences ?? {}) as unknown;
   const safePrefs = pickPreferences(rawPrefs);
+  if (Object.keys(safePrefs).length === 0) return;
 
-  // Fetch existing customData to merge (preserve other apps' keys).
-  // Abort on non-OK — proceeding with an empty base would silently destroy
-  // all keys stored by other applications on this Logto tenant.
-  const res = await makeRequest('/api/my-account');
-  if (!res.ok) {
-    throw new Error('FETCH_FAILED');
-  }
+  // GET the full account to read current customData before merging.
+  // Required because Logto's PATCH completely replaces customData (no shallow-merge).
+  const existing = await makeRequest('/api/my-account', { method: 'GET' });
+  await throwOnApiError(existing, 'FETCH_FAILED', 'Get my account for customData merge');
+  const existingData = await existing.json() as { customData?: Record<string, unknown> };
+  const existingCustomData = existingData?.customData ?? {};
 
-  let existingCustomData: Record<string, unknown> = {};
-  try {
-    const existing = await res.json() as { customData?: Record<string, unknown> };
-    existingCustomData = existing.customData ?? {};
-  } catch {
-    // If the response body is unparseable, abort rather than overwrite with empty.
-    throw new Error('FETCH_FAILED');
-  }
-
-  // Guard: existingCustomData.Preferences must be a plain object before spreading.
-  // A non-object value (string from legacy data, number, boolean) would produce
-  // garbage character-indexed keys via JS spread without throwing.
-  const existingPrefs =
-    typeof existingCustomData.Preferences === 'object' &&
-    existingCustomData.Preferences !== null &&
-    !Array.isArray(existingCustomData.Preferences)
-      ? (existingCustomData.Preferences as Record<string, unknown>)
-      : {};
-
-  const merged: Record<string, unknown> = {
+  const merged = {
     ...existingCustomData,
     Preferences: {
-      ...existingPrefs,
+      ...(existingCustomData.Preferences as Record<string, unknown> ?? {}),
       ...safePrefs,
     },
   };
 
-  await patchMyAccount({ customData: merged }, 'Custom data update failed');
+  const res = await makeRequest('/api/my-account', {
+    method: 'PATCH',
+    body: { customData: merged },
+  });
+  await throwOnApiError(res, 'UPDATE_FAILED', 'Update custom data');
 }
 
 export async function updateAvatarUrl(avatarUrl: string): Promise<void> {

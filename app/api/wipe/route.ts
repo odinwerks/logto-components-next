@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoConfig } from '../../logto';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
+import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
 
@@ -28,19 +29,21 @@ export async function GET(request: NextRequest) {
   );
 
   if (force) {
+    let signOutFn: typeof SignOutType | undefined;
     try {
-      const { signOut } = await import('@logto/next/server-actions');
+      const mod = await import('@logto/next/server-actions');
+      signOutFn = mod.signOut;
+    } catch (importError) {
+      console.error('[wipe] force: failed to import @logto/next:',
+        importError instanceof Error ? importError.message : importError);
+    }
+    if (signOutFn) {
       try {
-        await signOut(getLogtoConfig());
+        await signOutFn(getLogtoConfig());
       } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
-          return response;
-        }
+        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
         console.error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
-    } catch (importError) {
-      console.error('[wipe] force: failed to import @logto/next:', 
-        importError instanceof Error ? importError.message : importError);
     }
   }
   return response;
@@ -61,19 +64,21 @@ export async function POST(request: NextRequest) {
   );
 
   if (force) {
+    let signOutFn: typeof SignOutType | undefined;
     try {
-      const { signOut } = await import('@logto/next/server-actions');
+      const mod = await import('@logto/next/server-actions');
+      signOutFn = mod.signOut;
+    } catch (importError) {
+      console.error('[wipe] force: failed to import @logto/next:',
+        importError instanceof Error ? importError.message : importError);
+    }
+    if (signOutFn) {
       try {
-        await signOut(getLogtoConfig());
+        await signOutFn(getLogtoConfig());
       } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
-          return response;
-        }
+        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
         console.error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
-    } catch (importError) {
-      console.error('[wipe] force: failed to import @logto/next:', 
-        importError instanceof Error ? importError.message : importError);
     }
   }
   return response;

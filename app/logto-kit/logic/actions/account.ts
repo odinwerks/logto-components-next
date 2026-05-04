@@ -4,7 +4,7 @@ import { getManagementApiToken } from '../../../logto';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { assertSafeUserId } from '../guards';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, sanitize } from '../errors';
 import { getTokenForServerAction } from './tokens';
 
 /**
@@ -48,7 +48,7 @@ export async function deleteUserAccount(
     typeof identityVerificationRecordId !== 'string' ||
     identityVerificationRecordId.length === 0
   ) {
-    throw new Error('MISSING_VERIFICATION');
+    throw sanitize(new Error('MISSING_VERIFICATION'), { fallback: 'MISSING_VERIFICATION' });
   }
 
   // ── Derive token + userId server-side (never trust the client) ─────────
@@ -56,12 +56,12 @@ export async function deleteUserAccount(
   const introspection = await introspectToken(sessionToken);
 
   if (!introspection.active) {
-    throw new Error('UNAUTHORIZED');
+    throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
   }
 
   const userId = introspection.sub;
   if (!userId) {
-    throw new Error('UNAUTHORIZED');
+    throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
   }
 
   // Defense in depth: reject if the subject has an unexpected shape.
@@ -69,9 +69,7 @@ export async function deleteUserAccount(
 
   // ── Sanity-check the account session before destructive work ───────────
   const accountCheck = await makeRequest('/api/my-account');
-  if (!accountCheck.ok) {
-    throw new Error('UNAUTHORIZED');
-  }
+  await throwOnApiError(accountCheck, 'UNAUTHORIZED', 'Account verification check');
 
   // ── Mint narrowly-scoped M2M token and delete the user ─────────────────
   const mgmtToken = await getManagementApiToken();
