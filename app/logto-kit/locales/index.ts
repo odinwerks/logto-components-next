@@ -317,7 +317,6 @@ export interface KitTranslations {
     passkeys: string;
     passkeyDescription: string;
     passkey: string;
-    noPasskeys: string;
     addPasskey: string;
     registerPasskey: string;
     registerPasskeyDesc: string;

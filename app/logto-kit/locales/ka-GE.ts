@@ -302,7 +302,6 @@ export const kaGE: Translations = {
     passkeys: 'გასაღებები',
     passkeyDescription: 'ბიომეტრიული ან ფიზიკური გასაღეები უპაროლო შესვლისთვის',
     passkey: 'გასაღები',
-    noPasskeys: 'გასაღები არ დაგირეგისტრირებიათ',
     addPasskey: 'დაამატეთ გასაღები',
     registerPasskey: 'გასაღების რეგისტრაცია',
     registerPasskeyDesc: 'გადამოწმეთ თქვენი პაროლი. შემდგომ მიყევით ინსტრუქციას თქვენს აპარატზე.',
