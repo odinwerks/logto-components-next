@@ -1,7 +1,7 @@
 'use server';
 
 import { makeRequest } from './request';
-import { isDev } from '../dev-mode';
+import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 
@@ -19,18 +19,7 @@ export async function updateUserPassword(
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
 
-  if (!res.ok) {
-    if (isDev) {
-      const errorText = await res.text();
-      let detail = errorText.substring(0, 400);
-      try {
-        const parsed = JSON.parse(errorText);
-        if (parsed?.message) detail = parsed.message;
-      } catch { /* not JSON */ }
-      throw new Error(`PASSWORD_UPDATE_FAILED ${res.status}: ${detail}`);
-    }
-    throw new Error('PASSWORD_UPDATE_FAILED');
-  }
+  await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED', 'Update password');
 
   // Audit (best-effort — failure must not break the main action)
   try {

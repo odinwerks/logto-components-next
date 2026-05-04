@@ -67,6 +67,7 @@ export type ErrorCode =
   | 'INVALID_INPUT'
   | 'FORBIDDEN_ORIGIN'
   | 'UNAUTHORIZED'
+  | 'MISSING_VERIFICATION'
   | 'INTERNAL_ERROR';
 
 // ============================================================================

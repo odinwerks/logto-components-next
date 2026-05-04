@@ -6,6 +6,7 @@ import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { isDev } from '../../logto-kit/logic/dev-mode';
+import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json(
@@ -26,6 +27,10 @@ interface ProtectedRequestBody {
 
 
 export async function POST(request: NextRequest) {
+  // Block cross-origin requests (CSRF protection).
+  const originError = checkSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const body: ProtectedRequestBody = await request.json();
 
