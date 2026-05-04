@@ -563,13 +563,6 @@ export function SecurityTab({
             </Button>
           </div>
 
-          {/* Empty state */}
-          {webAuthnFactors.length === 0 && !mfaLoading && (
-            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted, paddingTop: '0.25rem' }}>
-              {t.mfa.noPasskeys}
-            </p>
-          )}
-
           {/* Passkey list */}
           {webAuthnFactors.map((passkey, idx) => (
             <div key={passkey.id}>

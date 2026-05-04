@@ -302,7 +302,6 @@ export const enUS: Translations = {
     passkeys: 'Passkeys',
     passkeyDescription: 'Biometric or hardware security keys for password-free sign-in.',
     passkey: 'Passkey',
-    noPasskeys: 'No passkeys registered',
     addPasskey: 'Add passkey',
     registerPasskey: 'Register passkey',
     registerPasskeyDesc: 'Verify your password, then follow the prompt on your device.',
