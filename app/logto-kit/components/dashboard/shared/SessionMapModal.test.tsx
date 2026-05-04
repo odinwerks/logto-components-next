@@ -5,15 +5,16 @@ import type { ThemeSpec } from '../../../themes';
 import type { Translations } from '../../../locales';
 
 // Mock maplibre-gl - it doesn't work in jsdom
+// Use class-based mocks (vitest 4.x requires function/class for constructors)
 vi.mock('maplibre-gl', () => {
-  const MockMap = vi.fn().mockImplementation(() => ({
-    remove: vi.fn(),
-  }));
+  const MockMap = vi.fn().mockImplementation(function (this: { remove: ReturnType<typeof vi.fn> }) {
+    this.remove = vi.fn();
+  });
 
-  const MockMarker = vi.fn().mockImplementation(() => ({
-    setLngLat: vi.fn().mockReturnThis(),
-    addTo: vi.fn().mockReturnThis(),
-  }));
+  const MockMarker = vi.fn().mockImplementation(function (this: { setLngLat: ReturnType<typeof vi.fn>; addTo: ReturnType<typeof vi.fn> }) {
+    this.setLngLat = vi.fn().mockReturnThis();
+    this.addTo = vi.fn().mockReturnThis();
+  });
 
   return {
     default: {
@@ -260,7 +261,7 @@ describe('SessionMapModal', () => {
       />
     );
 
-    const callArgs = MockMap.mock.calls[0][0] as { style: { sources: { carto: { tiles: string[] } } } };
+    const callArgs = MockMap.mock.calls[0][0] as unknown as { style: { sources: { carto: { tiles: string[] } } } };
     const tiles = callArgs.style.sources.carto.tiles;
     expect(tiles[0]).toContain('dark_all');
     expect(tiles[0]).toContain('cartocdn.com');
@@ -281,7 +282,7 @@ describe('SessionMapModal', () => {
       />
     );
 
-    const callArgs = MockMap.mock.calls[0][0] as { style: { sources: { carto: { tiles: string[] } } } };
+    const callArgs = MockMap.mock.calls[0][0] as unknown as { style: { sources: { carto: { tiles: string[] } } } };
     const tiles = callArgs.style.sources.carto.tiles;
     expect(tiles[0]).toContain('voyager');
     expect(tiles[0]).toContain('cartocdn.com');

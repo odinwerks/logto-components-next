@@ -65,8 +65,8 @@ const defaultUserData: UserData = {
 
 interface RenderProfileOptions {
   userData?: UserData;
-  onUpdateBasicInfo?: ReturnType<typeof vi.fn>;
-  onUpdateProfile?: ReturnType<typeof vi.fn>;
+  onUpdateBasicInfo?: (updates: { name?: string; username?: string }) => Promise<void>;
+  onUpdateProfile?: (profile: { givenName?: string; familyName?: string }) => Promise<void>;
 }
 
 function renderProfile(
@@ -79,8 +79,8 @@ function renderProfile(
     return undefined;
   });
 
-  const basicInfoFn = onUpdateBasicInfo ?? vi.fn().mockResolvedValue(undefined);
-  const profileFn   = onUpdateProfile   ?? vi.fn().mockResolvedValue(undefined);
+  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }) => Promise<void>>().mockResolvedValue(undefined)) as (updates: { name?: string; username?: string }) => Promise<void>;
+  const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<void>>().mockResolvedValue(undefined)) as (profile: { givenName?: string; familyName?: string }) => Promise<void>;
 
   const result = render(
     <ProfileTab
