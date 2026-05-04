@@ -62,6 +62,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
+# Entrypoint — wipes .next/cache on every container start
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 # Static assets
 COPY --from=builder /app/public ./public
 # Standalone server + static build output
@@ -74,4 +78,4 @@ EXPOSE 2999
 ENV PORT=2999
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
