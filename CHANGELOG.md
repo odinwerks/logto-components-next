@@ -1,9 +1,40 @@
+## [0.3.1] — 2026-05-04
+
+### Added
+
+- **WebAuthn passkey management** in Security tab — register, rename, and delete passkeys via Logto Account API
+  - New server actions: `requestWebAuthnRegistration`, `verifyAndLinkWebAuthn`, `renamePasskey` (`logic/actions/webauthn.ts`)
+  - `assertPasskeyName` guard in `guards.ts` — validates non-empty, ≤64 chars, no control chars
+  - FlowModal extended with `rename-passkey` step type
+  - Browser support detection with `browserSupportsWebAuthn()` from `@simplewebauthn/browser`
+  - User cancel (NotAllowedError) handled gracefully — modal closes silently
+  - 25 new tests (19 action + 6 guard)
+  - 18 new i18n keys with Georgian translations
+- **Session management server actions** — `getUserSessions`, `getSessionsWithDeviceMeta`, `revokeUserSession`, `revokeAllOtherSessions`, `getUserGrants`, `revokeUserGrant` in `logic/actions/sessions.ts`
+- **`replaceTotpVerification` server action** — TOTP replacement support in `logic/actions/mfa.ts`
+- **`fetchUserBadgeData` server action** — lightweight user data fetch for badge/button-only contexts
+- **`NAME_TYPE` env var** — controls name display mode (`given_family`, `username`, or `full`)
+- **`DEBUG` env var** — verbose server-side debug logging gate
+- **`formatPhone` utility** — country-code-aware phone number formatter in `logic/formatting.ts`
+
+### Changed
+
+- **Restored GET handlers** on `/api/wipe` and `/api/auth/sign-out`. GET now clears cookies (wipe) or signs out (sign-out). POST handlers with `checkSameOrigin()` remain for CSRF-safe use. Stale-cookie redirect in proxy restores the `/api/wipe` target.
+
+### Fixed
+
+- **SessionMapModal tests** — 3 pre-existing test failures fixed:
+  - Location label test updated for intentional Set-based deduplication (test both dedup and non-dedup cases)
+  - Zoom level test corrected from 13 to 14 (original typo)
+  - Light theme tile assertion updated from `light_all` to `voyager` (intentional design choice)
+  - Mock translations object completed (added missing `viewOnGoogleMaps`)
+
 ## [0.3.0] — 2026-04-29
 
 ### BREAKING CHANGES
 
 - **`uploadAvatar(formData)`** no longer accepts `accessToken` or `userId` fields in the FormData object. Both values are now derived server-side from the session cookie. Update any callers that previously included those fields.
-- **`deleteUserAccount()`** no longer accepts any parameters. Previously it required `(identityVerificationRecordId, accessToken)`. The access token is now derived server-side. The verification record ID is no longer required as a parameter either (the server action enforces authentication via the session).
+- **`deleteUserAccount()`** now accepts only `identityVerificationRecordId` (one parameter). Previously it required `(identityVerificationRecordId, accessToken)`. The access token is derived server-side.
 - **`/api/wipe` and `/api/auth/sign-out`** are now POST-only. GET requests return 405. If you have any links, `<img src>`, or `window.location.href` calls targeting these endpoints, change them to `fetch(url, { method: 'POST', credentials: 'same-origin' })` or a form submission.
 - **`DashboardSuccess` type** no longer includes the `accessToken` field. If you destructure this type, remove the `accessToken` key.
 - **`DashboardData` interface** no longer includes `accessToken`.
@@ -40,7 +71,7 @@
 ### Production Hardening
 
 - Security headers added to all responses via `next.config.ts`: CSP, HSTS, X-Frame-Options, X-Content-Type-Options, XSS-Protection, Referrer-Policy, Permissions-Policy
-- CI pipeline now runs `npm audit --audit-level=high` and gitleaks secret scanning on every push/PR
+- CI pipeline was removed — local testing recommended: `npm run type-check && npm run test:run && npm run build`
 
 
 ---
@@ -53,25 +84,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
-### Added
-
-- **WebAuthn passkey management** in Security tab — register, rename, and delete passkeys via Logto Account API
-  - New server actions: `requestWebAuthnRegistration`, `verifyAndLinkWebAuthn`, `renamePasskey` (`logic/actions/webauthn.ts`)
-  - `assertPasskeyName` guard in `guards.ts` — validates non-empty, ≤64 chars, no control chars
-  - FlowModal extended with `rename-passkey` step type
-  - Browser support detection with `browserSupportsWebAuthn()` from `@simplewebauthn/browser`
-  - User cancel (NotAllowedError) handled gracefully — modal closes silently
-  - 27 new tests (19 action + 8 guard)
-  - 18 new i18n keys with Georgian translations
-
-### Fixed
-
-- **SessionMapModal tests** — 3 pre-existing test failures fixed:
-  - Location label test updated for intentional Set-based deduplication (test both dedup and non-dedup cases)
-  - Zoom level test corrected from 13 to 14 (original typo)
-  - Light theme tile assertion updated from `light_all` to `voyager` (intentional design choice)
-  - Mock translations object completed (added missing `viewOnGoogleMaps`)
 
 ## [0.2.0] - 2025-01-27
 
@@ -107,6 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User preferences persistence
 - Cookie recovery mechanism
 
-[Unreleased]: https://github.com/odinwerks/logto-components-next/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/odinwerks/logto-components-next/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/odinwerks/logto-components-next/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/odinwerks/logto-components-next/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/odinwerks/logto-components-next/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/odinwerks/logto-components-next/releases/tag/v0.1.0

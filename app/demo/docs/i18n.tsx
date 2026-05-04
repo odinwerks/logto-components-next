@@ -16,7 +16,7 @@ function OverviewSection() {
       <p style={styles.textStyle}>
         File-based i18n system. All locales are statically imported and bundled.{' '}
         <code style={styles.codeStyle}>LANG_AVAILABLE</code> controls which languages appear
-        in the Preferences tab dropdown — it does NOT dynamically import files.
+        in the Preferences tab dropdown - it does NOT dynamically import files.
       </p>
       <table style={styles.tableStyle}>
         <thead>
@@ -70,7 +70,7 @@ function PipelineSection() {
     <SectionWrap label="How it works">
       <p style={styles.textStyle}>
         Server Component provides translations, Client Component re-renders
-        on language change — no server round-trip needed.
+        on language change - no server round-trip needed.
       </p>
       <CodeBlock title="Server Component pipeline" code={`// Dashboard (Server Component)
 const locale = getMainLocale();           // ENV default
@@ -97,7 +97,7 @@ const t = useMemo<Translations>(
 // 3. Logto custom_data (async)
 // 4. preferences-changed event
 // 5. useLangMode() picks up new lang
-// 6. useMemo creates new t — CLIENT-SIDE re-render`} />
+// 6. useMemo creates new t - CLIENT-SIDE re-render`} />
     </SectionWrap>
   );
 }
@@ -123,7 +123,7 @@ function EnvSection() {
           <tr>
             <td style={styles.tdPathStyle}>LANG_AVAILABLE</td>
             <td style={styles.tdStyle}><code style={styles.codeStyle}>en-US</code></td>
-            <td style={styles.tdStyle}>UI filter — which languages appear in selector</td>
+            <td style={styles.tdStyle}>UI filter - which languages appear in selector</td>
           </tr>
         </tbody>
       </table>
@@ -301,7 +301,7 @@ function AppTranslationsSection() {
         Your app can extend it with <code style={styles.codeStyle}>AppTranslations</code>{' '}
         to add your own keys.
       </p>
-      <CodeBlock title="KitTranslations (kit provides)" code={`// Kit keys — used by Dashboard, UserButton, etc.
+      <CodeBlock title="KitTranslations (kit provides)" code={`// Kit keys - used by Dashboard, UserButton, etc.
 export interface KitTranslations {
   dashboard: { loading, error, refresh, ... };
   tabs: { profile, preferences, security, ... };
@@ -373,10 +373,10 @@ function UseLangModeSection() {
       <CodeBlock title="setLang internals" code={`// When you call setLang('ka-GE'):
 // 1. sessionStorage.setItem('lang-mode', 'ka-GE')
 // 2. React state update
-// 3. persistLangToApi('ka-GE') — writes to Logto custom_data
+// 3. persistLangToApi('ka-GE') - writes to Logto custom_data
 //    { Preferences: { theme, lang: 'ka-GE', asOrg } }
 // 4. window.dispatchEvent(new Event('preferences-changed'))
-// 5. onLangChange?.() — optional callback`} />
+// 5. onLangChange?.() - optional callback`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Fallback paths:</strong>{' '}
         Context exists → reads from sessionStorage first. SSR → returns default.{' '}

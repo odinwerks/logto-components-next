@@ -15,16 +15,16 @@ function ProviderTreeSection() {
     <SectionWrap label="Provider hierarchy">
       <p style={styles.textStyle}>
         <code style={styles.codeStyle}>LogtoProvider</code> is the all-in-one entry point.
-        You only need one wrapper in your app — it creates{' '}
+        You only need one wrapper in your app - it creates{' '}
         <code style={styles.codeStyle}>PreferencesProvider</code> and{' '}
         <code style={styles.codeStyle}>UserDataProvider</code> internally:
       </p>
       <CodeBlock title="All-in-one entry point" code={`<LogtoProvider
   userData={userData}       // from fetchDashboardData()
   dashboard={<Dashboard />} // Server Component JSX
-  initialTheme="dark"       // optional — falls back to storage or ENV
-  initialLang="en-US"       // optional — falls back to storage or default
-  onUpdateCustomData={updateUserCustomData} // optional — persists to Logto API
+  initialTheme="dark"       // optional - falls back to storage or ENV
+  initialLang="en-US"       // optional - falls back to storage or default
+  onUpdateCustomData={updateUserCustomData} // optional - persists to Logto API
   darkThemeSpec={defaultDarkTheme}   // required
   lightThemeSpec={defaultLightTheme} // required
 >
@@ -71,13 +71,13 @@ function ProviderTreeSection() {
             <td style={styles.tdPropStyle}>PreferencesProvider</td>
             <td style={styles.tdStyle}>Theme, language, org state + persistence</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useThemeMode()</code>, <code style={styles.codeSmStyle}>useLangMode()</code>, <code style={styles.codeSmStyle}>useOrgMode()</code></td>
-            <td style={styles.tdStyle}>Internal — created by LogtoProvider</td>
+            <td style={styles.tdStyle}>Internal - created by LogtoProvider</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>UserDataProvider</td>
             <td style={styles.tdStyle}>Cached user data (sessionStorage-backed)</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useUserDataContext()</code></td>
-            <td style={styles.tdStyle}>Internal — created by LogtoProvider</td>
+            <td style={styles.tdStyle}>Internal - created by LogtoProvider</td>
           </tr>
         </tbody>
       </table>
@@ -104,7 +104,7 @@ function HydrationFlowSection() {
 export default async function HomePage() {
   const result = await fetchDashboardData();
   //    ↑ calls Logto Management API
-  //    returns { userData } — no access token (kept server-side)
+  //    returns { userData } - no access token (kept server-side)
 
   return (
     <LogtoProvider
@@ -145,7 +145,7 @@ export default async function HomePage() {
           <tr>
             <td style={styles.tdPropStyle}>AuthWatcher</td>
             <td style={styles.tdStyle}>Placed in root layout</td>
-            <td style={styles.tdStyle}>N/A — triggers <code style={styles.codeSmStyle}>router.refresh()</code></td>
+            <td style={styles.tdStyle}>N/A - triggers <code style={styles.codeSmStyle}>router.refresh()</code></td>
           </tr>
         </tbody>
       </table>
@@ -396,7 +396,7 @@ function OrgIndicator() {
         <strong style={styles.strongNoteStyle}>Outside provider:</strong>{' '}
         All three hooks return no-op <code style={styles.codeStyle}>set</code> functions and
         auto-detected or default values when used outside{' '}
-        <code style={styles.codeStyle}>PreferencesProvider</code>. No errors — silent fallback.
+        <code style={styles.codeStyle}>PreferencesProvider</code>. No errors - silent fallback.
         Each hook reads from <code style={styles.codeStyle}>sessionStorage</code> first,
         then falls back to provider state or defaults.
       </div>
@@ -451,7 +451,7 @@ function AuthWatcherSection() {
       <p style={styles.textStyle}>
         A zero-UI component that keeps auth state fresh by calling{' '}
         <code style={styles.codeStyle}>router.refresh()</code> on three triggers.
-        Place it in your root layout — it renders nothing.
+        Place it in your root layout - it renders nothing.
       </p>
       <CodeBlock title="Root layout" code={`import AuthWatcher from './logto-kit';
 
@@ -478,15 +478,15 @@ export default function RootLayout({ children }) {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>visibilitychange</td>
-            <td style={styles.tdStyle}>User returns to tab — account deleted elsewhere, session revoked, role changed</td>
+            <td style={styles.tdStyle}>User returns to tab - account deleted elsewhere, session revoked, role changed</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>online</td>
-            <td style={styles.tdStyle}>Network reconnect — session expired while offline (sleep, travel)</td>
+            <td style={styles.tdStyle}>Network reconnect - session expired while offline (sleep, travel)</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>setInterval</td>
-            <td style={styles.tdStyle}>Long-lived sessions — admin deletes account while user idle on page</td>
+            <td style={styles.tdStyle}>Long-lived sessions - admin deletes account while user idle on page</td>
           </tr>
         </tbody>
       </table>

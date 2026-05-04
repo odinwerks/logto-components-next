@@ -17,7 +17,7 @@ function InternalsSection() {
         The <code style={styles.codeStyle}>Dashboard</code> is a <strong>Server Component</strong> that
         fetches user data server-side, then self-wraps with internal providers.
       </p>
-      <CodeBlock title="Rendering pipeline" code={`// 1. Server Component — fetches data
+      <CodeBlock title="Rendering pipeline" code={`// 1. Server Component - fetches data
 const result = await fetchDashboardData();
 
 // 2. Self-wrap with internal providers
@@ -65,7 +65,7 @@ return (
 function ProviderSyncSection() {
   const styles = useDocStyles();
   return (
-    <SectionWrap label="Provider sync — Dashboard → External">
+    <SectionWrap label="Provider sync - Dashboard → External">
       <p style={styles.textStyle}>
         The Dashboard creates <strong>isolated</strong> provider instances.
         External consumers (like <code style={styles.codeStyle}>LogtoProvider</code>) have
@@ -236,7 +236,7 @@ function ModalSection() {
       <CodeBlock title="Modal lifecycle" code={`const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 const openDashboard = useCallback(() => setIsDashboardOpen(true), []);
 
-// ESC key — only when open
+// ESC key - only when open
 useEffect(() => {
   if (!isDashboardOpen) return;
   const handleKey = (e) => e.key === 'Escape' && setIsDashboardOpen(false);
@@ -278,7 +278,7 @@ function ClickSection() {
 }`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>UserBadge:</strong>{' '}
-        Read-only — <code style={styles.codeSmStyle}>pointerEvents: &apos;none&apos;</code>, no click handler.
+        Read-only - <code style={styles.codeSmStyle}>pointerEvents: &apos;none&apos;</code>, no click handler.
       </div>
     </SectionWrap>
   );
@@ -317,7 +317,7 @@ import { Dashboard } from './dashboard';
       </table>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>This doc file:</strong>{' '}
-        Is a Client Component — that&apos;s why we can&apos;t render{' '}
+        Is a Client Component - that&apos;s why we can&apos;t render{' '}
         <code style={styles.codeSmStyle}>&lt;Dashboard /&gt;</code> here.
       </div>
     </SectionWrap>

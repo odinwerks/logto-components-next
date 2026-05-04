@@ -32,8 +32,8 @@ If applicable, add screenshots to help explain your problem.
 - OS: [e.g. macOS, Windows, Linux]
 - Browser: [e.g. Chrome, Firefox, Safari]
 - Browser version: [e.g. 22]
-- Node.js version: [e.g. 20.10.0]
-- Project version: [e.g. 0.2.0]
+- Node.js version: [e.g. 25.0.0]
+- Project version: [e.g. 0.3.0]
 
 ## Configuration
 

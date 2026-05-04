@@ -24,16 +24,16 @@ function SessionsOverviewSection() {
         </p>
         <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
           <li>Session listing from Logto Account API</li>
-          <li>Current session identification via <code style={styles.codeSmStyle}>isCurrent</code> flag — shown as a green "This device" badge</li>
-          <li><code style={styles.codeSmStyle}>lastActiveAt</code> — shows when each session was last active</li>
+          <li>Current session identification via <code style={styles.codeSmStyle}>isCurrent</code> flag - shown as a green "This device" badge</li>
+          <li><code style={styles.codeSmStyle}>lastActiveAt</code> - shows when each session was last active</li>
           <li>Automatic 30s heartbeat keeps <code style={styles.codeSmStyle}>lastActiveAt</code> current for the active tab</li>
           <li>Password-protected session view and revocation</li>
           <li>IP geolocation minimap via ipapi.co</li>
-          <li>"Revoke all other sessions" — safe-guarded: aborts if no <code style={styles.codeSmStyle}>isCurrent</code> session is found</li>
+          <li>"Revoke all other sessions" - safe-guarded: aborts if no <code style={styles.codeSmStyle}>isCurrent</code> session is found</li>
         </ul>
 
         <div style={styles.warningBannerStyle}>
-          <strong style={styles.warningBannerStrongStyle}>⚠ Logto Fork Required</strong> — The{' '}
+          <strong style={styles.warningBannerStrongStyle}>⚠ Logto Fork Required</strong> - The{' '}
           <code style={styles.codeSmStyle}>isCurrent</code> flag, <code style={styles.codeSmStyle}>lastActiveAt</code>,
           and heartbeat endpoint require a patched Logto backend. Until{' '}
           <a href="https://github.com/logto-io/logto/pull/8748" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor }}>
@@ -41,7 +41,7 @@ function SessionsOverviewSection() {
           </a>{' '}
           is merged, you must run Logto from the fork branch:{' '}
           <a href="https://github.com/odinwerks/logto/tree/feat/session-last-active-at" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor }}>
-            odinwerks/logto — feat/session-last-active-at
+            odinwerks/logto - feat/session-last-active-at
           </a>.
         </div>
       </div>
@@ -134,7 +134,7 @@ function SessionsApiSection() {
 
         <CodeBlock title="Session type" code={`interface LogtoSession {
   payload: {
-    uid: string;       // session UID — matches sessionUid from auth context
+    uid: string;       // session UID - matches sessionUid from auth context
     jti: string;       // JWT ID
     loginTs: number;   // login timestamp (seconds)
     exp: number;       // expiry timestamp (seconds)
@@ -184,7 +184,7 @@ function HeartbeatSection() {
             </tr>
             <tr>
               <td style={styles.tdStyle}><code style={styles.codeSmStyle}>"now"</code></td>
-              <td style={styles.tdStyle}>Active within 60 seconds — shown in green as "Active now"</td>
+              <td style={styles.tdStyle}>Active within 60 seconds - shown in green as "Active now"</td>
             </tr>
             <tr>
               <td style={styles.tdStyle}>ISO 8601</td>
@@ -202,9 +202,9 @@ export async function recordHeartbeat(): Promise<void> {
 }`} />
 
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>Token as session identifier</strong> — The heartbeat
+          <strong style={styles.strongNoteStyle}>Token as session identifier</strong> - The heartbeat
           uses the opaque Bearer token in the request. Logto looks up the token in its DB to find
-          the <code style={styles.codeSmStyle}>sessionUid</code> — no explicit session ID is needed.
+          the <code style={styles.codeSmStyle}>sessionUid</code> - no explicit session ID is needed.
         </div>
       </div>
     </div>
@@ -226,7 +226,7 @@ function SessionsGeolocationSection() {
         </p>
 
         <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
-          <li>Client-side geolocation via <code style={styles.codeSmStyle}>GET https://ipapi.co/{'{ip}'}/json/</code> — free, no API key, 1,000 req/day</li>
+          <li>Client-side geolocation via <code style={styles.codeSmStyle}>GET https://ipapi.co/{'{ip}'}/json/</code> - free, no API key, 1,000 req/day</li>
           <li>5-minute client-side cache</li>
           <li>Minimap uses CartoDB tiles (dark_all / light_all)</li>
           <li>Click minimap to open Google Maps embed modal</li>
@@ -260,13 +260,13 @@ function SessionsLimitationsSection() {
         </p>
 
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>Incomplete Device Metadata</strong> — Device metadata
+          <strong style={styles.strongNoteStyle}>Incomplete Device Metadata</strong> - Device metadata
           (browser, OS, IP) depends on Logto capturing it during login. Not all sessions have this data. Logto is working on
           improving this.
         </div>
 
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>lastActiveAt only after first heartbeat</strong> —{' '}
+          <strong style={styles.strongNoteStyle}>lastActiveAt only after first heartbeat</strong>  - {' '}
           <code style={styles.codeSmStyle}>lastActiveAt</code> is only populated after the first heartbeat
           is received. Sessions that existed before deploying the fork, or non-browser sessions, show no
           last active time until a heartbeat is received.

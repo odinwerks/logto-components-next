@@ -68,7 +68,7 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 function handleAuthFetchError(error: unknown, label: string): never {
   console.error(`${label}:`, error);
   const msg = error instanceof Error ? error.message : String(error);
-  // /api/wipe is POST-only; broken-cookie state gets cleared by sign-in redirect.
+  // Stale cookies → redirect to sign-in for fresh authentication.
   if (msg.includes('Cookies can only be modified')) redirect('/api/auth/sign-in');
   redirect('/api/auth/sign-in');
 }

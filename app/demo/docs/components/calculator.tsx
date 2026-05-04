@@ -258,7 +258,7 @@ function ActionHandlersSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          Both handlers are simple — they receive the expression and result, return success:
+          Both handlers are simple - they receive the expression and result, return success:
         </p>
         <CodeBlock title="calc-actions/basic.ts" code={`'use server';
 
@@ -276,7 +276,7 @@ export async function getBasicCalc() {
   };
 }`} />
         <p style={styles.textStyle}>
-          The real security is the <strong>Protected Actions API</strong> — it validates the token,
+          The real security is the <strong>Protected Actions API</strong> - it validates the token,
           checks org membership, and verifies the permission before calling the handler.
         </p>
       </div>

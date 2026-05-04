@@ -40,7 +40,7 @@ function ArchitectureSection() {
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Key detail:</strong>{' '}
         These layers are <strong>independently authored</strong>. CSS variable values differ
-        from JS tokens intentionally — they serve different rendering contexts.
+        from JS tokens intentionally - they serve different rendering contexts.
       </div>
       <CodeBlock title="ThemeSpec structure" code={`interface ThemeSpec {
   mode: 'dark' | 'light';
@@ -397,7 +397,7 @@ function TextStylesSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>heading</td>
-            <td style={styles.tdStyle}>Main headings — semibold, tight leading</td>
+            <td style={styles.tdStyle}>Main headings - semibold, tight leading</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>sectionLabel</td>
@@ -405,7 +405,7 @@ function TextStylesSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>fieldLabel</td>
-            <td style={styles.tdStyle}>Label above a form field — mono, uppercase</td>
+            <td style={styles.tdStyle}>Label above a form field - mono, uppercase</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>body</td>
@@ -417,7 +417,7 @@ function TextStylesSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>muted</td>
-            <td style={styles.tdStyle}>Supporting text — smaller, tertiary color</td>
+            <td style={styles.tdStyle}>Supporting text - smaller, tertiary color</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>mutedMono</td>
@@ -433,7 +433,7 @@ function TextStylesSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>link</td>
-            <td style={styles.tdStyle}>Hyperlink — accentBlue, underline</td>
+            <td style={styles.tdStyle}>Hyperlink - accentBlue, underline</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>error</td>
@@ -528,7 +528,7 @@ function SurfacesSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>divider</td>
-            <td style={styles.tdStyle}>Horizontal rule — 1px line</td>
+            <td style={styles.tdStyle}>Horizontal rule - 1px line</td>
           </tr>
         </tbody>
       </table>
@@ -554,15 +554,15 @@ function ButtonsSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>primary</td>
-            <td style={styles.tdStyle}>Main action button — accentBlue background</td>
+            <td style={styles.tdStyle}>Main action button - accentBlue background</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>secondary</td>
-            <td style={styles.tdStyle}>Default button — bgTertiary background</td>
+            <td style={styles.tdStyle}>Default button - bgTertiary background</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>ghost</td>
-            <td style={styles.tdStyle}>No-border button — transparent base</td>
+            <td style={styles.tdStyle}>No-border button - transparent base</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>danger</td>
@@ -570,7 +570,7 @@ function ButtonsSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>dangerSolid</td>
-            <td style={styles.tdStyle}>Solid destructive — accentRed background</td>
+            <td style={styles.tdStyle}>Solid destructive - accentRed background</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>icon</td>
@@ -586,19 +586,19 @@ function ButtonsSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>langItem</td>
-            <td style={styles.tdStyle}>Language selector item — has base/active/hover</td>
+            <td style={styles.tdStyle}>Language selector item - has base/active/hover</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>chipBlue</td>
-            <td style={styles.tdStyle}>Dev-tab action chip — blue accent</td>
+            <td style={styles.tdStyle}>Dev-tab action chip - blue accent</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>chipGreen</td>
-            <td style={styles.tdStyle}>Dev-tab action chip — green accent</td>
+            <td style={styles.tdStyle}>Dev-tab action chip - green accent</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>chipRed</td>
-            <td style={styles.tdStyle}>Dev-tab action chip — red accent</td>
+            <td style={styles.tdStyle}>Dev-tab action chip - red accent</td>
           </tr>
         </tbody>
       </table>
@@ -652,7 +652,7 @@ function BadgesToastsSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>neutral</td>
-            <td style={styles.tdStyle}>—</td>
+            <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>textTertiary</code></td>
           </tr>
           <tr>
@@ -691,7 +691,7 @@ function CodeTabsSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>pre</td>
-            <td style={styles.tdStyle}>&lt;pre&gt; element — mono font, overflow auto</td>
+            <td style={styles.tdStyle}>&lt;pre&gt; element - mono font, overflow auto</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>sectionWrapper</td>
@@ -736,7 +736,7 @@ code.copyButton: {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>button</td>
-            <td style={styles.tdStyle}>Tab button — InteractiveStyle (base/hover/disabled)</td>
+            <td style={styles.tdStyle}>Tab button - InteractiveStyle (base/hover/disabled)</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>active</td>
@@ -765,7 +765,7 @@ function SidebarAvatarSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>container</td>
-            <td style={styles.tdStyle}>Sidebar wrapper — 14.375rem width</td>
+            <td style={styles.tdStyle}>Sidebar wrapper - 14.375rem width</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>profileHeader</td>
@@ -773,7 +773,7 @@ function SidebarAvatarSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>avatarImg</td>
-            <td style={styles.tdStyle}>Avatar image — 2rem square</td>
+            <td style={styles.tdStyle}>Avatar image - 2rem square</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>avatarFallback</td>
@@ -802,7 +802,7 @@ function SidebarAvatarSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>initials</td>
-            <td style={styles.tdStyle}>Bold text — accentBlue color</td>
+            <td style={styles.tdStyle}>Bold text - accentBlue color</td>
           </tr>
         </tbody>
       </table>
@@ -819,15 +819,15 @@ function SidebarAvatarSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>text</td>
-            <td style={styles.tdStyle}>Text input — full width, inset shadow</td>
+            <td style={styles.tdStyle}>Text input - full width, inset shadow</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>select</td>
-            <td style={styles.tdStyle}>Select dropdown — mono font, no native appearance</td>
+            <td style={styles.tdStyle}>Select dropdown - mono font, no native appearance</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>label</td>
-            <td style={styles.tdStyle}>Form field label — mono, uppercase</td>
+            <td style={styles.tdStyle}>Form field label - mono, uppercase</td>
           </tr>
         </tbody>
       </table>
@@ -992,7 +992,7 @@ function CssVariablesSection() {
       </p>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
-        CSS variable values differ from JS tokens — they serve different rendering
+        CSS variable values differ from JS tokens - they serve different rendering
         contexts (scrollbar, selection styling).
       </div>
       <table style={styles.tableStyle}>

@@ -5,13 +5,13 @@ import { getLogtoConfig } from './app/logto';
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 
 // These paths are public (no session needed). They are either:
-//   - POST-only with an origin check (wipe, sign-out) — safe even without auth
+//   - Cookie/session management (wipe, sign-out) — GET for convenience, POST for CSRF safety
 //   - Auth-initiation routes (sign-in, callback) — must be reachable pre-auth
 // These paths bypass the auth middleware. They are either:
 //   - Auth-initiation routes that must be reachable before a session exists.
-//   - POST-only endpoints with their own origin-guard (wipe, sign-out).
-//     They don't need session authentication, but they DO enforce same-origin
-//     via checkSameOrigin() inside the handler itself.
+//   - Cookie/session endpoints that don't need session authentication, but
+//     their POST handlers enforce same-origin via checkSameOrigin() for CSRF safety.
+//     GET handlers provide convenience for browser navigation.
 const PUBLIC_PATHS = [
   '/callback',
   '/api/auth/sign-in',
@@ -51,8 +51,8 @@ export async function proxy(request: NextRequest) {
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
       console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
-      // /api/wipe is POST-only now; sign-in clears the stale cookie state.
-      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+      // /api/wipe clears stale Logto cookies and redirects home.
+      return NextResponse.redirect(new URL('/api/wipe', request.url));
     }
 
     // Any other error - redirect to sign-in
