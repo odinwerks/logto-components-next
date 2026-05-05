@@ -218,14 +218,6 @@ export function ProfileTab({
     }
   }, [selectedFile, upload, onError]);
 
-  const handleCancelCrop = useCallback(() => {
-    if (cropPreviewUrl) {
-      URL.revokeObjectURL(cropPreviewUrl);
-    }
-    setCropPreviewUrl(null);
-    setSelectedFile(null);
-  }, [cropPreviewUrl]);
-
   const handleCloseModal = useCallback(() => {
     if (cropPreviewUrl) {
       URL.revokeObjectURL(cropPreviewUrl);
@@ -234,6 +226,24 @@ export function ProfileTab({
     setSelectedFile(null);
     setAvatarModalOpen(false);
   }, [cropPreviewUrl]);
+
+  const handleCancelCrop = useCallback(() => {
+    handleCloseModal();
+  }, [handleCloseModal]);
+
+  // ESC key handler - disabled during upload
+  useEffect(() => {
+    if (!avatarModalOpen || isUploading) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [avatarModalOpen, isUploading, handleCloseModal]);
 
   const dropZoneStyle: React.CSSProperties = {
     ...cs.surfaces.dropZone,
@@ -247,7 +257,7 @@ export function ProfileTab({
   return (
     <div>
       {avatarModalOpen && (
-        <Overlay onDismiss={handleCloseModal}>
+        <Overlay onDismiss={() => {}}>
           <div style={{
             width: '100%',
             maxWidth: inCropMode ? '42rem' : '32rem',
