@@ -38,6 +38,7 @@ export interface LogtoProviderProps {
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
+  initialOrgId?: string | null;
 }
 
 function LogtoProviderContent({
@@ -152,6 +153,7 @@ export function LogtoProvider({
   initialLang,
   onUpdateCustomData,
   onLangChange,
+  initialOrgId,
 }: LogtoProviderProps) {
   return (
     <PreferencesProvider
@@ -159,6 +161,7 @@ export function LogtoProvider({
       initialLang={initialLang}
       onUpdateCustomData={onUpdateCustomData}
       onLangChange={onLangChange}
+      initialOrgId={initialOrgId}
     >
       <LogtoProviderContent
         userData={userData}
