@@ -6,6 +6,7 @@ import { Dashboard } from './logto-kit/components/dashboard';
 import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
 import { DARK_COLORS, getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
+import { getMainLocale } from './logto-kit/locales';
 import DemoApp from './demo/index';
 
 export default async function HomePage() {
@@ -32,10 +33,13 @@ export default async function HomePage() {
   }
 
   // Resolve user preferences so both LogtoProvider and the dashboard
-  // agree on the initial theme from the same source (Logto customData).
+  // agree on initial theme, lang, and org from the same source (Logto customData).
   const defaultThemeMode = getDefaultThemeMode();
+  const defaultLocale = getMainLocale();
   const userPrefs = getPreferencesFromUserData(result.userData);
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
+  const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
+  const resolvedOrg   = userPrefs?.asOrg ?? null;
 
   return (
     <main style={{ minHeight: '100vh' }}>
@@ -43,6 +47,8 @@ export default async function HomePage() {
         userData={result.userData}
         dashboard={<Dashboard />}
         initialTheme={resolvedTheme}
+        initialLang={resolvedLang}
+        initialOrgId={resolvedOrg}
       >
         <DemoApp />
       </LogtoProvider>
