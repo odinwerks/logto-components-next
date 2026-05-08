@@ -4,26 +4,25 @@ import { redirect } from 'next/navigation';
 import { fetchDashboardData } from './logto-kit/logic/actions';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
-import { DARK_COLORS } from './logto-kit/themes';
+import { DARK_COLORS, getDefaultThemeMode } from './logto-kit/themes';
+import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
 import DemoApp from './demo/index';
 
 export default async function HomePage() {
   const result = await fetchDashboardData();
-
-  const darkColors = DARK_COLORS;
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
       redirect('/callback');
     }
     return (
-      <main style={{ minHeight: '100vh', background: darkColors.bgPage }}>
+      <main style={{ minHeight: '100vh', background: DARK_COLORS.bgPage }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
-          color: darkColors.textSecondary,
+          color: DARK_COLORS.textSecondary,
           fontFamily: 'monospace',
         }}>
           Failed to load user data
@@ -32,11 +31,18 @@ export default async function HomePage() {
     );
   }
 
+  // Resolve user preferences so both LogtoProvider and the dashboard
+  // agree on the initial theme from the same source (Logto customData).
+  const defaultThemeMode = getDefaultThemeMode();
+  const userPrefs = getPreferencesFromUserData(result.userData);
+  const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
+
   return (
     <main style={{ minHeight: '100vh' }}>
       <LogtoProvider
         userData={result.userData}
         dashboard={<Dashboard />}
+        initialTheme={resolvedTheme}
       >
         <DemoApp />
       </LogtoProvider>
