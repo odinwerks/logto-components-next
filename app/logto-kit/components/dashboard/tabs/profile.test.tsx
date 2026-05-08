@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { enUS } from '../../../locales/en-US';
-import { darkTheme } from '../../../themes';
+import { DARK_COLORS } from '../../../themes';
 
 // ── Mocks (use vi.hoisted for values vi.mock factories need) ──
 
@@ -85,7 +85,8 @@ function renderProfile(
   const result = render(
     <ProfileTab
       userData={userData}
-      theme={darkTheme}
+      mode="dark"
+      colors={DARK_COLORS}
       t={enUS}
       onUpdateBasicInfo={basicInfoFn}
       onUpdateAvatarUrl={resolvedNoop}

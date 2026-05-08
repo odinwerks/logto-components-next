@@ -1,5 +1,5 @@
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../logic/types';
-import type { ThemeSpec, ThemeColors } from '../../themes';
+import type { ThemeColors } from '../../themes';
 import type { Translations } from '../../locales';
 import type { TabId } from '../../logic/tabs';
 
@@ -27,9 +27,10 @@ interface VerificationState {
 
 /** Dashboard context available to all tabs. */
 interface DashboardContext {
-  theme:     ThemeSpec;
-  t:         Translations;
-  locale:    string;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  t: Translations;
+  locale: string;
   showToast: (type: 'success' | 'error' | 'info', message: string) => void;
   refreshData: () => void;
 }
@@ -37,6 +38,6 @@ interface DashboardContext {
 // Re-export convenience bundle
 export type {
   UserData, MfaVerification, MfaVerificationPayload,
-  ThemeSpec, ThemeColors, Translations,
+  ThemeColors, Translations,
 };
 

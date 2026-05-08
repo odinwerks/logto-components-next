@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData } from '../../../logic/types';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Pencil, X, Mail, Phone } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
@@ -42,7 +42,8 @@ const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
 
 interface ProfileTabProps {
   userData:          UserData;
-  theme:             ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t:                 Translations;
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
@@ -61,15 +62,31 @@ interface ProfileTabProps {
 }
 
 export function ProfileTab({
-  userData, theme, t,
+  userData, mode, colors, t,
   onUpdateBasicInfo, onUpdateAvatarUrl, onUpdateProfile,
   onVerifyPassword, onSendEmailVerification, onSendPhoneVerification,
   onVerifyCode, onUpdateEmail, onUpdatePhone, onRemoveEmail, onRemovePhone,
   onSuccess, onError, refreshData,
 }: ProfileTabProps) {
-  const cs = theme.components;
-  const c  = theme.colors;
-  const ty = theme.tokens.typography;
+  const c = colors;
+  const ty = {
+    fontSans: "'DM Sans', system-ui, sans-serif",
+    size: { micro: '0.5625rem', xs: '0.625rem', sm: '0.6875rem', base: '0.75rem', md: '0.8125rem', lg: '0.875rem', xl: '0.9375rem' },
+    weight: { medium: 500, semibold: 600 },
+  };
+  const cs = {
+    surfaces: {
+      dropZone: { border: `1.5px dashed ${c.borderColor}`, borderRadius: '0.375rem', background: 'transparent', padding: '1.5rem' } as React.CSSProperties,
+      dropZoneActive: { border: `1.5px dashed ${c.accentBlue}`, background: `${c.accentBlue}0d` } as React.CSSProperties,
+      well: { background: c.bgSecondary, border: `1px solid ${c.borderColor}cc`, borderRadius: '0.375rem', padding: '1rem 1.25rem' } as React.CSSProperties,
+    },
+    inputs: {
+      label: { display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: c.textTertiary, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '0.4375rem' } as React.CSSProperties,
+    },
+    text: {
+      mutedMono: { fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary } as React.CSSProperties,
+    },
+  };
 
   const _rawNameType = readEnv('NAME_TYPE') ?? 'given_family';
   const nameType: 'given_family' | 'username' | 'full' =
@@ -263,7 +280,7 @@ export function ProfileTab({
             maxWidth: inCropMode ? '42rem' : '32rem',
             background: c.bgSecondary,
             border: `1px solid ${c.borderColor}`,
-            boxShadow: theme.tokens.shadows.modal,
+            boxShadow: mode === 'dark' ? '0 2rem 5.625rem rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)' : '0 2rem 5.625rem rgba(0,0,0,0.2)',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -392,18 +409,18 @@ export function ProfileTab({
                   ref={cropperRef}
                   imageUrl={cropPreviewUrl!}
                   displaySize={380}
-                  theme={theme}
+                  mode={mode} colors={colors}
                 />
 
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', width: '100%' }}>
-                  <Button variant="secondary" onClick={handleCancelCrop} theme={theme}>
+                  <Button variant="secondary" onClick={handleCancelCrop} mode={mode} colors={colors}>
                     {t.profile.cancel}
                   </Button>
                   <Button
                     variant="primary"
                     onClick={handleApplyCrop}
                     disabled={isUploading}
-                    theme={theme}
+                    mode={mode} colors={colors}
                   >
                     {isUploading ? (
                       <><SpinnerIcon size={0.8125} color={c.contrastText} /> Uploading…</>
@@ -471,18 +488,18 @@ export function ProfileTab({
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     placeholder={t.profile.usernamePlaceholder}
-                    theme={theme}
+                    mode={mode} colors={colors}
                     style={{ padding: '0.375rem 0.75rem', flex: 1 }}
                   />
                   {/* Buttons only inside username div in username-only mode */}
                   {nameType === 'username' && (
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                       {nameChanged && (
-                        <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                        <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                           {t.profile.discard}
                         </Button>
                       )}
-                      <Button variant="primary" onClick={handleSaveName} disabled={!nameChanged || nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                      <Button variant="primary" onClick={handleSaveName} disabled={!nameChanged || nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                         {nameLoading
                           ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
                           : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
@@ -504,20 +521,20 @@ export function ProfileTab({
                   value={givenName}
                   onChange={e => setGivenName(e.target.value)}
                   placeholder={t.profile.firstNamePlaceholder}
-                  theme={theme}
+                  mode={mode} colors={colors}
                   style={{ padding: '0.375rem 0.75rem' }}
                 />
                 <Input
                   value={familyName}
                   onChange={e => setFamilyName(e.target.value)}
                   placeholder={t.profile.lastNamePlaceholder}
-                  theme={theme}
+                  mode={mode} colors={colors}
                   style={{ padding: '0.375rem 0.75rem' }}
                 />
                 {/* Buttons in grid for given_family and full modes */}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     {nameChanged && (
-                      <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} theme={theme} style={{ padding: '0.375rem 0.875rem' }}>
+                      <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                         {t.profile.discard}
                       </Button>
                     )}
@@ -525,7 +542,7 @@ export function ProfileTab({
                       variant="primary"
                       onClick={handleSaveName}
                       disabled={!nameChanged || nameLoading}
-                      theme={theme}
+                      mode={mode} colors={colors}
                       style={{ padding: '0.375rem 0.875rem' }}
                     >
                       {nameLoading
@@ -539,8 +556,8 @@ export function ProfileTab({
           </div>
       </div>
 
-      <SL theme={theme}>{t.profile.contactAndCredentials}</SL>
-      <Card theme={theme}>
+      <SL colors={colors}>{t.profile.contactAndCredentials}</SL>
+      <Card mode={mode} colors={colors}>
         <ContactRow
           label={t.security.email}
           Icon={Mail}
@@ -554,9 +571,9 @@ export function ProfileTab({
             await onUpdateEmail(value, result.verificationRecordId, identityVerificationId);
           }}
           onRemove={onRemoveEmail}
-          onSuccess={onSuccess} onError={onError} t={t} theme={theme}
+          onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
-        <HR theme={theme} />
+        <HR colors={colors} />
         <ContactRow
           label={t.security.phone}
           Icon={Phone}
@@ -570,7 +587,7 @@ export function ProfileTab({
             await onUpdatePhone(value, result.verificationRecordId, identityVerificationId);
           }}
           onRemove={onRemovePhone}
-          onSuccess={onSuccess} onError={onError} t={t} theme={theme}
+          onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
       </Card>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ThemeSpec } from '../../themes';
+import type { ThemeColors } from '../../themes';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 
 export type InputProps = {
@@ -15,7 +15,8 @@ export type InputProps = {
   disabled?: boolean;
   maxLength?: number;
   hasError?: boolean;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
 };
 
 export function Input({
@@ -30,11 +31,25 @@ export function Input({
   disabled,
   maxLength,
   hasError,
-  theme,
+  mode,
+  colors,
 }: InputProps) {
-  const inputStyle = theme.components.inputs.text;
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.5625rem 0.75rem',
+    background: colors.bgPrimary,
+    border: `1px solid ${colors.borderColor}`,
+    color: colors.textPrimary,
+    fontSize: '0.8125rem',
+    fontFamily: "'DM Sans', system-ui, sans-serif",
+    outline: 'none',
+    boxSizing: 'border-box',
+    borderRadius: '0.25rem',
+    transition: 'border-color 0.15s ease, background 0.15s ease',
+    boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.2)',
+  };
   const errorStyle = hasError
-    ? { borderColor: theme.colors.accentRed, background: theme.colors.errorBg }
+    ? { borderColor: colors.accentRed, background: colors.errorBg }
     : {};
 
   const input = (

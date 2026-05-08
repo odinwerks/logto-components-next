@@ -1,11 +1,10 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
-import { type ThemeSpec, type ThemeColors } from '../../themes';
-import { defaultDarkTheme, defaultLightTheme } from '../../themes/default';
+import { type ThemeColors, DARK_COLORS, LIGHT_COLORS } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 
-export type { ThemeColors, ThemeSpec, LocaleCode };
+export type { ThemeColors, LocaleCode };
 
 const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
@@ -57,10 +56,10 @@ function setStoredOrg(orgId: string | null) {
 }
 
 interface ThemeModeContextValue {
-  theme: 'dark' | 'light';
-  themeSpec: ThemeSpec;
-  setTheme: (theme: 'dark' | 'light') => void;
-  toggleTheme: () => void;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  setMode: (mode: 'dark' | 'light') => void;
+  toggleMode: () => void;
 }
 
 interface LangModeContextValue {
@@ -85,21 +84,21 @@ function getAutoDetectedTheme(): 'dark' | 'light' {
   if (typeof window === 'undefined') {
     return 'dark';
   }
-  
+
   const html = document.documentElement;
   const dataTheme = html.getAttribute('data-theme');
-  
+
   if (dataTheme === 'light') {
     return 'light';
   }
   if (dataTheme === 'dark') {
     return 'dark';
   }
-  
+
   if (typeof window.matchMedia === 'function') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-  
+
   return 'dark';
 }
 
@@ -122,8 +121,6 @@ export function PreferencesProvider({
   initialOrgId,
   onUpdateCustomData,
   onLangChange,
-  darkThemeSpec,
-  lightThemeSpec,
 }: {
   children: ReactNode;
   initialTheme?: 'dark' | 'light';
@@ -131,11 +128,9 @@ export function PreferencesProvider({
   initialOrgId?: string | null;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
-  darkThemeSpec: ThemeSpec;
-  lightThemeSpec: ThemeSpec;
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
-  
+
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
   const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
   const [asOrg, setAsOrgState] = useState<string | null>(() => {
@@ -151,7 +146,7 @@ export function PreferencesProvider({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
       const currentDataTheme = document.documentElement.getAttribute('data-theme');
@@ -159,7 +154,7 @@ export function PreferencesProvider({
         setThemeState(e.matches ? 'dark' : 'light');
       }
     };
-    
+
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
@@ -183,9 +178,9 @@ export function PreferencesProvider({
     }
   }, []);
 
-  const themeSpec = useMemo(
-    () => (theme === 'dark' ? darkThemeSpec : lightThemeSpec),
-    [theme, darkThemeSpec, lightThemeSpec]
+  const colors = useMemo(
+    () => (theme === 'dark' ? DARK_COLORS : LIGHT_COLORS),
+    [theme]
   );
 
   const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
@@ -215,17 +210,17 @@ export function PreferencesProvider({
     }
   }, [onUpdateCustomData, theme, lang]);
 
-  const setTheme = useCallback((newTheme: 'dark' | 'light') => {
+  const setMode = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);
     setThemeState(newTheme);
     persistThemeToApi(newTheme);
     window.dispatchEvent(new Event('theme-changed'));
   }, [persistThemeToApi]);
 
-  const toggleTheme = useCallback(() => {
+  const toggleMode = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-  }, [theme, setTheme]);
+    setMode(next);
+  }, [theme, setMode]);
 
   const setLang = useCallback((newLang: string) => {
     setStoredLang(newLang);
@@ -244,11 +239,11 @@ export function PreferencesProvider({
 
   const value = useMemo(
     () => ({
-      theme: { theme, themeSpec, setTheme, toggleTheme },
+      theme: { mode: theme, colors, setMode, toggleMode },
       lang: { lang, setLang },
       org: { asOrg, setAsOrg },
     }),
-    [theme, themeSpec, setTheme, toggleTheme, lang, setLang, asOrg, setAsOrg]
+    [theme, colors, setMode, toggleMode, lang, setLang, asOrg, setAsOrg]
   );
 
   return (
@@ -266,35 +261,35 @@ export function useThemeMode(): ThemeModeContextValue {
     const storedTheme = getStoredTheme();
     return {
       ...context.theme,
-      theme: storedTheme ?? context.theme.theme,
+      mode: storedTheme ?? context.theme.mode,
     };
   }
 
   if (typeof window === 'undefined') {
     return {
-      theme: 'dark',
-      themeSpec: defaultDarkTheme,
-      setTheme: () => {},
-      toggleTheme: () => {},
+      mode: 'dark',
+      colors: DARK_COLORS,
+      setMode: () => {},
+      toggleMode: () => {},
     };
   }
 
   const storedTheme = getStoredTheme();
   if (storedTheme) {
     return {
-      theme: storedTheme,
-      themeSpec: storedTheme === 'dark' ? defaultDarkTheme : defaultLightTheme,
-      setTheme: () => {},
-      toggleTheme: () => {},
+      mode: storedTheme,
+      colors: storedTheme === 'dark' ? DARK_COLORS : LIGHT_COLORS,
+      setMode: () => {},
+      toggleMode: () => {},
     };
   }
 
   const autoTheme = getAutoDetectedTheme();
   return {
-    theme: autoTheme,
-    themeSpec: autoTheme === 'dark' ? defaultDarkTheme : defaultLightTheme,
-    setTheme: () => {},
-    toggleTheme: () => {},
+    mode: autoTheme,
+    colors: autoTheme === 'dark' ? DARK_COLORS : LIGHT_COLORS,
+    setMode: () => {},
+    toggleMode: () => {},
   };
 }
 

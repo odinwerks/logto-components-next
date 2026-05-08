@@ -137,10 +137,10 @@ export function Section({ id, children }: SectionProps) {
 
 function SectionNav() {
   const { currentIdx, total, next, prev } = useSectionContext();
-  const { theme } = useThemeMode();
+  const { mode } = useThemeMode();
   const atStart = currentIdx === 0;
   const atEnd = currentIdx === total - 1;
-  const isDark = theme === 'dark';
+  const isDark = mode === 'dark';
 
   const btnStyle: React.CSSProperties = {
     display: 'flex',

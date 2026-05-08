@@ -2,16 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { UserData } from '../../logic/types';
-import type { ThemeSpec } from '../../themes';
+import type { ThemeColors } from '../../themes';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
 
 interface LogtoContextValue {
   userData: UserData;
-  theme: 'dark' | 'light';
-  themeSpec: ThemeSpec;
-  setTheme: (theme: 'dark' | 'light') => void;
-  toggleTheme: () => void;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  setMode: (mode: 'dark' | 'light') => void;
+  toggleMode: () => void;
   lang: string;
   setLang: (lang: string) => void;
   asOrg: string | null;
@@ -38,8 +38,6 @@ export interface LogtoProviderProps {
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
   onLangChange?: () => void;
-  darkThemeSpec: ThemeSpec;
-  lightThemeSpec: ThemeSpec;
 }
 
 function LogtoProviderContent({
@@ -53,7 +51,7 @@ function LogtoProviderContent({
 }) {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
-  const { theme, themeSpec, setTheme, toggleTheme } = useThemeMode();
+  const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
   const { asOrg, setAsOrg } = useOrgMode();
 
@@ -75,10 +73,10 @@ function LogtoProviderContent({
 
   const contextValue: LogtoContextValue = {
     userData,
-    theme,
-    themeSpec,
-    setTheme,
-    toggleTheme,
+    mode,
+    colors,
+    setMode,
+    toggleMode,
     lang,
     setLang,
     asOrg,
@@ -97,7 +95,7 @@ function LogtoProviderContent({
               position: 'fixed',
               inset: 0,
               zIndex: 9999,
-              background: theme === 'dark' ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.35)',
+              background: mode === 'dark' ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.35)',
               backdropFilter: 'blur(0.5rem)',
               WebkitBackdropFilter: 'blur(0.5rem)',
             }}
@@ -154,8 +152,6 @@ export function LogtoProvider({
   initialLang,
   onUpdateCustomData,
   onLangChange,
-  darkThemeSpec,
-  lightThemeSpec,
 }: LogtoProviderProps) {
   return (
     <PreferencesProvider
@@ -163,8 +159,6 @@ export function LogtoProvider({
       initialLang={initialLang}
       onUpdateCustomData={onUpdateCustomData}
       onLangChange={onLangChange}
-      darkThemeSpec={darkThemeSpec}
-      lightThemeSpec={lightThemeSpec}
     >
       <LogtoProviderContent
         userData={userData}

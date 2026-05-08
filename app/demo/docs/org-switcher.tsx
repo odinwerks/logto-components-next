@@ -67,10 +67,16 @@ function OrgSwitcherPropsSection() {
             <td style={styles.tdStyle}>Server-resolved active org</td>
           </tr>
           <tr>
-            <td style={styles.tdPathStyle}>theme</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeSpec</code></td>
+            <td style={styles.tdPathStyle}>mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
             <td style={styles.tdStyle}>required</td>
-            <td style={styles.tdStyle}>Theme for UI rendering</td>
+            <td style={styles.tdStyle}>Theme mode for UI rendering</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>colors</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
+            <td style={styles.tdStyle}>required</td>
+            <td style={styles.tdStyle}>Color tokens for UI rendering</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>t</td>
@@ -87,7 +93,8 @@ function OrgSwitcherPropsSection() {
 }`} />
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>OrgSwitcherWrapper props:</strong>{' '}
-        Just <code style={styles.codeSmStyle}>theme: ThemeSpec</code> and{' '}
+        Just <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
+        <code style={styles.codeSmStyle}>colors: ThemeColors</code> and{' '}
         <code style={styles.codeSmStyle}>t: Translations</code>. It fetches orgs via{' '}
         <code style={styles.codeSmStyle}>getLogtoContext()</code> internally - no org data needed from you.
       </div>

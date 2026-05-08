@@ -5,12 +5,13 @@ import { useState, useEffect } from 'react';
 import { setActiveOrg } from './actions/set-active-org';
 import { useOrgMode } from '../components/handlers/preferences';
 import type { OrganizationData } from './types';
-import type { ThemeSpec } from '../themes';
+import type { ThemeColors } from '../themes';
 
 interface OrgSwitcherProps {
   organizations: OrganizationData[];
   currentOrgId?: string;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t?: {
     organizations?: {
       beYourself?: string;
@@ -18,14 +19,13 @@ interface OrgSwitcherProps {
   };
 }
 
-export function OrgSwitcher({ organizations, currentOrgId, theme, t }: OrgSwitcherProps) {
+export function OrgSwitcher({ organizations, currentOrgId, mode, colors, t }: OrgSwitcherProps) {
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
   const [selected, setSelected] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const c = theme.colors;
-  const ty = theme.tokens.typography;
+  const c = colors;
 
   useEffect(() => {
     const activeOrg = asOrg ?? currentOrgId ?? '';
@@ -73,11 +73,21 @@ export function OrgSwitcher({ organizations, currentOrgId, theme, t }: OrgSwitch
           value={displaySelected}
           onChange={(e) => handleChange(e.target.value)}
           disabled={isLoading}
-          style={{
-            ...theme.components.inputs.select,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            opacity: isLoading ? 0.5 : 1,
-          }}
+        style={{
+          width: '100%',
+          padding: '0.5625rem 2.25rem 0.5625rem 0.75rem',
+          background: colors.bgPage,
+          border: `1px solid ${colors.borderColor}`,
+          color: colors.textPrimary,
+          fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+          fontSize: '0.8125rem',
+          outline: 'none',
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          appearance: 'none' as const,
+          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
+          borderRadius: '0.25rem',
+          opacity: isLoading ? 0.5 : 1,
+        }}
         >
           <option value="">{t?.organizations?.beYourself || 'Be yourself (global)'}</option>
           {organizations.map((org) => (
@@ -93,7 +103,7 @@ export function OrgSwitcher({ organizations, currentOrgId, theme, t }: OrgSwitch
           transform: 'translateY(-50%) rotate(90deg)',
           color: c.textTertiary,
           pointerEvents: 'none',
-          fontSize: ty.size.xs,
+          fontSize: '0.625rem',
         }}>
           ▶
         </span>

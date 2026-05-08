@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { adj, alpha } from '../../handlers/theme-helpers';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
@@ -39,7 +38,7 @@ export type ModalStep =
   | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };
 
 export function PasswordVerifyModal({
-  title, subtitle, step, onPasswordSubmit, onClose, passwordError, theme, t, danger,
+  title, subtitle, step, onPasswordSubmit, onClose, passwordError, mode, colors, t, danger,
 }: {
   title: string;
   subtitle: string;
@@ -47,19 +46,19 @@ export function PasswordVerifyModal({
   onPasswordSubmit: (password: string) => void;
   onClose: () => void;
   passwordError?: string;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   danger?: boolean;
 }) {
-  const c = theme.colors;
-  const ty = theme.tokens.typography;
+  const c = colors;
   const T = {
     surface: c.bgSecondary,
     bg: c.bgPrimary,
     border: c.borderColor,
     borderFaint: c.borderColor,
-    font: ty.fontSans,
-    mono: ty.fontMono,
+    font: "'DM Sans', system-ui, sans-serif",
+    mono: "'IBM Plex Mono', 'Courier New', monospace",
     text: c.textPrimary,
     sub: c.textSecondary,
     muted: c.textTertiary,
@@ -98,16 +97,17 @@ export function PasswordVerifyModal({
         <div style={{ padding: '1.25rem 1.375rem' }}>
           {step.kind === 'password' && (
             <>
-              <label style={theme.components.inputs.label}>{t.verification.password}</label>
-              <Input
-                type={showPw ? 'text' : 'password'}
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                placeholder={t.mfa.enterPasswordPlaceholder}
-                autoFocus
-                hasError={!!passwordError}
-                onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
-                theme={theme}
+              <label style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{t.verification.password}</label>
+      <Input
+        type={showPw ? 'text' : 'password'}
+        value={pw}
+        onChange={(e) => setPw(e.target.value)}
+        placeholder={t.mfa.enterPasswordPlaceholder}
+        autoFocus
+        hasError={!!passwordError}
+        onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
+        mode={mode}
+        colors={colors}
                 suffix={
                   <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
@@ -120,9 +120,9 @@ export function PasswordVerifyModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} theme={theme}>
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : c.contrastText} strokeWidth={1.5} />
+          <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+          <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
+            {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -144,18 +144,17 @@ export function PasswordVerifyModal({
   );
 }
 
-function Lbl({ children, theme }: { children: React.ReactNode; theme: ThemeSpec }) {
-  const cs = theme.components;
-  return <label style={cs.inputs.label}>{children}</label>;
+function Lbl({ children, colors }: { children: React.ReactNode; colors: ThemeColors }) {
+  return <label style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{children}</label>;
 }
 
-function HR({ theme }: { theme: ThemeSpec }) {
-  return <div style={theme.components.divider} />;
+function HR({ colors }: { colors: ThemeColors }) {
+  return <div style={{ height: '1px', background: `${colors.borderColor}cc`, border: 'none', margin: '0', flexShrink: 0 }} />;
 }
 
 export function FlowModal({
   title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
-  passwordError, extra, theme, t, danger,
+  passwordError, extra, mode, colors, t, danger,
 }: {
   title: string;
   subtitle: string;
@@ -168,30 +167,29 @@ export function FlowModal({
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   danger?: boolean;
 }) {
-  const c = theme.colors;
-  const cs = theme.components;
-  const ty = theme.tokens.typography;
+  const c = colors;
   const T = {
     surface: c.bgSecondary,
     bg: c.bgPrimary,
     border: c.borderColor,
     borderFaint: c.borderColor,
-    font: ty.fontSans,
-    mono: ty.fontMono,
+    font: "'DM Sans', system-ui, sans-serif",
+    mono: "'IBM Plex Mono', 'Courier New', monospace",
     text: c.textPrimary,
     sub: c.textSecondary,
     muted: c.textTertiary,
     blue: c.accentBlue,
     red: c.accentRed,
     redText: c.accentRed,
-    redDim: c.errorBg,
-    raised: c.bgPrimary,
-    greenText: c.accentGreen,
-    blueText: c.accentBlue,
+    redDim: colors.errorBg,
+    raised: colors.bgPrimary,
+    greenText: colors.accentGreen,
+    blueText: colors.accentBlue,
   };
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -240,7 +238,7 @@ export function FlowModal({
           {step.kind === 'password' && (
             <>
               {extra}
-              <Lbl theme={theme}>{t.verification.password}</Lbl>
+              <Lbl colors={colors}>{t.verification.password}</Lbl>
               <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
@@ -249,7 +247,7 @@ export function FlowModal({
                 autoFocus={!extra}
                 hasError={!!passwordError}
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
-                theme={theme}
+                mode={mode} colors={colors}
                 suffix={
                   <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
@@ -262,9 +260,9 @@ export function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
-                <Button variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} theme={theme}>
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
+                <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                <Button variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
+                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -289,7 +287,7 @@ export function FlowModal({
                   <span style={{ fontFamily: T.mono, color: T.text }}>{step.destination}</span>.
                 </p>
               </div>
-              <Lbl theme={theme}>Verification code</Lbl>
+              <Lbl colors={colors}>Verification code</Lbl>
               <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -297,13 +295,13 @@ export function FlowModal({
                 maxLength={6}
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) onCodeSubmit?.(code); }}
-                theme={theme}
+                mode={mode} colors={colors}
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} theme={theme}>Cancel</Button>
-                <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} theme={theme}>
-                  Verify <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
+                <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
+                <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} mode={mode} colors={colors}>
+                  Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -350,8 +348,8 @@ export function FlowModal({
                       </button>
                     </div>
 
-                    <HR theme={theme} />
-                    <Lbl theme={theme}>6-digit code from your app</Lbl>
+                    <HR colors={colors} />
+                    <Lbl colors={colors}>6-digit code from your app</Lbl>
                     <Input
                       value={code}
                       onChange={(e) => {
@@ -364,16 +362,16 @@ export function FlowModal({
                       placeholder="000000"
                       maxLength={6}
                       autoFocus
-                      theme={theme}
+                      mode={mode} colors={colors}
                       style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                      <Button onClick={onClose} theme={theme}>Cancel</Button>
+                      <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
                       <Button variant="primary"
                         onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
-                        disabled={code.length !== 6} theme={theme}
+                        disabled={code.length !== 6} mode={mode} colors={colors}
                       >
-                        Activate <Check size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
+                        Activate <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                       </Button>
                     </div>
                   </div>
@@ -383,7 +381,7 @@ export function FlowModal({
 
           {step.kind === 'new-password' && (
             <>
-              <Lbl theme={theme}>New password</Lbl>
+              <Lbl colors={colors}>New password</Lbl>
               <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
@@ -391,7 +389,7 @@ export function FlowModal({
                 placeholder="Enter new password"
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onNewPasswordSubmit?.(pw, step.verificationRecordId); }}
-                theme={theme}
+                mode={mode} colors={colors}
                 suffix={
                   <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
@@ -404,9 +402,9 @@ export function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} theme={theme}>Cancel</Button>
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} theme={theme}>
-                  {danger ? t.security.deleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? c.accentRed : c.contrastText} strokeWidth={1.5} />
+                <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} mode={mode} colors={colors}>
+                  {danger ? t.security.deleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -414,19 +412,19 @@ export function FlowModal({
 
           {step.kind === 'rename-passkey' && (
             <>
-              <Lbl theme={theme}>{t.mfa.newPasskeyName}</Lbl>
+              <Lbl colors={colors}>{t.mfa.newPasskeyName}</Lbl>
               <Input
                 type="text"
                 value={renameVal}
                 onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId); }}
-                theme={theme}
+                mode={mode} colors={colors}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} theme={theme}>{t.common.close}</Button>
-                <Button variant="primary" onClick={() => renameVal.trim() && onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)} disabled={!renameVal.trim()} theme={theme}>
-                  {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={c.contrastText} strokeWidth={1.5} />
+                <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                <Button variant="primary" onClick={() => renameVal.trim() && onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)} disabled={!renameVal.trim()} mode={mode} colors={colors}>
+                  {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -438,28 +436,28 @@ export function FlowModal({
 }
 
 export function BackupCodesModal({
-  codes, isNew, onDone, onSuccess, t, theme,
+  codes, isNew, onDone, onSuccess, t, mode, colors,
 }: {
   codes: Array<{ code: string; used: boolean }>;
   isNew: boolean;
   onDone: () => void;
   onSuccess: (msg: string) => void;
   t: Translations;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
 }) {
-  const c = theme.colors;
-  const ty = theme.tokens.typography;
+  const c = colors;
   const T = {
     surface: c.bgSecondary,
     bg: c.bgPrimary,
     border: c.borderColor,
     borderFaint: c.borderColor,
-    font: ty.fontSans,
-    mono: ty.fontMono,
+    font: "'DM Sans', system-ui, sans-serif",
+    mono: "'IBM Plex Mono', 'Courier New', monospace",
     text: c.textPrimary,
     sub: c.textSecondary,
     muted: c.textTertiary,
-    amberDim: alpha(c.accentYellow, 0.1),
+    amberDim: '#f59e0b1a',
     amberText: c.accentYellow,
     accentYellow: c.accentYellow,
   };
@@ -517,7 +515,7 @@ export function BackupCodesModal({
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
               padding: '0.625rem 0.875rem', background: T.amberDim,
-              border: `1px solid ${adj(c.accentYellow, -40) + '44'}`,
+              border: `1px solid #b4530944`,
               marginBottom: '1rem',
             }}>
               <AlertTriangle size={'0.875rem'} color={T.amberText} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: '0.0625rem' }} />
@@ -545,10 +543,10 @@ export function BackupCodesModal({
 
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Button size="sm" onClick={() => dl('txt')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .txt</Button>
-              <Button size="sm" onClick={() => dl('html')} theme={theme}><Download size={'0.6875rem'} strokeWidth={1.5} /> .html</Button>
+              <Button size="sm" onClick={() => dl('txt')} mode={mode} colors={colors}><Download size={'0.6875rem'} strokeWidth={1.5} /> .txt</Button>
+              <Button size="sm" onClick={() => dl('html')} mode={mode} colors={colors}><Download size={'0.6875rem'} strokeWidth={1.5} /> .html</Button>
             </div>
-            <Button variant={isNew ? 'primary' : 'secondary'} onClick={onDone} theme={theme}>
+            <Button variant={isNew ? 'primary' : 'secondary'} onClick={onDone} mode={mode} colors={colors}>
               {isNew ? t.mfa.finishAndSave : t.mfa.hide}
             </Button>
           </div>

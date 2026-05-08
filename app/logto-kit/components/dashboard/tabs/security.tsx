@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { adj, tk } from '../../handlers/theme-helpers';
 import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Lock, Shield, Fingerprint, Pencil } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
 import { Button } from '../../shared/Button';
@@ -16,7 +15,8 @@ import { readEnv } from '../../../logic/env';
 
 interface SecurityTabProps {
   userData: UserData;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
   onGetMfaVerifications: () => Promise<MfaVerification[]>;
@@ -37,7 +37,7 @@ interface SecurityTabProps {
 const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
 
 export function SecurityTab({
-  userData, theme, t,
+  userData, mode, colors, t,
   onVerifyPassword,
   onGetMfaVerifications, onGenerateTotpSecret,
   onAddMfaVerification, onDeleteMfaVerification,
@@ -50,8 +50,30 @@ export function SecurityTab({
   onRenamePasskey,
   onSuccess, onError,
 }: SecurityTabProps) {
-  const tc = theme.colors;
-  const T = tk(tc);
+  const c = colors;
+  const T = {
+    font: "'DM Sans', system-ui, sans-serif",
+    mono: "'IBM Plex Mono', 'Courier New', monospace",
+    text: c.textPrimary,
+    sub: c.textSecondary,
+    muted: c.textTertiary,
+    bg: c.bgPrimary,
+    surface: c.bgSecondary,
+    raised: c.bgTertiary,
+    border: c.borderColor,
+    borderFaint: `${c.borderColor}80`,
+    greenDim: `${c.accentGreen}1a`,
+    greenText: c.accentGreen,
+    blueDim: `${c.accentBlue}1a`,
+    blueText: c.accentBlue,
+    blue: c.accentBlue,
+    redDim: c.errorBg,
+    redText: c.accentRed,
+    redBorder: `${c.accentRed}4d`,
+    red: c.accentRed,
+    amberDim: c.warningBg,
+    amberText: c.accentYellow,
+  };
   const router = useRouter();
 
   // ── MFA list ──
@@ -267,12 +289,13 @@ export function SecurityTab({
           title={totpFactor ? t.security.reconfigreAuthenticator : t.mfa.totp}
           subtitle={totpFactor ? t.security.reconfigureAuthenticatorDesc : t.mfa.totpDescription}
           step={totpStep}
-          onPasswordSubmit={handleTotpPassword}
-          onTotpSubmit={handleTotpActivate}
-          onClose={closeTotp}
-          passwordError={totpPwErr}
-          theme={theme}
-          t={t}
+        onPasswordSubmit={handleTotpPassword}
+        onTotpSubmit={handleTotpActivate}
+        onClose={closeTotp}
+        passwordError={totpPwErr}
+        mode={mode}
+        colors={colors}
+        t={t}
         />
       )}
 
@@ -282,10 +305,11 @@ export function SecurityTab({
           title={t.security.removeAuthenticator}
           subtitle={t.security.removeAuthenticatorDesc}
           step={delTotpStep}
-          onPasswordSubmit={handleDelTotpPw}
-          onClose={closeDelTotp}
-          theme={theme}
-          t={t}
+      onPasswordSubmit={handleDelTotpPw}
+      onClose={closeDelTotp}
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -295,10 +319,11 @@ export function SecurityTab({
           title={t.security.generateBackupCodesTitle}
           subtitle={t.mfa.verifyPasswordToGenerateBackupCodes}
           step={backupStep}
-          onPasswordSubmit={handleBackupPw}
-          onClose={closeBackupModal}
-          theme={theme}
-          t={t}
+      onPasswordSubmit={handleBackupPw}
+      onClose={closeBackupModal}
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -307,10 +332,11 @@ export function SecurityTab({
         <BackupCodesModal
           codes={backupCodes}
           isNew={true}
-          onDone={closeCodesModal}
-          onSuccess={onSuccess}
-          t={t}
-          theme={theme}
+      onDone={closeCodesModal}
+      onSuccess={onSuccess}
+      t={t}
+      mode={mode}
+      colors={colors}
         />
       )}
 
@@ -341,9 +367,10 @@ export function SecurityTab({
               setPwStep(null);
             }
           }}
-          onClose={() => setPwStep(null)}
-          theme={theme}
-          t={t}
+      onClose={() => setPwStep(null)}
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -353,11 +380,12 @@ export function SecurityTab({
           title={t.security.deleteAccount}
           subtitle={t.security.confirmDeleteAccount}
           step={deleteStep}
-          onPasswordSubmit={handleDeleteAccount}
-          onClose={() => setDeleteStep(null)}
-          danger
-          theme={theme}
-          t={t}
+      onPasswordSubmit={handleDeleteAccount}
+      onClose={() => setDeleteStep(null)}
+      danger
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -367,10 +395,11 @@ export function SecurityTab({
           title={t.mfa.registerPasskey}
           subtitle={t.mfa.registerPasskeyDesc}
           step={passkeyRegStep}
-          onPasswordSubmit={handlePasskeyRegPassword}
-          onClose={() => setPasskeyRegStep(null)}
-          theme={theme}
-          t={t}
+      onPasswordSubmit={handlePasskeyRegPassword}
+      onClose={() => setPasskeyRegStep(null)}
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -381,10 +410,11 @@ export function SecurityTab({
           subtitle={t.mfa.deletePasskeyDesc}
           step={delPasskeyStep}
           onPasswordSubmit={handleDelPasskeyPw}
-          onClose={() => { setDelPasskeyStep(null); setPasskeyToDelete(null); }}
-          danger
-          theme={theme}
-          t={t}
+      onClose={() => { setDelPasskeyStep(null); setPasskeyToDelete(null); }}
+      danger
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -395,10 +425,11 @@ export function SecurityTab({
           subtitle={t.mfa.renamePasskeyDesc}
           step={renamePasskeyStep}
           onPasswordSubmit={handleRenamePasskeyPw}
-          onRenamePasskeySubmit={handleRenamePasskeySubmit}
-          onClose={() => { setRenamePasskeyStep(null); setPasskeyToRename(null); }}
-          theme={theme}
-          t={t}
+      onRenamePasskeySubmit={handleRenamePasskeySubmit}
+      onClose={() => { setRenamePasskeyStep(null); setPasskeyToRename(null); }}
+      mode={mode}
+      colors={colors}
+      t={t}
         />
       )}
 
@@ -410,11 +441,11 @@ export function SecurityTab({
       </div>
 
       {/* ── Password ── */}
-      <SL theme={theme}>{t.security.password || 'Password'}</SL>
-      <Card theme={theme}>
+      <SL colors={colors}>{t.security.password || 'Password'}</SL>
+      <Card mode={mode} colors={colors}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <IconBox theme={theme}><Lock size={'0.9375rem'} color={T.muted} strokeWidth={1.5} /></IconBox>
+            <IconBox mode={mode} colors={colors}><Lock size={'0.9375rem'} color={T.muted} strokeWidth={1.5} /></IconBox>
             <div>
               <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem' }}>
                 {t.security.password || 'Password'}
@@ -422,19 +453,19 @@ export function SecurityTab({
               <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>••••••••••••</p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setPwStep({ kind: 'password' })} theme={theme}>
+          <Button size="sm" onClick={() => setPwStep({ kind: 'password' })} mode={mode} colors={colors}>
             {t.security.changePassword}
           </Button>
         </div>
       </Card>
 
       {/* ── Two-factor authentication ── */}
-      <SL theme={theme}>{t.security.twoFactorAuth}</SL>
-      <Card theme={theme}>
+      <SL colors={colors}>{t.security.twoFactorAuth}</SL>
+      <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'flex-start' }}>
-              <IconBox theme={theme} color={totpFactor ? 'blue' : undefined}>
+              <IconBox mode={mode} colors={colors} color={totpFactor ? 'blue' : undefined}>
                 <Shield size={'1rem'} color={totpFactor ? T.blueText : T.muted} strokeWidth={1.5} />
               </IconBox>
               <div>
@@ -447,7 +478,7 @@ export function SecurityTab({
                       display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                       padding: '0.125rem 0.5rem', fontSize: '0.625rem', fontFamily: T.mono,
                       background: T.greenDim, color: T.greenText,
-                      border: `1px solid ${adj(tc.accentGreen, -40) + '44'}`,
+                      border: `1px solid ${mode === 'dark' ? '#006e41' : '#009159'}44`,
                       letterSpacing: 0.2,
                     }}>
                       <Check size={'0.5625rem'} color={T.greenText} strokeWidth={1.5} /> {t.mfa.authenticatorActive}
@@ -466,16 +497,16 @@ export function SecurityTab({
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {totpFactor ? (
                 <>
-                  <Button size="sm" variant="ghost" onClick={openTotp} theme={theme}>
+                  <Button size="sm" variant="ghost" onClick={openTotp} mode={mode} colors={colors}>
                     <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.security.reconfigure}
                   </Button>
-                  <Button size="sm" variant="danger" onClick={openDelTotp} theme={theme}>
+                  <Button size="sm" variant="danger" onClick={openDelTotp} mode={mode} colors={colors}>
                     <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="primary" onClick={openTotp} theme={theme}>
-                  <Plus size={'0.6875rem'} color={theme.mode === 'dark' ? '#fff' : theme.colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
+                <Button size="sm" variant="primary" onClick={openTotp} mode={mode} colors={colors}>
+                  <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
                 </Button>
               )}
             </div>
@@ -490,12 +521,12 @@ export function SecurityTab({
       </Card>
 
       {/* ── Backup codes ── */}
-      <SL theme={theme}>{t.mfa.backupCodesTitle}</SL>
-      <Card theme={theme}>
+      <SL colors={colors}>{t.mfa.backupCodesTitle}</SL>
+      <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'center' }}>
-              <IconBox theme={theme} color={backupFactor ? 'green' : undefined}>
+              <IconBox mode={mode} colors={colors} color={backupFactor ? 'green' : undefined}>
                 <Key size={'0.9375rem'} color={backupFactor ? T.greenText : T.muted} strokeWidth={1.5} />
               </IconBox>
               <div>
@@ -520,7 +551,7 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              <Button size="sm" onClick={() => openBackup()} theme={theme}>
+              <Button size="sm" onClick={() => openBackup()} mode={mode} colors={colors}>
                 <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
               </Button>
             </div>
@@ -529,13 +560,13 @@ export function SecurityTab({
       </Card>
 
       {/* ── Passkeys ── */}
-      <SL theme={theme}>{t.mfa.passkeys}</SL>
-      <Card theme={theme}>
+      <SL colors={colors}>{t.mfa.passkeys}</SL>
+      <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           {/* Header row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: webAuthnFactors.length > 0 ? '0.875rem' : 0 }}>
             <div style={{ display: 'flex', gap: '0.8125rem', alignItems: 'center' }}>
-              <IconBox theme={theme} color={webAuthnFactors.length > 0 ? 'blue' : undefined}>
+              <IconBox mode={mode} colors={colors} color={webAuthnFactors.length > 0 ? 'blue' : undefined}>
                 <Fingerprint size={'0.9375rem'} color={webAuthnFactors.length > 0 ? T.blueText : T.muted} strokeWidth={1.5} />
               </IconBox>
               <div>
@@ -558,18 +589,18 @@ export function SecurityTab({
                 return;
               }
               setPasskeyRegStep({ kind: 'password' });
-            }} theme={theme}>
-              <Plus size={'0.6875rem'} color={theme.mode === 'dark' ? '#fff' : theme.colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
+            }} mode={mode} colors={colors}>
+              <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
             </Button>
           </div>
 
           {/* Passkey list */}
           {webAuthnFactors.map((passkey, idx) => (
             <div key={passkey.id}>
-              {idx > 0 && <HR theme={theme} />}
+              {idx > 0 && <HR colors={colors} />}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', paddingTop: idx > 0 ? '0.875rem' : 0 }}>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', minWidth: 0 }}>
-                  <IconBox theme={theme} color="blue">
+                  <IconBox mode={mode} colors={colors} color="blue">
                     <Key size={'0.9375rem'} color={T.blueText} strokeWidth={1.5} />
                   </IconBox>
                   <div style={{ minWidth: 0 }}>
@@ -583,10 +614,10 @@ export function SecurityTab({
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-                  <Button size="sm" variant="ghost" onClick={() => { setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} theme={theme}>
+                  <Button size="sm" variant="ghost" onClick={() => { setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
                     <Pencil size={'0.6875rem'} strokeWidth={1.5} /> {t.profile.edit}
                   </Button>
-                  <Button size="sm" variant="danger" onClick={() => { setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} theme={theme}>
+                  <Button size="sm" variant="danger" onClick={() => { setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
                     <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
                   </Button>
                 </div>
@@ -598,8 +629,8 @@ export function SecurityTab({
 
       {/* ── Danger zone ── */}
       <div style={{ marginTop: '0.375rem' }}>
-        <SL theme={theme}>{t.security.dangerZone}</SL>
-        <Card danger theme={theme}>
+        <SL colors={colors}>{t.security.dangerZone}</SL>
+        <Card danger mode={mode} colors={colors}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', gap: '1.25rem' }}>
             <div>
               <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.8125rem', color: T.text, marginBottom: '0.125rem' }}>
@@ -610,7 +641,7 @@ export function SecurityTab({
               </p>
             </div>
             <Button variant="danger" size="sm" style={{ flexShrink: 0 }}
-              onClick={() => setDeleteStep({ kind: 'password' })} theme={theme}>
+              onClick={() => setDeleteStep({ kind: 'password' })} mode={mode} colors={colors}>
               {t.security.deleteAccount}
             </Button>
           </div>

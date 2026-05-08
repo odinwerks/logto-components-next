@@ -81,7 +81,8 @@ LOAD_TABS=profile,preferences,security,organizations`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Common props:</strong>{' '}
         Every tab receives <code style={styles.codeSmStyle}>userData: UserData</code>,{' '}
-        <code style={styles.codeSmStyle}>theme: ThemeSpec</code>, and{' '}
+        <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
+        <code style={styles.codeSmStyle}>colors: ThemeColors</code>, and{' '}
         <code style={styles.codeSmStyle}>t: Translations</code>. These are omitted from individual prop tables below.
       </div>
     </SectionWrap>
@@ -223,8 +224,8 @@ function PreferencesSection() {
         <code style={styles.codeStyle}>PreferencesProvider</code> context which internally
         calls <code style={styles.codeStyle}>updateUserCustomData</code>.
       </p>
-      <CodeBlock title="useThemeMode / useLangMode" code={`const { theme, setTheme, toggleTheme } = useThemeMode();
-setTheme('light'); // persists to sessionStorage + Logto API
+      <CodeBlock title="useThemeMode / useLangMode" code={`const { mode, setMode, toggleMode } = useThemeMode();
+setMode('light'); // persists to sessionStorage + Logto API
 
 const { lang, setLang } = useLangMode();
 setLang('ka-GE'); // persists to sessionStorage + Logto API`} />
@@ -335,7 +336,8 @@ function FlowModalSection() {
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   danger?: boolean;
 }`} />
