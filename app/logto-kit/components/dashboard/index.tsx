@@ -33,7 +33,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { getThemeSpec, getDefaultThemeMode } from '../../themes';
+import { getDefaultThemeMode, DARK_COLORS } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -52,9 +52,7 @@ export async function Dashboard() {
 
   // ── Theme default from ENV ─────────────────────────────────────────────────
   const defaultThemeMode = getDefaultThemeMode();
-  const darkThemeSpec = getThemeSpec('dark');
-  const lightThemeSpec = getThemeSpec('light');
-  const errorTheme = darkThemeSpec;
+  const errorColors = DARK_COLORS;
 
   // ── Fetch user data ────────────────────────────────────────────────────────
   const result = await fetchDashboardData();
@@ -70,16 +68,16 @@ export async function Dashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: errorTheme.colors.bgPage,
-            color: errorTheme.colors.textPrimary,
+          background: errorColors.bgPage,
+          color: errorColors.textPrimary,
             fontFamily: 'monospace',
             padding: '1.25rem',
           }}
         >
           <div
             style={{
-              background: errorTheme.colors.bgSecondary,
-              border: `1px solid ${errorTheme.colors.borderColor}`,
+          background: errorColors.bgSecondary,
+          border: `1px solid ${errorColors.borderColor}`,
               borderRadius: '0.5rem',
               padding: '1.875rem',
               maxWidth: '31.25rem',
@@ -89,7 +87,7 @@ export async function Dashboard() {
             <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
               {translations.dashboard.error}
             </h1>
-            <p style={{ fontSize: '0.75rem', color: errorTheme.colors.textTertiary }}>
+            <p style={{ fontSize: '0.75rem', color: errorColors.textTertiary }}>
               {'error' in result ? result.error : translations.dashboard.loadFailed}
             </p>
           </div>
@@ -106,7 +104,7 @@ export async function Dashboard() {
 
   return (
     <UserDataProvider userData={result.userData}>
-      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData} darkThemeSpec={darkThemeSpec} lightThemeSpec={lightThemeSpec}>
+      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData}>
         <DashboardClient
           initialData={{
             userData: result.userData,

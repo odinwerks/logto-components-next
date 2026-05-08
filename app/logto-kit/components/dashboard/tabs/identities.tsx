@@ -2,9 +2,12 @@
 
 import { Check } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { alpha, adj } from '../../handlers/theme-helpers';
+
+// ─── Hardcoded design tokens ───
+const FONT_SANS = "'DM Sans', system-ui, sans-serif";
+const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider icon map (inline SVGs — no network, no external dep)
@@ -46,9 +49,9 @@ const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
   ),
   microsoft: () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <rect x="1"  y="1"  width="10" height="10" fill="#F25022"/>
-      <rect x="13" y="1"  width="10" height="10" fill="#7FBA00"/>
-      <rect x="1"  y="13" width="10" height="10" fill="#00A4EF"/>
+      <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+      <rect x="13" y="1" width="10" height="10" fill="#7FBA00"/>
+      <rect x="1" y="13" width="10" height="10" fill="#00A4EF"/>
       <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
     </svg>
   ),
@@ -74,10 +77,10 @@ function identityDetail(t: Translations, identity: {
   details?: Record<string, unknown>;
 }): string {
   const d = identity.details ?? {};
-  if (typeof d.email    === 'string' && d.email)    return d.email;
+  if (typeof d.email === 'string' && d.email) return d.email;
   if (typeof d.username === 'string' && d.username) return d.username;
-  if (typeof d.name     === 'string' && d.name)     return d.name;
-  if (typeof d.login    === 'string' && d.login)    return d.login;
+  if (typeof d.name === 'string' && d.name) return d.name;
+  if (typeof d.login === 'string' && d.login) return d.login;
   if (identity.userId) return t.identities.idWithUserId.replace('{userId}', identity.userId);
   return t.identities.unknownDetail;
 }
@@ -101,15 +104,102 @@ function ProviderIcon({ target, textColor }: { target: string; textColor: string
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface IdentitiesTabProps {
-  userData:    UserData;
-  theme:       ThemeSpec;
-  t:           Translations;
+  userData: UserData;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  t: Translations;
 }
 
-export function IdentitiesTab({ userData, theme, t }: IdentitiesTabProps) {
-  const cs = theme.components;
-  const c  = theme.colors;
-  const ty = theme.tokens.typography;
+export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps) {
+  const c = colors;
+
+  // ─── Inlined component styles (replaces cs.*) ───
+  const sectionLabel: React.CSSProperties = {
+    fontFamily: FONT_SANS,
+    fontWeight: 500,
+    fontSize: '0.6875rem',
+    color: c.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+    marginBottom: '0.75rem',
+  };
+
+  const descriptionStyle: React.CSSProperties = {
+    fontFamily: FONT_SANS,
+    fontSize: '0.75rem',
+    color: c.textSecondary,
+    lineHeight: 1.65,
+    marginBottom: '1.625rem',
+  };
+
+  const wellStyle: React.CSSProperties = {
+    background: c.bgSecondary,
+    border: `1px solid ${c.borderColor}`,
+    padding: '1rem 1.25rem',
+    marginBottom: '1rem',
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: c.bgSecondary,
+    border: `1px solid ${c.borderColor}`,
+    marginBottom: '1rem',
+    overflow: 'hidden',
+  };
+
+  const emptyStateStyle: React.CSSProperties = {
+    padding: '1.5rem 1rem',
+    textAlign: 'center' as const,
+    color: c.textTertiary,
+  };
+
+  const mutedMonoStyle: React.CSSProperties = {
+    fontFamily: FONT_MONO,
+    fontSize: '0.625rem',
+    color: c.textTertiary,
+    lineHeight: 1.5,
+  };
+
+  const bodyStyle: React.CSSProperties = {
+    fontFamily: FONT_SANS,
+    fontSize: '0.8125rem',
+    color: c.textPrimary,
+    lineHeight: 1.5,
+  };
+
+  const successBadge: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.125rem 0.5rem',
+    fontSize: '0.625rem',
+    fontFamily: FONT_MONO,
+    background: `${c.accentGreen}1a`,
+    color: c.accentGreen,
+    border: `1px solid #b4530944`,
+    letterSpacing: 0.2,
+  };
+
+  const chipStyle: React.CSSProperties = {
+    fontFamily: FONT_MONO,
+    fontSize: '0.5625rem',
+    padding: '0.25rem 0.5rem',
+    background: c.bgTertiary,
+    border: `1px solid ${c.borderColor}`,
+    borderRadius: '0.25rem',
+    color: c.textTertiary,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '10rem',
+  };
+
+  const dividerStyle: React.CSSProperties = {
+    height: '1px',
+    background: `${c.borderColor}cc`,
+    border: 'none',
+    margin: '0',
+    flexShrink: 0,
+  };
 
   const identityEntries = Object.entries(
     (userData.identities as Record<string, { userId?: string; details?: Record<string, unknown> }> | undefined) ?? {}
@@ -117,39 +207,39 @@ export function IdentitiesTab({ userData, theme, t }: IdentitiesTabProps) {
 
   return (
     <div>
-      <p style={cs.text.description}>{t.identities.description}</p>
+      <p style={descriptionStyle}>{t.identities.description}</p>
 
-      <p style={cs.text.sectionLabel}>{t.identities.linkedAccounts}</p>
+      <p style={sectionLabel}>{t.identities.linkedAccounts}</p>
 
-      <div style={cs.surfaces.card}>
+      <div style={cardStyle}>
         {identityEntries.length === 0 ? (
-          <div style={cs.surfaces.emptyState}>
-            <p style={cs.text.mutedMono}>{t.identities.noIdentities}</p>
+          <div style={emptyStateStyle}>
+            <p style={mutedMonoStyle}>{t.identities.noIdentities}</p>
           </div>
         ) : identityEntries.map(([target, identity], i) => {
           const detail = identityDetail(t, identity);
-          const name   = providerName(target);
+          const name = providerName(target);
           const isLast = i === identityEntries.length - 1;
 
           return (
             <div key={target}>
               <div style={{
-                display:        'flex',
-                alignItems:     'center',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'space-between',
-                padding:        '0.875rem 1.25rem',
-                gap:            '1rem',
+                padding: '0.875rem 1.25rem',
+                gap: '1rem',
               }}>
                 {/* Left — icon + name + detail */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                   <div style={{
-                    width:          '2.25rem',
-                    height:         '2.25rem',
-                    flexShrink:     0,
-                    background:     alpha(c.accentGreen, 0.1),
-                    border:         `1px solid ${adj(c.accentGreen, -40)}44`,
-                    display:        'flex',
-                    alignItems:     'center',
+                    width: '2.25rem',
+                    height: '2.25rem',
+                    flexShrink: 0,
+                    background: `${c.accentGreen}1a`,
+                    border: `1px solid #b4530944`,
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
                   }}>
                     <ProviderIcon target={target} textColor={c.textPrimary} />
@@ -157,13 +247,13 @@ export function IdentitiesTab({ userData, theme, t }: IdentitiesTabProps) {
 
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.1875rem' }}>
-                      <p style={{ ...cs.text.body, fontWeight: ty.weight.medium, margin: 0 }}>{name}</p>
-                      <span style={cs.badges.success}>
+                      <p style={{ ...bodyStyle, fontWeight: 500, margin: 0 }}>{name}</p>
+                      <span style={successBadge}>
                         <Check size={9} strokeWidth={2} />
                         {t.identities.connected}
                       </span>
                     </div>
-                    <p style={{ ...cs.text.mutedMono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ ...mutedMonoStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {detail}
                     </p>
                   </div>
@@ -171,11 +261,11 @@ export function IdentitiesTab({ userData, theme, t }: IdentitiesTabProps) {
 
                 {/* Right — external user ID chip */}
                 {identity.userId && (
-                  <div style={cs.surfaces.chip}>{identity.userId}</div>
+                  <div style={chipStyle}>{identity.userId}</div>
                 )}
               </div>
 
-              {!isLast && <div style={cs.divider} />}
+              {!isLast && <div style={dividerStyle} />}
             </div>
           );
         })}

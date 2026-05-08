@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
-import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload } from './types';
+import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../handlers/preferences';
 import { ToastContainer } from './shared/Toast';
@@ -183,8 +183,7 @@ export function DashboardClient({
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const { themeSpec } = useThemeMode();
-  const themeColors = themeSpec.colors;
+  const { mode, colors } = useThemeMode();
 
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang } = useLangMode();
@@ -256,7 +255,7 @@ export function DashboardClient({
         justifyContent: 'center',
         padding: '2rem',
         backgroundColor: 'transparent',
-        color: themeColors.textPrimary,
+          color: colors.textPrimary,
         boxSizing: 'border-box',
         fontFamily: 'var(--font-ibm-plex-mono)',
       }}
@@ -268,11 +267,11 @@ export function DashboardClient({
             maxWidth: '61.875rem',
             height: '41.25rem',
             display: 'flex',
-            background: themeColors.bgSecondary,
-            border: `1px solid ${themeColors.borderColor}`,
+        background: colors.bgSecondary,
+        border: `1px solid ${colors.borderColor}`,
             boxShadow: '0 2rem 5.625rem rgba(0,0,0,0.65)',
             overflow: 'hidden',
-            borderRadius: themeSpec.tokens.dashboardRadius,
+            borderRadius: '0',
           }}
         >
         {/* Sidebar */}
@@ -280,15 +279,15 @@ export function DashboardClient({
           style={{
             width: '14rem',
             height: '100%',
-            background: themeColors.bgPage,
-            borderRight: `1px solid ${themeColors.borderColor}`,
+        background: colors.bgPage,
+        borderRight: `1px solid ${colors.borderColor}`,
             display: 'flex',
             flexDirection: 'column',
             flexShrink: 0,
           }}
         >
           {/* User Block */}
-          <div style={{ padding: '1rem 0.875rem 0.9375rem', borderBottom: `1px solid ${themeColors.borderColor}` }}>
+          <div style={{ padding: '1rem 0.875rem 0.9375rem', borderBottom: `1px solid ${colors.borderColor}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
               <UserBadge Size="2rem" Canvas="Avatar" shape={(readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle'} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -297,7 +296,7 @@ export function DashboardClient({
                     fontFamily: 'var(--font-ibm-plex-mono)',
                     fontWeight: 600,
                     fontSize: '0.8125rem',
-                    color: themeColors.textPrimary,
+        color: colors.textPrimary,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -309,7 +308,7 @@ export function DashboardClient({
                   style={{
                     fontFamily: 'var(--font-ibm-plex-mono)',
                     fontSize: '0.625rem',
-                    color: themeColors.textTertiary,
+          color: colors.textTertiary,
                     marginTop: '0.0625rem',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -329,8 +328,8 @@ export function DashboardClient({
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 600,
                 fontSize: '0.625rem',
-                color: themeColors.textTertiary,
-                textTransform: 'uppercase',
+          color: colors.textTertiary,
+          textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 padding: '0.25rem 0.625rem 0.5rem',
               }}
@@ -341,28 +340,28 @@ export function DashboardClient({
               const Icon = getTabIcon(tabId);
               const isActive = activeTab === tabId;
               return (
-                <NavButton
-                  key={tabId}
-                  tabId={tabId}
-                  isActive={isActive}
-                  label={getTabLabel(tabId, t)}
-                  Icon={Icon}
-                  themeColors={themeColors}
-                  themeMode={themeSpec.mode}
-                  onClick={() => setActiveTab(tabId)}
-                />
+          <NavButton
+            key={tabId}
+            tabId={tabId}
+            isActive={isActive}
+            label={getTabLabel(tabId, t)}
+            Icon={Icon}
+            colors={colors}
+            themeMode={mode}
+            onClick={() => setActiveTab(tabId)}
+          />
               );
             })}
           </nav>
 
           {/* Sign Out */}
-          <div style={{ padding: '0.375rem 0.5rem 0.75rem', borderTop: `1px solid ${themeColors.borderColor}` }}>
-            <SignOutButton
-              label={t.common.signOut}
-              themeColors={themeColors}
-              themeMode={themeSpec.mode}
-              onClick={handleSignOut}
-            />
+          <div style={{ padding: '0.375rem 0.5rem 0.75rem', borderTop: `1px solid ${colors.borderColor}` }}>
+        <SignOutButton
+          label={t.common.signOut}
+          colors={colors}
+          themeMode={mode}
+          onClick={handleSignOut}
+        />
           </div>
         </div>
 
@@ -379,90 +378,94 @@ export function DashboardClient({
           }}
         >
           <div key={activeTab} style={{ animation: 'fadeIn 0.12s ease' }}>
-          {activeTab === 'profile' && (
-            <ProfileTab
-              userData={userData}
-              theme={themeSpec}
-              t={t}
-              onUpdateBasicInfo={onUpdateBasicInfo}
-              onUpdateAvatarUrl={onUpdateAvatarUrl}
-              onUpdateProfile={onUpdateProfile}
-              onVerifyPassword={onVerifyPassword}
-              onSendEmailVerification={onSendEmailVerification}
-              onSendPhoneVerification={onSendPhoneVerification}
-              onVerifyCode={onVerifyCode}
-              onUpdateEmail={onUpdateEmail}
-              onUpdatePhone={onUpdatePhone}
-              onRemoveEmail={onRemoveEmail}
-              onRemovePhone={onRemovePhone}
-              onSuccess={(msg) => showToast('success', msg)}
-              onError={(msg) => showToast('error', msg)}
-              refreshData={refreshData}
-            />
-          )}
+        {activeTab === 'profile' && (
+          <ProfileTab
+            userData={userData}
+            mode={mode}
+            colors={colors}
+            t={t}
+            onUpdateBasicInfo={onUpdateBasicInfo}
+            onUpdateAvatarUrl={onUpdateAvatarUrl}
+            onUpdateProfile={onUpdateProfile}
+            onVerifyPassword={onVerifyPassword}
+            onSendEmailVerification={onSendEmailVerification}
+            onSendPhoneVerification={onSendPhoneVerification}
+            onVerifyCode={onVerifyCode}
+            onUpdateEmail={onUpdateEmail}
+            onUpdatePhone={onUpdatePhone}
+            onRemoveEmail={onRemoveEmail}
+            onRemovePhone={onRemovePhone}
+            onSuccess={(msg) => showToast('success', msg)}
+            onError={(msg) => showToast('error', msg)}
+            refreshData={refreshData}
+          />
+        )}
 
-          {activeTab === 'preferences' && (
-            <PreferencesTab
-              theme={themeSpec}
-              t={t}
-              supportedLangs={supportedLangs}
-            />
-          )}
+        {activeTab === 'preferences' && (
+          <PreferencesTab
+            mode={mode}
+            colors={colors}
+            t={t}
+            supportedLangs={supportedLangs}
+          />
+        )}
 
-          {activeTab === 'security' && (
-            <SecurityTab
-              userData={userData}
-              theme={themeSpec}
-              t={t}
-              onVerifyPassword={onVerifyPassword}
-              onGetMfaVerifications={onGetMfaVerifications}
-              onGenerateTotpSecret={onGenerateTotpSecret}
-              onAddMfaVerification={onAddMfaVerification}
-              onDeleteMfaVerification={onDeleteMfaVerification}
-              onReplaceTotpVerification={onReplaceTotpVerification}
-              onGenerateBackupCodes={onGenerateBackupCodes}
-              onUpdatePassword={onUpdatePassword}
-              onDeleteAccount={onDeleteAccount}
-              onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
-              onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
-              onRenamePasskey={onRenamePasskey}
-              onSuccess={(msg) => showToast('success', msg)}
-              onError={(msg) => showToast('error', msg)}
-            />
-           )}
+        {activeTab === 'security' && (
+          <SecurityTab
+            userData={userData}
+            mode={mode}
+            colors={colors}
+            t={t}
+            onVerifyPassword={onVerifyPassword}
+            onGetMfaVerifications={onGetMfaVerifications}
+            onGenerateTotpSecret={onGenerateTotpSecret}
+            onAddMfaVerification={onAddMfaVerification}
+            onDeleteMfaVerification={onDeleteMfaVerification}
+            onReplaceTotpVerification={onReplaceTotpVerification}
+            onGenerateBackupCodes={onGenerateBackupCodes}
+            onUpdatePassword={onUpdatePassword}
+            onDeleteAccount={onDeleteAccount}
+            onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+            onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+            onRenamePasskey={onRenamePasskey}
+            onSuccess={(msg) => showToast('success', msg)}
+            onError={(msg) => showToast('error', msg)}
+          />
+        )}
 
-            {activeTab === 'sessions' && (
-              <SessionsTab
-                userData={userData}
-                theme={themeSpec}
-                t={t}
-                onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
-                onRevokeSession={onRevokeSession}
-                onRevokeAllOtherSessions={onRevokeAllOtherSessions}
-                onVerifyPassword={onVerifyPassword}
-                onSuccess={(msg) => showToast('success', msg)}
-                onError={(msg) => showToast('error', msg)}
-              />
-            )}
+        {activeTab === 'sessions' && (
+          <SessionsTab
+            userData={userData}
+            mode={mode}
+            colors={colors}
+            t={t}
+            onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+            onRevokeSession={onRevokeSession}
+            onRevokeAllOtherSessions={onRevokeAllOtherSessions}
+            onVerifyPassword={onVerifyPassword}
+            onSuccess={(msg) => showToast('success', msg)}
+            onError={(msg) => showToast('error', msg)}
+          />
+        )}
 
-           {activeTab === 'identities' && (
-            <IdentitiesTab userData={userData} theme={themeSpec} t={t} />
-          )}
+        {activeTab === 'identities' && (
+          <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} />
+        )}
 
-          {activeTab === 'organizations' && (
-            <OrganizationsTab userData={userData} currentOrgId={currentOrgId} theme={themeSpec} t={t} />
-          )}
+        {activeTab === 'organizations' && (
+          <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
+        )}
 
-          {activeTab === 'dev' && (
-            <DevTab userData={userData} theme={themeSpec} t={t} />
-          )}
+        {activeTab === 'dev' && (
+          <DevTab userData={userData} mode={mode} colors={colors} t={t} />
+        )}
 
           </div>{/* end fade wrapper */}
         </div>
       </div>
 
       {/* Toasts */}
-      <ToastContainer messages={toasts} onDismiss={dismissToast} theme={themeSpec} />
+      <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );
 }
@@ -472,13 +475,13 @@ export function DashboardClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function NavButton({
-  tabId, isActive, label, Icon, themeColors, themeMode, onClick,
+  tabId, isActive, label, Icon, colors, themeMode, onClick,
 }: {
   tabId: string;
   isActive: boolean;
   label: string;
   Icon: React.ComponentType<{ size?: number; color?: string }>;
-  themeColors: { bgSecondary: string; accentBlue: string; textPrimary: string; textTertiary: string };
+  colors: ThemeColors;
   themeMode: 'dark' | 'light';
   onClick: () => void;
 }) {
@@ -499,10 +502,10 @@ function NavButton({
         gap: '0.5625rem',
         width: '100%',
         padding: '0.4375rem 0.625rem',
-        background: isActive ? themeColors.bgSecondary : hovered ? hoverBg : 'transparent',
+        background: isActive ? colors.bgSecondary : hovered ? hoverBg : 'transparent',
         border: 'none',
-        borderLeft: `0.125rem solid ${isActive ? themeColors.accentBlue : 'transparent'}`,
-        color: isActive ? themeColors.textPrimary : themeColors.textTertiary,
+        borderLeft: `0.125rem solid ${isActive ? colors.accentBlue : 'transparent'}`,
+        color: isActive ? colors.textPrimary : colors.textTertiary,
         fontFamily: 'var(--font-ibm-plex-mono)',
         fontWeight: 500,
         fontSize: '0.8125rem',
@@ -512,7 +515,7 @@ function NavButton({
         transition: 'background 0.12s ease, color 0.12s ease',
       }}
     >
-      <Icon size={13} color={isActive ? themeColors.accentBlue : themeColors.textTertiary} />
+      <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} />
       {label}
     </button>
   );
@@ -523,10 +526,10 @@ function NavButton({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SignOutButton({
-  label, themeColors, themeMode, onClick,
+  label, colors, themeMode, onClick,
 }: {
   label: string;
-  themeColors: { accentRed: string; textTertiary: string };
+  colors: ThemeColors;
   themeMode: 'dark' | 'light';
   onClick: () => void;
 }) {

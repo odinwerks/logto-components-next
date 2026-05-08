@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { UserData } from '../../logic/types';
-import type { ThemeSpec } from '../../themes';
+import type { ThemeColors } from '../../themes';
 import locales from '../../locales';
 import { useThemeMode } from '../handlers/preferences';
 import { useLogto } from '../handlers/logto-provider';
@@ -54,13 +54,13 @@ function getDisplayName(data: UserData): string {
 
 interface UseUserDisplayOptions {
   userData?: UserData;
-  theme?: ThemeSpec;
+  colors?: ThemeColors;
   do?: () => void;
 }
 
 function useUserDisplay(opts: UseUserDisplayOptions) {
-  const { themeSpec: contextTheme } = useThemeMode();
-  const theme = opts.theme ?? contextTheme;
+  const { colors: contextColors } = useThemeMode();
+  const colors = opts.colors ?? contextColors;
   const { openDashboard, userData: contextUserData, lang } = useLogto();
 
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -107,7 +107,7 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
     }
   }, [opts.do, openDashboard]);
 
-  return { userData, loading, showFallback, imageFailed, setImageFailed, theme, t, handleClick };
+  return { userData, loading, showFallback, imageFailed, setImageFailed, colors, t, handleClick };
 }
 
 // ─── Fallback avatar ─────────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ export interface UserButtonProps {
   Size?: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData?: UserData;
-  theme?: ThemeSpec;
+  colors?: ThemeColors;
   do?: () => void;
 }
 
@@ -193,7 +193,7 @@ export interface UserBadgeProps {
   Size?: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData?: UserData;
-  theme?: ThemeSpec;
+  colors?: ThemeColors;
 }
 
 export interface UserCardProps {
@@ -201,7 +201,7 @@ export interface UserCardProps {
   Size?: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData?: UserData;
-  theme?: ThemeSpec;
+  colors?: ThemeColors;
   do?: () => void;
 }
 
@@ -212,11 +212,11 @@ export function UserButton({
   Size = '6.25rem',
   shape,
   userData: providedUserData,
-  theme: providedTheme,
+  colors: providedColors,
   do: customAction,
 }: UserButtonProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, theme, handleClick } =
-    useUserDisplay({ userData: providedUserData, theme: providedTheme, do: customAction });
+  const { userData, loading, showFallback, imageFailed, setImageFailed, colors, handleClick } =
+    useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
 
   const wrapperStyle: React.CSSProperties = {
@@ -264,10 +264,10 @@ export function UserBadge({
   Size = '6.25rem',
   shape,
   userData: providedUserData,
-  theme: providedTheme,
+  colors: providedColors,
 }: UserBadgeProps) {
   const { userData, loading, showFallback, imageFailed, setImageFailed } =
-    useUserDisplay({ userData: providedUserData, theme: providedTheme });
+    useUserDisplay({ userData: providedUserData, colors: providedColors });
 
   const renderAvatar = () => {
     if (loading || !userData) {
@@ -299,11 +299,11 @@ export function UserCard({
   Size = '2.5rem',
   shape,
   userData: providedUserData,
-  theme: providedTheme,
+  colors: providedColors,
   do: customAction,
 }: UserCardProps) {
   const { userData, loading, showFallback, imageFailed, setImageFailed, t, handleClick } =
-    useUserDisplay({ userData: providedUserData, theme: providedTheme, do: customAction });
+    useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
   const borderRadius = resolvedShape === 'sq' ? '0%' : '0.625rem';
 

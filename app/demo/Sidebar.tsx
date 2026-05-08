@@ -155,14 +155,14 @@ const footerStyle: React.CSSProperties = {
 };
 
 export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
-  const { theme } = useThemeMode();
+  const { mode } = useThemeMode();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const colors = mounted ? (theme === 'dark'
+  const colors = mounted ? (mode === 'dark'
     ? {
         bg: '#0f0f12',
         border: 'rgba(255,255,255,0.055)',

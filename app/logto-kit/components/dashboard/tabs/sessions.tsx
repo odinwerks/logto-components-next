@@ -2,9 +2,8 @@
 
 import React, { useState, useCallback } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { tk } from '../../handlers/theme-helpers';
 import { Monitor, Smartphone, Trash2, Lock, Clock, MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
@@ -13,9 +12,15 @@ import { SessionMapModal } from '../shared/SessionMapModal';
 import { clearGeoCache } from '../shared/geo-cache';
 import type { GeoLocation } from '../shared/geo-cache';
 
+// ─── Hardcoded design tokens ───
+const FONT_SANS = "'DM Sans', system-ui, sans-serif";
+const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
+const DASHBOARD_RADIUS = '0';
+
 interface SessionsTabProps {
   userData: UserData;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
@@ -49,7 +54,8 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
 
 export function SessionsTab({
   userData,
-  theme,
+  mode,
+  colors,
   t,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
@@ -58,8 +64,23 @@ export function SessionsTab({
   onSuccess,
   onError,
 }: SessionsTabProps) {
-  const tc = theme.colors;
-  const T = tk(tc);
+  // ─── Replaced tk(tc) with direct color references ───
+  const c = colors;
+  const T = {
+    font: FONT_SANS,
+    mono: FONT_MONO,
+    text: c.textPrimary,
+    sub: c.textSecondary,
+    muted: c.textTertiary,
+    bg: c.bgSecondary,
+    surface: c.bgSecondary,
+    raised: c.bgTertiary,
+    border: c.borderColor,
+    borderFaint: `${c.borderColor}80`,
+    greenText: c.accentGreen,
+    blueText: c.accentBlue,
+  };
+
   const [sessions, setSessions] = useState<LogtoSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -259,7 +280,7 @@ export function SessionsTab({
           textAlign: 'center',
           background: T.bg,
           border: `1px solid ${T.border}`,
-          borderRadius: theme.tokens.dashboardRadius,
+          borderRadius: DASHBOARD_RADIUS,
         }}>
           <Lock size={28} color={T.muted} strokeWidth={1.5} style={{ marginBottom: '0.75rem' }} />
           <h3 style={{ fontFamily: T.font, fontSize: '0.9375rem', fontWeight: 600, color: T.text, marginBottom: '0.5rem' }}>
@@ -268,7 +289,7 @@ export function SessionsTab({
           <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.muted, marginBottom: '1.25rem' }}>
             {t.sessions.verifyToViewDesc}
           </p>
-          <Button variant="primary" onClick={startViewVerification} theme={theme}>
+          <Button variant="primary" onClick={startViewVerification} mode={mode} colors={c}>
             <Lock size={14} />
             {t.sessions.verifyPassword}
           </Button>
@@ -281,7 +302,8 @@ export function SessionsTab({
             onPasswordSubmit={handlePasswordSubmit}
             onClose={() => { setModalStep(null); setModalError(''); }}
             passwordError={modalError}
-            theme={theme}
+            mode={mode}
+            colors={c}
             t={t}
           />
         )}
@@ -296,7 +318,7 @@ export function SessionsTab({
           <div key={i} style={{
             background: T.bg,
             border: `1px solid ${T.border}`,
-            borderRadius: theme.tokens.dashboardRadius,
+            borderRadius: DASHBOARD_RADIUS,
             height: '5.5rem',
             overflow: 'hidden',
             display: 'flex',
@@ -337,7 +359,8 @@ export function SessionsTab({
               variant="danger"
               onClick={handleRevokeAll}
               disabled={revokingAll || loading || revokingId === '__all__'}
-              theme={theme}
+              mode={mode}
+              colors={c}
             >
               {revokingAll ? t.common.loading : t.sessions.revokeAll}
             </Button>
@@ -352,7 +375,7 @@ export function SessionsTab({
               color: T.muted,
               background: 'none',
               border: `1px solid ${T.border}`,
-              borderRadius: theme.tokens.dashboardRadius,
+              borderRadius: DASHBOARD_RADIUS,
               padding: '0.3125rem 0.75rem',
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.5 : 1,
@@ -363,7 +386,7 @@ export function SessionsTab({
             }}
             onMouseEnter={(e) => {
               if (!loading) {
-                e.currentTarget.style.background = theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
                 e.currentTarget.style.color = T.text;
               }
             }}
@@ -385,7 +408,7 @@ export function SessionsTab({
             textAlign: 'center',
             background: T.bg,
             border: `1px solid ${T.border}`,
-            borderRadius: theme.tokens.dashboardRadius,
+            borderRadius: DASHBOARD_RADIUS,
             color: T.muted,
           }}>
             {t.sessions.noSessions}
@@ -407,7 +430,7 @@ export function SessionsTab({
               <div key={session.payload.uid} style={{
                 background: T.bg,
                 border: `1px solid ${T.border}`,
-                borderRadius: theme.tokens.dashboardRadius,
+                borderRadius: DASHBOARD_RADIUS,
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
@@ -446,7 +469,7 @@ export function SessionsTab({
                       <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
                       {meta.lastActive === 'now' ? (
                         <span style={{
-                          color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
+                          color: mode === 'dark' ? '#34c759' : '#1a7a2e',
                           fontWeight: 600,
                         }}>
                           {t.sessions.activeNow}
@@ -460,7 +483,8 @@ export function SessionsTab({
 
                 <SessionMiniMap
                   ip={ip}
-                  theme={theme}
+                  mode={mode}
+                  colors={c}
                   t={t}
                   refreshKey={geoRefreshKey}
                   onClick={openMapModal}
@@ -479,9 +503,9 @@ export function SessionsTab({
                       padding: '0.3125rem 0.75rem',
                       borderRadius: '0.25rem',
                       whiteSpace: 'nowrap',
-                      border: theme.mode === 'dark' ? '1px solid #34c759' : '1px solid #2ea843',
-                      background: theme.mode === 'dark' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(52, 199, 89, 0.15)',
-                      color: theme.mode === 'dark' ? '#34c759' : '#1a7a2e',
+                      border: mode === 'dark' ? '1px solid #34c759' : '1px solid #2ea843',
+                      background: mode === 'dark' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(52, 199, 89, 0.15)',
+                      color: mode === 'dark' ? '#34c759' : '#1a7a2e',
                     }}>
                       <span style={{
                         width: '0.4rem',
@@ -498,7 +522,8 @@ export function SessionsTab({
                       variant="danger"
                       onClick={() => startRevokeVerification(session.payload.uid)}
                       disabled={!!revokingId || revokingAll}
-                      theme={theme}
+                      mode={mode}
+                      colors={c}
                     >
                       {revokingId === session.payload.uid ? (
                         t.common.loading
@@ -532,7 +557,8 @@ export function SessionsTab({
           onPasswordSubmit={handlePasswordSubmit}
           onClose={() => { setModalStep(null); setRevokingId(null); setModalError(''); }}
           passwordError={modalError}
-          theme={theme}
+          mode={mode}
+          colors={c}
           t={t}
           danger
         />
@@ -542,7 +568,8 @@ export function SessionsTab({
         <SessionMapModal
           geo={mapModalGeo}
           ip={mapModalIp}
-          theme={theme}
+          mode={mode}
+          colors={c}
           t={t}
           onClose={() => { setMapModalGeo(null); setMapModalIp(''); }}
         />

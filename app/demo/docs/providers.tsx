@@ -25,8 +25,6 @@ function ProviderTreeSection() {
   initialTheme="dark"       // optional - falls back to storage or ENV
   initialLang="en-US"       // optional - falls back to storage or default
   onUpdateCustomData={updateUserCustomData} // optional - persists to Logto API
-  darkThemeSpec={defaultDarkTheme}   // required
-  lightThemeSpec={defaultLightTheme} // required
 >
   <App />
 </LogtoProvider>`} />
@@ -112,8 +110,6 @@ export default async function HomePage() {
       dashboard={<Dashboard />}
       initialTheme="dark"
       onUpdateCustomData={updateUserCustomData}
-      darkThemeSpec={defaultDarkTheme}
-      lightThemeSpec={defaultLightTheme}
     >
       <App />
     </LogtoProvider>
@@ -186,22 +182,22 @@ function UseLogtoSection() {
             <td style={styles.tdStyle}>Current user profile data</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>theme</td>
+            <td style={styles.tdPropStyle}>mode</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
             <td style={styles.tdStyle}>Current theme mode</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>themeSpec</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Full theme object (colors, tokens, components)</td>
+            <td style={styles.tdPropStyle}>colors</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeColors</code></td>
+            <td style={styles.tdStyle}>Full color token object</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>setTheme()</td>
+            <td style={styles.tdPropStyle}>setMode()</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(mode) =&gt; void</code></td>
             <td style={styles.tdStyle}>Set theme, persists + dispatches event</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>toggleTheme()</td>
+            <td style={styles.tdPropStyle}>toggleMode()</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
             <td style={styles.tdStyle}>Swap dark &lt;→ light</td>
           </tr>
@@ -241,12 +237,12 @@ function UseLogtoSection() {
 import { useLogto } from './logto-kit';
 
 function MyComponent() {
-  const { userData, theme, openDashboard, setLang } = useLogto();
+  const { userData, mode, openDashboard, setLang } = useLogto();
 
   return (
     <div>
       <p>Welcome, {userData.name}</p>
-      <p>Theme: {theme}</p>
+      <p>Theme: {mode}</p>
       <button onClick={openDashboard}>Open Dashboard</button>
       <button onClick={() => setLang('ka-GE')}>ქართული</button>
     </div>
@@ -286,22 +282,22 @@ function PreferenceHooksSection() {
         </thead>
         <tbody>
           <tr>
-            <td style={styles.tdPropStyle}>theme</td>
+            <td style={styles.tdPropStyle}>mode</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
             <td style={styles.tdStyle}>Current mode</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>themeSpec</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeSpec</code></td>
-            <td style={styles.tdStyle}>Full theme: colors, typography, radii, shadows, component styles</td>
+            <td style={styles.tdPropStyle}>colors</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeColors</code></td>
+            <td style={styles.tdStyle}>Color tokens: bg, text, accent, border, etc.</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>setTheme()</td>
+            <td style={styles.tdPropStyle}>setMode()</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>(mode) =&gt; void</code></td>
             <td style={styles.tdStyle}>Persist + dispatch</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>toggleTheme()</td>
+            <td style={styles.tdPropStyle}>toggleMode()</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>() =&gt; void</code></td>
             <td style={styles.tdStyle}>Swap dark &lt;→ light</td>
           </tr>
@@ -311,15 +307,15 @@ function PreferenceHooksSection() {
 import { useThemeMode } from './logto-kit';
 
 function ThemeToggle() {
-  const { theme, themeSpec, toggleTheme } = useThemeMode();
-  const c = themeSpec.colors;
+  const { mode, colors, toggleMode } = useThemeMode();
+  const c = colors;
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={toggleMode}
       style={{ background: c.bgSecondary, color: c.textPrimary }}
     >
-      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      {mode === 'dark' ? 'Light mode' : 'Dark mode'}
     </button>
   );
 }`} />
@@ -518,7 +514,7 @@ function CrossTabSyncSection() {
         Preferences (theme, language, org) sync across browser tabs via{' '}
         <code style={styles.codeStyle}>sessionStorage</code> and a custom DOM event.
       </p>
-      <CodeBlock title="Storage keys + events" code={`// Storage keys written by setTheme(), setLang(), setAsOrg():
+      <CodeBlock title="Storage keys + events" code={`// Storage keys written by setMode(), setLang(), setAsOrg():
 sessionStorage.setItem('theme-mode', 'dark');
 sessionStorage.setItem('lang-mode', 'en-US');
 sessionStorage.setItem('org-mode', 'org_abc123');
@@ -548,7 +544,7 @@ window.addEventListener('preferences-changed', () => {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>theme-mode</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setTheme()</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setMode()</code></td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>useThemeMode()</code>, external consumers</td>
           </tr>
           <tr>

@@ -70,7 +70,7 @@ function PropsSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>theme</td>
-            <td style={styles.tdTypeStyle}>ThemeSpec</td>
+            <td style={styles.tdTypeStyle}>ThemeColors</td>
             <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
           </tr>
@@ -87,7 +87,7 @@ function PropsSection() {
   Size?: string;
   shape?: 'circle' | 'sq' | 'rsq';
   userData?: UserData;
-  theme?: ThemeSpec;
+  colors?: ThemeColors;
   do?: () => void;
 }`} />
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>

@@ -3,8 +3,8 @@
 import { useThemeMode } from '../../logto-kit/components/handlers/preferences';
 
 export function useDocStyles() {
-  const { theme } = useThemeMode();
-  const isDark = theme === 'dark';
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
   return {
     twoColLayoutStyle: {

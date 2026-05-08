@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { GeoLocation } from './geo-cache';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 
 // Mock maplibre-gl - it doesn't work in jsdom
@@ -48,29 +48,40 @@ const mockGeoUnique: GeoLocation = {
   country: 'US',
 };
 
-const mockTheme: ThemeSpec = {
-  mode: 'light',
-  colors: {
-    borderColor: '#e0e0e0',
-    textPrimary: '#1a1a1a',
-    textTertiary: '#666666',
-    accentBlue: '#0066cc',
-    accentRed: '#cc0000',
-  },
-  tokens: {
-    dashboardRadius: '0.75rem',
-  },
-} as ThemeSpec;
+const mockColors: ThemeColors = {
+  bgPage: '#f9fafb',
+  bgPrimary: '#ffffff',
+  bgSecondary: '#f3f4f6',
+  bgTertiary: '#e5e7eb',
+  textPrimary: '#1a1a1a',
+  textSecondary: '#374151',
+  textTertiary: '#666666',
+  borderColor: '#e0e0e0',
+  accentGreen: '#10b981',
+  accentRed: '#cc0000',
+  accentYellow: '#f59e0b',
+  accentBlue: '#0066cc',
+  successBg: '#d1fae5',
+  errorBg: '#fef2f2',
+  warningBg: '#fef3c7',
+  contrastText: '#fff',
+  fontWeight: 500,
+};
 
-const mockDarkTheme: ThemeSpec = {
-  ...mockTheme,
-  mode: 'dark',
-  colors: {
-    ...mockTheme.colors,
-    borderColor: '#333333',
-    textPrimary: '#ffffff',
-  },
-} as ThemeSpec;
+const mockDarkColors: ThemeColors = {
+  ...mockColors,
+  bgPage: '#050505',
+  bgPrimary: '#0a0a0a',
+  bgSecondary: '#111111',
+  bgTertiary: '#1a1a1a',
+  textPrimary: '#ffffff',
+  textSecondary: '#9ca3af',
+  textTertiary: '#6b7280',
+  borderColor: '#333333',
+  accentRed: '#ef4444',
+  errorBg: '#450a0a',
+  fontWeight: 400,
+};
 
 const mockTranslations: Translations = {
   sessions: {
@@ -135,7 +146,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -150,7 +162,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -165,7 +178,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeoUnique}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -180,7 +194,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -199,7 +214,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -213,7 +229,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -232,7 +249,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -255,7 +273,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockDarkTheme}
+        mode="dark"
+        colors={mockDarkColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />
@@ -276,7 +295,8 @@ describe('SessionMapModal', () => {
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
-        theme={mockTheme}
+        mode="light"
+        colors={mockColors}
         t={mockTranslations}
         onClose={mockOnClose}
       />

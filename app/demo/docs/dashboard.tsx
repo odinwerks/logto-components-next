@@ -41,7 +41,7 @@ return (
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>useThemeMode()</td>
-            <td style={styles.tdStyle}>theme, themeSpec, setTheme, toggleTheme</td>
+            <td style={styles.tdStyle}>mode, colors, setMode, toggleMode</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>useLangMode()</td>
@@ -91,7 +91,7 @@ function ProviderSyncSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>theme-mode</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setTheme()</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>setMode()</code></td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>lang-mode</td>
@@ -184,7 +184,7 @@ function NotesSection() {
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Theme:</strong>{' '}
-        Uses <code style={styles.codeSmStyle}>ThemeSpec</code> from{' '}
+        Uses <code style={styles.codeSmStyle}>ThemeColors</code> from{' '}
         <code style={styles.codeSmStyle}>PreferencesProvider</code>.
       </div>
     </SectionWrap>
@@ -210,8 +210,6 @@ function WiringSection() {
     <LogtoProvider
       userData={result.userData}
       dashboard={<Dashboard />}  {/* Server Component JSX */}
-      darkThemeSpec={defaultDarkTheme}
-      lightThemeSpec={defaultLightTheme}
     >
       <DemoApp />
     </LogtoProvider>

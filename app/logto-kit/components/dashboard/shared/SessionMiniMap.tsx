@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { fetchGeo, getCachedGeo } from './geo-cache';
 import type { GeoLocation } from './geo-cache';
@@ -30,18 +30,19 @@ function getTileUrl(x: number, y: number, z: number, isDark: boolean): string {
 
 interface MiniMapProps {
   ip: string | null;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   refreshKey: number;
   onClick: (geo: GeoLocation, ip: string) => void;
   onGeoLoaded?: (ip: string, geo: GeoLocation) => void;
 }
 
-export function SessionMiniMap({ ip, theme, t, refreshKey, onClick, onGeoLoaded }: MiniMapProps) {
+export function SessionMiniMap({ ip, mode, colors, t, refreshKey, onClick, onGeoLoaded }: MiniMapProps) {
   const [geo, setGeo] = useState<GeoLocation | null>(null);
   const [geoError, setGeoError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const isDark = theme.mode === 'dark';
+  const isDark = mode === 'dark';
 
   useEffect(() => {
     if (!ip) {
@@ -80,7 +81,7 @@ export function SessionMiniMap({ ip, theme, t, refreshKey, onClick, onGeoLoaded 
     return () => { cancelled = true; };
   }, [ip, refreshKey]);
 
-const containerStyle: React.CSSProperties = {
+  const containerStyle: React.CSSProperties = {
     width: `${MAP_WIDTH}px`,
     alignSelf: 'stretch',
     flexShrink: 0,
@@ -90,13 +91,13 @@ const containerStyle: React.CSSProperties = {
     return (
       <div style={{
         ...containerStyle,
-        borderLeft: `1px solid ${theme.colors.borderColor}`,
+        borderLeft: `1px solid ${colors.borderColor}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'column',
         gap: '0.25rem',
-        color: theme.colors.textTertiary,
+        color: colors.textTertiary,
         fontSize: '0.625rem',
         fontFamily: "'DM Sans', system-ui, sans-serif",
         padding: '0.5rem',
@@ -112,7 +113,7 @@ const containerStyle: React.CSSProperties = {
     return (
       <div style={{
         ...containerStyle,
-        borderLeft: `1px solid ${theme.colors.borderColor}`,
+        borderLeft: `1px solid ${colors.borderColor}`,
         background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
         display: 'flex',
         alignItems: 'center',
@@ -121,8 +122,8 @@ const containerStyle: React.CSSProperties = {
         <div style={{
           width: '1.25rem',
           height: '1.25rem',
-          border: `2px solid ${theme.colors.borderColor}`,
-          borderTopColor: theme.colors.accentBlue,
+          border: `2px solid ${colors.borderColor}`,
+          borderTopColor: colors.accentBlue,
           borderRadius: '50%',
           animation: 'ldd-spin 0.7s linear infinite',
         }} />
@@ -135,7 +136,7 @@ const containerStyle: React.CSSProperties = {
   const tileX = lonToX(geo.lon, ZOOM);
   const tileY = latToY(geo.lat, ZOOM);
   const tileSrc = getTileUrl(tileX, tileY, ZOOM, isDark);
-  const pinColor = theme.colors.accentRed;
+  const pinColor = colors.accentRed;
 
   return (
     <div
@@ -145,7 +146,7 @@ const containerStyle: React.CSSProperties = {
         overflow: 'hidden',
         cursor: 'pointer',
         position: 'relative',
-        borderLeft: `1px solid ${theme.colors.borderColor}`,
+        borderLeft: `1px solid ${colors.borderColor}`,
         background: isDark ? '#1a1a2e' : '#e8e8f0',
       }}
       title={t.sessions.viewOnOpenStreetMap}

@@ -156,7 +156,7 @@ const footDotStyle: React.CSSProperties = {
 };
 
 export default function ContentArea({ item }: ContentAreaProps) {
-  const { theme } = useThemeMode();
+  const { mode } = useThemeMode();
   const [mounted, setMounted] = useState(false);
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
 
@@ -174,7 +174,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
     }
   }, [item.id]);
 
-  const colors = mounted ? (theme === 'dark'
+  const colors = mounted ? (mode === 'dark'
     ? {
         bg: '#0b0b0d',
         border: 'rgba(255,255,255,0.05)',
@@ -240,7 +240,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
       };
 
   const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'auto' as const : 'auto' as const };
-  const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (theme === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
+  const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (mode === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
   const themedCrumbStyle = { ...crumbStyle, color: colors.textMuted };
   const themedSepStyle = { ...sepStyle, color: colors.textMuted };
   const themedCrumbCurStyle = { ...crumbCurStyle, color: colors.text };

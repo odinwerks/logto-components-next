@@ -9,7 +9,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn), and developer tools views
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
-- **Theme System**: File-based theme system with dark/light CSS variables - requires code registration in `themes/index.ts`
+- **Theme System**: CSS-only theme system with dark/light CSS variables. THEME env var selects the theme folder. No JS registration needed.
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
 - **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn passkey management (register, rename, delete). Uses `@simplewebauthn/browser` for the browser ceremony.
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
@@ -75,7 +75,6 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   │   ├── session-heartbeat.tsx
 │   │   │   │   ├── preferences.tsx
 │   │   │   │   ├── logto-provider.tsx
-│   │   │   │   ├── theme-helpers.ts
 │   │   │   │   ├── use-avatar-upload.tsx
 │   │   │   │   └── user-data-context.tsx
 │   │   │   ├── dashboard/
@@ -158,14 +157,8 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   └── themes/
 │   │       ├── default/
 │   │       │   ├── dark.css
-│   │       │   ├── index.ts
 │   │       │   └── light.css
-│   │       ├── pretty/
-│   │       │   ├── dark.css
-│   │       │   ├── index.ts
-│   │       │   └── light.css
-│   │       ├── index.ts
-│   │       └── shared.ts
+│   │       └── index.ts
 │   ├── logto.ts
 │   └── page.tsx
 ├── proxy.ts
@@ -317,7 +310,7 @@ LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
 
 ```env
 # Theme folder name (default: default)
-# Must match a folder in app/logto-kit/themes/ AND be registered in themes/index.ts
+# Folder name under app/logto-kit/themes/ containing dark.css and light.css
 THEME=default
 
 # Default theme mode: dark or light (default: dark)
@@ -396,36 +389,31 @@ PUBLIC_BASE_URL=https://dash.yourdomain.org
 
 ## Theme System
 
-Themes are user-created and ENV-selected. Each theme lives in its own folder under `app/logto-kit/themes/` and is activated by setting the `THEME` environment variable.
+Themes are CSS-only. Each theme is a folder in `app/logto-kit/themes/` containing `dark.css` and `light.css` with CSS custom properties (`--ldd-*`). CSS files are loaded via `@import` in `app/globals.css` - change these paths to switch theme folders.
 
-> **Important:** Adding a theme requires a code change. You must register the theme in `themes/index.ts` - setting `THEME` in `.env` alone is not enough.
+### How it works
 
-Themes are loaded from `app/logto-kit/themes/{THEME}/`:
+- `data-theme` attribute on `<html>` controls which CSS custom properties are active
+- `useThemeMode()` provides `{ mode, colors, setMode, toggleMode }` for inline React styles
+- `ThemeColors` interface + `DARK_COLORS` / `LIGHT_COLORS` constants provide JS color values that mirror the CSS variables
+- All other design values (typography, radii, shadows, transitions) are hardcoded directly in component source code
+- CSS files are imported via `@import` in `app/globals.css` - change these paths to switch theme folders
 
-- `dark.css` - Dark theme variables
-- `light.css` - Light theme variables
-- `index.ts` - Theme metadata and exported ThemeSpec objects
+### Customizing
 
-### Adding a New Theme
-
-1. Create a new folder in `app/logto-kit/themes/{your-theme}/`
-2. Add `dark.css` and `light.css` with CSS variables
-3. Add `index.ts` that exports `{ yourThemeDarkTheme, yourThemeLightTheme }` as `ThemeSpec` objects
-4. Import and register your theme in `app/logto-kit/themes/index.ts`:
-   ```ts
-   import { yourThemeDarkTheme, yourThemeLightTheme } from './your-theme';
-
-   function resolveTheme(themeName: string, mode: 'dark' | 'light'): ThemeSpec {
-     switch (themeName) {
-       case 'your-theme':
-         return mode === 'dark' ? yourThemeDarkTheme : yourThemeLightTheme;
-       case 'default':
-       default:
-         return mode === 'dark' ? defaultDarkTheme : defaultLightTheme;
-     }
-   }
+1. Copy `app/logto-kit/themes/default/` to a new folder like `app/logto-kit/themes/my-brand/`
+2. Edit the hex values in `dark.css` and `light.css`
+3. Update `app/globals.css` to point to your new folder:
+   ```css
+   @import './logto-kit/themes/my-brand/dark.css';
+   @import './logto-kit/themes/my-brand/light.css';
    ```
-5. Set `THEME=your-theme` in your `.env`
+4. Optionally export matching `ThemeColors` constants if you want inline styles to match your custom CSS:
+   ```ts
+   export const MY_DARK_COLORS: ThemeColors = { ...DARK_COLORS, accentBlue: '#8b5cf6' };
+   ```
+
+No JS registration or factory functions are needed.
 
 ### User Shape Configuration
 
@@ -578,21 +566,21 @@ Any component can use the theme context:
 import { useThemeMode } from './logto-kit';
 
 function MyComponent() {
-  const { theme, themeSpec, setTheme, toggleTheme } = useThemeMode();
+  const { mode, colors, setMode, toggleMode } = useThemeMode();
   
   return (
-    <button onClick={toggleTheme}>
-      Current: {theme}
+    <button onClick={toggleMode}>
+      Current: {mode}
     </button>
   );
 }
 ```
 
 The hook returns:
-- `theme` - `'dark' | 'light'`
-- `themeSpec` - Full ThemeSpec object with colors, components, tokens. Access colors via `themeSpec.colors`.
-- `setTheme(theme)` - Set specific theme
-- `toggleTheme()` - Toggle between dark/light
+- `mode` - `'dark' | 'light'`
+- `colors` - `ThemeColors` object (bgPage, textPrimary, accentBlue, etc.)
+- `setMode(mode)` - Set specific mode
+- `toggleMode()` - Toggle between dark/light
 
 #### useLangMode Hook
 
@@ -623,8 +611,6 @@ The hook returns:
   initialLang="en-US"
   onUpdateCustomData={async (data) => { /* save to Logto */ }}
   onLangChange={() => { /* called when language changes */ }}
-  darkThemeSpec={defaultDarkTheme}
-  lightThemeSpec={defaultLightTheme}
 />
 ```
 
@@ -632,10 +618,9 @@ The hook returns:
 |------|------|---------|-------------|
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
+| `initialOrgId` | `string \| null` | - | Initial organization ID |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Optional callback to persist preferences to Logto customData |
 | `onLangChange` | `() => void` | - | Optional callback fired when language changes |
-| `darkThemeSpec` | `ThemeSpec` | - | **Required.** Dark theme specification object |
-| `lightThemeSpec` | `ThemeSpec` | - | **Required.** Light theme specification object |
 
 When `onUpdateCustomData` is provided, theme and language changes are automatically synced to Logto for cross-device persistence.
 
@@ -716,8 +701,6 @@ function MyComponent() {
   initialTheme="dark"
   initialLang="en-US"
   onUpdateCustomData={updateCustomData}
-  darkThemeSpec={defaultDarkTheme}
-  lightThemeSpec={defaultLightTheme}
 >
   <MyComponent />
 </LogtoProvider>
@@ -731,8 +714,6 @@ function MyComponent() {
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data (forwarded to PreferencesProvider) |
 | `onLangChange` | `() => void` | - | Callback fired when language changes |
-| `darkThemeSpec` | `ThemeSpec` | - | **Required.** Dark theme specification object |
-| `lightThemeSpec` | `ThemeSpec` | - | **Required.** Light theme specification object |
 
 #### useLogto Hook
 
@@ -742,7 +723,7 @@ The `useLogto()` hook provides access to user data, authentication, and all pref
 import { useLogto } from './logto-kit';
 
 function MyComponent() {
-  const { userData, openDashboard, theme, themeSpec, lang, setLang, asOrg, setAsOrg } = useLogto();
+  const { userData, openDashboard, mode, colors, lang, setLang, asOrg, setAsOrg } = useLogto();
   // ...
 }
 ```
@@ -752,10 +733,10 @@ Returns:
 | Field | Type | Description |
 |-------|------|-------------|
 | `userData` | `UserData` | Current user data |
-| `theme` | `'dark' \| 'light'` | Current theme mode |
-| `themeSpec` | `ThemeSpec` | Full theme specification (colors, components, tokens) |
-| `setTheme` | `(theme: 'dark' \| 'light') => void` | Set theme mode |
-| `toggleTheme` | `() => void` | Toggle between dark/light |
+| `mode` | `'dark' \| 'light'` | Current theme mode |
+| `colors` | `ThemeColors` | Color tokens for inline React styles |
+| `setMode` | `(mode: 'dark' \| 'light') => void` | Set theme mode |
+| `toggleMode` | `() => void` | Toggle between dark/light |
 | `lang` | `string` | Current language code |
 | `setLang` | `(lang: string) => void` | Set language |
 | `asOrg` | `string \| null` | Active organization ID (null = global) |
@@ -824,7 +805,7 @@ All three components share the same props:
 | `Size` | `string` | `'6.25rem'` (Button/Badge), `'2.5rem'` (Card) | CSS size (e.g., `'48px'`, `'3rem'`) |
 | `shape` | `'circle' \| 'sq' \| 'rsq'` | - | Border radius shape (falls back to `USER_SHAPE` ENV) |
 | `userData` | `UserData` | - | User data (optional, uses provider context if not provided) |
-| `theme` | `ThemeSpec` | - | Theme spec (optional, auto-detected from provider if not provided) |
+| `colors` | `ThemeColors` | - | Color tokens (optional, auto-detected from provider if not provided) |
 | `do` | `() => void` | - | Custom click handler (Button and Card only; defaults to `openDashboard`) |
 
 UserCard's "Logged in as" label is automatically translated based on the provider's current language state - no `t` prop needed.
@@ -937,7 +918,7 @@ import {
 import type {
   OrganizationData,
   ValidationResult,
-  ThemeSpec,
+  ThemeColors,
   UserData,
   KitTranslations,
   Translations,
@@ -1142,7 +1123,8 @@ import { OrgSwitcher } from './logto-kit';
     { id: 'org-2', name: 'Beta Inc' }
   ]}
   currentOrgId="org-1"
-  theme={themeSpec}
+  mode={mode}
+  colors={colors}
 />
 ```
 
@@ -1152,7 +1134,8 @@ import { OrgSwitcher } from './logto-kit';
 |------|------|---------|-------------|
 | `organizations` | `OrganizationData[]` | - | List of organizations to display |
 | `currentOrgId` | `string` | - | Currently active organization ID |
-| `theme` | `ThemeSpec` | - | Theme specification for styling |
+| `mode` | `'dark' \| 'light'` | - | Current theme mode |
+| `colors` | `ThemeColors` | - | Color tokens for styling |
 | `t` | `{ organizations?: { beYourself?: string } }` | - | Optional translations |
 
 **Features:**
@@ -1437,7 +1420,7 @@ This means:
 
 Both providers expose hooks that child components can use:
 - `useUserDataContext()` - Access user data
-- `useThemeMode()` - Access theme and themeSpec (colors via themeSpec.colors)
+- `useThemeMode()` - Access mode and colors (ThemeColors object)
 - `useLangMode()` - Access current language
 
 The preferences tab no longer needs props passed to it - it uses the hooks directly!
@@ -1451,11 +1434,10 @@ The tab system is pretty simple - look at existing tabs for examples.
 
 ### Adding a Theme
 
-1. Create a folder in `app/logto-kit/themes/{your-theme}/`
-2. Add `dark.css` and `light.css` with your CSS variables
-3. Add `index.ts` exporting `{ yourThemeDarkTheme, yourThemeLightTheme }` as `ThemeSpec` objects
-4. **Register the theme in `app/logto-kit/themes/index.ts`** - import your exports and add a case to `resolveTheme()`
-5. Set `THEME=your-theme` in `.env`
+1. Copy `app/logto-kit/themes/default/` to `app/logto-kit/themes/{your-theme}/`
+2. Edit the hex values in `dark.css` and `light.css`
+3. Import your CSS files in `app/layout.tsx` or `app/globals.css`
+4. Set `THEME=your-theme` in `.env`
 
 ### Adding a Language
 

@@ -198,8 +198,6 @@ export default async function HomePage() {
     <LogtoProvider
       userData={result.userData}
       dashboard={<Dashboard />}
-      darkThemeSpec={defaultDarkTheme}
-      lightThemeSpec={defaultLightTheme}
     >
       <DemoApp />  {/* ← replace with your <App /> */}
     </LogtoProvider>

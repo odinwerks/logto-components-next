@@ -60,7 +60,8 @@ function SessionsPropsSection() {
       <div style={styles.sectionBodyStyle}>
 <CodeBlock title="Props" code={`interface SessionsTabProps {
   userData: UserData;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   onGetSessions: (verificationRecordId: string) => Promise<LogtoSession[]>;
   onRevokeSession: (

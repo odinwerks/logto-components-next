@@ -4,26 +4,26 @@ import { redirect } from 'next/navigation';
 import { fetchDashboardData } from './logto-kit/logic/actions';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
-import { getThemeSpec } from './logto-kit/themes';
+import { DARK_COLORS } from './logto-kit/themes';
 import DemoApp from './demo/index';
 
 export default async function HomePage() {
   const result = await fetchDashboardData();
 
-  const darkThemeSpec = getThemeSpec('dark');
+  const darkColors = DARK_COLORS;
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
       redirect('/callback');
     }
     return (
-      <main style={{ minHeight: '100vh', background: darkThemeSpec.colors.bgPage }}>
+      <main style={{ minHeight: '100vh', background: darkColors.bgPage }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
-          color: darkThemeSpec.colors.textSecondary,
+          color: darkColors.textSecondary,
           fontFamily: 'monospace',
         }}>
           Failed to load user data
@@ -32,15 +32,11 @@ export default async function HomePage() {
     );
   }
 
-  const lightThemeSpec = getThemeSpec('light');
-
   return (
     <main style={{ minHeight: '100vh' }}>
       <LogtoProvider
         userData={result.userData}
         dashboard={<Dashboard />}
-        darkThemeSpec={darkThemeSpec}
-        lightThemeSpec={lightThemeSpec}
       >
         <DemoApp />
       </LogtoProvider>

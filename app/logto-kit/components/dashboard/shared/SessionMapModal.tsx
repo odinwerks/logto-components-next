@@ -4,21 +4,22 @@ import React, { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { X, ExternalLink } from 'lucide-react';
-import type { ThemeSpec } from '../../../themes';
+import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import type { GeoLocation } from './geo-cache';
 
 interface SessionMapModalProps {
   geo: GeoLocation;
   ip: string;
-  theme: ThemeSpec;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
   t: Translations;
   onClose: () => void;
 }
 
-export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalProps) {
-  const c = theme.colors;
-  const isDark = theme.mode === 'dark';
+export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMapModalProps) {
+  const c = colors;
+  const isDark = mode === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
 
   const locationLabel = [...new Set([geo.city, geo.region, geo.country].filter(Boolean))].join(', ') || t.sessions.ipLocation;
@@ -52,15 +53,15 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
           type: 'raster',
           tiles: isDark
             ? [
-                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-                'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-              ]
+              'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            ]
             : [
-                'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-                'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-              ],
+              'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+              'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+              'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+            ],
           tileSize: 256,
           attribution:
             '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
@@ -79,10 +80,10 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
     const el = document.createElement('div');
     el.style.cssText = 'width:28px;height:36px;cursor:default;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));';
     el.innerHTML = `<svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.268 21.732 0 14 0Z" fill="${c.accentRed}"/>
-  <circle cx="14" cy="14" r="6" fill="white" opacity="0.95"/>
-  <circle cx="14" cy="14" r="3.5" fill="${c.accentRed}"/>
-</svg>`;
+      <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.268 21.732 0 14 0Z" fill="${c.accentRed}"/>
+      <circle cx="14" cy="14" r="6" fill="white" opacity="0.95"/>
+      <circle cx="14" cy="14" r="3.5" fill="${c.accentRed}"/>
+    </svg>`;
 
     new maplibregl.Marker({ element: el })
       .setLngLat([geo.lon, geo.lat])
@@ -106,9 +107,7 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
         justifyContent: 'center',
         padding: '1rem',
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         style={{
@@ -116,7 +115,7 @@ export function SessionMapModal({ geo, ip, theme, t, onClose }: SessionMapModalP
           height: 'calc(100vh - 2rem)',
           background: cardBg,
           border: `1px solid ${c.borderColor}`,
-          borderRadius: theme.tokens.dashboardRadius,
+          borderRadius: '0',
           overflow: 'hidden',
           boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
           display: 'flex',
