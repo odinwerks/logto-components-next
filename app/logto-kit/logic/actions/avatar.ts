@@ -269,6 +269,35 @@ export async function uploadAvatar(
     throw new Error('UPLOAD_INVALID_TYPE');
   }
 
+  // ── Backend selection ────────────────────────────────────────────────
+  if (process.env.PFP_BACKEND?.trim().toLowerCase() === 'logto') {
+    const endpoint = process.env.ENDPOINT?.replace(/\/$/, '');
+    if (!endpoint) throw new Error('UPLOAD_FAILED');
+
+    const token = await getTokenForServerAction();
+
+    const logtoFormData = new FormData();
+    logtoFormData.append('file', file);
+
+    const res = await fetch(`${endpoint}/api/my-account/avatar`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: logtoFormData,
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      console.warn(`[uploadAvatarViaLogto] HTTP ${res.status}`);
+      throw new Error('UPLOAD_FAILED');
+    }
+
+    const data = (await res.json()) as { avatar?: string };
+    const { audit } = await import('../audit');
+    await audit({ actor: userId, action: 'avatar.upload', resource: userId });
+
+    return { url: data.avatar ?? '' };
+  }
+
   // ── Storage config ───────────────────────────────────────────────────
   const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, '');
   if (!publicBase) {
