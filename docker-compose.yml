@@ -38,6 +38,7 @@ services:
       - LOGTO_M2M_RESOURCE=${LOGTO_M2M_RESOURCE:-}
       - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL:-}
       # ── Avatar storage (S3-compatible / Supabase) ─────────────────────────
+      - PFP_BACKEND=${PFP_BACKEND:-logto}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
       - S3_PUBLIC_URL=${S3_PUBLIC_URL:-}
       - S3_ENDPOINT=${S3_ENDPOINT:-}
