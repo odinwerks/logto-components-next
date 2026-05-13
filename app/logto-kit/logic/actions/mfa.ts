@@ -99,12 +99,23 @@ export async function deleteMfaVerification(
 export async function generateBackupCodes(identityVerificationRecordId: string): Promise<{ codes: string[] }> {
   assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
+  // Step 1: Generate new backup codes
   const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
     method: 'POST',
     extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
   });
   
   await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-gen');
+
+  const { codes } = await res.json();
+
+  // Step 2: Bind codes to the account (required for codes to be usable)
+  const bindRes = await makeRequest('/api/my-account/mfa-verifications', {
+    method: 'POST',
+    body: { type: 'BackupCode', codes },
+    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+  });
+  await throwOnApiError(bindRes, 'BACKUP_CODES_FAILED', 'backup-bind');
 
   // Audit (best-effort — failure must not break the main action)
   try {
@@ -114,7 +125,7 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
     await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.backup_codes.generate' });
   } catch { /* audit is best-effort; never surface to caller */ }
 
-  return res.json();
+  return { codes };
 }
 
 /**
