@@ -569,8 +569,9 @@ export function ProfileTab({
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code) => {
             const result = await onVerifyCode('email', value, verificationId, code);
             await onUpdateEmail(value, result.verificationRecordId, identityVerificationId);
+            refreshData();
           }}
-          onRemove={onRemoveEmail}
+          onRemove={async (id) => { await onRemoveEmail(id); refreshData(); }}
           onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
         <HR colors={colors} />
@@ -585,8 +586,9 @@ export function ProfileTab({
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code) => {
             const result = await onVerifyCode('phone', value, verificationId, code);
             await onUpdatePhone(value, result.verificationRecordId, identityVerificationId);
+            refreshData();
           }}
-          onRemove={onRemovePhone}
+          onRemove={async (id) => { await onRemovePhone(id); refreshData(); }}
           onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
       </Card>
