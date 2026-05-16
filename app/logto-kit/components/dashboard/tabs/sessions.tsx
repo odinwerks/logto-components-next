@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -11,6 +11,7 @@ import { SessionMiniMap } from '../shared/SessionMiniMap';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { clearGeoCache } from '../shared/geo-cache';
 import type { GeoLocation } from '../shared/geo-cache';
+import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
 // ─── Hardcoded design tokens ───
 const FONT_SANS = "'DM Sans', system-ui, sans-serif";
@@ -22,10 +23,10 @@ interface SessionsTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
-  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
-  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<void>;
-  onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -97,7 +98,24 @@ export function SessionsTab({
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
   const [viewState, setViewState] = useState<'unverified' | 'loaded'>('unverified');
 
+  // Persists the revoke target through failed attempts so retries send the correct session ID
+  const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
+
   const isVerificationValid = verificationRecordId && Date.now() < verificationExpiry;
+
+  // Auto-invalidate verification when it expires, forcing re-verification
+  useEffect(() => {
+    if (!verificationRecordId || !verificationExpiry) return;
+    const timeUntilExpiry = verificationExpiry - Date.now();
+    if (timeUntilExpiry > 0) {
+      const timer = setTimeout(() => {
+        setVerificationRecordId(null);
+        setVerificationExpiry(0);
+        setViewState('unverified');
+      }, timeUntilExpiry);
+      return () => clearTimeout(timer);
+    }
+  }, [verificationRecordId, verificationExpiry]);
 
   const handleGeoLoaded = useCallback((ip: string, geo: GeoLocation) => {
     setGeoMap(prev => {
@@ -116,49 +134,46 @@ export function SessionsTab({
   const verifyAndLoad = useCallback(async (password: string) => {
     setModalStep({ kind: 'loading', message: t.sessions.processing });
     setModalError('');
-    try {
-      const { verificationRecordId: vid } = await onVerifyPassword(password);
-      const expiresAt = Date.now() + VERIFICATION_TTL_MS;
-      setVerificationRecordId(vid);
-      setVerificationExpiry(expiresAt);
 
-      setViewState('loaded');
-      setModalStep(null);
-
-      setLoading(true);
-      try {
-        const sessions = await onGetSessionsWithDeviceMeta(vid);
-        setSessions(sessions);
-      } catch (err) {
-        onError(err instanceof Error ? err.message : t.sessions.loadFailed);
-      } finally {
-        setLoading(false);
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : t.sessions.verifyFailed;
-      setModalError(errorMsg);
+    const verifyResult = await onVerifyPassword(password);
+    if (!verifyResult.ok) {
+      setModalError(verifyResult.error);
       setModalStep({ kind: 'password' });
+      return;
     }
+    const { verificationRecordId: vid } = verifyResult.data;
+    const expiresAt = Date.now() + VERIFICATION_TTL_MS;
+    setVerificationRecordId(vid);
+    setVerificationExpiry(expiresAt);
+
+    setModalStep(null);
+
+    setLoading(true);
+    const sessionsResult = await onGetSessionsWithDeviceMeta(vid);
+    if (!sessionsResult.ok) {
+      onError(sessionsResult.error);
+      setLoading(false);
+      return;
+    }
+    setSessions(sessionsResult.data);
+    setViewState('loaded');
+    setLoading(false);
   }, [onVerifyPassword, onGetSessionsWithDeviceMeta, onError, t]);
 
   const loadSessions = useCallback(async () => {
     if (!isVerificationValid) return;
     setLoading(true);
-    try {
-      const sessions = await onGetSessionsWithDeviceMeta(verificationRecordId!);
-      setSessions(sessions);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : t.sessions.loadFailed;
-      if (errorMsg.includes('401') || errorMsg.includes('verification')) {
-        setViewState('unverified');
-        setVerificationRecordId(null);
-      } else {
-        onError(errorMsg);
-      }
-    } finally {
+    const r = await onGetSessionsWithDeviceMeta(verificationRecordId!);
+    if (!r.ok) {
+      onError(r.error);
+      setViewState('unverified');
+      setVerificationRecordId(null);
       setLoading(false);
+      return;
     }
-  }, [verificationRecordId, onGetSessionsWithDeviceMeta, onError, t, isVerificationValid]);
+    setSessions(r.data);
+    setLoading(false);
+  }, [verificationRecordId, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
 
   const handleRefresh = useCallback(async () => {
     clearGeoCache();
@@ -168,24 +183,14 @@ export function SessionsTab({
   }, [loadSessions]);
 
   const handleRevokeAll = useCallback(async () => {
-    if (!isVerificationValid) {
-      setRevokingId('__all__');
-      setModalPurpose('revoke');
-      setModalStep({ kind: 'password' });
-      setModalError('');
-      return;
-    }
-    setRevokingAll(true);
-    try {
-      await onRevokeAllOtherSessions(verificationRecordId!);
-      onSuccess(t.sessions.revoked);
-      await loadSessions();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : t.sessions.revokeFailed);
-    } finally {
-      setRevokingAll(false);
-    }
-  }, [isVerificationValid, verificationRecordId, onRevokeAllOtherSessions, onSuccess, onError, loadSessions, t]);
+    // Always require password confirmation for revoke all — the password modal
+    // serves as both confirmation and verification.
+    setRevokingId('__all__');
+    revokeTargetRef.current = { kind: 'all' };
+    setModalPurpose('revoke');
+    setModalStep({ kind: 'password' });
+    setModalError('');
+  }, [isVerificationValid, verificationRecordId, onRevokeAllOtherSessions, onSuccess, onError, loadSessions]);
 
   const startViewVerification = () => {
     setModalPurpose('view');
@@ -195,6 +200,7 @@ export function SessionsTab({
 
   const startRevokeVerification = (sessionId: string) => {
     setRevokingId(sessionId);
+    revokeTargetRef.current = { kind: 'single', id: sessionId };
     setModalPurpose('revoke');
     setModalStep({ kind: 'password' });
     setModalError('');
@@ -208,31 +214,51 @@ export function SessionsTab({
 
     setModalStep({ kind: 'loading', message: t.sessions.processing });
     setModalError('');
-    try {
-      let vid = verificationRecordId;
-      if (!vid || Date.now() >= verificationExpiry) {
-        const result = await onVerifyPassword(password);
-        vid = result.verificationRecordId;
-        setVerificationRecordId(vid);
-        setVerificationExpiry(Date.now() + VERIFICATION_TTL_MS);
-      }
 
-      if (revokingId === '__all__') {
-        await onRevokeAllOtherSessions(vid);
-      } else {
-        await onRevokeSession(revokingId!, 'firstParty', vid);
+    let vid = verificationRecordId;
+    if (!vid || Date.now() >= verificationExpiry) {
+      const verifyResult = await onVerifyPassword(password);
+      if (!verifyResult.ok) {
+        setModalError(verifyResult.error);
+        setModalStep({ kind: 'password' });
+        setRevokingId(null);
+        setRevokingAll(false);
+        return;
       }
-      onSuccess(t.sessions.revoked);
-      await loadSessions();
-      setModalStep(null);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : t.sessions.revokeFailed;
-      setModalError(errorMsg);
-      setModalStep({ kind: 'password' });
-    } finally {
-      setRevokingId(null);
-      setRevokingAll(false);
+      vid = verifyResult.data.verificationRecordId;
+      setVerificationRecordId(vid);
+      setVerificationExpiry(Date.now() + VERIFICATION_TTL_MS);
     }
+
+    const target = revokeTargetRef.current;
+    if (!target) {
+      setModalStep(null);
+      return;
+    }
+
+    if (target.kind === 'all') {
+      const revokeResult = await onRevokeAllOtherSessions(vid);
+      if (!revokeResult.ok) {
+        setModalError(revokeResult.error);
+        setModalStep({ kind: 'password' });
+        setRevokingAll(false);
+        return;
+      }
+    } else {
+      const revokeResult = await onRevokeSession(target.id, 'firstParty', vid);
+      if (!revokeResult.ok) {
+        setModalError(revokeResult.error);
+        setModalStep({ kind: 'password' });
+        setRevokingAll(false);
+        return;
+      }
+    }
+    onSuccess(t.sessions.revoked);
+    await loadSessions();
+    setModalStep(null);
+    revokeTargetRef.current = null;
+    setRevokingId(null);
+    setRevokingAll(false);
   };
 
   const formatDate = (input: number | string) => {
@@ -343,7 +369,9 @@ export function SessionsTab({
   const sortedSessions = [...sessions].sort((a, b) => {
     if (a.meta?.isCurrent && !b.meta?.isCurrent) return -1;
     if (!a.meta?.isCurrent && b.meta?.isCurrent) return 1;
-    return b.payload.loginTs - a.payload.loginTs;
+    const aTs = a.payload.loginTs ?? Number.NEGATIVE_INFINITY;
+    const bTs = b.payload.loginTs ?? Number.NEGATIVE_INFINITY;
+    return bTs - aTs;
   });
 
   return (
@@ -555,7 +583,7 @@ export function SessionsTab({
           subtitle={t.sessions.revokeSessionDesc}
           step={modalStep}
           onPasswordSubmit={handlePasswordSubmit}
-          onClose={() => { setModalStep(null); setRevokingId(null); setModalError(''); }}
+          onClose={() => { setModalStep(null); setRevokingId(null); revokeTargetRef.current = null; setModalError(''); }}
           passwordError={modalError}
           mode={mode}
           colors={c}

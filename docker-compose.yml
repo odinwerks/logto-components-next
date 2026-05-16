@@ -8,14 +8,15 @@ services:
       # They are sourced from your .env file when you run `docker compose build`.
       # Set PUBLIC_BASE_URL in .env to your public CF tunnel URL.
       args:
-        NEXT_PUBLIC_THEME:              ${NEXT_PUBLIC_THEME:-Default}
-        NEXT_PUBLIC_LANG_MAIN:          ${NEXT_PUBLIC_LANG_MAIN:-en-US}
-        NEXT_PUBLIC_LANG_AVAILABLE:     ${NEXT_PUBLIC_LANG_AVAILABLE:-en-US}
-        NEXT_PUBLIC_MFA_ISSUER:         ${NEXT_PUBLIC_MFA_ISSUER:-MyApp}
-        NEXT_PUBLIC_DEFAULT_THEME_MODE: ${NEXT_PUBLIC_DEFAULT_THEME_MODE:-dark}
-        NEXT_PUBLIC_USER_SHAPE:         ${NEXT_PUBLIC_USER_SHAPE:-circle}
-        NEXT_PUBLIC_NAME_TYPE:          ${NEXT_PUBLIC_NAME_TYPE:-given_family}
-        NEXT_PUBLIC_LOAD_TABS:          ${NEXT_PUBLIC_LOAD_TABS:-profile,preferences,security,organizations,identities}
+        NEXT_PUBLIC_THEME:              ${THEME:-Default}
+        NEXT_PUBLIC_LANG_MAIN:          ${LANG_MAIN:-en-US}
+        NEXT_PUBLIC_LANG_AVAILABLE:     ${LANG_AVAILABLE:-en-US}
+        NEXT_PUBLIC_MFA_ISSUER:         ${MFA_ISSUER:-MyApp}
+        NEXT_PUBLIC_DEFAULT_THEME_MODE: ${DEFAULT_THEME_MODE:-dark}
+        NEXT_PUBLIC_USER_SHAPE:         ${USER_SHAPE:-circle}
+        NEXT_PUBLIC_NAME_TYPE:          ${NAME_TYPE:-given_family}
+        NEXT_PUBLIC_LOAD_TABS:          ${LOAD_TABS:-profile,preferences,security,organizations,identities}
+        NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY:-3000}
     networks:
       - dash-net
     # Port 2999 is NOT exposed to the host — only cloudflared can reach it
@@ -48,6 +49,18 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
       # ── Debug (set DEBUG=true to enable verbose server logging) ───────────
       - DEBUG=${DEBUG:-}
+      # ── Plain errors (set PLAIN_ERRORS=true to get full error text) ────────
+      - PLAIN_ERRORS=${PLAIN_ERRORS:-false}
+      # ── UI / theme vars (server-side reads bare names via readEnv) ──────────
+      - THEME=${THEME:-Default}
+      - LANG_MAIN=${LANG_MAIN:-en-US}
+      - LANG_AVAILABLE=${LANG_AVAILABLE:-en-US}
+      - MFA_ISSUER=${MFA_ISSUER:-MyApp}
+      - DEFAULT_THEME_MODE=${DEFAULT_THEME_MODE:-dark}
+      - USER_SHAPE=${USER_SHAPE:-circle}
+      - NAME_TYPE=${NAME_TYPE:-given_family}
+      - LOAD_TABS=${LOAD_TABS:-profile,preferences,security,organizations,identities}
+      - DELETE_REDIRECT_DELAY=${DELETE_REDIRECT_DELAY:-3000}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('net').createConnection(2999,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})\""]
       interval: 15s

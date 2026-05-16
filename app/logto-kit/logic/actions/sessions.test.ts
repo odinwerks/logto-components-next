@@ -102,8 +102,10 @@ describe('getSessionsWithDeviceMeta', () => {
     const { getSessionsWithDeviceMeta } = await import('./sessions');
     const result = await getSessionsWithDeviceMeta('verification-record-id');
 
-    expect(result).toHaveLength(1);
-    expect(result[0].meta?.isCurrent).toBe(true);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].meta?.isCurrent).toBe(true);
   });
 
   it('sets meta.isCurrent = false when the API omits the isCurrent field (pre-ship Logto)', async () => {
@@ -116,8 +118,10 @@ describe('getSessionsWithDeviceMeta', () => {
     const { getSessionsWithDeviceMeta } = await import('./sessions');
     const result = await getSessionsWithDeviceMeta('verification-record-id');
 
-    expect(result).toHaveLength(1);
-    expect(result[0].meta?.isCurrent).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].meta?.isCurrent).toBe(false);
   });
 
   it('sets meta.isCurrent = false when the API explicitly returns isCurrent: false', async () => {
@@ -129,8 +133,10 @@ describe('getSessionsWithDeviceMeta', () => {
     const { getSessionsWithDeviceMeta } = await import('./sessions');
     const result = await getSessionsWithDeviceMeta('verification-record-id');
 
-    expect(result).toHaveLength(1);
-    expect(result[0].meta?.isCurrent).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].meta?.isCurrent).toBe(false);
   });
 });
 
@@ -147,7 +153,7 @@ describe('revokeAllOtherSessions', () => {
     vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
   });
 
-  it('throws "Cannot identify current session" when no session has isCurrent === true', async () => {
+  it('returns error when no session has isCurrent === true', async () => {
     // All sessions missing `isCurrent` — pre-ship Logto, or all are false
     const sessions = [
       mockSession('session-1', undefined),
@@ -159,9 +165,11 @@ describe('revokeAllOtherSessions', () => {
     );
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    await expect(revokeAllOtherSessions('verification-record-id')).rejects.toThrow(
-      'Cannot identify current session'
-    );
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error result');
+    expect(result.error).toContain('Cannot identify current session');
   });
 
   it('only calls DELETE for non-current sessions, skipping the current one', async () => {
@@ -184,7 +192,9 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    await revokeAllOtherSessions('verification-record-id');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(true);
 
     // Should have deleted the two non-current sessions
     expect(deletedPaths).toHaveLength(2);
@@ -195,7 +205,7 @@ describe('revokeAllOtherSessions', () => {
     expect(deletedPaths.some(p => p.includes('other-uid-2'))).toBe(true);
   });
 
-  it('resolves without error when there is exactly one session and it is the current one', async () => {
+  it('resolves with ok when there is exactly one session and it is the current one', async () => {
     const currentSession = mockSession('only-session', true);
 
     vi.mocked(makeRequest).mockResolvedValue(
@@ -204,16 +214,20 @@ describe('revokeAllOtherSessions', () => {
 
     const { revokeAllOtherSessions } = await import('./sessions');
     // Should complete successfully — nothing to revoke
-    await expect(revokeAllOtherSessions('verification-record-id')).resolves.toBeUndefined();
+    const result = await revokeAllOtherSessions('verification-record-id');
+    expect(result).toEqual({ ok: true });
   });
 
-  it('throws when sessions list is empty', async () => {
+  it('returns error when sessions list is empty', async () => {
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
       json: async () => ({ sessions: [] }),
     } as unknown as Response);
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    await expect(revokeAllOtherSessions('verif_1')).rejects.toThrow('Cannot identify current session');
+    const result = await revokeAllOtherSessions('verif_1');
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error result');
+    expect(result.error).toContain('Cannot identify current session');
   });
 });

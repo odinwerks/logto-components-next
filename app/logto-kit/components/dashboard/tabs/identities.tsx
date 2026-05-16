@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
+import { CodeBlock } from '../shared/CodeBlock';
 
 // ─── Hardcoded design tokens ───
 const FONT_SANS = "'DM Sans', system-ui, sans-serif";
@@ -62,14 +63,9 @@ const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
   ),
 };
 
-const PROVIDER_NAMES: Record<string, string> = {
-  google: 'Google', github: 'GitHub', discord: 'Discord',
-  facebook: 'Facebook', twitter: 'Twitter / X', apple: 'Apple',
-  microsoft: 'Microsoft', linkedin: 'LinkedIn',
-};
-
-function providerName(target: string): string {
-  return PROVIDER_NAMES[target] ?? target.charAt(0).toUpperCase() + target.slice(1);
+function providerName(t: Translations, target: string): string {
+  const key = `provider${target.charAt(0).toUpperCase() + target.slice(1)}` as keyof Translations['identities'];
+  return (t.identities as Record<string, string>)[key] ?? target.charAt(0).toUpperCase() + target.slice(1);
 }
 
 function identityDetail(t: Translations, identity: {
@@ -175,7 +171,7 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
     fontFamily: FONT_MONO,
     background: `${c.accentGreen}1a`,
     color: c.accentGreen,
-    border: `1px solid #b4530944`,
+    border: `1px solid ${c.accentGreen}44`,
     letterSpacing: 0.2,
   };
 
@@ -218,7 +214,7 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
           </div>
         ) : identityEntries.map(([target, identity], i) => {
           const detail = identityDetail(t, identity);
-          const name = providerName(target);
+          const name = providerName(t, target);
           const isLast = i === identityEntries.length - 1;
 
           return (
@@ -237,7 +233,7 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
                     height: '2.25rem',
                     flexShrink: 0,
                     background: `${c.accentGreen}1a`,
-                    border: `1px solid #b4530944`,
+                    border: `1px solid ${c.accentGreen}44`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -261,7 +257,7 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
 
                 {/* Right — external user ID chip */}
                 {identity.userId && (
-                  <div style={chipStyle}>{identity.userId}</div>
+                  <div style={chipStyle} aria-label={`${t.identities.userIdLabel}: ${identity.userId}`}>{identity.userId}</div>
                 )}
               </div>
 
@@ -270,6 +266,17 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
           );
         })}
       </div>
+
+      {/* Raw identities data */}
+      <p style={{ ...sectionLabel, marginTop: '1.5rem' }}>{t.identities.rawHeading}</p>
+      <CodeBlock
+        title={t.identities.rawTitle}
+        badge={t.identities.detailsLabel}
+        data={userData.identities ?? {}}
+        mode={mode}
+        colors={colors}
+        t={t}
+      />
     </div>
   );
 }

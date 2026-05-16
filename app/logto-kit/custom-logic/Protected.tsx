@@ -123,9 +123,10 @@ export function Protected({
     setIsLoadingPerms(true);
 
     loadingRef.current = loadOrganizationPermissions(targetOrgId)
-      .then((perms) => {
+      .then((result) => {
         if (!cancelled) {
-          setLoadedPerms(perms);
+          if (!result.ok) { console.error(result.error); setLoadedPerms([]); }
+          else { setLoadedPerms(result.data); }
           setIsLoadingPerms(false);
         }
       })

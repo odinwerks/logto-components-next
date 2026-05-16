@@ -1,9 +1,9 @@
 /**
  * ============================================================================
- * Error types & NODE_ENV-aware sanitisation
+ * Error types & PLAIN_ERRORS-aware sanitisation
  * ============================================================================
  *
- * In production, errors returned to the client are fixed codes — never raw
+ * By default, errors returned to the client are fixed codes — never raw
  * upstream text, never user-controlled values. This prevents:
  *
  *   - User enumeration via differentiated error messages ("unknown email"
@@ -11,8 +11,7 @@
  *   - Internal detail disclosure (DB constraint names, upstream service
  *     URLs, request IDs).
  *
- * In development, errors pass through the full upstream text so devs can
- * see what actually went wrong without spelunking through server logs.
+ * Set PLAIN_ERRORS=true to bypass sanitisation and get full error text.
  *
  * Usage pattern in server actions:
  *
@@ -24,7 +23,7 @@
  *   }
  */
 
-import { isDev } from './dev-mode';
+const plainErrors = process.env.PLAIN_ERRORS === 'true';
 
 // ============================================================================
 // Domain-specific error class for upstream Logto API failures
@@ -86,8 +85,8 @@ function truncate(text: string, maxLength: number): string {
 /**
  * Returns an `Error` safe to throw across the server-action boundary.
  *
- * In development: preserves original error messages (truncated to 400 chars).
- * In production: replaces the message with a fixed error code.
+ * When PLAIN_ERRORS=true: preserves original error messages (truncated to 400 chars).
+ * Otherwise: replaces the message with a fixed error code.
  *
  * The `operation`/`status` properties of LogtoApiError are always stripped
  * from the thrown error's message — they live in server logs only.
@@ -98,8 +97,8 @@ function truncate(text: string, maxLength: number): string {
 export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error {
   const fallback = options.fallback;
 
-  // Dev mode: preserve full context to aid debugging.
-  if (isDev) {
+  // Plain errors: preserve full context to aid debugging.
+  if (plainErrors) {
     if (err instanceof Error) {
       return new Error(truncate(`${fallback}: ${err.message}`, 400));
     }
@@ -121,7 +120,7 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  * detail server-side for the operator.
  *
  * @param res       The fetch Response.
- * @param fallback  Error code used when `isDev === false`.
+ * @param fallback  Error code used when PLAIN_ERRORS is not 'true'.
  * @param operation Label for server-side logging.
  */
 export async function throwOnApiError(
@@ -145,7 +144,7 @@ export async function throwOnApiError(
     );
   }
 
-  if (isDev) {
+  if (plainErrors) {
     throw new Error(
       `${fallback} ${res.status}: ${truncate(detail, 300)}`,
     );
@@ -157,19 +156,24 @@ export async function throwOnApiError(
 }
 
 // ============================================================================
-// Legacy helper — retained for callers that already import it.
-// New code should prefer `sanitize()` + `throwOnApiError()` above.
+// Plain code helper — for callers that throw hardcoded codes directly
+// (e.g. avatar.ts) rather than going through throwOnApiError().
 // ============================================================================
 
 /**
- * @deprecated Use `sanitize()` instead.
+ * Creates an Error from a code and an optional underlying detail.
+ *
+ * When PLAIN_ERRORS=true: appends the cause's message to the code.
+ * Otherwise: returns just the code.
  */
-export function sanitizeLogtoError(errorText: string | null | undefined): string {
-  if (!errorText) return 'Unknown error';
-  return String(errorText)
-    .replace(/https?:\/\/\S+/g, '[URL]')
-    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]')
-    .replace(/\+[1-9]\d{1,14}/g, '[PHONE]')
-    .replace(/[A-Za-z0-9_-]{20,}/g, '[TOKEN]')
-    .slice(0, 200);
+export function plainCode(code: ErrorCode, cause?: unknown): Error {
+  if (plainErrors && cause instanceof Error) {
+    return new Error(`${code}: ${cause.message}`);
+  }
+  if (plainErrors && cause !== undefined) {
+    return new Error(`${code}: ${String(cause)}`);
+  }
+  return new Error(code);
 }
+
+export { captureMessage } from './capture-message';

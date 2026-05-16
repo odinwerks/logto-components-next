@@ -8,6 +8,7 @@ import { assertSafeLogtoId, assertRevokeGrantsTarget } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
+import { safeAction, type ActionResult, type DataResult } from './safe';
 
 // ============================================================================
 // User Agent Parsing
@@ -42,17 +43,19 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
  * @param verificationRecordId - Verification record for identity.
  * @returns Array of LogtoSession objects.
  */
-export async function getUserSessions(verificationRecordId: string): Promise<LogtoSession[]> {
-  assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-  debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
-  const res = await makeRequest('/api/my-account/sessions', {
-    extraHeaders: { 'logto-verification-id': verificationRecordId },
+export async function getUserSessions(verificationRecordId: string): Promise<DataResult<LogtoSession[]>> {
+  return safeAction(async () => {
+    assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+    debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
+    const res = await makeRequest('/api/my-account/sessions', {
+      extraHeaders: { 'logto-verification-id': verificationRecordId },
+    });
+    await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
+    const data = await res.json();
+    const sessions = (data.sessions ?? []) as LogtoSession[];
+    debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
+    return sessions;
   });
-  await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
-  const data = await res.json();
-  const sessions = (data.sessions ?? []) as LogtoSession[];
-  debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
-  return sessions;
 }
 
 /**
@@ -60,37 +63,43 @@ export async function getUserSessions(verificationRecordId: string): Promise<Log
  * @param verificationRecordId - Verification record for identity.
  * @returns Array of LogtoSession objects with enriched metadata.
  */
-export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<LogtoSession[]> {
-  const sessions = await getUserSessions(verificationRecordId);
+export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<DataResult<LogtoSession[]>> {
+  return safeAction(async () => {
+    const sessionsResult = await getUserSessions(verificationRecordId);
+    if (!sessionsResult.ok) {
+      throw new Error(sessionsResult.error);
+    }
+    const sessions = sessionsResult.data;
 
-  const token = await getTokenForServerAction();
-  const introspection = await introspectToken(token);
-  const userId = introspection.sub || '';
+    const token = await getTokenForServerAction();
+    const introspection = await introspectToken(token);
+    const userId = introspection.sub || '';
 
-  const enrichedSessions: LogtoSession[] = sessions.map(session => {
-    const signInContext = session.lastSubmission?.signInContext;
-    const deviceInfo = parseSignInContext(signInContext?.userAgent || '');
+    const enrichedSessions: LogtoSession[] = sessions.map(session => {
+      const signInContext = session.lastSubmission?.signInContext;
+      const deviceInfo = parseSignInContext(signInContext?.userAgent || '');
 
-    const meta: SessionMeta = {
-      jti: session.payload.jti,
-      userId,
-      browser: deviceInfo.browser,
-      browserVersion: deviceInfo.browserVersion,
-      os: deviceInfo.os,
-      osVersion: deviceInfo.osVersion,
-      deviceType: deviceInfo.deviceType,
-      ip: signInContext?.ip || null,
-      lastActive: session.lastActiveAt ?? null,
-      createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
-      // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
-      // once the isCurrent field lands in the Logto Account API sessions response.
-      isCurrent: session.isCurrent ?? false,
-    };
+      const meta: SessionMeta = {
+        jti: session.payload.jti,
+        userId,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceType: deviceInfo.deviceType,
+        ip: signInContext?.ip || null,
+        lastActive: session.lastActiveAt ?? null,
+        createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
+        // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
+        // once the isCurrent field lands in the Logto Account API sessions response.
+        isCurrent: session.isCurrent ?? false,
+      };
 
-    return { ...session, meta };
+      return { ...session, meta };
+    });
+
+    return enrichedSessions;
   });
-
-  return enrichedSessions;
 }
 
 /**
@@ -103,32 +112,34 @@ export async function revokeUserSession(
   sessionId: string,
   revokeGrantsTarget?: 'all' | 'firstParty',
   identityVerificationRecordId?: string,
-): Promise<void> {
-  assertSafeLogtoId(sessionId, 'sessionId');
-  assertRevokeGrantsTarget(revokeGrantsTarget);
-  if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertSafeLogtoId(sessionId, 'sessionId');
+    assertRevokeGrantsTarget(revokeGrantsTarget);
+    if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
-  debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
+    debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
+    debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
 
-  const extraHeaders: Record<string, string> = {};
-  if (identityVerificationRecordId) {
-    extraHeaders['logto-verification-id'] = identityVerificationRecordId;
-  }
+    const extraHeaders: Record<string, string> = {};
+    if (identityVerificationRecordId) {
+      extraHeaders['logto-verification-id'] = identityVerificationRecordId;
+    }
 
-  const qs = revokeGrantsTarget ? `?revokeGrantsTarget=${encodeURIComponent(revokeGrantsTarget)}` : '';
-  const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}${qs}`;
+    const qs = revokeGrantsTarget ? `?revokeGrantsTarget=${encodeURIComponent(revokeGrantsTarget)}` : '';
+    const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}${qs}`;
 
-  debugLog(`[revokeUserSession] Calling DELETE ${safePath}`);
-  const res = await makeRequest(safePath, {
-    method: 'DELETE',
-    extraHeaders,
-  });
+    debugLog(`[revokeUserSession] Calling DELETE ${safePath}`);
+    const res = await makeRequest(safePath, {
+      method: 'DELETE',
+      extraHeaders,
+    });
 
-  debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
-  await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
+    debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
+    await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
 
-  debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+    debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+  }) as Promise<ActionResult>;
 }
 
 /**
@@ -142,36 +153,43 @@ export async function revokeUserSession(
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
  */
-export async function revokeAllOtherSessions(verificationRecordId: string): Promise<void> {
-  assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-  debugLog('[revokeAllOtherSessions] Fetching sessions');
+export async function revokeAllOtherSessions(verificationRecordId: string): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+    debugLog('[revokeAllOtherSessions] Fetching sessions');
 
-  const sessions = await getUserSessions(verificationRecordId);
+    const sessionsResult = await getUserSessions(verificationRecordId);
+    if (!sessionsResult.ok) {
+      throw new Error(sessionsResult.error);
+    }
+    const sessions = sessionsResult.data;
 
-  const currentSession = sessions.find(s => s.isCurrent === true);
-  if (!currentSession) {
-    throw new Error('Cannot identify current session — isCurrent not yet available from Logto.');
-  }
+    const currentSession = sessions.find(s => s.isCurrent === true);
+    if (!currentSession) {
+      throw new Error('Cannot identify current session — isCurrent not yet available from Logto.');
+    }
 
-  const othersToRevoke = sessions.filter(s => s.isCurrent !== true);
-  debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
+    const othersToRevoke = sessions.filter(s => s.isCurrent !== true);
+    debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
-  const results = await Promise.allSettled(
-    othersToRevoke.map(s =>
-      revokeUserSession(s.payload.uid, 'firstParty', verificationRecordId)
-    )
-  );
-
-  const failures = results.filter(r => r.status === 'rejected');
-  if (failures.length > 0) {
-    const count = failures.length;
-    const total = othersToRevoke.length;
-    throw new Error(
-      `Failed to revoke ${count} of ${total} session(s). The remaining sessions may still be active.`
+    const results = await Promise.allSettled(
+      othersToRevoke.map(async (s) => {
+        const revokeResult = await revokeUserSession(s.payload.uid, 'firstParty', verificationRecordId);
+        if (!revokeResult.ok) throw new Error(revokeResult.error);
+      })
     );
-  }
 
-  debugLog('[revokeAllOtherSessions] All other sessions revoked');
+    const failures = results.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      const count = failures.length;
+      const total = othersToRevoke.length;
+      throw new Error(
+        `Failed to revoke ${count} of ${total} session(s). The remaining sessions may still be active.`
+      );
+    }
+
+    debugLog('[revokeAllOtherSessions] All other sessions revoked');
+  }) as Promise<ActionResult>;
 }
 
 // ============================================================================
@@ -182,11 +200,13 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
  * Gets the user's grants.
  * @returns Array of grants.
  */
-export async function getUserGrants(): Promise<unknown[]> {
-  const res = await makeRequest('/api/my-account/grants');
-  await throwOnApiError(res, 'FETCH_FAILED', 'get-grants');
-  const data = await res.json();
-  return data.grants ?? [];
+export async function getUserGrants(): Promise<DataResult<unknown[]>> {
+  return safeAction(async () => {
+    const res = await makeRequest('/api/my-account/grants');
+    await throwOnApiError(res, 'FETCH_FAILED', 'get-grants');
+    const data = await res.json();
+    return data.grants ?? [];
+  });
 }
 
 /**
@@ -197,18 +217,20 @@ export async function getUserGrants(): Promise<unknown[]> {
 export async function revokeUserGrant(
   grantId: string,
   identityVerificationRecordId?: string,
-): Promise<void> {
-  assertSafeLogtoId(grantId, 'grantId');
-  if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertSafeLogtoId(grantId, 'grantId');
+    if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  const extraHeaders: Record<string, string> = {};
-  if (identityVerificationRecordId) {
-    extraHeaders['logto-verification-id'] = identityVerificationRecordId;
-  }
+    const extraHeaders: Record<string, string> = {};
+    if (identityVerificationRecordId) {
+      extraHeaders['logto-verification-id'] = identityVerificationRecordId;
+    }
 
-  const res = await makeRequest(`/api/my-account/grants/${encodeURIComponent(grantId)}`, {
-    method: 'DELETE',
-    extraHeaders,
-  });
-  await throwOnApiError(res, 'GRANT_REVOKE_FAILED', 'grant-revoke');
+    const res = await makeRequest(`/api/my-account/grants/${encodeURIComponent(grantId)}`, {
+      method: 'DELETE',
+      extraHeaders,
+    });
+    await throwOnApiError(res, 'GRANT_REVOKE_FAILED', 'grant-revoke');
+  }) as Promise<ActionResult>;
 }

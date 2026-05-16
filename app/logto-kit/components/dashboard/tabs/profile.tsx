@@ -1,19 +1,22 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { UserData } from '../../../logic/types';
+import type { UserData, UserRole } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Shield } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { readEnv } from '../../../logic/env';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 import { updateAvatarUrl } from '../../../logic/actions';
+import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
 import { ContactRow, Card, HR, SL } from '../shared/ContactRow';
+import { RoleCard } from '../shared/RoleCard';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
+import { loadPersonalRoles } from '../../../actions/load-personal-roles';
 
 const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
   <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
@@ -45,17 +48,17 @@ interface ProfileTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t:                 Translations;
-  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
-  onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
-  onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<void>;
-  onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
-  onSendEmailVerification: (email: string) => Promise<{ verificationId: string }>;
-  onSendPhoneVerification: (phone: string) => Promise<{ verificationId: string }>;
-  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<{ verificationRecordId: string }>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onRemoveEmail: (identityVerificationRecordId: string) => Promise<void>;
-  onRemovePhone: (identityVerificationRecordId: string) => Promise<void>;
+  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
+  onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
+  onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
+  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess:         (message: string) => void;
   onError:           (message: string) => void;
   refreshData:       () => void;
@@ -99,6 +102,35 @@ export function ProfileTab({
   const [username,    setUsername]    = useState(userData.username ?? '');
   const [nameLoading, setNameLoading] = useState(false);
 
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userData.id) return;
+    setRolesLoading(true);
+    setRolesError(false);
+    loadPersonalRoles(userData.id)
+      .then(r => {
+        if (cancelled) return;
+        if (r.ok) setUserRoles(r.data);
+        else {
+          console.error('[ProfileTab] Failed to load roles:', r.error);
+          setRolesError(true);
+        }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('[ProfileTab] Error loading roles:', err);
+        setRolesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setRolesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [userData.id]);
+
   const nameChanged = nameType === 'given_family'
     ? (givenName  !== (userData.profile?.givenName  ?? '') ||
        familyName !== (userData.profile?.familyName ?? ''))
@@ -113,10 +145,15 @@ export function ProfileTab({
     try {
       if (nameType === 'given_family') {
         const name = `${givenName} ${familyName}`.trim();
-        if (name) await onUpdateBasicInfo({ name });
-        await onUpdateProfile({ givenName, familyName });
+        if (name) {
+          const basicResult = await onUpdateBasicInfo({ name });
+          if (!basicResult.ok) { onError(basicResult.error); return; }
+        }
+        const profileResult = await onUpdateProfile({ givenName, familyName });
+        if (!profileResult.ok) { refreshData(); onError(profileResult.error); return; }
       } else if (nameType === 'username') {
-        await onUpdateBasicInfo({ username });
+        const result = await onUpdateBasicInfo({ username });
+        if (!result.ok) { onError(result.error); return; }
       } else { // full
         const nameFieldsChanged =
           givenName  !== (userData.profile?.givenName  ?? '') ||
@@ -124,17 +161,19 @@ export function ProfileTab({
         const name = `${givenName} ${familyName}`.trim();
         const basicUpdates: { name?: string; username?: string } = { username };
         if (name) basicUpdates.name = name;
-        await onUpdateBasicInfo(basicUpdates);
-        if (nameFieldsChanged) await onUpdateProfile({ givenName, familyName });
+        const basicResult = await onUpdateBasicInfo(basicUpdates);
+        if (!basicResult.ok) { onError(basicResult.error); return; }
+        if (nameFieldsChanged) {
+          const profileResult = await onUpdateProfile({ givenName, familyName });
+          if (!profileResult.ok) { refreshData(); onError(profileResult.error); return; }
+        }
       }
       onSuccess(t.profile.profileUpdated);
       refreshData();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : t.profile.updateFailed);
     } finally {
       setNameLoading(false);
     }
-  }, [nameType, givenName, familyName, username, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
+  }, [nameType, givenName, familyName, username, userData, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
 
   const handleDiscardName = useCallback(() => {
     setGivenName(userData.profile?.givenName  ?? '');
@@ -157,11 +196,20 @@ export function ProfileTab({
     setUsername(userData.username ?? '');
   }, [userData.username]);
 
+  useEffect(() => {
+    setGivenName(userData.profile?.givenName ?? '');
+  }, [userData.profile?.givenName]);
+
+  useEffect(() => {
+    setFamilyName(userData.profile?.familyName ?? '');
+  }, [userData.profile?.familyName]);
+
   const { upload, isUploading, clearError } = useAvatarUpload({
     userId: userData.id,
     onSuccess: async (url: string) => {
-      await updateAvatarUrl(url);
-      onSuccess(t.profile.avatarUpdated || 'Avatar updated.');
+      const result = await updateAvatarUrl(url);
+      if (!result.ok) { onError(result.error); return; }
+      onSuccess(t.profile.avatarUpdated);
       refreshData();
       setAvatarModalOpen(false);
       if (cropPreviewUrlRef.current) {
@@ -181,11 +229,11 @@ export function ProfileTab({
   const handleFileSelected = useCallback((file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowed.includes(file.type)) {
-      onError(t.profile.avatarInvalidType || 'Only JPEG, PNG, WebP, or GIF images are allowed.');
+      onError(t.profile.avatarInvalidType);
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      onError(t.profile.avatarTooLarge || 'File must be under 2 MB.');
+      onError(t.profile.avatarTooLarge);
       return;
     }
     setSelectedFile(file);
@@ -205,12 +253,11 @@ export function ProfileTab({
   const handleRemoveAvatar = useCallback(async () => {
     setAvatarLoading(true);
     try {
-      await onUpdateAvatarUrl('');
-      onSuccess(t.profile.avatarRemoved || 'Avatar removed.');
+      const result = await onUpdateAvatarUrl('');
+      if (!result.ok) { onError(result.error); return; }
+      onSuccess(t.profile.avatarRemoved);
       refreshData();
       setAvatarModalOpen(false);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to remove avatar.');
     } finally {
       setAvatarLoading(false);
     }
@@ -218,20 +265,20 @@ export function ProfileTab({
 
   const handleApplyCrop = useCallback(async () => {
     if (!cropperRef.current || !selectedFile) return;
-    try {
-      const blob = await cropperRef.current.cropToBlob();
-      if (!blob) {
-        onError('Failed to crop image.');
-        return;
-      }
-      const croppedFile = new File(
-        [blob],
-        selectedFile.name.replace(/\.[^.]+$/, '.png'),
-        { type: 'image/png' },
-      );
-      await upload(croppedFile);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to process image.');
+    const blob = await cropperRef.current.cropToBlob();
+    if (!blob) {
+      onError(t.profile.cropFailed);
+      return;
+    }
+    const croppedFile = new File(
+      [blob],
+      selectedFile.name.replace(/\.[^.]+$/, '.png'),
+      { type: 'image/png' },
+    );
+    const uploadedUrl = await upload(croppedFile);
+    if (!uploadedUrl) {
+      // upload() already called onError internally
+      return;
     }
   }, [selectedFile, upload, onError]);
 
@@ -274,7 +321,7 @@ export function ProfileTab({
   return (
     <div>
       {avatarModalOpen && (
-        <Overlay onDismiss={() => {}}>
+        <Overlay onDismiss={handleCloseModal}>
           <div style={{
             width: '100%',
             maxWidth: inCropMode ? '42rem' : '32rem',
@@ -303,8 +350,8 @@ export function ProfileTab({
                 letterSpacing: '-0.02em',
               }}>
                 {inCropMode
-                  ? (t.profile.adjustPhoto || 'Adjust your photo')
-                  : (t.profile.profilePhoto || 'Profile photo')}
+                  ? t.profile.adjustPhoto
+                  : t.profile.profilePhoto}
               </p>
               <button
                 onClick={handleCloseModal}
@@ -388,7 +435,7 @@ export function ProfileTab({
                         border: 'none',
                         padding: 0,
                         cursor: avatarLoading || isUploading ? 'not-allowed' : 'pointer',
-                        color: '#ef4444',
+                        color: c.accentRed,
                         fontWeight: ty.weight.semibold,
                         fontSize: 'inherit',
                         fontFamily: 'inherit',
@@ -566,12 +613,15 @@ export function ProfileTab({
           placeholder={t.profile.emailPlaceholder}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendEmailVerification}
-          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code) => {
-            const result = await onVerifyCode('email', value, verificationId, code);
-            await onUpdateEmail(value, result.verificationRecordId, identityVerificationId);
+          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
+            const vr = await onVerifyCode('email', value, verificationId, code);
+            if (!vr.ok) return vr;
+            const ur = await onUpdateEmail(value, vr.data.verificationRecordId, identityVerificationId);
+            if (!ur.ok) return ur;
             refreshData();
+            return { ok: true };
           }}
-          onRemove={async (id) => { await onRemoveEmail(id); refreshData(); }}
+          onRemove={async (id): Promise<ActionResult> => { const r = await onRemoveEmail(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
           onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
         <HR colors={colors} />
@@ -583,14 +633,56 @@ export function ProfileTab({
           placeholder={t.profile.phonePlaceholder}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
-          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code) => {
-            const result = await onVerifyCode('phone', value, verificationId, code);
-            await onUpdatePhone(value, result.verificationRecordId, identityVerificationId);
+          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
+            const vr = await onVerifyCode('phone', value, verificationId, code);
+            if (!vr.ok) return vr;
+            const ur = await onUpdatePhone(value, vr.data.verificationRecordId, identityVerificationId);
+            if (!ur.ok) return ur;
             refreshData();
+            return { ok: true };
           }}
-          onRemove={async (id) => { await onRemovePhone(id); refreshData(); }}
+          onRemove={async (id): Promise<ActionResult> => { const r = await onRemovePhone(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
           onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
         />
+      </Card>
+
+      <SL colors={colors}>{t.profile.roles}</SL>
+      <Card mode={mode} colors={colors}>
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, marginBottom: '0.75rem' }}>
+            {t.profile.rolesDescription}
+          </p>
+          {rolesLoading ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+              <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loading}
+            </div>
+          ) : rolesError ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
+              <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
+              <p>{t.profile.rolesError}</p>
+            </div>
+          ) : userRoles.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+              <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
+              <p>{t.profile.noRoles}</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {userRoles.map((role) => (
+                <RoleCard
+                  key={role.id}
+                  name={role.name}
+                  subtitle={role.description}
+                  subtitleLabel={t.profile.roleDescriptionLabel}
+                  id={role.id}
+                  idLabel={t.profile.roleIdLabel}
+                  colors={colors}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

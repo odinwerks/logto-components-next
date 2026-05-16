@@ -11,6 +11,7 @@ const SCOPE_MAP: Record<string, string> = {
   sessions: UserScope.Sessions,
   organizations: UserScope.Organizations,
   organization_roles: UserScope.OrganizationRoles,
+  roles: UserScope.Roles,
   openid: 'openid',
   offline_access: 'offline_access',
 };
@@ -126,7 +127,7 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
-  const resource = process.env.LOGTO_M2M_RESOURCE || `${cleanEndpoint}/api`;
+  const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
   const body = new URLSearchParams({

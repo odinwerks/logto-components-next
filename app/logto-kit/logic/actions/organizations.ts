@@ -4,6 +4,7 @@ import { getOrganizationToken } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
 import { debugLog } from '../debug';
 import { decodeLogtoAccessToken } from '../guards';
+import { safeAction, type DataResult } from './safe';
 
 /**
  * Gets the user's permissions for a specific organization.
@@ -11,8 +12,8 @@ import { decodeLogtoAccessToken } from '../guards';
  * the previous manual Buffer.from(..., 'base64') decode that silently
  * produced garbage for tokens containing '-' or '_' characters.
  */
-export async function getOrganizationUserPermissions(orgId: string): Promise<string[]> {
-  try {
+export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
+  return safeAction(async () => {
     const orgToken = await getOrganizationToken(getLogtoConfig(), orgId);
     if (!orgToken) {
       console.warn(`[getOrganizationUserPermissions] No token for org ${orgId}`);
@@ -29,8 +30,5 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<str
 
     debugLog(`[getOrganizationUserPermissions] Parsed permissions for ${orgId}:`, permissions);
     return permissions;
-  } catch (error) {
-    console.error(`[getOrganizationUserPermissions] Failed for org ${orgId}:`, error);
-    return [];
-  }
+  });
 }

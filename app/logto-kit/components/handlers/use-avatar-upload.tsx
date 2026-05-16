@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { uploadAvatar } from '@/app/logto-kit/logic/actions'
+import { captureMessage } from '../../logic/capture-message'
 
 export interface UseAvatarUploadOptions {
   /**
@@ -51,7 +52,11 @@ export function useAvatarUpload({
         const formData = new FormData()
         formData.append('file', file)
 
-        const { url } = await uploadAvatar(formData)
+        const result = await uploadAvatar(formData)
+        if (!result.ok) {
+          throw new Error(result.error)
+        }
+        const { url } = result.data
 
         if (!url) {
           throw new Error('UPLOAD_FAILED')
@@ -60,8 +65,7 @@ export function useAvatarUpload({
         onSuccessRef.current?.(url)
         return url
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'UPLOAD_FAILED'
+        const message = captureMessage(err)
         setError(message)
         onErrorRef.current?.(message)
         return null

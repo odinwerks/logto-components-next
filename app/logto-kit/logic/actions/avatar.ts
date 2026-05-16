@@ -4,6 +4,8 @@ import * as Minio from 'minio';
 import { introspectToken } from '../utils';
 import { assertSafeUserId } from '../guards';
 import { getTokenForServerAction } from './tokens';
+import { plainCode } from '../errors';
+import { safeAction, type DataResult } from './safe';
 
 // ============================================================================
 // Constants
@@ -36,7 +38,7 @@ async function supabaseStorageHeaders(
 ): Promise<Record<string, string>> {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
-    throw new Error('UPLOAD_FAILED');
+    throw plainCode('UPLOAD_FAILED');
   }
   return {
     Authorization: `Bearer ${serviceRoleKey}`,
@@ -49,7 +51,7 @@ async function supabaseStorageHeaders(
 
 function supabaseRestBase(): string {
   const rawEndpoint = process.env.S3_ENDPOINT;
-  if (!rawEndpoint) throw new Error('UPLOAD_FAILED');
+  if (!rawEndpoint) throw plainCode('UPLOAD_FAILED');
   return rawEndpoint.replace(/\/s3\/?$/, '');
 }
 
@@ -70,9 +72,9 @@ async function uploadViaSupabase(
   });
 
   if (!res.ok) {
-    // Log detail server-side; never surface to client.
-    console.warn(`[uploadViaSupabase] HTTP ${res.status}`);
-    throw new Error('UPLOAD_FAILED');
+    const body = await res.text().catch(() => res.statusText);
+    console.warn(`[uploadViaSupabase] HTTP ${res.status}: ${body}`);
+    throw plainCode('UPLOAD_FAILED', new Error(`HTTP ${res.status}: ${body}`));
   }
 }
 
@@ -110,7 +112,7 @@ async function uploadViaMinIO(
   const rawEndpoint = process.env.S3_ENDPOINT;
 
   if (!accessKey || !secretKey || !rawEndpoint) {
-    throw new Error('UPLOAD_FAILED');
+    throw plainCode('UPLOAD_FAILED');
   }
 
   const parsed = new URL(rawEndpoint);
@@ -134,7 +136,7 @@ async function uploadViaMinIO(
     });
   } catch (err) {
     console.warn('[uploadViaMinIO] putObject failed', err instanceof Error ? err.message : err);
-    throw new Error('UPLOAD_FAILED');
+    throw plainCode('UPLOAD_FAILED', err);
   }
 }
 
@@ -233,46 +235,47 @@ function detectMimeFromBytes(bytes: Buffer): string | null {
  */
 export async function uploadAvatar(
   formData: FormData,
-): Promise<{ url: string }> {
+): Promise<DataResult<{ url: string }>> {
+  return safeAction(async () => {
   // ── Derive token + userId server-side ────────────────────────────────
   const sessionToken = await getTokenForServerAction();
   const introspection = await introspectToken(sessionToken);
 
   if (!introspection.active) {
-    throw new Error('UNAUTHORIZED');
+    throw plainCode('UNAUTHORIZED');
   }
   const userId = introspection.sub;
   if (!userId) {
-    throw new Error('UNAUTHORIZED');
+    throw plainCode('UNAUTHORIZED');
   }
   assertSafeUserId(userId);
 
   // ── Extract and validate file ────────────────────────────────────────
   const rawFile = formData.get('file');
   if (!(rawFile instanceof File)) {
-    throw new Error('UPLOAD_INVALID_TYPE');
+    throw plainCode('UPLOAD_INVALID_TYPE');
   }
   const file = rawFile;
 
   if (!(ALLOWED_MIME as readonly string[]).includes(file.type)) {
-    throw new Error('UPLOAD_INVALID_TYPE');
+    throw plainCode('UPLOAD_INVALID_TYPE');
   }
 
   if (file.size > MAX_BYTES) {
-    throw new Error('UPLOAD_TOO_LARGE');
+    throw plainCode('UPLOAD_TOO_LARGE');
   }
 
   const arrayBuf = await file.arrayBuffer();
   const bytes = Buffer.from(arrayBuf);
   const detectedMime = detectMimeFromBytes(bytes);
   if (!detectedMime || detectedMime !== file.type) {
-    throw new Error('UPLOAD_INVALID_TYPE');
+    throw plainCode('UPLOAD_INVALID_TYPE');
   }
 
   // ── Backend selection ────────────────────────────────────────────────
   if (process.env.PFP_BACKEND?.trim().toLowerCase() === 'logto') {
     const endpoint = process.env.ENDPOINT?.replace(/\/$/, '');
-    if (!endpoint) throw new Error('UPLOAD_FAILED');
+    if (!endpoint) throw plainCode('UPLOAD_FAILED');
 
     const token = await getTokenForServerAction();
 
@@ -287,8 +290,9 @@ export async function uploadAvatar(
     });
 
     if (!res.ok) {
-      console.warn(`[uploadAvatarViaLogto] HTTP ${res.status}`);
-      throw new Error('UPLOAD_FAILED');
+      const body = await res.text().catch(() => res.statusText);
+      console.warn(`[uploadAvatarViaLogto] HTTP ${res.status}: ${body}`);
+      throw plainCode('UPLOAD_FAILED', new Error(`HTTP ${res.status}: ${body}`));
     }
 
     const data = (await res.json()) as { avatar?: string };
@@ -301,11 +305,11 @@ export async function uploadAvatar(
   // ── Storage config ───────────────────────────────────────────────────
   const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, '');
   if (!publicBase) {
-    throw new Error('UPLOAD_FAILED');
+    throw plainCode('UPLOAD_FAILED');
   }
 
   const bucket = process.env.S3_BUCKET_NAME;
-  if (!bucket) throw new Error('UPLOAD_FAILED');
+  if (!bucket) throw plainCode('UPLOAD_FAILED');
 
   const ext = MIME_TO_EXT[file.type] || 'png';
   const key = `${userId}/you.${ext}`;
@@ -323,4 +327,5 @@ export async function uploadAvatar(
   await audit({ actor: userId, action: 'avatar.upload', resource: userId });
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` };
+  });
 }

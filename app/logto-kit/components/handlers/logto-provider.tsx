@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
+import type { ActionResult } from '../../logic/actions/safe';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
 
@@ -36,7 +37,7 @@ export interface LogtoProviderProps {
   dashboard?: ReactNode;
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
-  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
+  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
   onLangChange?: () => void;
   initialOrgId?: string | null;
 }

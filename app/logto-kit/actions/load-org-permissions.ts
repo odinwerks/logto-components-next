@@ -1,13 +1,8 @@
 'use server';
 
 import { getOrganizationUserPermissions } from '../logic/actions';
+import type { DataResult } from '../logic/actions/safe';
 
-export async function loadOrganizationPermissions(orgId: string) {
-  try {
-    const permissions = await getOrganizationUserPermissions(orgId);
-    return permissions;
-  } catch (error) {
-    console.error('[loadOrganizationPermissions] Failed:', error);
-    return [];
-  }
+export async function loadOrganizationPermissions(orgId: string): Promise<DataResult<string[]>> {
+  return getOrganizationUserPermissions(orgId);
 }

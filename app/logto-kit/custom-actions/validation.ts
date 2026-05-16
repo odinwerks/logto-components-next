@@ -46,7 +46,8 @@ export async function fetchUserRbacData(token: string, overrideOrgId?: string | 
       const claims = decodeLogtoAccessToken(token);
       if (claims.sub) {
         const { getOrganizationUserPermissions } = await import('../logic/actions');
-        organizationPermissions = await getOrganizationUserPermissions(asOrg);
+        const permResult = await getOrganizationUserPermissions(asOrg);
+        organizationPermissions = permResult.ok ? permResult.data : [];
       }
     } catch (error) {
       console.warn('[fetchUserRbacData] Failed to get org permissions:', error);
