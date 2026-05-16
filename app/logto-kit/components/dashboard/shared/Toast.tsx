@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
 
@@ -16,6 +16,8 @@ interface ToastProps {
 }
 
 export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(
       () => onDismiss(message.id),
@@ -23,6 +25,22 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
     );
     return () => clearTimeout(timer);
   }, [message.id, message.duration, onDismiss]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(message.message);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }, [message.message]);
 
   const isDark = mode === 'dark';
 
@@ -34,6 +52,9 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
     fontSize: '0.75rem',
     fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
     color: accent,
+    cursor: 'pointer',
+    userSelect: 'none',
+    transition: 'opacity 0.15s',
   });
 
   const styleMap = {
@@ -47,31 +68,62 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
     zIndex: 9999,
     maxWidth: '25rem',
     animation: 'slideIn 0.2s ease-out',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   };
 
   return (
-    <div style={toastStyle}>
+    <div style={toastStyle} onClick={copy} title="Click to copy">
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '0.75rem',
+        alignItems: 'flex-start',
+        gap: '0.5rem',
       }}>
-        <span>{message.message}</span>
-        <button
-          onClick={() => onDismiss(message.id)}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            padding: '0',
-            lineHeight: '1',
-          }}
-        >
-          ×
-        </button>
+        <span style={{ flex: 1 }}>{message.message}</span>
+        <div style={{
+          display: 'flex',
+          gap: '0.375rem',
+          flexShrink: 0,
+          fontSize: '0.7rem',
+          lineHeight: '1.2',
+        }}>
+          {copied ? (
+            <span style={{ opacity: 0.7 }}>Copied!</span>
+          ) : (
+            <button
+              onClick={copy}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid currentColor',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontSize: '0.65rem',
+                padding: '0.0625rem 0.375rem',
+                borderRadius: '0.125rem',
+                lineHeight: '1.5',
+                fontFamily: 'inherit',
+              }}
+            >
+              copy
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDismiss(message.id); }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              padding: '0',
+              lineHeight: '1',
+              opacity: 0.6,
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
     </div>
   );

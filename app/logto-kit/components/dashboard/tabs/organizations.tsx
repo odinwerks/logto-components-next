@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
+import { RoleCard } from '../shared/RoleCard';
 import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
 import { useOrgMode } from '../../handlers/preferences';
 import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
@@ -28,6 +29,8 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
   const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const lastFailedOrgRef = useRef<string | null>(null);
 
   const activeOrgId = asOrg ?? currentOrgId;
 
@@ -38,35 +41,64 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
   const organizationPermissions = loadedPermissions.length > 0 ? loadedPermissions : (userData.organizationPermissions || []);
 
   // Load permissions for active organization, clear when switching to "be yourself"
+  // Bug 1 fix: clear loadedPermissions on every activeOrgId change (no stale data)
+  // Bug 2 fix: cancelled flag prevents setState on unmounted component
+  // Bug 3 fix: permissionsLoading tracks loading vs empty state
   useEffect(() => {
-    if (activeOrgId) {
-      // User is acting as an organization - load permissions
-      if (loadedPermissions.length === 0) {
-        loadOrganizationPermissions(activeOrgId)
-          .then(permissions => {
-            setLoadedPermissions(permissions);
-          })
-          .catch(error => {
-            console.error('[OrganizationsTab] Failed to load permissions:', error);
-            setLoadedPermissions([]);
-          });
-      }
-    } else {
+    let cancelled = false;
+
+    if (!activeOrgId) {
       // User is in "be yourself" mode - clear all organization permissions
       setLoadedPermissions([]);
+      setPermissionsLoading(false);
+      lastFailedOrgRef.current = null;
+      return;
     }
-  }, [activeOrgId]);
+
+    // Skip re-fetching if this org already failed to load permissions
+    if (activeOrgId === lastFailedOrgRef.current) return;
+
+    // Clear old permissions when switching orgs (Bug 1)
+    setLoadedPermissions([]);
+    setPermissionsLoading(true);
+
+    loadOrganizationPermissions(activeOrgId)
+      .then(r => {
+        if (cancelled) return;
+        if (r.ok) {
+          lastFailedOrgRef.current = null;
+          setLoadedPermissions(r.data);
+        } else {
+          console.error('[OrganizationsTab] Failed to load permissions:', r.error);
+          lastFailedOrgRef.current = activeOrgId;
+          setLoadedPermissions(userData.organizationPermissions || []);
+        }
+      })
+      .catch(error => {
+        if (cancelled) return;
+        console.error('[OrganizationsTab] Failed to load permissions:', error);
+        lastFailedOrgRef.current = activeOrgId;
+        setLoadedPermissions(userData.organizationPermissions || []);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPermissionsLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [activeOrgId, userData.organizationPermissions]);
 
   const handleOrgClick = async (orgId: string) => {
     if (orgId === activeOrgId) return;
+    setIsLoading(orgId);
     try {
       const isValid = await setActiveOrg(orgId);
       if (!isValid) return;
-      setIsLoading(orgId);
       setAsOrg(orgId);
       router.refresh();
     } catch (err) {
-      console.error('Failed to switch organization:', err);
+      console.error('[OrganizationsTab] Failed to switch organization:', err);
     } finally {
       setIsLoading(null);
     }
@@ -78,6 +110,8 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
     try {
       setAsOrg(null);
       router.refresh();
+    } catch (err) {
+      console.error('[OrganizationsTab] Failed to clear organization:', err);
     } finally {
       setIsLoading(null);
     }
@@ -222,25 +256,16 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
             {organizationRoles.map((role, index) => {
               const org = organizations.find(o => o.id === role.organizationId);
               return (
-                <div
+                <RoleCard
                   key={`${role.id}-${index}`}
-                  style={{
-                    padding: '0.625rem 0.75rem',
-                    background: c.bgPrimary,
-                    border: `1px solid ${c.borderColor}`,
-                    borderRadius: '0.25rem',
-                  }}
-                >
-                  <div style={{ color: c.textPrimary, fontSize: '0.6875rem', fontWeight: 600, fontFamily: FONT_MONO, marginBottom: '0.25rem' }}>
-                    {role.name}
-                  </div>
-                  <div style={{ color: c.textSecondary, fontSize: '0.5625rem', fontFamily: FONT_MONO }}>
-                    {t.organizations.organizationLabel || 'Organization'}: {org?.name || role.organizationId}
-                  </div>
-                  <div style={{ color: c.textTertiary, fontSize: '0.5625rem', marginTop: '0.125rem', fontFamily: FONT_MONO }}>
-                    {t.organizations.roleIdLabel}: {role.id}
-                  </div>
-                </div>
+                  name={role.name}
+                  subtitle={org?.name || role.organizationId}
+                  subtitleLabel={t.organizations.organizationLabel}
+                  id={role.id}
+                  idLabel={t.organizations.roleIdLabel}
+                  colors={colors}
+                  t={t}
+                />
               );
             })}
           </div>
@@ -259,7 +284,11 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
 
         {organizationPermissions.length === 0 ? (
           <div style={emptyStateStyle}>
-            {activeOrgId ? t.organizations.loadingPermissions : t.organizations.noActiveOrg}
+            {activeOrgId
+              ? permissionsLoading
+                ? t.organizations.loadingPermissions
+                : t.organizations.noOrgPermissions
+              : t.organizations.noActiveOrg}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

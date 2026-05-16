@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { type ThemeColors, DARK_COLORS, LIGHT_COLORS } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
+import type { ActionResult } from '../../logic/actions/safe';
 
 export type { ThemeColors, LocaleCode };
 
@@ -126,7 +127,7 @@ export function PreferencesProvider({
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
   initialOrgId?: string | null;
-  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<void>;
+  onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
   onLangChange?: () => void;
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
@@ -185,28 +186,25 @@ export function PreferencesProvider({
 
   const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
     if (!onUpdateCustomData) return;
-    try {
-      await onUpdateCustomData({ Preferences: { theme: newTheme, lang, asOrg } });
-    } catch (err) {
-      console.error('[PreferencesProvider] Failed to persist theme:', err);
+    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang, asOrg } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist theme:', r.error);
     }
   }, [onUpdateCustomData, lang, asOrg]);
 
   const persistLangToApi = useCallback(async (newLang: string) => {
     if (!onUpdateCustomData) return;
-    try {
-      await onUpdateCustomData({ Preferences: { theme, lang: newLang, asOrg } });
-    } catch (err) {
-      console.error('[PreferencesProvider] Failed to persist lang:', err);
+    const r = await onUpdateCustomData({ Preferences: { theme, lang: newLang, asOrg } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist lang:', r.error);
     }
   }, [onUpdateCustomData, theme, asOrg]);
 
   const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
     if (!onUpdateCustomData) return;
-    try {
-      await onUpdateCustomData({ Preferences: { theme, lang, asOrg: newOrgId } });
-    } catch (err) {
-      console.error('[PreferencesProvider] Failed to persist org:', err);
+    const r = await onUpdateCustomData({ Preferences: { theme, lang, asOrg: newOrgId } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist org:', r.error);
     }
   }, [onUpdateCustomData, theme, lang]);
 

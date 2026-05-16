@@ -45,6 +45,16 @@ export interface UserData {
   organizations?: Array<{ id: string; name: string }>;
   organizationRoles?: Array<{ id: string; name: string; organizationId: string }>;
   organizationPermissions?: string[]; // Permission scopes from organization token
+  roles?: UserRole[];
+}
+
+export interface UserRole {
+  id: string;
+  name: string;
+  description?: string;
+  type?: 'User' | 'MachineToMachine';
+  tenantId?: string;
+  isDefault?: boolean;
 }
 
 // ============================================================================

@@ -5,12 +5,11 @@ import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
-import { isDev } from '../../logto-kit/logic/dev-mode';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json(
-    { ok: false, error, message: isDev ? message : error },
+    { ok: false, error, message },
     { status }
   );
 }
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
     const actionConfig = await getAction(action);
 
     if (!actionConfig) {
-      return apiError('ACTION_NOT_FOUND', isDev ? `Action "${action}" not found` : 'Action not found', 404);
+      return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
     }
 
     const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
@@ -84,7 +83,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { getOrganizationUserPermissions } = await import('../../logto-kit/logic/actions');
-    const userPermissions = await getOrganizationUserPermissions(userData.asOrg!);
+    const permResult = await getOrganizationUserPermissions(userData.asOrg!);
+    const userPermissions = permResult.ok ? permResult.data : [];
 
     const requiredPerms = Array.isArray(actionConfig.requiredPerm)
       ? actionConfig.requiredPerm
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const hasPermission = requiredPerms.every(perm => userPermissions.includes(perm));
 
     if (!hasPermission) {
-      return apiError('PERMISSION_DENIED', isDev ? `User lacks required permission: ${requiredPerms.join(', ')}` : 'Insufficient permissions', 403);
+      return apiError('PERMISSION_DENIED', `User lacks required permission: ${requiredPerms.join(', ')}`, 403);
     }
 
     const result = await actionConfig.handler({

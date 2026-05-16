@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { formatPhone } from '../../../logic/formatting';
+import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import type { ModalStep } from './FlowModal';
 import { FlowModal } from './FlowModal';
 import { Plus, Mail, Phone as PhoneIcon, LucideIcon } from 'lucide-react';
@@ -97,10 +98,10 @@ export interface ContactRowProps {
   currentValue?: string;
   type: 'email' | 'phone';
   placeholder: string;
-  onVerifyPassword: (p: string) => Promise<{ verificationRecordId: string }>;
-  onSendVerification: (value: string) => Promise<{ verificationId: string }>;
-  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<void>;
-  onRemove: (identityVerificationRecordId: string) => Promise<void>;
+  onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
+  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
+  onRemove: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   t: Translations;
@@ -141,22 +142,22 @@ export function ContactRow({
     setPwErr('');
     if (modalKind === 'remove') {
       setStep({ kind: 'loading', message: t.mfa.verifying });
-      try {
-        const resp = await onVerifyPassword(pw);
-        await onRemove(resp.verificationRecordId);
-        onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
-        close();
-      } catch (err) { onError(err instanceof Error ? err.message : t.profile.updateFailed); close(); }
+      const r1 = await onVerifyPassword(pw);
+      if (!r1.ok) { setPwErr(r1.error); return; }
+      const r2 = await onRemove(r1.data.verificationRecordId);
+      if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
+      onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
+      close();
     } else {
       const target = newValueRef.current.trim();
       if (!target) { setPwErr(t.security.enterValueFirst); return; }
       setStep({ kind: 'loading', message: t.mfa.sendingCode });
-      try {
-        const identity = await onVerifyPassword(pw);
-        const codeResp = await onSendVerification(target);
-        onSuccess(`${t.verification.codeSent} ${target}`);
-        setStep({ kind: 'code', destination: target, verificationId: codeResp.verificationId, identityVerificationId: identity.verificationRecordId });
-      } catch (err) { onError(err instanceof Error ? err.message : t.profile.verificationFailed); close(); }
+      const r1 = await onVerifyPassword(pw);
+      if (!r1.ok) { setPwErr(r1.error); return; }
+      const r2 = await onSendVerification(target);
+      if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
+      onSuccess(`${t.verification.codeSent} ${target}`);
+      setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId });
     }
   };
 
@@ -164,11 +165,10 @@ export function ContactRow({
     if (step.kind !== 'code') return;
     const { destination, verificationId, identityVerificationId } = step;
     setStep({ kind: 'loading', message: t.mfa.verifyingCode });
-    try {
-      await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
-      onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
-      close();
-    } catch (err) { onError(err instanceof Error ? err.message : t.profile.updateFailed); close(); }
+    const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
+    if (!r.ok) { onError(r.error); setStep({ kind: 'password' }); return; }
+    onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
+    close();
   };
 
   return (

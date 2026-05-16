@@ -16,8 +16,8 @@ vi.mock('../../../logic/env', () => ({
 
 // Mock actions barrel (avoids @logto/next resolution issues)
 vi.mock('../../../logic/actions', () => ({
-  updateAvatarUrl: async () => undefined,
-  uploadAvatar: async () => ({ url: null }),
+  updateAvatarUrl: async () => ({ ok: true } as ActionResult),
+  uploadAvatar: async () => ({ ok: true, data: { url: null } }),
 }));
 
 // Mock use-avatar-upload
@@ -38,13 +38,14 @@ vi.mock('../../userbutton', () => ({
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ProfileTab } from './profile';
 import type { UserData } from '../../../logic/types';
+import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
 // ── Stub callbacks ────────────────────────────────────────
 const noop = () => undefined;
-const resolvedNoop = () => Promise.resolve();
-const resolvedVerifyPassword = () => Promise.resolve({ verificationRecordId: 'mock' });
-const resolvedSendVerification = () => Promise.resolve({ verificationId: 'mock' });
-const resolvedVerifyCode = () => Promise.resolve({ verificationRecordId: 'mock' });
+const resolvedActionResult = () => Promise.resolve({ ok: true } as ActionResult);
+const resolvedVerifyPassword = () => Promise.resolve({ ok: true, data: { verificationRecordId: 'mock' } } as DataResult<{ verificationRecordId: string }>);
+const resolvedSendVerification = () => Promise.resolve({ ok: true, data: { verificationId: 'mock' } } as DataResult<{ verificationId: string }>);
+const resolvedVerifyCode = () => Promise.resolve({ ok: true, data: { verificationRecordId: 'mock' } } as DataResult<{ verificationRecordId: string }>);
 
 const defaultUserData: UserData = {
   id: 'test-user',
@@ -65,8 +66,8 @@ const defaultUserData: UserData = {
 
 interface RenderProfileOptions {
   userData?: UserData;
-  onUpdateBasicInfo?: (updates: { name?: string; username?: string }) => Promise<void>;
-  onUpdateProfile?: (profile: { givenName?: string; familyName?: string }) => Promise<void>;
+  onUpdateBasicInfo?: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateProfile?: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 }
 
 function renderProfile(
@@ -79,8 +80,8 @@ function renderProfile(
     return undefined;
   });
 
-  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }) => Promise<void>>().mockResolvedValue(undefined)) as (updates: { name?: string; username?: string }) => Promise<void>;
-  const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<void>>().mockResolvedValue(undefined)) as (profile: { givenName?: string; familyName?: string }) => Promise<void>;
+  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 
   const result = render(
     <ProfileTab
@@ -89,16 +90,16 @@ function renderProfile(
       colors={DARK_COLORS}
       t={enUS}
       onUpdateBasicInfo={basicInfoFn}
-      onUpdateAvatarUrl={resolvedNoop}
+      onUpdateAvatarUrl={resolvedActionResult}
       onUpdateProfile={profileFn}
       onVerifyPassword={resolvedVerifyPassword}
       onSendEmailVerification={resolvedSendVerification}
       onSendPhoneVerification={resolvedSendVerification}
       onVerifyCode={resolvedVerifyCode}
-      onUpdateEmail={resolvedNoop}
-      onUpdatePhone={resolvedNoop}
-      onRemoveEmail={resolvedNoop}
-      onRemovePhone={resolvedNoop}
+      onUpdateEmail={resolvedActionResult}
+      onUpdatePhone={resolvedActionResult}
+      onRemoveEmail={resolvedActionResult}
+      onRemovePhone={resolvedActionResult}
       onSuccess={noop}
       onError={noop}
       refreshData={noop}
@@ -158,8 +159,8 @@ describe('ProfileTab — behavioral', () => {
       ...defaultUserData,
       username: 'olduser',
     };
-    const onUpdateBasicInfo = vi.fn().mockResolvedValue(undefined);
-    const onUpdateProfile   = vi.fn().mockResolvedValue(undefined);
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile   = vi.fn().mockResolvedValue({ ok: true });
 
     renderProfile('username', { userData, onUpdateBasicInfo, onUpdateProfile });
 
@@ -180,8 +181,8 @@ describe('ProfileTab — behavioral', () => {
       username: 'olduser',
       profile: { givenName: '', familyName: '' },
     };
-    const onUpdateBasicInfo = vi.fn().mockResolvedValue(undefined);
-    const onUpdateProfile   = vi.fn().mockResolvedValue(undefined);
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile   = vi.fn().mockResolvedValue({ ok: true });
 
     renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
 
@@ -208,8 +209,8 @@ describe('ProfileTab — behavioral', () => {
       username: 'olduser',
       profile: { givenName: '', familyName: '' },
     };
-    const onUpdateBasicInfo = vi.fn().mockResolvedValue(undefined);
-    const onUpdateProfile   = vi.fn().mockResolvedValue(undefined);
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile   = vi.fn().mockResolvedValue({ ok: true });
 
     renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
 
@@ -234,5 +235,101 @@ describe('ProfileTab — behavioral', () => {
     expect(screen.getByPlaceholderText('First name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Last name')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Enter username (optional)')).not.toBeInTheDocument();
+  });
+
+  // BUG 1: Stale givenName/familyName after refreshData()
+  it('syncs givenName and familyName when userData prop changes (e.g. after refreshData)', () => {
+    const initialUserData: UserData = {
+      ...defaultUserData,
+      profile: { givenName: 'Alice', familyName: 'Smith' },
+    };
+    const { rerender } = renderProfile('given_family', { userData: initialUserData });
+
+    const givenInput = screen.getByPlaceholderText('First name') as HTMLInputElement;
+    const familyInput = screen.getByPlaceholderText('Last name') as HTMLInputElement;
+    expect(givenInput.value).toBe('Alice');
+    expect(familyInput.value).toBe('Smith');
+
+    // Simulate refreshData() returning updated profile data
+    const updatedUserData: UserData = {
+      ...initialUserData,
+      profile: { givenName: 'Bob', familyName: 'Jones' },
+    };
+
+    rerender(
+      <ProfileTab
+        userData={updatedUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onUpdateBasicInfo={vi.fn().mockResolvedValue({ ok: true })}
+        onUpdateAvatarUrl={resolvedActionResult}
+        onUpdateProfile={vi.fn().mockResolvedValue({ ok: true })}
+        onVerifyPassword={resolvedVerifyPassword}
+        onSendEmailVerification={resolvedSendVerification}
+        onSendPhoneVerification={resolvedSendVerification}
+        onVerifyCode={resolvedVerifyCode}
+        onUpdateEmail={resolvedActionResult}
+        onUpdatePhone={resolvedActionResult}
+        onRemoveEmail={resolvedActionResult}
+        onRemovePhone={resolvedActionResult}
+        onSuccess={noop}
+        onError={noop}
+        refreshData={noop}
+      />,
+    );
+
+    expect(givenInput.value).toBe('Bob');
+    expect(familyInput.value).toBe('Jones');
+  });
+
+  // BUG 2: Partial update inconsistency — refreshData called when second call fails
+  it('given_family mode — calls refreshData before onError when profile update fails after basic info succeeds', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
+    const refreshData = vi.fn();
+    const onError = vi.fn();
+
+    mockReadEnv.mockImplementation((key: string) => {
+      if (key === 'NAME_TYPE') return 'given_family';
+      if (key === 'USER_SHAPE') return 'circle';
+      return undefined;
+    });
+
+    render(
+      <ProfileTab
+        userData={defaultUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onUpdateBasicInfo={onUpdateBasicInfo}
+        onUpdateAvatarUrl={resolvedActionResult}
+        onUpdateProfile={onUpdateProfile}
+        onVerifyPassword={resolvedVerifyPassword}
+        onSendEmailVerification={resolvedSendVerification}
+        onSendPhoneVerification={resolvedSendVerification}
+        onVerifyCode={resolvedVerifyCode}
+        onUpdateEmail={resolvedActionResult}
+        onUpdatePhone={resolvedActionResult}
+        onRemoveEmail={resolvedActionResult}
+        onRemovePhone={resolvedActionResult}
+        onSuccess={noop}
+        onError={onError}
+        refreshData={refreshData}
+      />,
+    );
+
+    // Change first name to trigger the save button
+    const givenInput = screen.getByPlaceholderText('First name');
+    fireEvent.change(givenInput, { target: { value: 'Changed' } });
+
+    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    await act(async () => { fireEvent.click(saveBtn); });
+
+    // refreshData must be called before onError is called
+    expect(refreshData).toHaveBeenCalled();
+    const refreshCallOrder = refreshData.mock.invocationCallOrder[0];
+    const errorCallOrder = onError.mock.invocationCallOrder[0];
+    expect(refreshCallOrder).toBeLessThan(errorCallOrder);
   });
 });

@@ -6,31 +6,36 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import { safeAction, type ActionResult, type DataResult } from './safe';
 
 /**
  * Gets the user's MFA verifications.
  * @returns Array of MFA verifications.
  */
-export async function getMfaVerifications(): Promise<MfaVerification[]> {
-  const res = await makeRequest('/api/my-account/mfa-verifications');
-  
-  await throwOnApiError(res, 'FETCH_FAILED', 'get-mfa');
+export async function getMfaVerifications(): Promise<DataResult<MfaVerification[]>> {
+  return safeAction(async () => {
+    const res = await makeRequest('/api/my-account/mfa-verifications');
+    
+    await throwOnApiError(res, 'FETCH_FAILED', 'get-mfa');
 
-  return res.json();
+    return res.json();
+  });
 }
 
 /**
  * Generates a new TOTP secret for MFA setup.
  * @returns Object containing the secret.
  */
-export async function generateTotpSecret(): Promise<{ secret: string }> {
-  const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
-    method: 'POST',
-  });
-  
-  await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-secret');
+export async function generateTotpSecret(): Promise<DataResult<{ secret: string }>> {
+  return safeAction(async () => {
+    const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
+      method: 'POST',
+    });
+    
+    await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-secret');
 
-  return res.json();
+    return res.json();
+  });
 }
 
 /**
@@ -41,26 +46,28 @@ export async function generateTotpSecret(): Promise<{ secret: string }> {
 export async function addMfaVerification(
   verification: MfaVerificationPayload,
   identityVerificationRecordId: string
-): Promise<void> {
-  assertMfaType(verification.type);
-  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertMfaType(verification.type);
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  const { type, payload } = verification;
-  const res = await makeRequest('/api/my-account/mfa-verifications', {
-    method: 'POST',
-    body: { type, ...payload },
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    const { type, payload } = verification;
+    const res = await makeRequest('/api/my-account/mfa-verifications', {
+      method: 'POST',
+      body: { type, ...payload },
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+    
+    await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'mfa-add');
+
+    // Audit (best-effort — failure must not break the main action)
+    try {
+      const { audit } = await import('../audit');
+      const _token = await getTokenForServerAction();
+      const _intro = await introspectToken(_token);
+      await audit({ actor: _intro.sub ?? 'unknown', action: `mfa.${verification.type.toLowerCase()}.enroll` });
+    } catch { /* audit is best-effort; never surface to caller */ }
   });
-  
-  await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'mfa-add');
-
-  // Audit (best-effort — failure must not break the main action)
-  try {
-    const { audit } = await import('../audit');
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    await audit({ actor: _intro.sub ?? 'unknown', action: `mfa.${verification.type.toLowerCase()}.enroll` });
-  } catch { /* audit is best-effort; never surface to caller */ }
 }
 
 /**
@@ -71,24 +78,26 @@ export async function addMfaVerification(
 export async function deleteMfaVerification(
   verificationId: string,
   identityVerificationRecordId: string
-): Promise<void> {
-  assertSafeLogtoId(verificationId, 'verificationId');
-  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertSafeLogtoId(verificationId, 'verificationId');
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  const res = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(verificationId)}`, {
-    method: 'DELETE',
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    const res = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(verificationId)}`, {
+      method: 'DELETE',
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+    
+    await throwOnApiError(res, 'MFA_REMOVE_FAILED', 'mfa-remove');
+
+    // Audit (best-effort — failure must not break the main action)
+    try {
+      const { audit } = await import('../audit');
+      const _token = await getTokenForServerAction();
+      const _intro = await introspectToken(_token);
+      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.remove', resource: verificationId });
+    } catch { /* audit is best-effort; never surface to caller */ }
   });
-  
-  await throwOnApiError(res, 'MFA_REMOVE_FAILED', 'mfa-remove');
-
-  // Audit (best-effort — failure must not break the main action)
-  try {
-    const { audit } = await import('../audit');
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.remove', resource: verificationId });
-  } catch { /* audit is best-effort; never surface to caller */ }
 }
 
 /**
@@ -96,36 +105,38 @@ export async function deleteMfaVerification(
  * @param identityVerificationRecordId - Verification record for identity.
  * @returns Object containing the backup codes.
  */
-export async function generateBackupCodes(identityVerificationRecordId: string): Promise<{ codes: string[] }> {
-  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+export async function generateBackupCodes(identityVerificationRecordId: string): Promise<DataResult<{ codes: string[] }>> {
+  return safeAction(async () => {
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  // Step 1: Generate new backup codes
-  const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
-    method: 'POST',
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    // Step 1: Generate new backup codes
+    const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
+      method: 'POST',
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+    
+    await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-gen');
+
+    const { codes } = await res.json();
+
+    // Step 2: Bind codes to the account (required for codes to be usable)
+    const bindRes = await makeRequest('/api/my-account/mfa-verifications', {
+      method: 'POST',
+      body: { type: 'BackupCode', codes },
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+    await throwOnApiError(bindRes, 'BACKUP_CODES_FAILED', 'backup-bind');
+
+    // Audit (best-effort — failure must not break the main action)
+    try {
+      const { audit } = await import('../audit');
+      const _token = await getTokenForServerAction();
+      const _intro = await introspectToken(_token);
+      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.backup_codes.generate' });
+    } catch { /* audit is best-effort; never surface to caller */ }
+
+    return { codes };
   });
-  
-  await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-gen');
-
-  const { codes } = await res.json();
-
-  // Step 2: Bind codes to the account (required for codes to be usable)
-  const bindRes = await makeRequest('/api/my-account/mfa-verifications', {
-    method: 'POST',
-    body: { type: 'BackupCode', codes },
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-  });
-  await throwOnApiError(bindRes, 'BACKUP_CODES_FAILED', 'backup-bind');
-
-  // Audit (best-effort — failure must not break the main action)
-  try {
-    const { audit } = await import('../audit');
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.backup_codes.generate' });
-  } catch { /* audit is best-effort; never surface to caller */ }
-
-  return { codes };
 }
 
 /**
@@ -135,37 +146,41 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
  */
 export async function getBackupCodes(
   identityVerificationRecordId: string
-): Promise<{ codes: Array<{ code: string; usedAt: string | null }> }> {
-  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<DataResult<{ codes: Array<{ code: string; usedAt: string | null }> }>> {
+  return safeAction(async () => {
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+    
+    await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-get');
+
+    return res.json();
   });
-  
-  await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-get');
-
-  return res.json();
 }
 
 export async function replaceTotpVerification(
   secret: string,
   code: string,
   identityVerificationRecordId: string
-): Promise<void> {
-  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+): Promise<ActionResult> {
+  return safeAction(async () => {
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-  const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
-    method: 'PUT',
-    body: { secret, code },
-    extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
+      method: 'PUT',
+      body: { secret, code },
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+
+    await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-replace');
+
+    try {
+      const { audit } = await import('../audit');
+      const _token = await getTokenForServerAction();
+      const _intro = await introspectToken(_token);
+      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.totp.replace' });
+    } catch { }
   });
-
-  await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-replace');
-
-  try {
-    const { audit } = await import('../audit');
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.totp.replace' });
-  } catch { }
 }

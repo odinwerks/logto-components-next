@@ -17,6 +17,7 @@ import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
 import { UserBadge } from '../userbutton';
 import { readEnv } from '../../logic/env';
+import type { ActionResult, DataResult } from '../../logic/actions/safe';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -115,31 +116,31 @@ interface DashboardClientProps {
   supportedLangs: string[];
   loadedTabs: TabId[];
 
-  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<void>;
-  onUpdateAvatarUrl: (avatarUrl: string) => Promise<void>;
-  onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<void>;
-  onVerifyPassword: (password: string) => Promise<{ verificationRecordId: string }>;
-  onSendEmailVerification: (email: string) => Promise<{ verificationId: string }>;
-  onSendPhoneVerification: (phone: string) => Promise<{ verificationId: string }>;
-  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<{ verificationRecordId: string }>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onRemoveEmail: (identityVerificationRecordId: string) => Promise<void>;
-  onRemovePhone: (identityVerificationRecordId: string) => Promise<void>;
-  onGetMfaVerifications: () => Promise<Array<MfaVerification>>;
-  onGenerateTotpSecret: () => Promise<{ secret: string }>;
-  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<void>;
-  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<void>;
-  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<{ codes: string[] }>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<void>;
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<void>;
-  onRequestWebAuthnRegistration: () => Promise<{ registrationOptions: unknown; verificationRecordId: string }>;
-  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<void>;
-  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<void>;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<LogtoSession[]>;
-  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<void>;
-  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<void>;
+  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
+  onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
+  onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
+  onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGetMfaVerifications: () => Promise<DataResult<MfaVerification[]>>;
+  onGenerateTotpSecret: () => Promise<DataResult<{ secret: string }>>;
+  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
+  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
   onSignOut: () => Promise<void>;
 }
 
@@ -214,7 +215,7 @@ export function DashboardClient({
       id: `${Date.now()}-${Math.random()}`,
       type,
       message,
-      duration: type === 'success' ? 3000 : 5000,
+      duration: type === 'success' ? 3000 : 8000,
     };
     setToasts((prev) => [...prev, toast]);
   }, []);

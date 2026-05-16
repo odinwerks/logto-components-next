@@ -67,6 +67,9 @@ export { uploadAvatar } from './avatar';
 // Organization Permissions
 export { getOrganizationUserPermissions } from './organizations';
 
+// User Roles
+export { getUserRoles } from './roles';
+
 // Heartbeat
 export { recordHeartbeat } from './heartbeat';
 

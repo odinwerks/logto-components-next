@@ -66,9 +66,10 @@ export function DevTab({ userData, mode, colors, t }: DevTabProps) {
     const activeOrgId = prefs?.asOrg;
     if (activeOrgId && loadedPermissions.length === 0) {
       loadOrganizationPermissions(activeOrgId)
-        .then(permissions => {
+        .then(r => {
           if (!controller.signal.aborted) {
-            setLoadedPermissions(permissions);
+            if (!r.ok) { console.error(r.error); setLoadedPermissions([]); return; }
+            setLoadedPermissions(r.data);
           }
         })
         .catch(() => {

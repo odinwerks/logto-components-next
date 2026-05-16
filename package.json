@@ -22,6 +22,7 @@
   ],
   "author": "odinwerks",
   "scripts": {
+    "predev": "node scripts/inject-next-public.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

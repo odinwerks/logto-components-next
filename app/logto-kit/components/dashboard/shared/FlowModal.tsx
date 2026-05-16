@@ -261,8 +261,8 @@ export function FlowModal({
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
-                <Button variant="primary" onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
+                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -283,11 +283,11 @@ export function FlowModal({
             <>
               <div style={{ padding: '0.625rem 0.875rem', background: T.bg, border: `1px solid ${T.border}`, marginBottom: '1rem' }}>
                 <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.5 }}>
-                  A 6-digit code was sent to{' '}
+                  {t.verification.codeSent}{' '}
                   <span style={{ fontFamily: T.mono, color: T.text }}>{step.destination}</span>.
                 </p>
               </div>
-              <Lbl colors={colors}>Verification code</Lbl>
+              <Lbl colors={colors}>{t.verification.verificationCode}</Lbl>
               <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -299,7 +299,7 @@ export function FlowModal({
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
+                <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} mode={mode} colors={colors}>
                   Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
@@ -315,10 +315,10 @@ export function FlowModal({
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.6, marginBottom: '0.75rem' }}>
-                      Scan this QR code with your authenticator app, then enter the 6-digit code below to confirm.
+                      {t.mfa.scanQrCode}
                     </p>
                     <p style={{ fontFamily: T.font, fontSize: '0.6875rem', color: T.muted, marginBottom: '0.3125rem' }}>
-                      Can't scan? Enter this key manually:
+                      {t.mfa.cantScan} {t.mfa.enterManually}
                     </p>
                     <div style={{ display: 'flex', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
                       <div style={{
@@ -366,7 +366,7 @@ export function FlowModal({
                       style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                      <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
+                      <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                       <Button variant="primary"
                         onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
                         disabled={code.length !== 6} mode={mode} colors={colors}
@@ -381,12 +381,12 @@ export function FlowModal({
 
           {step.kind === 'new-password' && (
             <>
-              <Lbl colors={colors}>New password</Lbl>
+              <Lbl colors={colors}>{t.security.password}</Lbl>
               <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={t.security.enterNewPassword}
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onNewPasswordSubmit?.(pw, step.verificationRecordId); }}
                 mode={mode} colors={colors}
@@ -402,9 +402,9 @@ export function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>Cancel</Button>
+                <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} mode={mode} colors={colors}>
-                  {danger ? t.security.deleteAccount : 'Change password'} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                  {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -515,12 +515,12 @@ export function BackupCodesModal({
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
               padding: '0.625rem 0.875rem', background: T.amberDim,
-              border: `1px solid #b4530944`,
+              border: `1px solid ${T.accentYellow}44`,
               marginBottom: '1rem',
             }}>
               <AlertTriangle size={'0.875rem'} color={T.amberText} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: '0.0625rem' }} />
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.amberText, lineHeight: 1.5 }}>
-                These codes won't be shown again. Download or copy them now.
+                {t.mfa.backupCodesWarning}
               </p>
             </div>
           )}

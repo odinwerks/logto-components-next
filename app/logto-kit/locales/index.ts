@@ -74,7 +74,7 @@ export interface KitTranslations {
     updatePhoneConfirm: string;
     removePhoneSubtitle: string;
     enterValueFirst: string;
-    reconfigreAuthenticator: string;
+    reconfigureAuthenticator: string;
     reconfigureAuthenticatorDesc: string;
     removeAuthenticator: string;
     removeAuthenticatorDesc: string;
@@ -85,7 +85,7 @@ export interface KitTranslations {
     passwordChanged: string;
     confirmDeleteAccount: string;
     accountDeleted: string;
-    passwordChangeFailed: string;
+    deletingAccount: string;    passwordChangeFailed: string;
     twoFactorAuth: string;
     reconfigure: string;
   };
@@ -146,6 +146,7 @@ export interface KitTranslations {
     deletePfpSuffix: string;
     avatarUpdated: string;
     avatarRemoved: string;
+    cropFailed: string;
     avatarInvalidType: string;
     avatarTooLarge: string;
     passwordRequired: string;
@@ -163,6 +164,13 @@ export interface KitTranslations {
     emailPlaceholder: string;
     phonePlaceholder: string;
     contactAndCredentials: string;
+    roles: string;
+    noRoles: string;
+    rolesDescription: string;
+    roleDescriptionLabel: string;
+    roleIdLabel: string;
+    rolesError: string;
+    loading: string;
   };
   
   // Verification
@@ -222,6 +230,14 @@ export interface KitTranslations {
     connected: string;
     idWithUserId: string;
     unknownDetail: string;
+    providerGoogle: string;
+    providerGithub: string;
+    providerDiscord: string;
+    providerFacebook: string;
+    providerTwitter: string;
+    providerApple: string;
+    providerMicrosoft: string;
+    providerLinkedin: string;
   };
   
   // Organizations tab
@@ -246,6 +262,7 @@ export interface KitTranslations {
     selectOrgForPermissions: string;
     loadingPermissions: string;
     noActiveOrg: string;
+    noOrgPermissions: string;
   };
   
   // MFA tab
@@ -265,6 +282,7 @@ export interface KitTranslations {
     verifyAndEnroll: string;
     backupCodes: string;
     saveBackupCodes: string;
+    backupCodesWarning: string;
     backupCodesTitle: string;
     generateNewCodes: string;
     viewExisting: string;

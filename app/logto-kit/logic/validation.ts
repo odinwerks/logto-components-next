@@ -91,6 +91,7 @@ export function validateJsonObject(value: string, t: Translations['validation'],
 
 export function sanitizeLogtoError(errorText: string | null | undefined): string {
   if (!errorText) return 'Unknown error';
+  if (process.env.PLAIN_ERRORS === 'true') return String(errorText);
 
   return String(errorText)
     .replace(/https?:\/\/\S+/g, '[URL]')

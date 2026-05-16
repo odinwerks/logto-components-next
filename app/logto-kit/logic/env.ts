@@ -13,6 +13,7 @@ const NEXT_PUBLIC_ENV: Record<string, string | undefined> = {
   LOAD_TABS: process.env.NEXT_PUBLIC_LOAD_TABS,
   MFA_ISSUER: process.env.NEXT_PUBLIC_MFA_ISSUER,
   NAME_TYPE: process.env.NEXT_PUBLIC_NAME_TYPE,
+  DELETE_REDIRECT_DELAY: process.env.NEXT_PUBLIC_DELETE_REDIRECT_DELAY,
 };
 
 /**
