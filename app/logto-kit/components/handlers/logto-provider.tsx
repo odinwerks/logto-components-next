@@ -65,7 +65,7 @@ function LogtoProviderContent({
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsDashboardOpen(false);
+        closeDashboard();
       }
     };
 

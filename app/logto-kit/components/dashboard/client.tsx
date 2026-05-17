@@ -242,6 +242,9 @@ export function DashboardClient({
     await onSignOut();
   }, [onSignOut]);
 
+  // ── Pre-compute env-dependant values (avoid readEnv in render path) ────────
+  const userShape = (readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle';
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
@@ -290,7 +293,7 @@ export function DashboardClient({
           {/* User Block */}
           <div style={{ padding: '1rem 0.875rem 0.9375rem', borderBottom: `1px solid ${colors.borderColor}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-              <UserBadge Size="2rem" Canvas="Avatar" shape={(readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle'} />
+              <UserBadge Size="2rem" Canvas="Avatar" shape={userShape} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p
                   style={{

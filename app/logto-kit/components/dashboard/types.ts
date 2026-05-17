@@ -25,16 +25,6 @@ interface VerificationState {
   newValue:       string;
 }
 
-/** Dashboard context available to all tabs. */
-interface DashboardContext {
-  mode: 'dark' | 'light';
-  colors: ThemeColors;
-  t: Translations;
-  locale: string;
-  showToast: (type: 'success' | 'error' | 'info', message: string) => void;
-  refreshData: () => void;
-}
-
 // Re-export convenience bundle
 export type {
   UserData, MfaVerification, MfaVerificationPayload,
