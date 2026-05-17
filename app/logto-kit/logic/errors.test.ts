@@ -1,28 +1,31 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
-// We test both prod and dev paths by mocking the isDev module.
 describe('sanitize', () => {
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
 
-  it('in dev: returns error with code prefix + original message', async () => {
-    vi.doMock('./dev-mode', () => ({ isDev: true, isProd: false }));
+  it('with PLAIN_ERRORS=true: returns error with code prefix + original message', async () => {
+    vi.stubEnv('PLAIN_ERRORS', 'true');
     const { sanitize } = await import('./errors');
     const err = new Error('upstream: email already registered');
     const result = sanitize(err, { fallback: 'VERIFICATION_FAILED' });
     expect(result.message).toContain('VERIFICATION_FAILED');
     expect(result.message).toContain('upstream: email already registered');
-    vi.doUnmock('./dev-mode');
   });
 
-  it('in prod: sanitize returns only the error code (no upstream text)', async () => {
-    // We verify the function signature and that it returns an Error whose message
-    // is the fallback code — the isDev path is covered by the test above.
+  it('with PLAIN_ERRORS=false: returns only the error code', async () => {
+    vi.stubEnv('PLAIN_ERRORS', 'false');
     const { sanitize } = await import('./errors');
     const err = new Error('upstream: account locked out for email@example.com');
     const result = sanitize(err, { fallback: 'VERIFICATION_FAILED' });
-    // In test (isDev=true) mode the message will contain both; we just verify the fn works.
     expect(result).toBeInstanceOf(Error);
-    expect(result.message).toBeTruthy();
+    expect(result.message).toBe('VERIFICATION_FAILED');
   });
 });
 

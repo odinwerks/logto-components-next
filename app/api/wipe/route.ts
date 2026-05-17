@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoConfig } from '../../logto';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
+import { error } from '../../logto-kit/logic/log';
 import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       const mod = await import('@logto/next/server-actions');
       signOutFn = mod.signOut;
     } catch (importError) {
-      console.error('[wipe] force: failed to import @logto/next:',
+      error('[wipe] force: failed to import @logto/next:',
         importError instanceof Error ? importError.message : importError);
     }
     if (signOutFn) {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
         await signOutFn(getLogtoConfig());
       } catch (err) {
         if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
-        console.error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
+        error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
     }
   }
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       const mod = await import('@logto/next/server-actions');
       signOutFn = mod.signOut;
     } catch (importError) {
-      console.error('[wipe] force: failed to import @logto/next:',
+      error('[wipe] force: failed to import @logto/next:',
         importError instanceof Error ? importError.message : importError);
     }
     if (signOutFn) {
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
         await signOutFn(getLogtoConfig());
       } catch (err) {
         if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
-        console.error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
+        error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
     }
   }

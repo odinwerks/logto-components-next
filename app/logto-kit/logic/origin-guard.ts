@@ -10,6 +10,7 @@
  * rejected by this check.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { warn } from './log';
 
 export function checkSameOrigin(request: NextRequest): NextResponse | null {
   const baseUrl = process.env.BASE_URL || process.env.APP_URL || 'http://localhost:3000';
@@ -19,7 +20,7 @@ export function checkSameOrigin(request: NextRequest): NextResponse | null {
     expectedOrigin = new URL(baseUrl).origin;
   } catch {
     // BASE_URL is malformed — fail closed to avoid silently allowing anything.
-    console.warn('[origin-guard] BASE_URL is malformed, rejecting request');
+    warn('[origin-guard] BASE_URL is malformed, rejecting request');
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
 

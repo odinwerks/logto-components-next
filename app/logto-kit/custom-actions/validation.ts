@@ -2,6 +2,7 @@
 
 import { getCleanEndpoint } from '../logic/utils';
 import { decodeLogtoAccessToken } from '../logic/guards';
+import { warn } from '../logic/log';
 
 interface RbacUserData {
   organizations: string[];
@@ -50,7 +51,7 @@ export async function fetchUserRbacData(token: string, overrideOrgId?: string | 
         organizationPermissions = permResult.ok ? permResult.data : [];
       }
     } catch (error) {
-      console.warn('[fetchUserRbacData] Failed to get org permissions:', error);
+      warn('[fetchUserRbacData] Failed to get org permissions:', error);
     }
   }
 

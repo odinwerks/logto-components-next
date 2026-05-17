@@ -5,6 +5,7 @@ import { getCleanEndpoint } from '../utils';
 import { debugLog } from '../debug';
 import { safeAction, type DataResult } from './safe';
 import type { UserRole } from '../types';
+import { warn } from '../log';
 
 export async function getUserRoles(userId: string): Promise<DataResult<UserRole[]>> {
   return safeAction(async () => {
@@ -23,7 +24,7 @@ export async function getUserRoles(userId: string): Promise<DataResult<UserRole[
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      console.warn(`[getUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      warn(`[getUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
       throw new Error(`Management API returned ${res.status}`);
     }
 

@@ -6,6 +6,7 @@ import { assertSafeUserId } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { plainCode } from '../errors';
 import { safeAction, type DataResult } from './safe';
+import { warn } from '../log';
 
 // ============================================================================
 // Constants
@@ -73,7 +74,7 @@ async function uploadViaSupabase(
 
   if (!res.ok) {
     const body = await res.text().catch(() => res.statusText);
-    console.warn(`[uploadViaSupabase] HTTP ${res.status}: ${body}`);
+    warn(`[uploadViaSupabase] HTTP ${res.status}: ${body}`);
     throw plainCode('UPLOAD_FAILED', new Error(`HTTP ${res.status}: ${body}`));
   }
 }
@@ -93,7 +94,7 @@ async function deleteFromSupabase(bucket: string, key: string): Promise<void> {
     cache: 'no-store',
   });
   if (!res.ok && res.status !== 404) {
-    console.warn(`[deleteFromSupabase] Failed to delete ${key}: HTTP ${res.status}`);
+    warn(`[deleteFromSupabase] Failed to delete ${key}: HTTP ${res.status}`);
   }
 }
 
@@ -135,7 +136,7 @@ async function uploadViaMinIO(
       'Cache-Control': 'public, max-age=0, must-revalidate',
     });
   } catch (err) {
-    console.warn('[uploadViaMinIO] putObject failed', err instanceof Error ? err.message : err);
+    warn('[uploadViaMinIO] putObject failed', err instanceof Error ? err.message : err);
     throw plainCode('UPLOAD_FAILED', err);
   }
 }
@@ -161,7 +162,7 @@ async function deleteFromMinio(bucket: string, key: string): Promise<void> {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes('Not Found') && !msg.includes('NoSuchKey') && !msg.includes('404')) {
-      console.warn(`[deleteFromMinio] Failed to delete ${key}: ${msg}`);
+      warn(`[deleteFromMinio] Failed to delete ${key}: ${msg}`);
     }
   }
 }
@@ -291,7 +292,7 @@ export async function uploadAvatar(
 
     if (!res.ok) {
       const body = await res.text().catch(() => res.statusText);
-      console.warn(`[uploadAvatarViaLogto] HTTP ${res.status}: ${body}`);
+      warn(`[uploadAvatarViaLogto] HTTP ${res.status}: ${body}`);
       throw plainCode('UPLOAD_FAILED', new Error(`HTTP ${res.status}: ${body}`));
     }
 

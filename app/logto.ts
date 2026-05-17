@@ -1,5 +1,6 @@
 import { UserScope } from '@logto/next';
 import { readEnv } from './logto-kit/logic/env';
+import { warn } from './logto-kit/logic/log';
 
 // Map SCOPES string to Logto enum
 const SCOPE_MAP: Record<string, string> = {
@@ -75,7 +76,7 @@ export const logtoConfig = (() => {
   const scopeString = getEnvVar('SCOPES', false);
 
   if (!appId || !appSecret || !endpoint || !baseUrl || !cookieSecret) {
-    console.warn('[Logto Config] Missing required environment variables. Build will continue but runtime will fail if not configured.');
+    warn('[Logto Config] Missing required environment variables. Build will continue but runtime will fail if not configured.');
   }
 
   const nodeEnv = process.env.NODE_ENV || 'development';

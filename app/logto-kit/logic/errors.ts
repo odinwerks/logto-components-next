@@ -23,6 +23,8 @@
  *   }
  */
 
+import { warn } from './log';
+
 const plainErrors = process.env.PLAIN_ERRORS === 'true';
 
 // ============================================================================
@@ -70,22 +72,13 @@ export type ErrorCode =
   | 'INTERNAL_ERROR';
 
 // ============================================================================
-// Truncation helper
-// ============================================================================
-
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength)}…`;
-}
-
-// ============================================================================
 // Primary API: sanitize(err, { fallback })
 // ============================================================================
 
 /**
  * Returns an `Error` safe to throw across the server-action boundary.
  *
- * When PLAIN_ERRORS=true: preserves original error messages (truncated to 400 chars).
+ * When PLAIN_ERRORS=true: preserves original error messages.
  * Otherwise: replaces the message with a fixed error code.
  *
  * The `operation`/`status` properties of LogtoApiError are always stripped
@@ -100,9 +93,9 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
   // Plain errors: preserve full context to aid debugging.
   if (plainErrors) {
     if (err instanceof Error) {
-      return new Error(truncate(`${fallback}: ${err.message}`, 400));
+      return new Error(`${fallback}: ${err.message}`);
     }
-    return new Error(truncate(`${fallback}: ${String(err)}`, 400));
+    return new Error(`${fallback}: ${String(err)}`);
   }
 
   // Production: fixed error code only. Never leak upstream detail.
@@ -137,16 +130,16 @@ export async function throwOnApiError(
     detail = res.statusText;
   }
 
-  // Always log server-side regardless of env.
+  // Always log server-side regardless of env — full detail, no truncation.
   if (typeof console !== 'undefined') {
-    console.warn(
-      `[${operation}] HTTP ${res.status}: ${truncate(detail, 400)}`,
+    warn(
+      `[${operation}] HTTP ${res.status}: ${detail}`,
     );
   }
 
   if (plainErrors) {
     throw new Error(
-      `${fallback} ${res.status}: ${truncate(detail, 300)}`,
+      `${fallback} ${res.status}: ${detail}`,
     );
   }
 

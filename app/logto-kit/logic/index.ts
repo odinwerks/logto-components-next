@@ -68,7 +68,6 @@ export {
   validateUsername,
   validateUrl,
   validateJsonObject,
-  sanitizeLogtoError,
 } from './validation';
 
 export type { ValidationResult } from './validation';

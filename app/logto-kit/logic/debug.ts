@@ -3,6 +3,8 @@
  * Use instead of console.log/console.warn for development traces
  * that should not appear in production logs.
  */
+import { warn, error } from './log';
+
 const DEBUG = process.env.DEBUG === 'true';
 
 function formatArgs(args: unknown[]): string {
@@ -24,12 +26,12 @@ export function debugLog(...args: unknown[]): void {
 
 export function debugWarn(...args: unknown[]): void {
   if (DEBUG) {
-    console.warn('[DEBUG]', formatArgs(args));
+    warn('[DEBUG]', formatArgs(args));
   }
 }
 
 export function debugError(...args: unknown[]): void {
   if (DEBUG) {
-    console.error('[DEBUG]', formatArgs(args));
+    error('[DEBUG]', formatArgs(args));
   }
 }

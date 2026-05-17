@@ -21,6 +21,7 @@ export const ALL_TABS: TabId[] = [
 // ENV value aliases — lets operators use friendly names
 import { readEnv } from './env';
 import { isDev } from './dev-mode';
+import { warn } from './log';
 
 const TAB_ALIASES: Record<string, TabId> = {
   // profile aliases
@@ -93,7 +94,7 @@ export function getLoadedTabs(): TabId[] {
 
     const tabId = TAB_ALIASES[key];
     if (!tabId) {
-      console.warn(`[tabs] Unknown tab identifier "${token.trim()}" in LOAD_TABS — skipping.`);
+      warn(`[tabs] Unknown tab identifier "${token.trim()}" in LOAD_TABS — skipping.`);
       continue;
     }
 
@@ -109,7 +110,7 @@ export function getLoadedTabs(): TabId[] {
   const filtered = isDev ? result : result.filter(id => id !== 'dev');
 
   if (filtered.length === 0) {
-    console.warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to safe defaults.');
+    warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to safe defaults.');
     return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
   }
 

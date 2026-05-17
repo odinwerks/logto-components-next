@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { readEnv } from './env';
+import { warn } from './log';
 
 // The canonical set of locale codes the app ships with.
 // When you add a new locale file (e.g. ru-RU.ts), add it here.
@@ -39,7 +40,7 @@ export function getSupportedLangs(): string[] {
   );
 
   if (valid.length === 0) {
-    console.warn(
+    warn(
       `[i18n] LANG_AVAILABLE="${raw}" contained no recognized locale codes. ` +
         `Recognized: ${AVAILABLE_LOCALES.join(', ')}. Falling back to default.`
     );

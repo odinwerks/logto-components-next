@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
 import { checkSameOrigin } from '../../../logto-kit/logic/origin-guard';
+import { error } from '../../../logto-kit/logic/log';
 
 /**
  * GET performs sign-out via Logto server actions.
@@ -17,7 +18,7 @@ export async function GET() {
     // signOut() throws NEXT_REDIRECT on success — let Next.js handle it.
     if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err;
     // Any other error: log server-side, return safe redirect.
-    console.error('[sign-out] GET: signOut failed, redirecting:', err instanceof Error ? err.message : err);
+    error('[sign-out] GET: signOut failed, redirecting:', err instanceof Error ? err.message : err);
     return NextResponse.redirect(new URL('/', baseUrl));
   }
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     // signOut() throws NEXT_REDIRECT on success — let Next.js handle it.
     if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err;
     // Any other error: log server-side, return safe redirect (don't expose details).
-    console.error('[sign-out] signOut failed, clearing cookies and redirecting:', err instanceof Error ? err.message : err);
+    error('[sign-out] signOut failed, clearing cookies and redirecting:', err instanceof Error ? err.message : err);
     return NextResponse.redirect(new URL('/', baseUrl));
   }
 

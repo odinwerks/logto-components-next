@@ -89,18 +89,6 @@ export function validateJsonObject(value: string, t: Translations['validation'],
   }
 }
 
-export function sanitizeLogtoError(errorText: string | null | undefined): string {
-  if (!errorText) return 'Unknown error';
-  if (process.env.PLAIN_ERRORS === 'true') return String(errorText);
-
-  return String(errorText)
-    .replace(/https?:\/\/\S+/g, '[URL]')
-    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]')
-    .replace(/\+[1-9]\d{1,14}/g, '[PHONE]')
-    .replace(/[A-Za-z0-9_-]{20,}/g, '[TOKEN]')
-    .substring(0, 200);
-}
-
 export type ValidationResult<T = void> =
   | { success: true; value: T }
   | { success: false; error: string; field?: string };

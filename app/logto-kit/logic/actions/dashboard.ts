@@ -11,6 +11,7 @@ import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { redirect } from 'next/navigation';
+import { warn, error, log } from '../log';
 
 // ============================================================================
 // Constants
@@ -46,12 +47,12 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
     } catch (error) {
       lastError = error;
       if (isAuthError(error)) {
-        console.warn(`[fetchWithRetry] Auth error on attempt ${i + 1}, not retrying:`, error instanceof Error ? error.message : error);
+        warn(`[fetchWithRetry] Auth error on attempt ${i + 1}, not retrying:`, error instanceof Error ? error.message : error);
         break;
       }
       if (i < retries - 1) {
         const delay = BASE_DELAY_MS * (i + 1);
-        console.log(`[fetchWithRetry] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
+        log(`[fetchWithRetry] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -65,9 +66,9 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
  * @param error - The error that occurred.
  * @param label - A label for error context.
  */
-function handleAuthFetchError(error: unknown, label: string): never {
-  console.error(`${label}:`, error);
-  const msg = error instanceof Error ? error.message : String(error);
+function handleAuthFetchError(err: unknown, label: string): never {
+  error(`${label}:`, err);
+  const msg = err instanceof Error ? err.message : String(err);
   // Stale cookies → redirect to sign-in for fresh authentication.
   if (msg.includes('Cookies can only be modified')) redirect('/api/auth/sign-in');
   redirect('/api/auth/sign-in');

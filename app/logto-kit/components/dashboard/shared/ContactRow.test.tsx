@@ -73,7 +73,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
   });
 
   // ══════════════════════════════════════════════════════════
-  // EDIT flow — data-result callbacks
+  // EDIT Flow — data-result callbacks
   // ══════════════════════════════════════════════════════════
 
   it('handles edit-flow: onVerifyPassword success → onSendVerification success → shows code step', async () => {
@@ -104,7 +104,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
     });
   });
 
-  it('handles edit-flow: onVerifyPassword returns error', async () => {
+  it('handles edit-flow: onVerifyPassword returns error → shows password error', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Wrong password',
@@ -116,7 +116,9 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
     await act(async () => flowModalHandlers.onPasswordSubmit!('badpw'));
 
     await waitFor(() => {
-      expect(props.onError).toHaveBeenCalledWith('Wrong password');
+      // Password errors are shown via pwErr state (FlowModal passwordError prop),
+      // NOT via onError callback — onError is only for send/verify/remove errors.
+      expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onSendVerification).not.toHaveBeenCalled();
     });
   });
@@ -142,29 +144,12 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
   });
 
   // ══════════════════════════════════════════════════════════
-  // EDIT flow — code verification (ActionResult — void)
+  // EDIT Flow — code verification (ActionResult — void)
   // ══════════════════════════════════════════════════════════
 
   it('handles code verification: success calls onSuccess and closes', async () => {
     const props = buildDefaults();
-    // Set up so the modal is already on the code step
-    // We simulate by directly calling handleCode via the exposed code submit handler
-    // But first we need to get to the code step. Let's render with a pre-set step.
-    // Since FlowModal is mocked, we can just test the code flow directly.
 
-    // Render with fresh callbacks
-    (props.onVerifyCodeAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-    } satisfies ActionResult);
-
-    // But calling handleCode requires the step to be 'code' and have the right data.
-    // We can use the manual approach: mock the flow modals internal state.
-    // Instead, let's test through the full flow but skip verification steps.
-    // Actually, the simplest approach: render, the modal won't show until we click edit.
-    // The handleCode is only triggerable when step.kind='code'.
-    // We need to simulate getting to the code step.
-
-    // Let's go through the full edit flow successfully to reach code step:
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true, data: { verificationRecordId: 'vr-1' },
     } satisfies DataResult<{ verificationRecordId: string }>);
@@ -219,7 +204,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
   });
 
   // ══════════════════════════════════════════════════════════
-  // REMOVE flow
+  // REMOVE Flow
   // ══════════════════════════════════════════════════════════
 
   it('handles remove-flow: onVerifyPassword success → onRemove success → onSuccess', async () => {
@@ -244,7 +229,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
     });
   });
 
-  it('handles remove-flow: onVerifyPassword error → onError', async () => {
+  it('handles remove-flow: onVerifyPassword error → shows password error', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Wrong password',
@@ -256,7 +241,9 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
     await act(async () => flowModalHandlers.onPasswordSubmit!('badpw'));
 
     await waitFor(() => {
-      expect(props.onError).toHaveBeenCalledWith('Wrong password');
+      // Password errors are shown via pwErr state (FlowModal passwordError prop),
+      // NOT via onError callback — onError is only for send/verify/remove errors.
+      expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onRemove).not.toHaveBeenCalled();
     });
   });

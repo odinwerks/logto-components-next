@@ -5,6 +5,7 @@ import { getLogtoConfig } from '../../../logto';
 import { debugLog } from '../debug';
 import { decodeLogtoAccessToken } from '../guards';
 import { safeAction, type DataResult } from './safe';
+import { warn } from '../log';
 
 /**
  * Gets the user's permissions for a specific organization.
@@ -16,7 +17,7 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
   return safeAction(async () => {
     const orgToken = await getOrganizationToken(getLogtoConfig(), orgId);
     if (!orgToken) {
-      console.warn(`[getOrganizationUserPermissions] No token for org ${orgId}`);
+      warn(`[getOrganizationUserPermissions] No token for org ${orgId}`);
       return [];
     }
 
