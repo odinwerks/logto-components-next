@@ -228,6 +228,14 @@ function ApiResponseSection() {
             <td style={styles.tdStyle}>Lacks required permission</td>
           </tr>
           <tr>
+            <td style={styles.tdPropStyle}>ROLE_DENIED</td>
+            <td style={styles.tdStyle}>User lacks required organization role</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>VALIDATION_ERROR</td>
+            <td style={styles.tdStyle}>Input validation failed in custom action handler</td>
+          </tr>
+          <tr>
             <td style={styles.tdPropStyle}>INTERNAL_ERROR</td>
             <td style={styles.tdStyle}>Unexpected server error</td>
           </tr>
@@ -262,10 +270,22 @@ export async function getDoSomething() {
   };
 }
 
-// custom-actions/index.ts
-const actions: ActionRegistry = {
-  'do-something': (await getDoSomething()),
-};`} />
+// custom-actions/index.ts - lazy-loaded action registry
+let _actionsCache: ActionRegistry | null = null;
+
+async function loadActions(): Promise<ActionRegistry> {
+  if (_actionsCache) return _actionsCache;
+  const [doSomething] = await Promise.all([
+    getDoSomething(),
+  ]);
+  _actionsCache = { 'do-something': doSomething };
+  return _actionsCache;
+}
+
+export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
+  const actions = await loadActions();
+  return actions[actionName];
+}`} />
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -310,6 +330,62 @@ function PermissionSystemSection() {
 //    introspectToken(token) → fetchUserRbacData(token)
 //    → validateOrgMembership → getOrganizationUserPermissions(asOrg)
 //    → requiredPerms.every(p => userPermissions.includes(p))`} />
+    </SectionWrap>
+  );
+}
+
+function ServerActionPatternSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Server Action Pattern">
+      <p style={styles.textStyle}>
+        Every server action in the kit follows a consistent return type pattern using
+        <code style={styles.codeStyle}>ActionResult</code> or <code style={styles.codeStyle}>DataResult{`<T>`}</code>.
+      </p>
+      <CodeBlock title="Return types" code={`// Success/failure without data (e.g., delete, update without return value)
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+// Success/failure with data payload (e.g., fetch operations)
+export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+// Wrapper that catches and sanitizes errors
+export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>> {
+  try {
+    const data = await fn();
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: captureMessage(err) };
+  }
+}`} />
+      <p style={styles.textStyle}>
+        Usage pattern in dashboard tab props:
+      </p>
+      <CodeBlock title="Common pattern" code={`// Server action prop type
+onUpdatePassword: (newPassword: string, verificationRecordId: string) => Promise<ActionResult>;
+
+// Implementation
+export async function updatePassword(newPassword: string, vid: string): Promise<ActionResult> {
+  return safeAction(async () => {
+    const res = await makeRequest('/api/my-account/password', {
+      method: 'PUT',
+      body: JSON.stringify({ newPassword }),
+      extraHeaders: { 'logto-verification-id': vid },
+    });
+    await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED');
+  });
+}
+
+// Client usage
+const result = await onUpdatePassword(newPassword, vid);
+if (!result.ok) {
+  onError(result.error); // shows sanitized error code
+}`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Always check .ok:</strong>{' '}
+        All server actions return <code style={styles.codeStyle}>{`{ ok: true }`}</code> or{' '}
+        <code style={styles.codeStyle}>{`{ ok: false, error: 'ERROR_CODE' }`}</code>. Never throw - always return.
+        Error codes are sanitized and safe for client display.
+      </div>
     </SectionWrap>
   );
 }
@@ -378,6 +454,14 @@ export default function ProtectedDoc() {
           <div style={styles.colLeftStyle}>
             <PermissionSystemSection />
             <LiveRbacDemoSection />
+          </div>
+        </div>
+      </Section>
+
+      <Section id={4}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px', boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
+          <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
+            <ServerActionPatternSection />
           </div>
         </div>
       </Section>

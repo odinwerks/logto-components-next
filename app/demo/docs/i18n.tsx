@@ -48,6 +48,36 @@ function OverviewSection() {
             <td style={styles.tdStyle}>{`string[]`}</td>
           </tr>
           <tr>
+            <td style={styles.tdPathStyle}>isValidLang</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`(code: string) => boolean`}</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>getNextLang</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`(current: string, dir?: 1 | -1) => string`}</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>resolveLang</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`(lang: string) => string`}</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>getMainLocale</td>
+            <td style={styles.tdStyle}>Function</td>
+            <td style={styles.tdStyle}>{`() => string`}</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>LocaleCode</td>
+            <td style={styles.tdStyle}>Type</td>
+            <td style={styles.tdStyle}>{`'en-US' | 'ka-GE'`} (union of registered locales)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>AVAILABLE_LOCALES</td>
+            <td style={styles.tdStyle}>Constant</td>
+            <td style={styles.tdStyle}>{`readonly string[]`}</td>
+          </tr>
+          <tr>
             <td style={styles.tdPathStyle}>Translations</td>
             <td style={styles.tdStyle}>Type</td>
             <td style={styles.tdStyle}>Full translation object</td>

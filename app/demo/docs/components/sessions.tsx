@@ -63,15 +63,14 @@ function SessionsPropsSection() {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
-  onGetSessions: (verificationRecordId: string) => Promise<LogtoSession[]>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (
     sessionId: string,
     revokeGrantsTarget?: 'all' | 'firstParty',
     identityVerificationRecordId?: string
-  ) => Promise<void>;
-  onVerifyPassword: (password: string) => Promise<{
-    verificationRecordId: string;
-  }>;
+  ) => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }`} />
@@ -86,14 +85,19 @@ function SessionsPropsSection() {
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>onGetSessions</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeStyle}>onGetSessionsWithDeviceMeta</code></td>
               <td style={styles.tdStyle}>Server Action</td>
-              <td style={styles.tdStyle}>Fetches sessions from Logto API</td>
+              <td style={styles.tdStyle}>Fetches sessions with device metadata enrichment (UAParser + geolocation)</td>
             </tr>
             <tr>
               <td style={styles.tdStyle}><code style={styles.codeStyle}>onRevokeSession</code></td>
               <td style={styles.tdStyle}>Server Action</td>
-              <td style={styles.tdStyle}>Revokes a session</td>
+              <td style={styles.tdStyle}>Revokes a session. Param revokeGrantsTarget: 'all' | 'firstParty' controls whether grants for all apps or only first-party apps are revoked</td>
+            </tr>
+            <tr>
+              <td style={styles.tdStyle}><code style={styles.codeStyle}>onRevokeAllOtherSessions</code></td>
+              <td style={styles.tdStyle}>Server Action</td>
+              <td style={styles.tdStyle}>Revokes all sessions except the current one</td>
             </tr>
             <tr>
               <td style={styles.tdStyle}><code style={styles.codeStyle}>onVerifyPassword</code></td>
@@ -116,7 +120,7 @@ function SessionsApiSection() {
         <span style={styles.sectionLabelStyle}>Server Actions</span>
       </div>
       <div style={styles.sectionBodyStyle}>
-        <CodeBlock title="getSessions" code={`export async function getSessions(verificationRecordId: string): Promise<LogtoSession[]> {
+        <CodeBlock title="getSessionsWithDeviceMeta" code={`export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<DataResult<LogtoSession[]>> {
   const res = await makeRequest('/api/my-account/sessions', {
     extraHeaders: { 'logto-verification-id': verificationRecordId },
   });
@@ -130,6 +134,9 @@ function SessionsApiSection() {
         <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
           <li>Verifies user identity via <code style={styles.codeSmStyle}>logto-verification-id</code> header</li>
           <li>Fetches sessions from <code style={styles.codeSmStyle}>GET /api/my-account/sessions</code></li>
+          <li>Parses User-Agent with UAParser for browser/OS/device enrichment</li>
+          <li>Introspects token via Logto introspection endpoint</li>
+          <li>Maps <code style={styles.codeSmStyle}>lastActiveAt</code> for client-side display</li>
           <li>The <code style={styles.codeSmStyle}>isCurrent</code> flag is set by Logto on the session backing the request token</li>
         </ul>
 
@@ -148,6 +155,20 @@ function SessionsApiSection() {
   isCurrent?: boolean;          // true for the session backing this request
   lastActiveAt?: string | null; // null | "now" | ISO 8601
   meta: SessionMeta | null;     // enriched client-side after fetch
+}
+
+interface SessionMeta {
+  browser?: string;
+  os?: string;
+  deviceType?: string;
+  ip?: string;
+}
+
+// Enrichment flow (client-side, after onGetSessionsWithDeviceMeta):
+// 1. Parse User-Agent via UAParser → browser, os, deviceType
+// 2. Lookup IP geolocation via ipapi.co (client-side, 5-min cache)
+// 3. Map lastActiveAt: null → "inactive" | "now" → "Active now" | ISO → formatted timestamp
+// 4. Identify current session via isCurrent flag from Logto
 }`} />
       </div>
     </div>

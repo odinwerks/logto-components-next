@@ -31,9 +31,9 @@ function OverviewSection() {
         <tbody>
           <tr>
             <td style={styles.tdPathStyle}>Profile</td>
-            <td style={styles.tdStyle}>6 + common</td>
+            <td style={styles.tdStyle}>14 + common</td>
             <td style={styles.tdStyle}>useAvatarUpload</td>
-            <td style={styles.tdStyle}>3</td>
+            <td style={styles.tdStyle}>5+</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Preferences</td>
@@ -43,13 +43,13 @@ function OverviewSection() {
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Security</td>
-            <td style={styles.tdStyle}>17 + common</td>
+            <td style={styles.tdStyle}>14 + common</td>
             <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>15</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Sessions</td>
-            <td style={styles.tdStyle}>5 + common</td>
+            <td style={styles.tdStyle}>6 + common</td>
             <td style={styles.tdStyle}> - </td>
             <td style={styles.tdStyle}>3</td>
           </tr>
@@ -93,6 +93,10 @@ function ProfilePropsSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Profile - props">
+      <p style={styles.textStyle}>
+        The Profile tab handles identity verification and contact management in addition to
+        basic profile fields. Contact verification props are shared between Profile and Security tabs.
+      </p>
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -104,18 +108,58 @@ function ProfilePropsSection() {
         <tbody>
           <tr>
             <td style={styles.tdPathStyle}>onUpdateBasicInfo</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?}`}){`=>`}Promise{`<void>`}</code></td>
-            <td style={styles.tdStyle}>Updates display name</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?,username?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
+            <td style={styles.tdStyle}>Updates display name and username</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>onUpdateAvatarUrl</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<void>`}</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<ActionResult>`}</code></td>
             <td style={styles.tdStyle}>Sets avatar URL (empty = remove)</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>onUpdateProfile</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<void>`}</code></td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
             <td style={styles.tdStyle}>Updates profile fields</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onVerifyPassword</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId}>`}</code></td>
+            <td style={styles.tdStyle}>Verifies identity before sensitive operations</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onSendEmailVerification</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(email){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
+            <td style={styles.tdStyle}>Sends verification code to email</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onSendPhoneVerification</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(phone){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
+            <td style={styles.tdStyle}>Sends verification code to phone</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onVerifyCode</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(type, value, verificationId, code){`=>`}Promise{`<DataResult<...>>`}</code></td>
+            <td style={styles.tdStyle}>Verifies email/phone code</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onUpdateEmail</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+            <td style={styles.tdStyle}>Updates email with verification</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onUpdatePhone</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+            <td style={styles.tdStyle}>Updates phone with verification</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onRemoveEmail</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+            <td style={styles.tdStyle}>Removes email after verification</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>onRemovePhone</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+            <td style={styles.tdStyle}>Removes phone after verification</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>onSuccess</td>
@@ -274,8 +318,8 @@ function SecurityOverviewSection() {
     <SectionWrap label="Security - overview">
       <p style={styles.textStyle}>
         The most complex tab. Manages TOTP authenticator, backup codes, password,
-        email/phone, and account deletion. All mutations require identity verification
-        (password or verification code). 20 props total, grouped by concern:
+        email/phone, WebAuthn/passkeys, and account deletion. All mutations require identity verification
+        (password or verification code). 18 props total (14 + 4 common), grouped by concern:
       </p>
       <table style={styles.tableStyle}>
         <thead>
@@ -295,7 +339,7 @@ function SecurityOverviewSection() {
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>MFA</td>
-            <td style={styles.tdStyle}>onGetMfaVerifications, onGenerateTotpSecret, onAddMfaVerification, onDeleteMfaVerification, onGenerateBackupCodes</td>
+            <td style={styles.tdStyle}>onGetMfaVerifications, onGenerateTotpSecret, onAddMfaVerification, onDeleteMfaVerification, onReplaceTotpVerification, onGenerateBackupCodes</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>password / account</td>
@@ -324,7 +368,8 @@ function FlowModalSection() {
   | { kind: 'loading'; message: string }
   | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
   | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
-  | { kind: 'new-password'; verificationRecordId: string };`} />
+  | { kind: 'new-password'; verificationRecordId: string }
+  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };`} />
       <CodeBlock title="FlowModal props" code={`{
   title: string;
   subtitle: string;
@@ -333,6 +378,7 @@ function FlowModalSection() {
   onCodeSubmit?: (code) => void;
   onTotpSubmit?: (code, secret, identityVerificationId) => void;
   onNewPasswordSubmit?: (newPassword, verificationRecordId) => void;
+  onRenamePasskeySubmit?: (name, verificationRecordId, passkeyId) => void;
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
@@ -368,6 +414,13 @@ const totpUri = \`otpauth://totp/\${encodeURIComponent(ISSUER)}:\${encodeURIComp
 // 5. Show QR code (QRCodeSVG from qrcode.react)
 // 6. User scans + enters code → activate
 await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerId);`} />
+      <CodeBlock title="Reconfigure flow (single operation)" code={`// Replaces TOTP without separate delete+add
+await onReplaceTotpVerification(secret, code, identityVerificationRecordId);`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>replaceTotpVerification:</strong>{' '}
+        Uses Logto's PUT endpoint to atomically replace existing TOTP, avoiding
+        the delete-then-add race window.
+      </div>
       <CodeBlock title="Delete flow" code={`// 1. Password verification
 const identity = await onVerifyPassword(pw);
 // 2. Delete TOTP
@@ -397,6 +450,9 @@ const identity = await onVerifyPassword(pw);
 const { codes } = await onGenerateBackupCodes(identity.verificationRecordId);
 // 3. Map to { code, used } objects for BackupCodesModal
 setBackupCodes(codes.map(code => ({ code, used: false })));`} />
+      <CodeBlock title="View existing codes" code={`// getBackupCodes returns existing codes without generating new ones
+const existingCodes = await getBackupCodes(identityVerificationRecordId);
+setBackupCodes(existingCodes.map(code => ({ code, used: false })));`} />
       <p style={styles.textStyle}>
         <code style={styles.codeStyle}>BackupCodesModal</code> renders codes with download
         options (plain text or styled HTML). Uses Blob API for client-side file generation.
@@ -409,6 +465,39 @@ const url = URL.createObjectURL(blob);
 // Download as .html
 const blob = new Blob([styledHtml], { type: 'text/html' });
 // Styled table with company branding`} />
+    </SectionWrap>
+  );
+}
+
+function WebAuthnSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Security - WebAuthn / passkeys">
+      <p style={styles.textStyle}>
+        WebAuthn (passkey) registration, rename, and deletion flows.
+        Uses browser-native credential management.
+      </p>
+      <CodeBlock title="Register passkey" code={`// 1. Password verification
+const identity = await onVerifyPassword(pw);
+// 2. Request registration options from server
+const { registrationOptions, verificationRecordId } = await onRequestWebAuthnRegistration();
+// 3. Browser creates credential via navigator.credentials.create()
+const credential = await navigator.credentials.create({ publicKey: registrationOptions });
+// 4. Verify and link credential
+await onVerifyAndLinkWebAuthn(credential, verificationRecordId, identity.verificationRecordId);`} />
+      <CodeBlock title="Rename passkey" code={`// 1. Set modal step to rename-passkey
+setStep({ kind: 'rename-passkey', verificationRecordId, passkeyId });
+// 2. User enters name in modal → submit
+await onRenamePasskey(passkeyId, newName, verificationRecordId);`} />
+      <CodeBlock title="Delete passkey" code={`// Delete through onDeleteMfaVerification (same as TOTP delete)
+await onDeleteMfaVerification(passkeyFactor.id, identity.verificationRecordId);`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Browser API:</strong>{' '}
+        Registration uses the WebAuthn API (<code style={styles.codeSmStyle}>navigator.credentials.create</code>).
+        The server provides <code style={styles.codeSmStyle}>PublicKeyCredentialCreationOptions</code> and the client
+        sends the result back for verification. On supported browsers, this triggers the platform
+        authenticator (Touch ID, Windows Hello, security key, etc.).
+      </div>
     </SectionWrap>
   );
 }
@@ -457,6 +546,32 @@ await onUpdateEmail(newEmail, codeVer.verificationRecordId, identity.verificatio
 const identity = await onVerifyPassword(pw);
 // 2. Remove email
 await onRemoveEmail(identity.verificationRecordId);`} />
+    </SectionWrap>
+  );
+}
+
+function GrantManagementSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Grant management">
+      <p style={styles.textStyle}>
+        OAuth 2.0 grant (token) management. Grants authorize apps to act on behalf
+        of the user. Revoking a grant forces the app to re-authenticate.
+      </p>
+      <CodeBlock title="Server actions" code={`// Get all active grants for the user
+const grants = await getUserGrants(); // returns DataResult<GrantInfo[]>
+
+// Revoke all grants for a specific application
+await revokeUserGrant(grantId, identityVerificationRecordId); // returns ActionResult
+
+// revokeGrantsTarget controls scope:
+//   'all'         → revoke grants for ALL applications
+//   'firstParty'  → revoke grants for first-party apps only`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Use case:</strong>{' '}
+        If a user suspects a third-party app has been compromised, they can revoke
+        its grant without affecting other authorized apps.
+      </div>
     </SectionWrap>
   );
 }
@@ -513,25 +628,10 @@ function DevSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Dev - debug tab">
-      <table style={styles.tableStyle}>
-        <thead>
-          <tr>
-            <th style={styles.thStyle}>Prop</th>
-            <th style={styles.thStyle}>Type</th>
-            <th style={styles.thStyle}>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={styles.tdPathStyle}>accessToken</td>
-            <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
-            <td style={styles.tdStyle}>Access token fetched lazily via <code style={styles.codeStyle}>getCurrentAccessToken()</code> (dev-only server action)</td>
-          </tr>
-        </tbody>
-      </table>
       <p style={styles.textStyle}>
-        Purely presentational. No hooks, no server actions. Two client-side
-        navigations for cookie management:
+        Common props only (<code style={styles.codeStyle}>userData</code>, <code style={styles.codeStyle}>mode</code>, <code style={styles.codeStyle}>colors</code>, <code style={styles.codeStyle}>t</code>).
+        The access token is fetched internally via <code style={styles.codeStyle}>getCurrentAccessToken()</code> - no prop needed.
+        Two client-side navigations for cookie management:
       </p>
       <CodeBlock title="Cookie actions" code={`// Clear cookies (stale cookie recovery) - POST (CSRF-safe)
 const handleClearCookies = async () => {
@@ -554,7 +654,9 @@ const handleInvalidateSession = async () => {
   );
 }
 
-// ─── Sessions Tab ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Page 6: Sessions
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function SessionsSection() {
   const styles = useDocStyles();
@@ -650,8 +752,17 @@ export default function TabsAndFlowsDoc() {
         </div>
       </Section>
 
-      {/* Page 5: Sessions */}
+      {/* Page 5: Security (Part 3) - WebAuthn */}
       <Section id={5}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
+          <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
+            <WebAuthnSection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 6: Sessions */}
+      <Section id={6}>
         <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
             <SessionsSection />
@@ -659,14 +770,23 @@ export default function TabsAndFlowsDoc() {
         </div>
       </Section>
 
-      {/* Page 6: Organizations + Dev */}
-      <Section id={6}>
+      {/* Page 7: Organizations + Dev */}
+      <Section id={7}>
         <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OrgPropsSection />
           </div>
           <div style={styles.colLeftStyle}>
             <DevSection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 8: Grant Management */}
+      <Section id={8}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
+          <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
+            <GrantManagementSection />
           </div>
         </div>
       </Section>

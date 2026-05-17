@@ -133,12 +133,12 @@ function ServerActionSection() {
   return (
     <SectionWrap label="setActiveOrg server action">
       <p style={styles.textStyle}>
-        Validates org membership via JWT claims. Does <strong>not</strong> persist anything  - 
+        Validates org membership via OIDC userinfo endpoint (live fetch, not cached token claims). Does <strong>not</strong> persist anything  - 
         that's <code style={styles.codeStyle}>setAsOrg</code>'s job.
       </p>
       <CodeBlock title="Signature" code={`export async function setActiveOrg(orgId: string | null): Promise<boolean>
 // Returns true if user is a member of orgId (or orgId is null).
-// Validates against JWT claims - fast, can't forge org membership.`} />
+// Uses getLogtoContext({ fetchUserInfo: true }) → userInfo.organizations (OIDC userinfo endpoint, live fetch)`} />
     </SectionWrap>
   );
 }

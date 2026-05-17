@@ -17,6 +17,9 @@ const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType 
   'i18n': () => import('./docs/i18n'),
   'sessions': () => import('./docs/components/sessions'),
   'calculator': () => import('./docs/components/calculator'),
+  'errors': () => import('./docs/errors'),
+  'guards': () => import('./docs/guards'),
+  'logging': () => import('./docs/logging'),
 };
 
 interface ContentAreaProps {
@@ -299,7 +302,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
 
         <div style={themedFootStyle}>
           <div style={themedFootDotStyle} />
-          {DocContent ? 'Self-documenting demo — logto-kit' : 'Placeholder — fill in usage patterns and demos'}
+          {DocContent ? 'Self-documenting demo - logto-kit' : 'Placeholder - fill in usage patterns and demos'}
         </div>
       </div>
     </div>

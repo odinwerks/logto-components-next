@@ -25,6 +25,8 @@ function ProviderTreeSection() {
   initialTheme="dark"       // optional - falls back to storage or ENV
   initialLang="en-US"       // optional - falls back to storage or default
   onUpdateCustomData={updateUserCustomData} // optional - persists to Logto API
+  onLangChange={() => console.log('Language changed')} // optional - callback after language switch
+  initialOrgId={null}            // optional - initially selected org ID
 >
   <App />
 </LogtoProvider>`} />
@@ -581,6 +583,39 @@ window.addEventListener('preferences-changed', () => {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Page 4: SessionHeartbeat
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SessionHeartbeatSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="SessionHeartbeat">
+      <p style={styles.textStyle}>
+        A zero-UI component that keeps session <code style={styles.codeStyle}>lastActiveAt</code> current.
+        Place it in your root layout - it renders nothing.
+      </p>
+      <CodeBlock title="Root layout" code={`import SessionHeartbeat from './logto-kit';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <SessionHeartbeat />
+        {children}
+      </body>
+    </html>
+  );
+}`} />
+      <p style={styles.textStyle}>
+        Fires <code style={styles.codeStyle}>recordHeartbeat()</code> every 30 seconds while the tab
+        is visible, and immediately when the tab becomes visible again. Errors are silently
+        swallowed - heartbeat is best-effort. Uses a Server Action directly for correct auth context.
+      </p>
+    </SectionWrap>
+  );
+}
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 export default function ProvidersDoc() {
@@ -623,6 +658,15 @@ export default function ProvidersDoc() {
           </div>
           <div style={styles.colLeftStyle}>
             <CrossTabSyncSection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 4: SessionHeartbeat (full width) */}
+      <Section id={4}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
+          <div style={{ ...styles.colLeftStyle, gridColumn: '1 / -1' }}>
+            <SessionHeartbeatSection />
           </div>
         </div>
       </Section>

@@ -69,10 +69,10 @@ function PropsSection() {
             <td style={styles.tdStyle}>Optional override. Reads LogtoProvider context if omitted.</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>theme</td>
+            <td style={styles.tdPropStyle}>colors</td>
             <td style={styles.tdTypeStyle}>ThemeColors</td>
             <td style={styles.tdStyle}> - </td>
-            <td style={styles.tdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
+            <td style={styles.tdStyle}>Optional override of type ThemeColors. Reads useThemeMode() context if omitted.</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>do</td>

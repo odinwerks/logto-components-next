@@ -136,7 +136,7 @@ function TabStructureSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>profile</td>
-            <td style={styles.tdStyle}>Avatar, display name</td>
+            <td style={styles.tdStyle}>Avatar, display name, username, profile fields (given/family name), email, phone, identity verification</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>preferences</td>
@@ -149,6 +149,10 @@ function TabStructureSection() {
           <tr>
             <td style={styles.tdPropStyle}>identities</td>
             <td style={styles.tdStyle}>Social providers (read-only)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>sessions</td>
+            <td style={styles.tdStyle}>Active device sessions with device info, heartbeat, revocation</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>organizations</td>

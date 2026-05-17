@@ -53,6 +53,9 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   ├── providers.tsx
 │   │   │   ├── themes.tsx
 │   │   │   ├── i18n.tsx
+│   │   │   ├── errors.tsx
+│   │   │   ├── guards.tsx
+│   │   │   ├── logging.tsx
 │   │   │   └── components/
 │   │   │       ├── calculator.tsx
 │   │   │       └── sessions.tsx   # Sessions tab documentation
@@ -432,7 +435,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs - one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 14 sidebar tabs - one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -447,6 +450,9 @@ The demo app (`app/demo/`) is a standalone application with 11 sidebar tabs - on
 | i18n | config | Translation files, language switching |
 | Sessions | component | Active session management with device info, IP geolocation, and revocation |
 | Calculator | component | Permission-gated calculator demo with live RBAC examples |
+| Error Handling | reference | Error sanitization: 21 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
+| Input Guards | reference | Input validation at trust boundaries: 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv |
+| Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
 
 Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
@@ -471,7 +477,13 @@ The demo app consists of:
 | `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
 | `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
+| `docs/errors.tsx` | Error handling guide - sanitization, 21 error codes, safeAction, server action pattern (4 pages) |
+| `docs/guards.tsx` | Input guards - 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
+| `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
 | `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
+| `docs/errors.tsx` | Error handling guide: sanitization, error codes, server action pattern |
+| `docs/guards.tsx` | Input guards reference: 13 assert guards, safeUrl, pickPreferences, origin-guard |
+| `docs/logging.tsx` | Logging reference: LOG_BACKEND routing, unstructured + structured APIs |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
 | `utils/SectionComponents.tsx` | Pre-built page components for documentation (Badge, Note, StepList, Table) |
@@ -493,7 +505,7 @@ To add documentation for a new tab:
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 11 navigation tabs covering every major logto-kit feature
+- A sidebar with 14 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -912,7 +924,7 @@ import {
   validateUsername,
   validateUrl,
   validateE164,
-  sanitizeLogtoError,
+  captureMessage,
 } from './logto-kit';
 
 import type {
@@ -1207,7 +1219,7 @@ function MyComponent() {
 #### Organization Switching Flow
 
 1. User selects org from `<OrgSwitcher>` or Organizations tab
-2. `setActiveOrg()` validates membership via Logto claims
+2. `setActiveOrg()` validates membership via OIDC userinfo (live fetch, not cached JWT claims)
 3. Selection stored in:
    - `sessionStorage` (client) - for immediate UI updates
    - `customData.Preferences.asOrg` (server) - for persistence
@@ -1847,14 +1859,14 @@ const permissions = await getOrganizationUserPermissions('org-123');
 ### Utilities
 
 ```tsx
-import { formatPhone, sanitizeLogtoError } from './logto-kit';
+import { formatPhone, captureMessage } from './logto-kit';
 
 // Format a raw E.164 phone number for display
 const displayPhone = formatPhone('+12345678901');
 // → "+1 (234) 567-8901"
 
-// Sanitize Logto error messages for safe user-facing display
-const message = sanitizeLogtoError(rawError);
+// Safe extraction of client-visible error text
+const message = captureMessage(rawError);
 ```
 
 ### Identity Verification

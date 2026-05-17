@@ -144,7 +144,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <OrgSwitcherIcon />,
-    desc: 'Dropdown for switching organisations. OrgSwitcherWrapper auto-fetches from Logto. setActiveOrg validates via JWT claims. setAsOrg persists to customData + sessionStorage. Auto-selects single org.',
+     desc: 'Dropdown for switching organisations. OrgSwitcherWrapper auto-fetches from Logto. setActiveOrg validates via OIDC userinfo. setAsOrg persists to customData + sessionStorage. Auto-selects single org.',
     sections: ['Overview', 'OrgSwitcher props', 'Wrapper', 'useOrgMode', 'setActiveOrg', 'Switching flow'],
   },
   {
@@ -191,6 +191,33 @@ export const NAV_ITEMS: NavItem[] = [
     icon: <CalculatorIcon />,
     desc: 'Permission-gated calculator demo. Wraps UI with <Protected>, calls /api/protected on =. Two-tier permissions: calc:basic and calc:scientific. Live demo included.',
     sections: ['Overview', 'Files', 'Protected Gate', 'Permission Matrix', 'Permission Flow', 'API Call', 'Action Handlers', 'Live Calculator'],
+  },
+  {
+    id: 'errors',
+    label: 'Error Handling',
+    code: false,
+    type: 'reference',
+    icon: <ActionsApiIcon />,
+    desc: 'Error sanitization system. All errors returned to the client are fixed codes. 21 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError.',
+    sections: ['Overview', 'Error Codes', 'Server Action Pattern', 'API Helpers'],
+  },
+  {
+    id: 'guards',
+    label: 'Input Guards',
+    code: false,
+    type: 'reference',
+    icon: <ProtectedIcon />,
+    desc: 'Input validation at server-action trust boundaries. ID guards, enum guards, field guards, validation functions, safeUrl builder, mass-assignment protection, origin guard, readEnv.',
+    sections: ['Overview', 'ID & Enum Guards', 'Field Guards & Validation', 'URL Builder & Mass Assignment', 'Origin Guard & readEnv'],
+  },
+  {
+    id: 'logging',
+    label: 'Logging',
+    code: false,
+    type: 'reference',
+    icon: <I18nIcon />,
+    desc: 'Configurable logging with LOG_BACKEND routing. Two APIs: unstructured (log/warn/error/debug) and structured (logEvent). Pino integration for production observability.',
+    sections: ['Overview', 'Unstructured API', 'Structured API', 'Integration'],
   },
 ];
 

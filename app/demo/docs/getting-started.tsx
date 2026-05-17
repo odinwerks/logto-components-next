@@ -121,11 +121,35 @@ function EnvSection() {
           </tr>
         </tbody>
       </table>
+      <CodeBlock title="Feature-specific ENV" code={`# -- M2M (account deletion, RBAC) --
+LOGTO_M2M_APP_ID=         # M2M app ID from Logto Console
+LOGTO_M2M_APP_SECRET=     # M2M app secret
+LOGTO_INTROSPECTION_URL=  # Token introspection endpoint
+
+# -- Avatar --
+PFP_BACKEND=logto         # logto (default) | supabase | s3
+
+# -- Display --
+NAME_TYPE=given_family    # given_family | full | username
+DEFAULT_THEME_MODE=dark   # dark | light
+
+# -- MFA --
+MFA_ISSUER=MyApp          # Shown in authenticator app
+
+# -- Security --
+DELETE_REDIRECT_DELAY=3000 # ms before redirect after account deletion
+
+# -- Debug --
+DEBUG=                    # Set to true for verbose server logging
+PLAIN_ERRORS=false        # Set to true for full error text in responses
+LOG_BACKEND=console       # console | logtail (structured logging backend)`} />
       <CodeBlock title="SCOPES" code={`# Minimum (includes sessions)
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 
 # With organizations
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations`} />
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations
+
+# The parser accepts both comma and newline delimiters.`} />
     </SectionWrap>
   );
 }
@@ -148,6 +172,9 @@ S3_SECRET_ACCESS_KEY=your-secret-key
 S3_REGION=auto
 S3_BUCKET_NAME=avatars
 S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars`} />
+      <CodeBlock title="Option C: Logto-hosted (default)" code={`# Set PFP_BACKEND=logto (default). Uses Logto's avatar endpoint.
+# No additional ENV vars needed - avatar updates go through Logto Management API.
+PFP_BACKEND=logto`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Supabase:</strong>{' '}
         If <code style={styles.codeSmStyle}>SUPABASE_SERVICE_ROLE_KEY</code> is set, the system
@@ -217,6 +244,10 @@ function RunSection() {
         to Logto for sign-in. After auth, you'll see your app wrapped in{' '}
         <code style={styles.codeStyle}>LogtoProvider</code>.
       </p>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Node version:</strong>{' '}
+        Requires Node v25+ (uses <code style={styles.codeStyle}>globalThis.structuredClone</code> and other modern APIs).
+      </div>
       <CodeBlock title="Build" code={`npm run build
 npm start`} />
     </SectionWrap>
@@ -296,21 +327,21 @@ function DockerSetupSection() {
         The repo ships with a <code style={styles.codeStyle}>Dockerfile</code> and{' '}
         <code style={styles.codeStyle}>docker-compose.yml</code>. Two services:{' '}
         <code style={styles.codeStyle}>logto-dash</code> (Next.js) and{' '}
-        <code style={styles.codeStyle}>cloudflared</code> (CF tunnel). Port 3000 is{' '}
+        <code style={styles.codeStyle}>cloudflared</code> (CF tunnel). Port 2999 is{' '}
         never exposed to the host - only cloudflared reaches it internally.
       </p>
       <CodeBlock
-        title="Step 1 - Set BASE_URL + tunnel token in .env"
-        code={`# Baked into the image at build time - must match your public URL
-BASE_URL=https://dash.yourdomain.org
+        title="Step 1 - Set PUBLIC_BASE_URL + tunnel token in .env"
+        code={`# Baked into the image at build time (sourced as BASE_URL internally) - must match your public URL
+PUBLIC_BASE_URL=https://dash.yourdomain.org
 
 # Cloudflare Zero Trust → Networks → Tunnels → Create a tunnel
 CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token`}
       />
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>BASE_URL</strong>{' '}
-        is used for OIDC redirect URIs. Set it to your public CF tunnel URL{' '}
-        before building - it cannot be changed at runtime.
+        <strong style={styles.strongNoteStyle}>PUBLIC_BASE_URL</strong>{' '}
+        maps to <code style={styles.codeSmStyle}>BASE_URL</code> inside the container. It's used for OIDC redirect URIs.{' '}
+        Set it to your public CF tunnel URL before building - it cannot be changed at runtime.
       </div>
     </SectionWrap>
   );
@@ -322,8 +353,8 @@ function DockerBuildSection() {
     <SectionWrap label="Configure tunnel → build → run">
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Step 2 - Cloudflare dashboard:</strong>{' '}
-        in your tunnel's public hostname settings, point your domain to{' '}
-        <code style={styles.codeSmStyle}>http://logto-dash:3000</code>
+        in your tunnel's public hostname settings,         point your domain to{' '}
+        <code style={styles.codeSmStyle}>http://logto-dash:2999</code>
       </div>
       <CodeBlock
         title="Step 3 - Build & start"
