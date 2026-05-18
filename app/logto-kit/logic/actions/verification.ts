@@ -8,6 +8,7 @@ import {
   assertSafeLogtoId,
 } from '../guards';
 import { safeAction, type ActionResult, type DataResult } from './safe';
+import { ValidationError } from '../validation';
 
 // ============================================================================
 // Password Verification
@@ -34,6 +35,9 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
 
 export async function sendEmailVerificationCode(email: string): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
+    if (typeof email !== 'string' || email.length === 0 || email.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new ValidationError('INVALID_INPUT', 'email');
+    }
     const res = await makeRequest('/api/verifications/verification-code', {
       method: 'POST',
       body: { identifier: { type: 'email', value: email } },
@@ -53,6 +57,9 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
 
 export async function sendPhoneVerificationCode(phone: string): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
+    if (typeof phone !== 'string' || phone.length === 0 || phone.length > 20 || !/^\+[1-9]\d{1,14}$/.test(phone)) {
+      throw new ValidationError('INVALID_INPUT', 'phone');
+    }
     const res = await makeRequest('/api/verifications/verification-code', {
       method: 'POST',
       body: { identifier: { type: 'phone', value: phone } },

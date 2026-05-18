@@ -152,6 +152,8 @@ export function SessionsTab({
     const sessionsResult = await onGetSessionsWithDeviceMeta(vid);
     if (!sessionsResult.ok) {
       onError(sessionsResult.error);
+      setVerificationRecordId(null);
+      setVerificationExpiry(0);
       setLoading(false);
       return;
     }
@@ -166,8 +168,11 @@ export function SessionsTab({
     const r = await onGetSessionsWithDeviceMeta(verificationRecordId!);
     if (!r.ok) {
       onError(r.error);
-      setViewState('unverified');
-      setVerificationRecordId(null);
+      // Only reset verification for auth-related failures
+      if (r.error === 'VERIFICATION_FAILED' || r.error === 'UNAUTHORIZED') {
+        setViewState('unverified');
+        setVerificationRecordId(null);
+      }
       setLoading(false);
       return;
     }
@@ -179,8 +184,12 @@ export function SessionsTab({
     clearGeoCache();
     setGeoMap(new Map());
     setGeoRefreshKey(k => k + 1);
+    if (!isVerificationValid) {
+      setViewState('unverified');
+      return;
+    }
     await loadSessions();
-  }, [loadSessions]);
+  }, [loadSessions, isVerificationValid]);
 
   const handleRevokeAll = useCallback(async () => {
     // Always require password confirmation for revoke all — the password modal

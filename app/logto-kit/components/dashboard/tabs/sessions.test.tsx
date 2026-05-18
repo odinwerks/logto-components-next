@@ -205,7 +205,7 @@ describe('SessionsTab', () => {
 
   // ─── BUG 3: Fragile error-type detection via string matching ───
   describe('BUG 3: error-type detection', () => {
-    it('resets to unverified state on any loadSessions error (not just 401/verification)', async () => {
+    it('resets to unverified state on VERIFICATION_FAILED error in loadSessions', async () => {
       // First, successfully verify and load sessions
       const onVerifyPassword = vi.fn().mockResolvedValue({
         ok: true,
@@ -218,7 +218,7 @@ describe('SessionsTab', () => {
         })
         .mockResolvedValueOnce({
           ok: false,
-          error: 'SOME_RANDOM_ERROR', // Does NOT contain '401' or 'verification'
+          error: 'VERIFICATION_FAILED', // Auth-type error should trigger reset
         });
 
       renderSessionsTab({ onVerifyPassword, onGetSessionsWithDeviceMeta: onGetSessions });
@@ -231,15 +231,55 @@ describe('SessionsTab', () => {
         expect(screen.getByText('This device')).toBeDefined();
       });
 
-      // Click refresh button (triggers loadSessions, second call fails)
+      // Click refresh button (triggers loadSessions, second call fails with VERIFICATION_FAILED)
       const refreshBtn = screen.getByRole('button', { name: /refresh/i });
       await act(async () => { fireEvent.click(refreshBtn); });
 
-      // After the refresh fails with a non-verification error,
-      // the component should reset to unverified state
+      // After the refresh fails with VERIFICATION_FAILED, the component should reset to unverified
       await waitFor(() => {
         expect(screen.getByText('Verify your identity')).toBeDefined();
       });
+    });
+
+    it('stays in loaded state on transient NETWORK_ERROR in loadSessions', async () => {
+      // First, successfully verify and load sessions
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid' },
+      });
+      const onGetSessions = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          data: createdSessions,
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          error: 'NETWORK_ERROR', // Transient error should NOT reset verification
+        });
+
+      renderSessionsTab({ onVerifyPassword, onGetSessionsWithDeviceMeta: onGetSessions });
+
+      // Verify and load sessions (first call succeeds)
+      await verifyAndLoadSessions();
+
+      // Wait for sessions to appear (loaded state)
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      // Click refresh button (triggers loadSessions, second call fails with NETWORK_ERROR)
+      const refreshBtn = screen.getByRole('button', { name: /refresh/i });
+      await act(async () => { fireEvent.click(refreshBtn); });
+
+      // After the refresh fails with a transient error, the component should STAY in loaded state
+      // Do NOT reset to unverified — the sessions list should still be visible
+      await waitFor(() => {
+        expect(screen.queryByText('Verify your identity')).toBeNull();
+      });
+
+      // Sessions should still be rendered
+      expect(screen.getByText('This device')).toBeDefined();
+      expect(screen.getByText('Chrome 120 · Windows 11')).toBeDefined();
     });
   });
 

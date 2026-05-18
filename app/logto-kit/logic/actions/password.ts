@@ -2,6 +2,8 @@
 
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
+import { assertSafeLogtoId } from '../guards';
+import { ValidationError } from '../validation';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult } from './safe';
@@ -15,6 +17,11 @@ export async function updateUserPassword(
   identityVerificationRecordId: string
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    if (typeof newPassword !== 'string' || newPassword.length > 256) {
+      throw new ValidationError('INVALID_INPUT', 'newPassword');
+    }
+
     const res = await makeRequest('/api/my-account/password', {
       method: 'POST',
       body: { password: newPassword },

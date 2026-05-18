@@ -34,6 +34,23 @@ const MAGIC_BYTES: Record<string, [number[], number[]]> = {
 // ============================================================================
 
 const uploadTimestamps = new Map<string, number[]>();
+
+// Periodic cleanup of stale rate-limit entries (every 5 minutes)
+// Prevents unbounded memory growth from one-time uploaders.
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const cutoff = Date.now() - 60_000;
+    for (const [userId, timestamps] of uploadTimestamps) {
+      const recent = timestamps.filter(t => t > cutoff);
+      if (recent.length === 0) {
+        uploadTimestamps.delete(userId);
+      } else {
+        uploadTimestamps.set(userId, recent);
+      }
+    }
+  }, 300_000).unref();
+}
+
 const MAX_UPLOADS_PER_MINUTE = 5;
 
 function checkRateLimit(userId: string): boolean {
