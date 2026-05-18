@@ -15,6 +15,7 @@ const cache = new Map<string, CacheEntry>();
 const TTL = 5 * 60 * 1000;
 
 export function getCachedGeo(ip: string): GeoLocation | null {
+  if (typeof window === 'undefined') return null;
   const entry = cache.get(ip);
   if (!entry) return null;
   if (Date.now() - entry.fetchedAt > TTL) {
@@ -25,16 +26,19 @@ export function getCachedGeo(ip: string): GeoLocation | null {
 }
 
 export function setCachedGeo(ip: string, geo: GeoLocation): void {
+  if (typeof window === 'undefined') return;
   cache.set(ip, { geo, fetchedAt: Date.now() });
 }
 
 export function clearGeoCache(): void {
+  if (typeof window === 'undefined') return;
   cache.clear();
 }
 
 const inFlight = new Map<string, Promise<GeoLocation | null>>();
 
 export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
+  if (typeof window === 'undefined') return null;
   if (!ip) return null;
 
   const cached = getCachedGeo(ip);

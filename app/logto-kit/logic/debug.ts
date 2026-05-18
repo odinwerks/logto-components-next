@@ -3,9 +3,10 @@
  * Use instead of console.log/console.warn for development traces
  * that should not appear in production logs.
  */
+import { isDev } from './dev-mode';
 import { warn, error } from './log';
 
-const DEBUG = process.env.DEBUG === 'true';
+const DEBUG = isDev && process.env.DEBUG === 'true';
 
 function formatArgs(args: unknown[]): string {
   return args.map(a => {

@@ -18,7 +18,7 @@ export async function updateUserPassword(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    if (typeof newPassword !== 'string' || newPassword.length > 256) {
+    if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {
       throw new ValidationError('INVALID_INPUT', 'newPassword');
     }
 

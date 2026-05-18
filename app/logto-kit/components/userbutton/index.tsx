@@ -219,6 +219,8 @@ export function UserButton({
   const { userData, loading, showFallback, imageFailed, setImageFailed, colors, handleClick } =
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -226,7 +228,7 @@ export function UserButton({
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
     borderRadius: getBorderRadius(resolvedShape, '0.625rem'),
-    transition: 'opacity 0.15s, transform 0.15s',
+    transition: 'opacity 0.15s, transform 0.1s',
   };
 
   const renderAvatar = () => {
@@ -246,13 +248,21 @@ export function UserButton({
 
   return (
     <button
-      style={{ ...wrapperStyle, background: 'none', border: 'none', padding: 0 }}
+      style={{
+        ...wrapperStyle,
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        opacity: hovered ? 0.82 : 1,
+        transform: pressed ? 'scale(0.95)' : 'scale(1)',
+        transition: 'opacity 0.15s, transform 0.1s',
+      }}
       onClick={handleClick}
       aria-label="Open user dashboard"
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.82'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
-      onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.95)'; }}
-      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
     >
       {renderAvatar()}
     </button>
@@ -309,6 +319,8 @@ export function UserCard({
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
   const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -321,7 +333,7 @@ export function UserCard({
     background: colors.bgSecondary,
     border: `1px solid ${colors.borderColor}`,
     borderRadius,
-    transition: 'opacity 0.15s, transform 0.15s',
+    transition: 'opacity 0.15s, transform 0.1s',
   };
 
   const label = t.common.loggedInAs;
@@ -373,13 +385,17 @@ export function UserCard({
 
   return (
     <button
-      style={wrapperStyle}
+      style={{
+        ...wrapperStyle,
+        opacity: hovered ? 0.85 : 1,
+        transform: pressed ? 'scale(0.97)' : 'scale(1)',
+      }}
       onClick={handleClick}
       aria-label="Open user dashboard"
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
-      onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)'; }}
-      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
     >
       {renderContent()}
     </button>

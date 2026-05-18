@@ -1,5 +1,7 @@
 import { getLogtoConfig } from '../../logto';
 import type { OidcIntrospectionResponse } from './types';
+import { warn } from './log';
+import { sanitize } from './errors';
 
 /**
  * Retrieves the Logto endpoint from configuration and removes any trailing slash.
@@ -67,10 +69,10 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     } catch {
       detail = await res.text().catch(() => '');
     }
-    throw new Error(
-      `Introspection endpoint returned HTTP ${res.status}` +
-        (detail ? `: ${detail}` : '. Check LOGTO_INTROSPECTION_URL.')
-    );
+    // Log full detail server-side
+    warn(`[introspectToken] HTTP ${res.status}: ${detail}`);
+    // Throw sanitized error — never leak upstream API details to clients
+    throw sanitize(new Error(`Introspection failed: HTTP ${res.status}`), { fallback: 'UNAUTHORIZED' });
   }
 
   try {

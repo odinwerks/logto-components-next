@@ -464,7 +464,7 @@ export function SessionsTab({
               : null;
 
             return (
-              <div key={session.payload.uid} style={{
+              <div key={session.payload.jti ?? session.payload.uid} style={{
                 background: T.bg,
                 border: `1px solid ${T.border}`,
                 borderRadius: DASHBOARD_RADIUS,

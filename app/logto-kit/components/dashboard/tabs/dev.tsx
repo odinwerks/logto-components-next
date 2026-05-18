@@ -10,6 +10,44 @@ import { loadOrganizationPermissions } from '../../../actions/load-org-permissio
 import { getCurrentAccessToken } from '../../../logic/actions/debug-token';
 import { isDev } from '../../../logic/dev-mode';
 
+// ─── TruncatedToken: only shows first/last 8 chars by default ───
+function TruncatedToken({ token, mode, colors, t }: { token: string; mode: 'dark' | 'light'; colors: ThemeColors; t: Translations }) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (token.length <= 16) {
+    return <CodeBlock data={token} mode={mode} colors={colors} maxHeight="7.5rem" t={t} />;
+  }
+
+  const preview = revealed
+    ? token
+    : `${token.slice(0, 8)}${'•'.repeat(8)}${token.slice(-8)}`;
+
+  return (
+    <div>
+      <CodeBlock data={preview} mode={mode} colors={colors} maxHeight="7.5rem" t={t} />
+      <button
+        onClick={() => setRevealed(r => !r)}
+        style={{
+          marginTop: '0.375rem',
+          fontSize: '0.625rem',
+          fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+          textTransform: 'uppercase',
+          letterSpacing: '0.07em',
+          fontWeight: 500,
+          color: colors.textTertiary,
+          background: 'none',
+          border: `1px solid ${colors.borderColor}`,
+          borderRadius: '0.25rem',
+          padding: '0.25rem 0.5rem',
+          cursor: 'pointer',
+        }}
+      >
+        {revealed ? 'Hide' : 'Reveal full token'}
+      </button>
+    </div>
+  );
+}
+
 // ─── Hardcoded design tokens (replaces theme.tokens.*) ───
 const FONT_SANS = "'DM Sans', system-ui, sans-serif";
 const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
@@ -191,10 +229,16 @@ export function DevTab({ userData, mode, colors, t }: DevTabProps) {
 
       {/* Access Token — dev only, lazy-fetched */}
       <Section icon={<KeyRound size={12} strokeWidth={2} />} label={t.raw.tokenType}>
-        {accessToken
-          ? <CodeBlock data={accessToken} mode={mode} colors={c} maxHeight="7.5rem" t={t} />
-          : <p style={{ fontSize: '0.75rem', color: c.textTertiary, fontFamily: 'monospace' }}>Loading…</p>
-        }
+        {accessToken ? (
+          <TruncatedToken
+            token={accessToken}
+            mode={mode}
+            colors={c}
+            t={t}
+          />
+        ) : (
+          <p style={{ fontSize: '0.75rem', color: c.textTertiary, fontFamily: 'monospace' }}>Loading…</p>
+        )}
       </Section>
 
       {/* Raw JSON */}

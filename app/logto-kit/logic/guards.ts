@@ -198,7 +198,7 @@ export function pickPreferences(input: unknown): PreferencesShape {
         throw new ValidationError('INVALID_THEME_MODE', 'Preferences.theme');
       }
     } else if (key === 'lang') {
-      if (typeof value === 'string' && /^[A-Za-z0-9-]{1,16}$/.test(value)) {
+      if (typeof value === 'string' && /^[A-Za-z0-9._-]{1,16}$/.test(value)) {
         out.lang = value;
       } else {
         throw new ValidationError('INVALID_LANGUAGE', 'Preferences.lang');
@@ -246,7 +246,7 @@ export function safeUrl(
     if (typeof value !== 'string' || value.length === 0) {
       throw new ValidationError('MISSING_URL_PARAM', key);
     }
-    if (value.includes('..') || value.includes('/')) {
+    if (value.includes('..') || value.includes('/') || value.includes('\\') || value.includes('\0')) {
       throw new ValidationError('INVALID_URL_PARAM', key);
     }
     return encodeURIComponent(value);
@@ -290,7 +290,7 @@ export function assertPasskeyName(value: unknown): asserts value is string {
 export function assertNameField(
   value: unknown,
   field: string,
-): asserts value is string {
+): asserts value is string | null | undefined {
   if (value === undefined || value === null) return;
   if (typeof value !== 'string') {
     throw new ValidationError('INVALID_FIELD_TYPE', field);
@@ -303,7 +303,7 @@ export function assertNameField(
   }
 }
 
-export function assertUsername(value: unknown): asserts value is string {
+export function assertUsername(value: unknown): asserts value is string | null | undefined | '' {
   if (value === undefined || value === null || value === '') return;
   if (typeof value !== 'string') {
     throw new ValidationError('INVALID_FIELD_TYPE', 'username');
@@ -316,7 +316,7 @@ export function assertUsername(value: unknown): asserts value is string {
   }
 }
 
-export function assertHttpUrl(value: unknown, field: string): asserts value is string {
+export function assertHttpUrl(value: unknown, field: string): asserts value is string | null | undefined | '' {
   if (value === undefined || value === null || value === '') return;
   if (typeof value !== 'string' || value.length > MAX_URL_LEN) {
     throw new ValidationError('INVALID_URL', field);

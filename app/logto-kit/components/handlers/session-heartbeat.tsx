@@ -24,8 +24,12 @@ const DEBOUNCE_MS = 10_000;
 
 export default function SessionHeartbeat() {
   const lastPingRef = useRef<number>(0);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
     const ping = () => {
       // Only ping when the tab is visible.
       if (document.visibilityState !== 'visible') return;

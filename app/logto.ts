@@ -43,6 +43,7 @@ function getEnvVar(name: string, required = true): string {
   return value;
 }
 
+/** @deprecated Kept for reference; the Account API uses an empty resource string. */
 function buildAccountApiResource(endpoint: string): string {
   // NOTE: buildAccountApiResource is intentionally unused.
   // The Logto Account API uses an empty resource string for getAccessToken(config, ''),
@@ -84,6 +85,7 @@ export const logtoConfig = (() => {
 
   const nodeEnv = process.env.NODE_ENV || 'development';
 
+  // NOTE: resources is intentionally empty. Account API tokens use getAccessToken(config, '').
   const resources: string[] = [];
 
   const allScopes = parseScopes(scopeString);
@@ -98,6 +100,20 @@ export const logtoConfig = (() => {
     resources,
     scopes: allScopes,
   };
+
+  // Runtime guard: prevent serving with placeholder secrets in production
+  if (config.appSecret === 'build-placeholder' && nodeEnv === 'production') {
+    throw new Error(
+      'FATAL: appSecret is still "build-placeholder" at runtime in production. ' +
+      'Set APP_SECRET environment variable before starting the server.'
+    );
+  }
+  if (config.cookieSecret === 'build-placeholder' && nodeEnv === 'production') {
+    throw new Error(
+      'FATAL: cookieSecret is still "build-placeholder" at runtime in production. ' +
+      'Set COOKIE_SECRET environment variable before starting the server.'
+    );
+  }
 
   return config;
 })();
@@ -131,18 +147,22 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
-  const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
+  const resource = process.env.LOGTO_M2M_RESOURCE;
+  if (!resource) {
+    throw new Error(
+      'LOGTO_M2M_RESOURCE must be set for Management API access. ' +
+      'Set it to your Logto endpoint + "/api" (e.g., "https://your-tenant.logto.app/api").'
+    );
+  }
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     resource,
-    // 'all' here requests every management scope granted to this M2M app in the
-    // Logto Console. The actual blast radius is determined by Console permissions,
-    // NOT this string. To minimise risk, ensure the M2M app in Console has ONLY
-    // the "User data → Delete user" permission assigned.
+    // Omit scope to receive only the default scopes assigned to this M2M app.
+    // The blast radius is determined by Console permissions.
     // See SECURITY.md for setup instructions.
-    scope: 'all',
+    scope: '',
   });
 
   const res = await fetch(tokenEndpoint, {

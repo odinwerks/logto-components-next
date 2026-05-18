@@ -39,11 +39,13 @@ export function getPreferencesFromUserData(userData: UserData): UserPreferences 
   const lang: string | undefined =
     typeof prefs.lang === 'string' && prefs.lang.length > 0 ? prefs.lang : undefined;
 
-  // Validate asOrg (string or null)
+  // Validate asOrg — null is a valid value meaning "be yourself"
+  const hasAsOrg = 'asOrg' in prefs;
   const asOrg: string | null =
     typeof prefs.asOrg === 'string' ? prefs.asOrg : null;
 
-  if (!theme && !lang && !asOrg) return null;
+  // Return preferences if any key exists (even if all values resolve to defaults)
+  if (!theme && !lang && !hasAsOrg) return null;
 
   return {
     theme: theme ?? 'dark',

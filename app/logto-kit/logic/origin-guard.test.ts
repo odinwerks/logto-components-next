@@ -40,4 +40,27 @@ describe('checkSameOrigin', () => {
     expect(res).not.toBeNull();
     expect(res?.status).toBe(403);
   });
+
+  it('returns 403 when BASE_URL is not configured (no localhost fallback)', () => {
+    delete process.env.BASE_URL;
+    delete process.env.APP_URL;
+    const req = new NextRequest('http://localhost:3000/api/wipe', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3000' },
+    });
+    const res = checkSameOrigin(req);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
+  });
+
+  it('rejects referer header as origin (only Origin header accepted)', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/wipe', {
+      method: 'POST',
+      headers: { referer: 'http://localhost:3000/some-page' },
+    });
+    const res = checkSameOrigin(req);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
+  });
 });

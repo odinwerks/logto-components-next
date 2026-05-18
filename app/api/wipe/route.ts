@@ -15,46 +15,6 @@ function clearLogtoCookies(request: NextRequest, response: NextResponse): NextRe
   return response;
 }
 
-/**
- * GET clears Logto cookies and redirects home.
- * This is a convenience handler for browser navigation (not CSRF-safe).
- * For CSRF-safe cookie wiping, use POST instead.
- */
-export async function GET(request: NextRequest) {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-  const force = request.nextUrl.searchParams.get('force') === 'true';
-
-  const response = clearLogtoCookies(
-    request,
-    NextResponse.redirect(new URL('/', baseUrl)),
-  );
-
-  if (force) {
-    let signOutFn: typeof SignOutType | undefined;
-    try {
-      const mod = await import('@logto/next/server-actions');
-      signOutFn = mod.signOut;
-    } catch (importError) {
-      error('[wipe] force: failed to import @logto/next:',
-        importError instanceof Error ? importError.message : importError);
-    }
-    if (signOutFn) {
-      try {
-        await signOutFn(getLogtoConfig());
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
-          // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
-          // our cookie-cleared response is lost. Return our response instead —
-          // the server-side signOut has already completed.
-          return response;
-        }
-        error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
-      }
-    }
-  }
-  return response;
-}
-
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);

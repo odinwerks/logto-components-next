@@ -111,7 +111,7 @@ export function ProfileTab({
     if (!userData.id) return;
     setRolesLoading(true);
     setRolesError(false);
-    loadPersonalRoles(userData.id)
+    loadPersonalRoles()
       .then(r => {
         if (cancelled) return;
         if (r.ok) setUserRoles(r.data);
@@ -147,13 +147,13 @@ export function ProfileTab({
         const name = `${givenName} ${familyName}`.trim();
         if (name) {
           const basicResult = await onUpdateBasicInfo({ name });
-          if (!basicResult.ok) { onError(basicResult.error); return; }
+          if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         }
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
       } else if (nameType === 'username') {
         const result = await onUpdateBasicInfo({ username });
-        if (!result.ok) { onError(result.error); return; }
+        if (!result.ok) { onError(result.error); refreshData(); return; }
       } else { // full
         const nameFieldsChanged =
           givenName  !== (userData.profile?.givenName  ?? '') ||
@@ -162,7 +162,7 @@ export function ProfileTab({
         const basicUpdates: { name?: string; username?: string } = { username };
         if (name) basicUpdates.name = name;
         const basicResult = await onUpdateBasicInfo(basicUpdates);
-        if (!basicResult.ok) { onError(basicResult.error); return; }
+        if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         if (nameFieldsChanged) {
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
@@ -383,6 +383,14 @@ export function ProfileTab({
                   }}
                   onClick={(e) => {
                     if (!isUploading) fileInputRef.current?.click();
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!isUploading) fileInputRef.current?.click();
+                    }
                   }}
                   style={{
                     ...dropZoneStyle,

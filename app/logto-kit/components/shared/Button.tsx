@@ -80,6 +80,7 @@ export function Button({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       onMouseEnter={() => setHovered(true)}

@@ -302,8 +302,10 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
     drawMask(ctx, shape);
   }, [image, scale, offset, shape]);
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent<HTMLCanvasElement>) => {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
       if (!imageRef.current) return;
       const delta = e.deltaY > 0 ? -0.03 : 0.03;
@@ -311,9 +313,10 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
       setScale(newScale);
       const clamped = clampOffset(imageRef.current, newScale, offsetRef.current.x, offsetRef.current.y);
       setOffset(clamped);
-    },
-    [minScale],
-  );
+    };
+    canvas.addEventListener('wheel', handler, { passive: false });
+    return () => canvas.removeEventListener('wheel', handler);
+  }, [minScale]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -352,6 +355,29 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
       snapBack();
     }
   }, [isDragging, snapBack]);
+
+  // Window-level mouse event listeners during drag to prevent image snapping back on fast moves
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleWindowMove = (e: MouseEvent) => {
+      if (!dragStartRef.current || !imageRef.current) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const dx = (e.clientX - dragStartRef.current.x) * (CANVAS_SIZE / rect.width);
+      const dy = (e.clientY - dragStartRef.current.y) * (CANVAS_SIZE / rect.height);
+      const rawX = dragStartRef.current.ox + dx;
+      const rawY = dragStartRef.current.oy + dy;
+      const result = applyOverscroll(imageRef.current, scaleRef.current, rawX, rawY);
+      setOffset(result);
+    };
+    const handleWindowUp = () => { endDrag(); };
+    window.addEventListener('mousemove', handleWindowMove);
+    window.addEventListener('mouseup', handleWindowUp);
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMove);
+      window.removeEventListener('mouseup', handleWindowUp);
+    };
+  }, [isDragging, endDrag]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1) return;
@@ -458,10 +484,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={endDrag}
         onMouseLeave={endDrag}
-        onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

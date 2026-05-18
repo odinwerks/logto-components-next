@@ -6,6 +6,7 @@ import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../handlers/preferences';
+import { useUserDataContext } from '../handlers/user-data-context';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
@@ -194,11 +195,8 @@ export function DashboardClient({
   );
 
   // ── User Data ──────────────────────────────────────────────────────────────
-  const [userData, setUserData] = useState<UserData>(initialData.userData);
-
-  useEffect(() => {
-    setUserData(initialData.userData);
-  }, [initialData.userData]);
+  const userDataFromContext = useUserDataContext();
+  const userData = userDataFromContext ?? initialData.userData;
 
   // ── Organization Data ─────────────────────────────────────────────────────
   // Organization roles and organizations now come from claims in dashboard data

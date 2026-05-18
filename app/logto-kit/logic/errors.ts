@@ -23,9 +23,10 @@
  *   }
  */
 
+import { isDev } from './dev-mode';
 import { warn } from './log';
 
-const plainErrors = process.env.PLAIN_ERRORS === 'true';
+const plainErrors = isDev && process.env.PLAIN_ERRORS === 'true';
 
 // ============================================================================
 // Domain-specific error class for upstream Logto API failures

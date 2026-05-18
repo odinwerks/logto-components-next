@@ -21,7 +21,7 @@ function clearStoredUserData(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
-function setStoredUserData(userData: UserData) {
+export function setStoredUserData(userData: UserData) {
   if (typeof window === 'undefined') return;
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
@@ -39,9 +39,13 @@ export function UserDataProvider({
   children: ReactNode;
   userData: UserData;
 }) {
-  const [cachedUserData, setCachedUserData] = useState<UserData | null>(() => 
-    getStoredUserData()
-  );
+  const [cachedUserData, setCachedUserData] = useState<UserData | null>(null);
+
+  // After mount, check sessionStorage (avoids hydration mismatch)
+  useEffect(() => {
+    const stored = getStoredUserData();
+    if (stored) setCachedUserData(stored);
+  }, []);
 
   const hasInitialCache = cachedUserData !== null;
 

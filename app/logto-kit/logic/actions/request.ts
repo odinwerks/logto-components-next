@@ -17,6 +17,11 @@ export async function makeRequest(
     extraHeaders?: Record<string, string>;
   } = {}
 ): Promise<Response> {
+  // Guard: only allow /api/ paths, no path traversal
+  if (!path.startsWith('/api/') || path.includes('..')) {
+    throw new Error(`Invalid API path: ${path}`);
+  }
+
   const token = await getTokenForServerAction();
   const cleanEndpoint = await getCleanEndpoint();
   const url = `${cleanEndpoint}${path.startsWith('/') ? '' : '/'}${path}`;

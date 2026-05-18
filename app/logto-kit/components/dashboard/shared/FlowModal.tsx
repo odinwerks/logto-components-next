@@ -191,10 +191,14 @@ export function FlowModal({
     blueText: colors.accentBlue,
   };
   const [pw, setPw] = useState('');
+  const [newPw, setNewPw] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
   const [code, setCode] = useState('');
+  const [totpSubmitting, setTotpSubmitting] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [renameVal, setRenameVal] = useState('');
 
   const dangerColor = c.accentRed;
@@ -203,9 +207,11 @@ export function FlowModal({
     if (step.kind !== 'totp-scan') return;
     navigator.clipboard.writeText(step.secret).then(() => {
       setCopied(true);
+      setCopyFailed(false);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      // Clipboard API unavailable — no user feedback in current design
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 3000);
     });
   };
 
@@ -347,6 +353,7 @@ export function FlowModal({
                       }}>
                         {copied ? <Check size={'0.8125rem'} color={T.greenText} strokeWidth={1.5} /> : <Copy size={'0.8125rem'} color={T.muted} strokeWidth={1.5} />}
                       </button>
+                      {copyFailed && <span style={{ fontSize: '0.625rem', color: T.redText, marginLeft: '0.25rem' }}>Copy failed</span>}
                     </div>
 
                     <HR colors={colors} />
@@ -356,8 +363,11 @@ export function FlowModal({
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                         setCode(val);
-                        if (val.length === 6) {
+                        if (val.length === 6 && !totpSubmitting) {
+                          setTotpSubmitting(true);
                           onTotpSubmit?.(val, step.secret, step.identityVerificationId);
+                          // Reset after a delay to allow re-submission if needed
+                          setTimeout(() => setTotpSubmitting(false), 2000);
                         }
                       }}
                       placeholder="000000"
@@ -384,16 +394,16 @@ export function FlowModal({
             <>
               <Lbl colors={colors}>{t.security.password}</Lbl>
               <Input
-                type={showPw ? 'text' : 'password'}
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
+                type={showNewPw ? 'text' : 'password'}
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && pw) onNewPasswordSubmit?.(pw, step.verificationRecordId); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) onNewPasswordSubmit?.(newPw, step.verificationRecordId); }}
                 mode={mode} colors={colors}
                 suffix={
-                  <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
-                    {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
+                  <button onClick={() => setShowNewPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
+                    {showNewPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
               />
@@ -404,7 +414,7 @@ export function FlowModal({
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onNewPasswordSubmit?.(pw, step.verificationRecordId)} disabled={!pw} mode={mode} colors={colors}>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => newPw && onNewPasswordSubmit?.(newPw, step.verificationRecordId)} disabled={!newPw} mode={mode} colors={colors}>
                   {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>

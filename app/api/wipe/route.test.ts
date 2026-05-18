@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server';
  * with Logto cookies present.
  */
 function makeWipeRequest(
-  method: 'GET' | 'POST' = 'GET',
+  method: 'POST' = 'POST',
   force = false,
   origin?: string,
 ): NextRequest {
@@ -77,61 +77,6 @@ vi.mock('@logto/next/server-actions', () => ({
 beforeEach(() => {
   process.env.BASE_URL = 'http://localhost:3000';
   signOutMockFn.mockReset();
-});
-
-describe('GET /api/wipe', () => {
-  it('clears all Logto cookies on normal wipe (no force)', async () => {
-    const { GET } = await import('./route');
-    const req = makeWipeRequest('GET', false);
-    const res = await GET(req);
-
-    expect(res.status).toBe(307);
-
-    const setCookies = getSetCookies(res);
-
-    // Every Logto cookie must have a maxAge=0 Set-Cookie directive
-    expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_refresh') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_active_org') && c.includes('Max-Age=0'))).toBe(true);
-  });
-
-  it('clears all Logto cookies even when force=true and signOut throws NEXT_REDIRECT', async () => {
-    // signOut from @logto/next/server-actions throws NEXT_REDIRECT on success.
-    // BUG-H9: Before the fix, re-throwing this error caused the cookie-cleared
-    // response to never reach the browser.
-    const nextRedirectError = new Error('NEXT_REDIRECT; destination=/');
-    signOutMockFn.mockRejectedValue(nextRedirectError);
-
-    const { GET } = await import('./route');
-    const req = makeWipeRequest('GET', true);
-
-    // The response should be returned (not thrown)
-    const res = await GET(req);
-
-    expect(res.status).toBe(307);
-
-    // Cookies MUST be cleared even though signOut threw NEXT_REDIRECT
-    const setCookies = getSetCookies(res);
-    expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_refresh') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_active_org') && c.includes('Max-Age=0'))).toBe(true);
-  });
-
-  it('still clears cookies when force=true and signOut succeeds without throwing', async () => {
-    // In some edge cases signOut might not throw
-    signOutMockFn.mockResolvedValue(undefined);
-
-    const { GET } = await import('./route');
-    const req = makeWipeRequest('GET', true);
-    const res = await GET(req);
-
-    expect(res.status).toBe(307);
-
-    const setCookies = getSetCookies(res);
-    expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_refresh') && c.includes('Max-Age=0'))).toBe(true);
-    expect(setCookies.some(c => c.includes('logto_active_org') && c.includes('Max-Age=0'))).toBe(true);
-  });
 });
 
 describe('POST /api/wipe', () => {

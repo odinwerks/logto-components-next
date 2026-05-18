@@ -3,7 +3,7 @@
 import { getOrganizationToken } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
 import { debugLog } from '../debug';
-import { decodeLogtoAccessToken } from '../guards';
+import { assertSafeLogtoId, decodeLogtoAccessToken } from '../guards';
 import { safeAction, type DataResult } from './safe';
 import { warn } from '../log';
 
@@ -15,10 +15,11 @@ import { warn } from '../log';
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
   return safeAction(async () => {
+    assertSafeLogtoId(orgId, 'orgId');
     const orgToken = await getOrganizationToken(getLogtoConfig(), orgId);
     if (!orgToken) {
       warn(`[getOrganizationUserPermissions] No token for org ${orgId}`);
-      return [];
+      throw new Error('UNAUTHORIZED');
     }
 
     const claims = decodeLogtoAccessToken(orgToken);

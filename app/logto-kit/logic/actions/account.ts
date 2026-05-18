@@ -76,6 +76,7 @@ export async function deleteUserAccount(
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${mgmtToken}`,
+        'logto-verification-id': identityVerificationRecordId,
       },
     });
 

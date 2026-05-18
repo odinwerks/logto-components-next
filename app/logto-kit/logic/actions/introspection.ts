@@ -1,15 +1,14 @@
 'use server';
 
-import type { OidcIntrospectionResponse } from '../types';
+import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import type { OidcIntrospectionResponse } from '../types';
 
 /**
- * Introspects a token with organization context.
- * @param token - The access token to introspect.
- * @returns The OIDC introspection response.
+ * Introspects the current session's access token with organization context.
+ * The token is derived server-side — never accepted from the client.
  */
-export async function introspectTokenWithOrg(
-  token: string,
-): Promise<OidcIntrospectionResponse> {
-  return introspectToken(token);
+export async function introspectTokenWithOrg(): Promise<OidcIntrospectionResponse> {
+  const sessionToken = await getTokenForServerAction();
+  return introspectToken(sessionToken);
 }

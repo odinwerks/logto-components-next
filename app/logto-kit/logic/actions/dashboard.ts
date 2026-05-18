@@ -17,8 +17,8 @@ import { warn, error, log } from '../log';
 // Constants
 // ============================================================================
 
-const MAX_RETRIES = 5;
-const BASE_DELAY_MS = 1000;
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
 
 const AUTH_ERROR_PATTERNS = [
   'Cookies can only be modified',
@@ -50,12 +50,21 @@ function isTransientError(error: unknown): boolean {
   return false;
 }
 
+async function fetchWithTimeout<T>(fn: () => Promise<T>, timeoutMs = 10_000): Promise<T> {
+  return Promise.race([
+    fn(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+    ),
+  ]);
+}
+
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
   let lastError: Error | unknown = new Error('fetchWithRetry: all retries exhausted');
   
   for (let i = 0; i < retries; i++) {
     try {
-      return await fn();
+      return await fetchWithTimeout(fn);
     } catch (error) {
       lastError = error;
       if (isAuthError(error)) {
@@ -103,10 +112,7 @@ function handleAuthFetchError(err: unknown, label: string): never {
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      // First, ensure we have a valid token (this is a Server Action, can modify cookies)
-      // Doing this first may prevent the SDK from triggering a refresh inside getLogtoContext
-      await getTokenForServerAction();
-
+      // Removed redundant getTokenForServerAction() — getLogtoContext handles refresh internally
       const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {

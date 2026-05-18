@@ -175,6 +175,12 @@ export function Protected({
     }
 
     if (!orgId && !orgName) {
+      // No org context — if a permission is required, deny by default.
+      // If no permission is required, the component is just checking membership, so allow.
+      if (perm) {
+        debugLog('[Protected] Permission specified but no orgId/orgName provided — default-deny');
+        return false;
+      }
       return true;
     }
 

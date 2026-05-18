@@ -89,6 +89,9 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
         deviceType: deviceInfo.deviceType,
         ip: signInContext?.ip || null,
         lastActive: session.lastActiveAt ?? null,
+        // NOTE: Logto returns loginTs in milliseconds. The heuristic below
+        // (< 1e12 → seconds) is a safety net in case the unit changes.
+        // If Logto ever switches to seconds, update this code and remove the heuristic.
         createdAt: new Date(session.payload.loginTs < 1e12 ? session.payload.loginTs * 1000 : session.payload.loginTs).toISOString(),
         // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
         // once the isCurrent field lands in the Logto Account API sessions response.
@@ -177,12 +180,25 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     const othersToRevoke = sessions.filter(s => s.payload.jti !== currentSession.payload.jti);
     debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
-    const results = await Promise.allSettled(
-      othersToRevoke.map(async (s) => {
-        const revokeResult = await revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty');
-        if (!revokeResult.ok) throw new Error(revokeResult.error);
-      })
-    );
+    // Revoke sessions sequentially with a small delay to avoid hitting
+    // Logto API rate limits (429) when many sessions are revoked at once.
+    const results: PromiseSettledResult<void>[] = [];
+    for (const s of othersToRevoke) {
+      const result = await Promise.race([
+        revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty')
+          .then(r => { if (!r.ok) throw new Error(r.error); })
+          .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
+          .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),
+        new Promise<PromiseSettledResult<void>>(resolve =>
+          setTimeout(() => resolve({ status: 'rejected', reason: new Error('Timeout') }), 10_000)
+        ),
+      ]);
+      results.push(result);
+      // Small delay between revocations to avoid rate limiting
+      if (othersToRevoke.indexOf(s) < othersToRevoke.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
 
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length > 0) {

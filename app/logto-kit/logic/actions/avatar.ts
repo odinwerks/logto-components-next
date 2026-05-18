@@ -317,7 +317,7 @@ export async function uploadAvatar(
     const endpoint = process.env.ENDPOINT?.replace(/\/$/, '');
     if (!endpoint) throw plainCode('UPLOAD_FAILED');
 
-    const token = await getTokenForServerAction();
+    const token = sessionToken;
 
     const logtoFormData = new FormData();
     logtoFormData.append('file', file);
