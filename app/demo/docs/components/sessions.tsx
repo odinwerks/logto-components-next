@@ -66,8 +66,8 @@ function SessionsPropsSection() {
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (
     sessionId: string,
-    revokeGrantsTarget?: 'all' | 'firstParty',
-    identityVerificationRecordId?: string
+    identityVerificationRecordId: string,
+    revokeGrantsTarget?: 'all' | 'firstParty'
   ) => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;

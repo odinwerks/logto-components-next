@@ -42,7 +42,12 @@ export async function GET(request: NextRequest) {
       try {
         await signOutFn(getLogtoConfig());
       } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
+        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
+          // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
+          // our cookie-cleared response is lost. Return our response instead —
+          // the server-side signOut has already completed.
+          return response;
+        }
         error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
     }
@@ -77,7 +82,12 @@ export async function POST(request: NextRequest) {
       try {
         await signOutFn(getLogtoConfig());
       } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err; // propagates to Next.js
+        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
+          // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
+          // our cookie-cleared response is lost. Return our response instead —
+          // the server-side signOut has already completed.
+          return response;
+        }
         error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
       }
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { type ThemeColors, DARK_COLORS, LIGHT_COLORS } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 import type { ActionResult } from '../../logic/actions/safe';
@@ -140,6 +140,10 @@ export function PreferencesProvider({
     return initialOrgId ?? null;
   });
 
+  // Ref for theme-changed listener (avoids re-registering on every theme change)
+  const themeRef = useRef(theme);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
+
   useEffect(() => {
     const html = document.documentElement;
     html.setAttribute('data-theme', theme);
@@ -150,8 +154,9 @@ export function PreferencesProvider({
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
-      const currentDataTheme = document.documentElement.getAttribute('data-theme');
-      if (!currentDataTheme) {
+      // Only respond to OS theme changes if the user hasn't explicitly set a preference
+      const stored = getStoredTheme();
+      if (!stored) {
         setThemeState(e.matches ? 'dark' : 'light');
       }
     };
@@ -163,20 +168,13 @@ export function PreferencesProvider({
   useEffect(() => {
     const handleThemeChange = () => {
       const stored = getStoredTheme();
-      if (stored && stored !== theme) {
+      if (stored && stored !== themeRef.current) {
         setThemeState(stored);
       }
     };
 
     window.addEventListener('theme-changed', handleThemeChange);
     return () => window.removeEventListener('theme-changed', handleThemeChange);
-  }, [theme]);
-
-  useEffect(() => {
-    const stored = getStoredLang();
-    if (stored && stored !== lang) {
-      setLangState(stored);
-    }
   }, []);
 
   const colors = useMemo(

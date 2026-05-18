@@ -105,26 +105,25 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
 /**
  * Revokes a user session.
  * @param sessionId - The session ID to revoke.
+ * @param identityVerificationRecordId - Required verification record for identity.
  * @param revokeGrantsTarget - Optional target for grant revocation.
- * @param identityVerificationRecordId - Optional verification record for identity.
  */
 export async function revokeUserSession(
   sessionId: string,
+  identityVerificationRecordId: string,
   revokeGrantsTarget?: 'all' | 'firstParty',
-  identityVerificationRecordId?: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(sessionId, 'sessionId');
     assertRevokeGrantsTarget(revokeGrantsTarget);
-    if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
-    debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId?.substring(0, 8)}...`);
+    debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId.substring(0, 8)}...`);
 
-    const extraHeaders: Record<string, string> = {};
-    if (identityVerificationRecordId) {
-      extraHeaders['logto-verification-id'] = identityVerificationRecordId;
-    }
+    const extraHeaders: Record<string, string> = {
+      'logto-verification-id': identityVerificationRecordId,
+    };
 
     const qs = revokeGrantsTarget ? `?revokeGrantsTarget=${encodeURIComponent(revokeGrantsTarget)}` : '';
     const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}${qs}`;
@@ -174,7 +173,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
 
     const results = await Promise.allSettled(
       othersToRevoke.map(async (s) => {
-        const revokeResult = await revokeUserSession(s.payload.uid, 'firstParty', verificationRecordId);
+        const revokeResult = await revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty');
         if (!revokeResult.ok) throw new Error(revokeResult.error);
       })
     );
@@ -212,20 +211,19 @@ export async function getUserGrants(): Promise<DataResult<unknown[]>> {
 /**
  * Revokes a user grant.
  * @param grantId - The grant ID to revoke.
- * @param identityVerificationRecordId - Optional verification record for identity.
+ * @param identityVerificationRecordId - Required verification record for identity.
  */
 export async function revokeUserGrant(
   grantId: string,
-  identityVerificationRecordId?: string,
+  identityVerificationRecordId: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(grantId, 'grantId');
-    if (identityVerificationRecordId !== undefined) assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    const extraHeaders: Record<string, string> = {};
-    if (identityVerificationRecordId) {
-      extraHeaders['logto-verification-id'] = identityVerificationRecordId;
-    }
+    const extraHeaders: Record<string, string> = {
+      'logto-verification-id': identityVerificationRecordId,
+    };
 
     const res = await makeRequest(`/api/my-account/grants/${encodeURIComponent(grantId)}`, {
       method: 'DELETE',

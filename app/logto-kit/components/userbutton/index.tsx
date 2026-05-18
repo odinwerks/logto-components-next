@@ -112,17 +112,17 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
 
 // ─── Fallback avatar ─────────────────────────────────────────────────────────
 
-function FallbackAvatar({ Size, shape }: { Size: string; shape?: string }) {
+function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string; colors: ThemeColors }) {
   const resolvedShape = getShape(shape);
   const sizeNum = parseFloat(Size);
   return (
     <div style={{
       width: Size, height: Size,
       borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
-      border: '2px solid var(--ldd-border-color)',
-      background: 'var(--ldd-bg-tertiary)',
+      border: `2px solid ${colors.borderColor}`,
+      background: colors.bgTertiary,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: 'var(--ldd-text-tertiary)',
+      color: colors.textTertiary,
     }}>
       <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
     </div>
@@ -138,10 +138,11 @@ interface AvatarCoreProps {
   userData: UserData;
   imageFailed: boolean;
   onImageError: () => void;
+  colors: ThemeColors;
 }
 
 function AvatarCore({
-  Canvas, Size, shape, userData, imageFailed, onImageError,
+  Canvas, Size, shape, userData, imageFailed, onImageError, colors,
 }: AvatarCoreProps) {
   const resolvedShape = getShape(shape);
   const mode: 'Avatar' | 'Initials' = Canvas === 'Initials' ? 'Initials' : 'Avatar';
@@ -151,13 +152,13 @@ function AvatarCore({
     width: Size,
     height: Size,
     borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
-    border: '2px solid var(--ldd-border-color)',
-    background: isShowingAvatar ? 'transparent' : 'var(--ldd-bg-tertiary)',
+    border: `2px solid ${colors.borderColor}`,
+    background: isShowingAvatar ? 'transparent' : colors.bgTertiary,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    color: 'var(--ldd-text-tertiary)',
+    color: colors.textTertiary,
     fontSize: `calc(${Size} * 0.36)`,
   };
 
@@ -230,7 +231,7 @@ export function UserButton({
 
   const renderAvatar = () => {
     if (loading || !userData) {
-      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} />;
+      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} colors={colors} />;
       return null;
     }
     return (
@@ -238,6 +239,7 @@ export function UserButton({
         Canvas={Canvas} Size={Size} shape={shape} userData={userData}
         imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
+        colors={colors}
       />
     );
   };
@@ -266,12 +268,12 @@ export function UserBadge({
   userData: providedUserData,
   colors: providedColors,
 }: UserBadgeProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed } =
+  const { userData, loading, showFallback, imageFailed, setImageFailed, colors } =
     useUserDisplay({ userData: providedUserData, colors: providedColors });
 
   const renderAvatar = () => {
     if (loading || !userData) {
-      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} />;
+      if (showFallback) return <FallbackAvatar Size={Size} shape={shape} colors={colors} />;
       return null;
     }
     return (
@@ -279,6 +281,7 @@ export function UserBadge({
         Canvas={Canvas} Size={Size} shape={shape} userData={userData}
         imageFailed={imageFailed}
         onImageError={() => setImageFailed(true)}
+        colors={colors}
       />
     );
   };
@@ -302,10 +305,10 @@ export function UserCard({
   colors: providedColors,
   do: customAction,
 }: UserCardProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, t, handleClick } =
+  const { userData, loading, showFallback, imageFailed, setImageFailed, colors, t, handleClick } =
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
-  const borderRadius = resolvedShape === 'sq' ? '0%' : '0.625rem';
+  const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -315,8 +318,8 @@ export function UserCard({
     cursor: 'pointer',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    background: 'var(--ldd-bg-secondary)',
-    border: '1px solid var(--ldd-border-color)',
+    background: colors.bgSecondary,
+    border: `1px solid ${colors.borderColor}`,
     borderRadius,
     transition: 'opacity 0.15s, transform 0.15s',
   };
@@ -328,12 +331,12 @@ export function UserCard({
       if (showFallback) {
         return (
           <>
-            <FallbackAvatar Size={Size} shape={shape} />
+            <FallbackAvatar Size={Size} shape={shape} colors={colors} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', textAlign: 'left' }}>
-              <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: 'var(--ldd-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {label}
               </span>
-              <span style={{ fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)', color: 'var(--ldd-text-primary)' }}>
+              <span style={{ fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)', color: colors.textPrimary }}>
                 ...
               </span>
             </div>
@@ -351,14 +354,15 @@ export function UserCard({
           Canvas={Canvas} Size={Size} shape={shape} userData={userData}
           imageFailed={imageFailed}
           onImageError={() => setImageFailed(true)}
+          colors={colors}
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', minWidth: 0, textAlign: 'left' }}>
-          <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: 'var(--ldd-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             {label}
           </span>
           <span style={{
             fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)',
-            color: 'var(--ldd-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            color: colors.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {displayName}
           </span>
@@ -372,7 +376,6 @@ export function UserCard({
       style={wrapperStyle}
       onClick={handleClick}
       aria-label="Open user dashboard"
-      suppressHydrationWarning
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
       onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)'; }}

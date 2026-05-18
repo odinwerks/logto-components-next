@@ -246,7 +246,7 @@ export const isDashboardSuccess = (result: DashboardResult): result is Dashboard
   result.success === true;
 
 export const isDashboardAuthError = (result: DashboardResult): result is DashboardAuthError =>
-  'needsAuth' in result;
+  !result.success && 'needsAuth' in result;
 
 export const isDashboardFetchError = (result: DashboardResult): result is DashboardFetchError =>
   'error' in result;

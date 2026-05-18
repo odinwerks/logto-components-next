@@ -97,14 +97,14 @@ export function formatPhone(raw: string): string {
     for (let len = 3; len >= 1; len--) {
       const prefix = digits.slice(0, len);
       if (countryPatterns[prefix]) {
-        return countryPatterns[prefix](digits);
+        return countryPatterns[prefix](digits).replace(/\s+/g, ' ').trim();
       }
     }
     const localPart = digits.slice(1);
-    return `+${digits[0]} ${groupFromRight(localPart)}`;
+    return `+${digits[0]} ${groupFromRight(localPart)}`.replace(/\s+/g, ' ').trim();
   }
 
-  return groupFromRight(digits);
+  return groupFromRight(digits).replace(/\s+/g, ' ').trim();
 }
 
 function groupFromRight(digits: string): string {

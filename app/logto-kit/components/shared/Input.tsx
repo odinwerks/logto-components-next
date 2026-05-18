@@ -37,6 +37,7 @@ export function Input({
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.5625rem 0.75rem',
+    ...(suffix ? { paddingRight: '2.5rem' } : {}),
     background: colors.bgPrimary,
     border: `1px solid ${colors.borderColor}`,
     color: colors.textPrimary,
@@ -60,6 +61,7 @@ export function Input({
       placeholder={placeholder}
       autoFocus={autoFocus}
       onKeyDown={onKeyDown}
+      aria-invalid={hasError ? 'true' : undefined}
       disabled={disabled}
       maxLength={maxLength}
       style={{

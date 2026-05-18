@@ -150,12 +150,15 @@ export function Protected({
     return <>{fallback ?? null}</>;
   }
 
+  // When loadedPerms is empty (load failed, not yet triggered, or org mismatch),
+  // we must NOT fall back to userData.organizationPermissions because that array
+  // is unscoped — it may contain permissions from ALL organizations the user belongs
+  // to, not just the active one. Returning an empty set is the fail-safe choice:
+  // gated content is hidden rather than shown with potentially wrong permissions.
   const effectivePerms =
     loadedPerms.length > 0
       ? loadedPerms
-      : asOrg
-        ? userData.organizationPermissions || []
-        : [];
+      : [];
 
   const checkAccess = (): boolean => {
     if (!userData?.organizations) {

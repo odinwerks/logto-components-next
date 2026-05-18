@@ -24,7 +24,7 @@ interface SessionsTabProps {
   colors: ThemeColors;
   t: Translations;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
   onSuccess: (message: string) => void;
@@ -190,7 +190,7 @@ export function SessionsTab({
     setModalPurpose('revoke');
     setModalStep({ kind: 'password' });
     setModalError('');
-  }, [isVerificationValid, verificationRecordId, onRevokeAllOtherSessions, onSuccess, onError, loadSessions]);
+  }, [onRevokeAllOtherSessions, onSuccess, onError, loadSessions]);
 
   const startViewVerification = () => {
     setModalPurpose('view');
@@ -245,7 +245,7 @@ export function SessionsTab({
         return;
       }
     } else {
-      const revokeResult = await onRevokeSession(target.id, 'firstParty', vid);
+      const revokeResult = await onRevokeSession(target.id, vid, 'firstParty');
       if (!revokeResult.ok) {
         setModalError(revokeResult.error);
         setModalStep({ kind: 'password' });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -43,6 +43,10 @@ export function SessionMiniMap({ ip, mode, colors, t, refreshKey, onClick, onGeo
   const [geoError, setGeoError] = useState(false);
   const [loading, setLoading] = useState(false);
   const isDark = mode === 'dark';
+  const onGeoLoadedRef = useRef(onGeoLoaded);
+  useEffect(() => {
+    onGeoLoadedRef.current = onGeoLoaded;
+  }, [onGeoLoaded]);
 
   useEffect(() => {
     if (!ip) {
@@ -55,7 +59,7 @@ export function SessionMiniMap({ ip, mode, colors, t, refreshKey, onClick, onGeo
     if (cached) {
       setGeo(cached);
       setGeoError(false);
-      onGeoLoaded?.(ip, cached);
+      onGeoLoadedRef.current?.(ip, cached);
       return;
     }
 
@@ -70,7 +74,7 @@ export function SessionMiniMap({ ip, mode, colors, t, refreshKey, onClick, onGeo
       if (result) {
         setGeo(result);
         setGeoError(false);
-        onGeoLoaded?.(ip, result);
+        onGeoLoadedRef.current?.(ip, result);
       } else {
         setGeo(null);
         setGeoError(true);

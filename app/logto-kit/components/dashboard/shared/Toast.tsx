@@ -38,6 +38,7 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
       await navigator.clipboard.writeText(message.message);
       setCopied(true);
     } catch {
+      // Clipboard API unavailable — no user feedback in current design
       setCopied(false);
     }
   }, [message.message]);

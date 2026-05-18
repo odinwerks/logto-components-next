@@ -3,10 +3,13 @@
  * Audit log primitive
  * ============================================================================
  *
- * Provides a structured hook for security-relevant mutations. The default
- * implementation logs to the server console in dev and is a no-op in
- * production. Downstream developers replace the transport by re-exporting
- * a custom audit function from their project's logto-kit config.
+ * Provides a structured hook for security-relevant mutations. In development,
+ * audit records are logged via `console.info` for readability. In production,
+ * they are routed through the shared Pino-aware logger (`log()` from ./log),
+ * ensuring they reach whichever backend is configured (console, Pino, or both).
+ *
+ * Downstream developers can replace the transport by re-exporting a custom
+ * audit function from their project's logto-kit config.
  *
  * Usage (within server actions):
  *
@@ -22,6 +25,7 @@
  */
 
 import { isDev } from './dev-mode';
+import { log } from './log';
 
 export interface AuditEntry {
   /** User ID of the actor performing the action. */
@@ -38,25 +42,21 @@ export interface AuditEntry {
  * Logs a security-relevant mutation.
  *
  * - In development: `console.info` with the full entry.
- * - In production: **no-op by default.** Zero audit records are produced until
- *   a transport is provided. See docs below for wiring a custom transport.
- *   Without a transport, account deletions, password changes, MFA changes,
- *   and avatar uploads are untracked in production.
+ * - In production: routed through the shared logger (`log()`), which writes
+ *   to the configured backend (console, Pino, or both).
  *
- * To add a transport: create `app/logto-kit/audit-transport.ts` and
+ * To customise: create `app/logto-kit/audit-transport.ts` and
  * import + call it here conditionally.
  */
 export async function audit(entry: AuditEntry): Promise<void> {
+  const record = JSON.stringify({
+    ts: new Date().toISOString(),
+    ...entry,
+  });
+
   if (isDev) {
-    console.info(
-      '[AUDIT]',
-      JSON.stringify({
-        ts: new Date().toISOString(),
-        ...entry,
-      }),
-    );
+    console.info('[AUDIT]', record);
+  } else {
+    log('[AUDIT]', record);
   }
-  // Production: no-op until a transport is provided.
-  // To add a transport: create app/logto-kit/audit-transport.ts and
-  // import it here conditionally.
 }

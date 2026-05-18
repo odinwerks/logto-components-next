@@ -21,10 +21,15 @@ function clearStoredUserData(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
+function sanitizeForStorage(userData: UserData): Record<string, unknown> {
+  const { primaryEmail, primaryPhone, identities, ...safe } = userData as any;
+  return safe;
+}
+
 function setStoredUserData(userData: UserData) {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeForStorage(userData)));
   } catch (error) {
     console.warn('[UserDataContext] Failed to store user data:', error);
   }
@@ -53,7 +58,7 @@ export function UserDataProvider({
     }
 
     const cached = getStoredUserData();
-    const isDifferent = cached && JSON.stringify(cached) !== JSON.stringify(userData);
+    const isDifferent = cached && (cached.id !== userData.id || cached.updatedAt !== userData.updatedAt);
     
     if (isDifferent) {
       setCachedUserData(userData);

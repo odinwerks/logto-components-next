@@ -30,7 +30,15 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const lastFailedOrgRef = useRef<string | null>(null);
+
+  // Auto-clear error message after 3 seconds
+  useEffect(() => {
+    if (!errorMsg) return;
+    const timer = setTimeout(() => setErrorMsg(null), 3000);
+    return () => clearTimeout(timer);
+  }, [errorMsg]);
 
   const activeOrgId = asOrg ?? currentOrgId;
 
@@ -99,6 +107,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
       router.refresh();
     } catch (err) {
       console.error('[OrganizationsTab] Failed to switch organization:', err);
+      setErrorMsg('Failed to switch organization. Please try again.');
     } finally {
       setIsLoading(null);
     }
@@ -112,6 +121,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
       router.refresh();
     } catch (err) {
       console.error('[OrganizationsTab] Failed to clear organization:', err);
+      setErrorMsg('Failed to switch to personal mode. Please try again.');
     } finally {
       setIsLoading(null);
     }
@@ -220,6 +230,11 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
               >
                 ← {t.organizations.beYourself}
               </button>
+            )}
+            {errorMsg && (
+              <div style={{ padding: '0.375rem 0.75rem', color: c.accentRed, fontSize: '0.6875rem', fontFamily: FONT_MONO }}>
+                {errorMsg}
+              </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {organizations.map(org => (

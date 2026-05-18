@@ -24,10 +24,14 @@ export default function ErrorPage({
 
   const msg = captureMessage(error);
 
+  const isDevEnv = process.env.NODE_ENV === 'development';
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(
-        `${msg}\n\nname: ${error.name}\nstack: ${error.stack || 'N/A'}`
+        isDevEnv
+          ? `${msg}\n\nname: ${error.name}\nstack: ${error.stack || 'N/A'}`
+          : `${msg}\n\nname: ${error.name}`
       );
       setCopied(true);
     } catch { /* clipboard unavailable */ }

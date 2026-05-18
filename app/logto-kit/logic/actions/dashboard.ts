@@ -110,6 +110,7 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
       const userData: UserData = {
         id: claims.sub!,
         name: (userInfo.name as string) || undefined,
+        username: (userInfo.username as string) || undefined,
         avatar: (userInfo.picture as string) || undefined,
         primaryEmail: (userInfo.email as string) || undefined,
         primaryPhone: (userInfo.phone_number as string) || undefined,
@@ -154,10 +155,13 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
     return result;
   } catch (error) {
-    handleAuthFetchError(error, 'Dashboard data fetch error');
+    if (isAuthError(error)) {
+      handleAuthFetchError(error, 'Dashboard data fetch error');
+    }
+    // For non-auth errors, return a fetch error instead of redirecting
+    warn('[fetchDashboardData] Non-auth error:', error instanceof Error ? error.message : error);
+    return { success: false, error: 'FETCH_FAILED' };
   }
-  // This is unreachable because handleAuthFetchError always redirects or throws
-  return { success: false, needsAuth: true };
 }
 
 // ============================================================================
@@ -183,8 +187,11 @@ export async function fetchUserBadgeData(): Promise<DashboardResult> {
 
     return result;
   } catch (error) {
-    handleAuthFetchError(error, 'UserBadge data fetch error');
+    if (isAuthError(error)) {
+      handleAuthFetchError(error, 'UserBadge data fetch error');
+    }
+    // For non-auth errors, return a fetch error instead of redirecting
+    warn('[fetchUserBadgeData] Non-auth error:', error instanceof Error ? error.message : error);
+    return { success: false, error: 'FETCH_FAILED' };
   }
-  // This is unreachable because handleAuthFetchError always redirects or throws
-  return { success: false, needsAuth: true };
 }

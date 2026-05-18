@@ -30,6 +30,23 @@ const MAGIC_BYTES: Record<string, [number[], number[]]> = {
 };
 
 // ============================================================================
+// In-memory rate limiter for avatar uploads
+// ============================================================================
+
+const uploadTimestamps = new Map<string, number[]>();
+const MAX_UPLOADS_PER_MINUTE = 5;
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const timestamps = uploadTimestamps.get(userId) || [];
+  const recent = timestamps.filter(t => now - t < 60_000);
+  if (recent.length >= MAX_UPLOADS_PER_MINUTE) return false;
+  recent.push(now);
+  uploadTimestamps.set(userId, recent);
+  return true;
+}
+
+// ============================================================================
 // Supabase Storage Helpers
 // ============================================================================
 
@@ -250,6 +267,11 @@ export async function uploadAvatar(
     throw plainCode('UNAUTHORIZED');
   }
   assertSafeUserId(userId);
+
+  // ── Rate limit ───────────────────────────────────────────────────────
+  if (!checkRateLimit(userId)) {
+    throw plainCode('UPLOAD_RATE_LIMITED');
+  }
 
   // ── Extract and validate file ────────────────────────────────────────
   const rawFile = formData.get('file');

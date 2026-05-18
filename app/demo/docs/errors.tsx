@@ -144,6 +144,10 @@ function ErrorCodesSection() {
             <td style={styles.tdStyle}>Avatar MIME type rejected (magic-byte check failed)</td>
           </tr>
           <tr>
+            <td style={styles.tdPropStyle}>UPLOAD_RATE_LIMITED</td>
+            <td style={styles.tdStyle}>Too many avatar uploads in a short period</td>
+          </tr>
+          <tr>
             <td style={styles.tdPropStyle}>DELETE_FAILED</td>
             <td style={styles.tdStyle}>Generic delete failure</td>
           </tr>

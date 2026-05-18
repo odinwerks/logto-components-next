@@ -99,7 +99,7 @@ const defaultUserData: UserData = {
 
 interface RenderSessionsOptions {
   onGetSessionsWithDeviceMeta?: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession?: (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions?: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
 }
@@ -117,9 +117,9 @@ function renderSessionsTab({
     })) as (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
 
   const revokeSessionFn = (onRevokeSession ??
-    vi.fn<(sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>>().mockResolvedValue({
+    vi.fn<(sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>>().mockResolvedValue({
       ok: true,
-    })) as (sessionId: string, revokeGrantsTarget?: 'all' | 'firstParty', identityVerificationRecordId?: string) => Promise<ActionResult>;
+    })) as (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
 
   const revokeAllFn = (onRevokeAllOtherSessions ??
     vi.fn<(verificationRecordId: string) => Promise<ActionResult>>().mockResolvedValue({

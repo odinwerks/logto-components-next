@@ -44,6 +44,9 @@ function getEnvVar(name: string, required = true): string {
 }
 
 function buildAccountApiResource(endpoint: string): string {
+  // NOTE: buildAccountApiResource is intentionally unused.
+  // The Logto Account API uses an empty resource string for getAccessToken(config, ''),
+  // so the resources array is correctly left empty here.
   if (!endpoint.startsWith('http')) {
     throw new Error(`ENDPOINT must start with http:// or https://. Got: "${endpoint}"`);
   }
@@ -161,7 +164,7 @@ export async function getManagementApiToken(): Promise<string> {
   const data = await res.json();
   if (!data.access_token) {
     throw new Error(
-      `Management API token response missing access_token. Got: ${JSON.stringify(data)}`
+      `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
     );
   }
 

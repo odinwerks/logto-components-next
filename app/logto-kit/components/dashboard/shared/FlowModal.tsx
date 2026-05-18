@@ -205,7 +205,9 @@ export function FlowModal({
     navigator.clipboard.writeText(step.secret).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+    }).catch(() => {
+      // Clipboard API unavailable — no user feedback in current design
+    });
   };
 
   const wide = step.kind === 'totp-scan';
