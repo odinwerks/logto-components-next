@@ -20,7 +20,6 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
       onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}
     >
       {children}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -351,7 +350,7 @@ export function FlowModal({
                     </div>
 
                     <HR colors={colors} />
-                    <Lbl colors={colors}>6-digit code from your app</Lbl>
+                    <Lbl colors={colors}>{t.verification.totpCodeLabel || '6-digit code from your app'}</Lbl>
                     <Input
                       value={code}
                       onChange={(e) => {

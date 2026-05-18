@@ -150,7 +150,7 @@ export function ProfileTab({
           if (!basicResult.ok) { onError(basicResult.error); return; }
         }
         const profileResult = await onUpdateProfile({ givenName, familyName });
-        if (!profileResult.ok) { refreshData(); onError(profileResult.error); return; }
+        if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
       } else if (nameType === 'username') {
         const result = await onUpdateBasicInfo({ username });
         if (!result.ok) { onError(result.error); return; }
@@ -165,7 +165,7 @@ export function ProfileTab({
         if (!basicResult.ok) { onError(basicResult.error); return; }
         if (nameFieldsChanged) {
           const profileResult = await onUpdateProfile({ givenName, familyName });
-          if (!profileResult.ok) { refreshData(); onError(profileResult.error); return; }
+          if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
         }
       }
       onSuccess(t.profile.profileUpdated);

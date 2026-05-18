@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/custom-actions';
 import { fetchUserRbacData, validateOrgMembership } from '../../logto-kit/custom-actions/validation';
-import type { OidcIntrospectionResponse } from '../../logto-kit/logic/types';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
+import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json(
@@ -15,15 +15,9 @@ function apiError(error: string, message: string, status: number) {
 }
 
 interface ProtectedRequestBody {
-  token: string;
-  id: string;
   action: string;
   payload?: unknown;
 }
-
-
-
-
 
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
@@ -33,19 +27,21 @@ export async function POST(request: NextRequest) {
   try {
     const body: ProtectedRequestBody = await request.json();
 
-    const { token, id, action, payload } = body;
+    const { action, payload } = body;
 
-    if (!token || !id || !action) {
-      return apiError('MISSING_FIELDS', 'token, id, and action are required', 400);
+    if (!action) {
+      return apiError('MISSING_FIELDS', 'action is required', 400);
     }
 
+    // Derive token and user ID server-side from session cookie
+    let token: string;
     try {
-      assertSafeUserId(id);
-    } catch (error) {
-      return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
+      token = await getTokenForServerAction();
+    } catch {
+      return apiError('UNAUTHORIZED', 'No valid session', 401);
     }
 
-    let introspection: OidcIntrospectionResponse;
+    let introspection;
     try {
       debugLog('[Protected API] Introspecting token');
       introspection = await introspectToken(token);
@@ -59,8 +55,15 @@ export async function POST(request: NextRequest) {
       return apiError('TOKEN_INVALID', 'Token is not active or has been revoked', 401);
     }
 
-    if (introspection.sub !== id) {
-      return apiError('TOKEN_INVALID', 'Token subject does not match the provided userId', 401);
+    const id = introspection.sub;
+    if (!id) {
+      return apiError('TOKEN_INVALID', 'Token has no subject', 401);
+    }
+
+    try {
+      assertSafeUserId(id);
+    } catch {
+      return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
     }
 
     let userData;

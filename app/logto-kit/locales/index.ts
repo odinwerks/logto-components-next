@@ -180,6 +180,7 @@ export interface KitTranslations {
     verificationCode: string;
     verifyCode: string;
     codeSent: string;
+    totpCodeLabel: string;
   };
 
   // Validation messages

@@ -2,7 +2,7 @@
 
 import { getManagementApiToken } from '../../../logto';
 import { getCleanEndpoint, introspectToken } from '../utils';
-import { assertSafeUserId } from '../guards';
+import { assertSafeUserId, assertSafeLogtoId } from '../guards';
 import { makeRequest } from './request';
 import { throwOnApiError, sanitize } from '../errors';
 import { getTokenForServerAction } from './tokens';
@@ -46,12 +46,7 @@ export async function deleteUserAccount(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Require the caller to have completed password verification ─────────
-    if (
-      typeof identityVerificationRecordId !== 'string' ||
-      identityVerificationRecordId.length === 0
-    ) {
-      throw sanitize(new Error('MISSING_VERIFICATION'), { fallback: 'MISSING_VERIFICATION' });
-    }
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Derive token + userId server-side (never trust the client) ─────────
     const sessionToken = await getTokenForServerAction();

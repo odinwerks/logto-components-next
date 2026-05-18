@@ -166,6 +166,7 @@ export const kaGE: Translations = {
     verificationCode: 'კოდი',
     verifyCode: 'კოდის შემოწმება',
     codeSent: 'კოდი გამოგზავნილია',
+    totpCodeLabel: '6-ციფრიანი კოდი თქვენი აპიდან',
   },
   
   // Validation messages

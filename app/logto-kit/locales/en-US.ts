@@ -166,6 +166,7 @@ export const enUS: Translations = {
     verificationCode: 'Code',
     verifyCode: 'VERIFY CODE',
     codeSent: 'Code sent to',
+    totpCodeLabel: '6-digit code from your app',
   },
   
   // Validation messages

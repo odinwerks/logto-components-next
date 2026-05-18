@@ -96,6 +96,7 @@ export function Protected({
   const { userData } = useLogto();
   const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
   const [isLoadingPerms, setIsLoadingPerms] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const loadingRef = useRef<Promise<void> | null>(null);
 
   // Single combined effect for permission loading
@@ -121,6 +122,7 @@ export function Protected({
     // Start loading
     let cancelled = false;
     setIsLoadingPerms(true);
+    setLoadError(false);
 
     loadingRef.current = loadOrganizationPermissions(targetOrgId)
       .then((result) => {
@@ -132,6 +134,8 @@ export function Protected({
       })
       .catch(() => {
         if (!cancelled) {
+          setLoadedPerms([]);
+          setLoadError(true);
           setIsLoadingPerms(false);
         }
       });
@@ -147,6 +151,10 @@ export function Protected({
   }
 
   if (isLoadingPerms) {
+    return <>{fallback ?? null}</>;
+  }
+
+  if (loadError) {
     return <>{fallback ?? null}</>;
   }
 

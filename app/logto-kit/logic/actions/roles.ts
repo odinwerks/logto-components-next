@@ -3,15 +3,17 @@
 import { getManagementApiToken } from '../../../logto';
 import { getCleanEndpoint } from '../utils';
 import { debugLog } from '../debug';
+import { assertSafeUserId } from '../guards';
 import { safeAction, type DataResult } from './safe';
 import type { UserRole } from '../types';
 import { warn } from '../log';
 
 export async function getUserRoles(userId: string): Promise<DataResult<UserRole[]>> {
   return safeAction(async () => {
+    assertSafeUserId(userId);
     const token = await getManagementApiToken();
     const endpoint = getCleanEndpoint();
-    const url = `${endpoint}/api/users/${userId}/roles`;
+    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
 
     debugLog(`[getUserRoles] Fetching roles for user ${userId} from ${url}`);
 

@@ -40,8 +40,8 @@ export interface UserData {
   customData: Record<string, unknown>;
   identities: Record<string, { userId: string; details?: Record<string, unknown> }>;
   lastSignInAt?: string | number;
-  createdAt: string | number;
-  updatedAt: string | number;
+  createdAt?: string | number;
+  updatedAt?: string | number;
   organizations?: Array<{ id: string; name: string }>;
   organizationRoles?: Array<{ id: string; name: string; organizationId: string }>;
   organizationPermissions?: string[]; // Permission scopes from organization token

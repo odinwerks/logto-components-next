@@ -284,8 +284,8 @@ describe('ProfileTab — behavioral', () => {
     expect(familyInput.value).toBe('Jones');
   });
 
-  // BUG 2: Partial update inconsistency — refreshData called when second call fails
-  it('given_family mode — calls refreshData before onError when profile update fails after basic info succeeds', async () => {
+  // BUG-015 FIX: onError fires first, then refreshData (so user sees error before data refreshes)
+  it('given_family mode — calls onError before refreshData when profile update fails after basic info succeeds', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
     const refreshData = vi.fn();
@@ -327,10 +327,11 @@ describe('ProfileTab — behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /save changes/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    // refreshData must be called before onError is called
+    // onError must be called before refreshData (user sees error, then data refreshes)
+    expect(onError).toHaveBeenCalled();
     expect(refreshData).toHaveBeenCalled();
-    const refreshCallOrder = refreshData.mock.invocationCallOrder[0];
     const errorCallOrder = onError.mock.invocationCallOrder[0];
-    expect(refreshCallOrder).toBeLessThan(errorCallOrder);
+    const refreshCallOrder = refreshData.mock.invocationCallOrder[0];
+    expect(errorCallOrder).toBeLessThan(refreshCallOrder);
   });
 });

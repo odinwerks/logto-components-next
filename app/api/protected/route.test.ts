@@ -1,10 +1,42 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+
+vi.mock('../../../logto-kit/logic/actions/tokens', () => ({
+  getTokenForServerAction: vi.fn().mockResolvedValue('mock-token'),
+}));
+
+vi.mock('@logto/next/server-actions', () => ({
+  getAccessToken: vi.fn().mockResolvedValue('mock-token'),
+  getOrganizationToken: vi.fn().mockResolvedValue('mock-org-token'),
+}));
+
+vi.mock('../../../logto-kit/logic/utils', () => ({
+  getCleanEndpoint: vi.fn().mockReturnValue('https://example.com'),
+  introspectToken: vi.fn().mockResolvedValue({
+    active: true,
+    sub: 'mock-user-id',
+    jti: 'mock-jti',
+  }),
+}));
+
+vi.mock('../../../logto-kit/custom-actions', () => ({
+  getAction: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('../../../logto-kit/custom-actions/validation', () => ({
+  fetchUserRbacData: vi.fn().mockResolvedValue({
+    organizations: [],
+    asOrg: null,
+  }),
+  validateOrgMembership: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 // Reset env before each test since checkSameOrigin reads process.env.BASE_URL
 beforeEach(() => {
   process.env.BASE_URL = 'http://localhost:3000';
   delete process.env.APP_URL;
+  vi.clearAllMocks();
+  vi.resetModules();
 });
 
 describe('POST /api/protected — CSRF protection', () => {
@@ -14,7 +46,6 @@ describe('POST /api/protected — CSRF protection', () => {
       headers: { origin: 'https://evil.com' },
     });
 
-    // Dynamic import so BASE_URL is set before the module evaluates
     const { POST } = await import('./route');
     const res = await POST(req);
 
@@ -36,14 +67,12 @@ describe('POST /api/protected — CSRF protection', () => {
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: { origin: 'http://localhost:3000', 'content-type': 'application/json' },
-      body: JSON.stringify({ token: 'test', id: 'test', action: 'test' }),
+      body: JSON.stringify({ action: 'test' }),
     });
 
     const { POST } = await import('./route');
     const res = await POST(req);
 
-    // Should NOT be 403 — origin check passes, handler proceeds
-    // (will likely fail at token introspection, but that's fine — 403 means CSRF blocked)
     expect(res.status).not.toBe(403);
   });
 });

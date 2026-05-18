@@ -18,7 +18,16 @@ export async function getMfaVerifications(): Promise<DataResult<MfaVerification[
     
     await throwOnApiError(res, 'FETCH_FAILED', 'get-mfa');
 
-    return res.json();
+    const data = await res.json();
+    // Handle possible response shapes — API may return bare array or wrapped object
+    const verifications: MfaVerification[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.verifications)
+        ? data.verifications
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+    return verifications;
   });
 }
 
@@ -109,7 +118,6 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    // Step 1: Generate new backup codes
     const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
       method: 'POST',
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
@@ -118,14 +126,6 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
     await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-gen');
 
     const { codes } = await res.json();
-
-    // Step 2: Bind codes to the account (required for codes to be usable)
-    const bindRes = await makeRequest('/api/my-account/mfa-verifications', {
-      method: 'POST',
-      body: { type: 'BackupCode', codes },
-      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-    });
-    await throwOnApiError(bindRes, 'BACKUP_CODES_FAILED', 'backup-bind');
 
     // Audit (best-effort — failure must not break the main action)
     try {

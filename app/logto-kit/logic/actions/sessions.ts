@@ -89,7 +89,7 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
         deviceType: deviceInfo.deviceType,
         ip: signInContext?.ip || null,
         lastActive: session.lastActiveAt ?? null,
-        createdAt: new Date(session.payload.loginTs * 1000).toISOString(),
+        createdAt: new Date(session.payload.loginTs < 1e12 ? session.payload.loginTs * 1000 : session.payload.loginTs).toISOString(),
         // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
         // once the isCurrent field lands in the Logto Account API sessions response.
         isCurrent: session.isCurrent ?? false,
@@ -144,11 +144,9 @@ export async function revokeUserSession(
 /**
  * Revokes all sessions except the caller's current session.
  *
- * Safety guard: throws if no session is tagged `isCurrent: true` in the
- * API response. This prevents accidentally revoking every session
- * (including the active one) before Logto ships the isCurrent field
- * (PRs logto-io/logto#8728–8731). When isCurrent is unavailable, every
- * session would appear non-current and this guard aborts with an error.
+ * Safety guard: identifies the current session via JTI matching from
+ * token introspection. Falls back to `isCurrent` field if JTI is unavailable.
+ * Throws if neither method can identify the current session.
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
  */
@@ -163,12 +161,20 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     }
     const sessions = sessionsResult.data;
 
-    const currentSession = sessions.find(s => s.isCurrent === true);
+    // Identify current session via token introspection (JTI matching)
+    const token = await getTokenForServerAction();
+    const introspection = await introspectToken(token);
+    const currentJti = introspection.jti;
+
+    const currentSession = currentJti
+      ? sessions.find(s => s.payload.jti === currentJti)
+      : sessions.find(s => s.isCurrent === true);
+
     if (!currentSession) {
-      throw new Error('Cannot identify current session — isCurrent not yet available from Logto.');
+      throw new Error('Cannot identify current session — JTI mismatch.');
     }
 
-    const othersToRevoke = sessions.filter(s => s.isCurrent !== true);
+    const othersToRevoke = sessions.filter(s => s.payload.jti !== currentSession.payload.jti);
     debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
     const results = await Promise.allSettled(

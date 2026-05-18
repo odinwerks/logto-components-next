@@ -253,12 +253,7 @@ export function useThemeMode(): ThemeModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedTheme = getStoredTheme();
-    return {
-      ...context.theme,
-      mode: storedTheme ?? context.theme.mode,
-    };
+    return context.theme;
   }
 
   if (typeof window === 'undefined') {
@@ -293,12 +288,7 @@ export function useLangMode(): LangModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedLang = getStoredLang();
-    return {
-      ...context.lang,
-      lang: storedLang ?? context.lang.lang,
-    };
+    return context.lang;
   }
 
   if (typeof window === 'undefined') {
@@ -319,12 +309,7 @@ export function useOrgMode(): OrgModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedOrg = getStoredOrg();
-    return {
-      ...context.org,
-      asOrg: storedOrg ?? context.org.asOrg,
-    };
+    return context.org;
   }
 
   if (typeof window === 'undefined') {
@@ -339,4 +324,12 @@ export function useOrgMode(): OrgModeContextValue {
     asOrg: stored,
     setAsOrg: () => {},
   };
+}
+
+export function clearAllPreferences(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(THEME_STORAGE_KEY);
+  sessionStorage.removeItem(LANG_STORAGE_KEY);
+  sessionStorage.removeItem(ORG_STORAGE_KEY);
+  sessionStorage.removeItem('user-data');
 }

@@ -1,9 +1,11 @@
 import { signIn } from '@logto/next/server-actions';
+import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoConfig } from '../../../logto';
+import { checkSameOrigin } from '../../../logto-kit/logic/origin-guard';
 
-// NOTE: This GET handler intentionally has no origin guard.
-// Login CSRF is a low-risk vector here (requires user to click a link while authenticated).
-// The server-action `signIn()` is preferred for CSRF-protected flows.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const originError = checkSameOrigin(request);
+  if (originError) return originError;
+
   await signIn(getLogtoConfig());
 }

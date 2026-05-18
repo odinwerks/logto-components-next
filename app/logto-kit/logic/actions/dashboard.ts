@@ -38,6 +38,18 @@ function isAuthError(error: unknown): boolean {
   return false;
 }
 
+const TRANSIENT_ERROR_PATTERNS = [
+  '429', '500', '502', '503', '504',
+  'fetch failed', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET',
+];
+
+function isTransientError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return TRANSIENT_ERROR_PATTERNS.some(p => error.message.includes(p));
+  }
+  return false;
+}
+
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
   let lastError: Error | unknown = new Error('fetchWithRetry: all retries exhausted');
   
@@ -50,10 +62,15 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
         warn(`[fetchWithRetry] Auth error on attempt ${i + 1}, not retrying:`, error instanceof Error ? error.message : error);
         break;
       }
-      if (i < retries - 1) {
+      if (i < retries - 1 && isTransientError(error)) {
         const delay = BASE_DELAY_MS * (i + 1);
-        log(`[fetchWithRetry] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
+        log(`[fetchWithRetry] Transient error on attempt ${i + 1}, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        if (!isTransientError(error)) {
+          warn(`[fetchWithRetry] Non-transient error on attempt ${i + 1}, not retrying:`, error instanceof Error ? error.message : error);
+        }
+        break;
       }
     }
   }
@@ -120,8 +137,8 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
           givenName: (userInfo.given_name as string) || undefined,
           familyName: (userInfo.family_name as string) || undefined,
         },
-        createdAt: (userInfo.created_at as string | number) || Date.now(),
-        updatedAt: (userInfo.updated_at as string | number) || Date.now(),
+        createdAt: (userInfo.created_at as string | number) || undefined,
+        updatedAt: (userInfo.updated_at as string | number) || undefined,
         lastSignInAt: (userInfo.last_sign_in_at as string | number) || undefined,
 
         // Organization data from userInfo — use organization_data if available, otherwise fall back to IDs
@@ -134,10 +151,11 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
         // Organization roles from userInfo (format: "org_id:role_name")
         organizationRoles: (userInfo?.organization_roles as string[] || []).map(roleStr => {
-          const [orgId, roleName] = roleStr.split(':');
+          const [orgId, ...rest] = roleStr.split(':');
+          const roleName = rest.join(':') || roleStr;
           return {
             id: roleStr,
-            name: roleName || roleStr,
+            name: roleName,
             organizationId: orgId || '',
           };
         }),
