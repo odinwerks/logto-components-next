@@ -220,7 +220,16 @@ export function DevTab({ userData, mode, colors, t }: DevTabProps) {
   // credentials so the server's origin-guard provides CSRF protection.
   const handleWipe = async (force: boolean) => {
     const url = force ? '/api/wipe?force=true' : '/api/wipe';
-    await fetch(url, { method: 'POST', credentials: 'same-origin' });
+    try {
+      const res = await fetch(url, { method: 'POST', credentials: 'same-origin' });
+      if (!res.ok) {
+        console.error('[DevTab] Wipe failed:', res.status);
+        return;
+      }
+    } catch (err) {
+      console.error('[DevTab] Wipe request failed:', err);
+      return;
+    }
     window.location.href = '/';
   };
 

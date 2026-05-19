@@ -380,9 +380,9 @@ export function SessionsTab({
   const sortedSessions = [...sessions].sort((a, b) => {
     if (a.meta?.isCurrent && !b.meta?.isCurrent) return -1;
     if (!a.meta?.isCurrent && b.meta?.isCurrent) return 1;
-    const aTs = a.payload.loginTs ?? Number.NEGATIVE_INFINITY;
-    const bTs = b.payload.loginTs ?? Number.NEGATIVE_INFINITY;
-    return bTs - aTs;
+    const aTs = a.lastActiveAt ? new Date(a.lastActiveAt).getTime() : Number.NEGATIVE_INFINITY;
+    const bTs = b.lastActiveAt ? new Date(b.lastActiveAt).getTime() : Number.NEGATIVE_INFINITY;
+    return (bTs - aTs) || 0;
   });
 
   return (
