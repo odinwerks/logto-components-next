@@ -28,29 +28,13 @@ const NEXT_PUBLIC_ENV: Record<string, string | undefined> = {
  * @param allowPublic - If false, skips the NEXT_PUBLIC_ fallback. Use for secret values
  *                      (APP_SECRET, COOKIE_SECRET, etc.) to prevent accidental client exposure.
  */
-/**
- * Returns the configured BASE_URL, throwing if not set.
- * Use in Route Handlers and server-side redirects.
- */
-export function getBaseUrl(): string {
-  const url = process.env.BASE_URL;
-  if (!url) {
-    throw new Error('BASE_URL environment variable is required but not set');
-  }
-  return url.replace(/\/$/, '');
-}
-
 export function readEnv(name: string, allowPublic = true): string | undefined {
   if (typeof process !== 'undefined' && process.env) {
     const val = process.env[name];
     if (val !== undefined) return val;
     if (allowPublic) {
-      // Only check the static map — dynamic process.env[`NEXT_PUBLIC_${name}`]
-      // is NOT replaced by Next.js's bundler on the client and always returns undefined.
       if (name in NEXT_PUBLIC_ENV) return NEXT_PUBLIC_ENV[name];
-      if (typeof process !== 'undefined' && typeof window !== 'undefined') {
-        console.warn(`[readEnv] "${name}" is not in NEXT_PUBLIC_ENV map — will be undefined on client`);
-      }
+      return process.env[`NEXT_PUBLIC_${name}`];
     }
   }
   return undefined;

@@ -150,21 +150,18 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
-  const resource = process.env.LOGTO_M2M_RESOURCE;
-  if (!resource) {
-    throw new Error(
-      'LOGTO_M2M_RESOURCE must be set for Management API access. ' +
-      'Set it to your Logto endpoint + "/api" (e.g., "https://your-tenant.logto.app/api").'
-    );
-  }
+  const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
   const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     resource,
-    // Intentionally no scope parameter: the IdP will apply only the default scopes
-    // assigned to this M2M app in the Logto Console. Keep Console permissions
-    // as narrow as possible — see SECURITY.md for setup instructions.
+    // 'all' here requests every management scope granted to this M2M app in the
+    // Logto Console. The actual blast radius is determined by Console permissions,
+    // NOT this string. To minimise risk, ensure the M2M app in Console has ONLY
+    // the "User data → Delete user" permission assigned.
+    // See SECURITY.md for setup instructions.
+    scope: 'all',
   });
 
   const res = await fetch(tokenEndpoint, {

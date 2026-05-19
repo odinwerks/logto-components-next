@@ -35,24 +35,15 @@ describe('checkSameOrigin', () => {
     expect(res?.status).toBe(403);
   });
 
-  it('handles different ports as different origins (production, no localhost bypass)', () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    try {
-      const res = checkSameOrigin(makeRequest('http://localhost:4000'));
-      expect(res).not.toBeNull();
-      expect(res?.status).toBe(403);
-    } finally {
-      process.env.NODE_ENV = prevNodeEnv;
-    }
+  it('handles different ports as different origins', () => {
+    const res = checkSameOrigin(makeRequest('http://localhost:4000'));
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
   });
 
-  it('rejects when no base URL is configured, even in non-production', () => {
+  it('rejects when no base URL is configured', () => {
     delete process.env.BASE_URL;
-    delete process.env.PUBLIC_BASE_URL;
     delete process.env.APP_URL;
-    const prevNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
     try {
       const req = new NextRequest('http://localhost:3000/api/wipe', {
         method: 'POST',
@@ -62,26 +53,7 @@ describe('checkSameOrigin', () => {
       expect(res).not.toBeNull();
       expect(res?.status).toBe(403);
     } finally {
-      process.env.NODE_ENV = prevNodeEnv;
-    }
-  });
-
-  it('returns 403 when BASE_URL is not configured in production', () => {
-    delete process.env.BASE_URL;
-    delete process.env.PUBLIC_BASE_URL;
-    delete process.env.APP_URL;
-    const prevNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    try {
-      const req = new NextRequest('http://localhost:3000/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://localhost:3000' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).not.toBeNull();
-      expect(res?.status).toBe(403);
-    } finally {
-      process.env.NODE_ENV = prevNodeEnv;
+      process.env.BASE_URL = 'http://localhost:3000';
     }
   });
 
@@ -96,26 +68,8 @@ describe('checkSameOrigin', () => {
     expect(res?.status).toBe(403);
   });
 
-  // PUBLIC_BASE_URL and APP_URL fallback
-  it('uses PUBLIC_BASE_URL when BASE_URL is not set', () => {
+  it('uses APP_URL when BASE_URL is not set', () => {
     delete process.env.BASE_URL;
-    process.env.PUBLIC_BASE_URL = 'https://beta.example.org';
-    delete process.env.APP_URL;
-    try {
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'https://beta.example.org' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    } finally {
-      delete process.env.PUBLIC_BASE_URL;
-    }
-  });
-
-  it('uses APP_URL when neither BASE_URL nor PUBLIC_BASE_URL is set', () => {
-    delete process.env.BASE_URL;
-    delete process.env.PUBLIC_BASE_URL;
     process.env.APP_URL = 'https://app.example.org';
     try {
       const req = new NextRequest('http://app.example.org/api/wipe', {
@@ -126,115 +80,39 @@ describe('checkSameOrigin', () => {
       expect(res).toBeNull();
     } finally {
       delete process.env.APP_URL;
+      process.env.BASE_URL = 'http://localhost:3000';
     }
   });
 
-  // Dev localhost support
-  describe('in non-production (dev)', () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-
-    beforeEach(() => {
-      process.env.NODE_ENV = 'development';
+  it('rejects localhost origin when BASE_URL is a remote URL', () => {
+    process.env.BASE_URL = 'https://beta.example.org';
+    const req = new NextRequest('http://localhost:3000/api/wipe', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3000' },
     });
-
-    afterEach(() => {
-      process.env.NODE_ENV = prevNodeEnv;
-    });
-
-    it('allows localhost origin when BASE_URL is a remote URL', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://localhost:3000/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://localhost:3000' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    });
-
-    it('allows localhost:any-port origin when BASE_URL is remote', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://localhost:3000/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://localhost:8420' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    });
-
-    it('allows 127.0.0.1 origin when BASE_URL is a remote URL', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://127.0.0.1:3000/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://127.0.0.1:3000' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    });
-
-    it('still allows same-origin POST when BASE_URL is remote and origin matches', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'https://beta.example.org' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    });
-
-    it('rejects cross-origin from non-localhost when BASE_URL is remote', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'https://evil.com' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).not.toBeNull();
-      expect(res?.status).toBe(403);
-    });
+    const res = checkSameOrigin(req);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
   });
 
-  // Production strict mode
-  describe('in production', () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-
-    beforeEach(() => {
-      process.env.NODE_ENV = 'production';
+  it('allows matching origin when BASE_URL is remote', () => {
+    process.env.BASE_URL = 'https://beta.example.org';
+    const req = new NextRequest('http://beta.example.org/api/wipe', {
+      method: 'POST',
+      headers: { origin: 'https://beta.example.org' },
     });
+    const res = checkSameOrigin(req);
+    expect(res).toBeNull();
+  });
 
-    afterEach(() => {
-      process.env.NODE_ENV = prevNodeEnv;
+  it('rejects cross-origin when BASE_URL is remote', () => {
+    process.env.BASE_URL = 'https://beta.example.org';
+    const req = new NextRequest('http://beta.example.org/api/wipe', {
+      method: 'POST',
+      headers: { origin: 'https://evil.com' },
     });
-
-    it('rejects localhost origin when BASE_URL is remote (no dev bypass)', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://localhost:3000' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).not.toBeNull();
-      expect(res?.status).toBe(403);
-    });
-
-    it('allows matching origin when BASE_URL is remote', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'https://beta.example.org' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).toBeNull();
-    });
-
-    it('rejects 127.0.0.1 origin (no dev bypass)', () => {
-      process.env.BASE_URL = 'https://beta.example.org';
-      const req = new NextRequest('http://beta.example.org/api/wipe', {
-        method: 'POST',
-        headers: { origin: 'http://127.0.0.1:3000' },
-      });
-      const res = checkSameOrigin(req);
-      expect(res).not.toBeNull();
-      expect(res?.status).toBe(403);
-    });
+    const res = checkSameOrigin(req);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
   });
 });

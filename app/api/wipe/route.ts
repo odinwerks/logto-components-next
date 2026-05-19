@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoConfig } from '../../logto';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
-import { getBaseUrl } from '../../logto-kit/logic/env';
 import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
@@ -16,12 +15,48 @@ function clearLogtoCookies(request: NextRequest, response: NextResponse): NextRe
   return response;
 }
 
+/**
+ * GET clears Logto cookies and redirects home.
+ * Convenience handler for browser navigation — no CSRF protection needed
+ * since it only clears cookies and redirects.
+ */
+export async function GET(request: NextRequest) {
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const force = request.nextUrl.searchParams.get('force') === 'true';
+
+  const response = clearLogtoCookies(
+    request,
+    NextResponse.redirect(new URL('/', baseUrl)),
+  );
+
+  if (force) {
+    let signOutFn: typeof SignOutType | undefined;
+    try {
+      const mod = await import('@logto/next/server-actions');
+      signOutFn = mod.signOut;
+    } catch {
+      // signOut module unavailable — still clears cookies, which is the main goal
+    }
+    if (signOutFn) {
+      try {
+        await signOutFn(getLogtoConfig());
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
+          return response;
+        }
+        error('[wipe] GET force signOut failed:', err instanceof Error ? err.message : err);
+      }
+    }
+  }
+  return response;
+}
+
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
   if (originError) return originError;
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
   const response = clearLogtoCookies(

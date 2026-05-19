@@ -36,7 +36,6 @@ services:
       # ── M2M (account deletion, RBAC) ─────────────────────────────────────
       - LOGTO_M2M_APP_ID=${LOGTO_M2M_APP_ID:-}
       - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET:-}
-      - LOGTO_M2M_RESOURCE=${LOGTO_M2M_RESOURCE:-}
       - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL:-}
       # ── Avatar storage (S3-compatible / Supabase) ─────────────────────────
       - PFP_BACKEND=${PFP_BACKEND:-logto}

@@ -14,7 +14,7 @@ export default async function HomePage() {
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
-      redirect('/api/auth/sign-in');
+      redirect('/callback');
     }
     return (
       <main style={{ minHeight: '100vh', background: DARK_COLORS.bgPage }}>

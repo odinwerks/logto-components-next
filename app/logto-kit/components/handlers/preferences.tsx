@@ -132,42 +132,21 @@ export function PreferencesProvider({
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
 
-  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme);
-  const [lang, setLangState] = useState<string>(serverDefaultLang);
-  const [asOrg, setAsOrgState] = useState<string | null>(initialOrgId ?? null);
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
+  const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
+  const [asOrg, setAsOrgState] = useState<string | null>(() => {
+    const stored = getStoredOrg();
+    if (stored) return stored;
+    return initialOrgId ?? null;
+  });
 
-  // Track the initial theme to skip the redundant first render — the theme
-  // script in <head> already sets data-theme before React hydrates.
-  const initialThemeRef = useRef(initialTheme);
-
-  // After mount, sync with sessionStorage (avoids hydration mismatch)
-  useEffect(() => {
-    const storedTheme = getStoredTheme();
-    if (storedTheme && storedTheme !== initialTheme) setThemeState(storedTheme);
-
-    const storedLang = getStoredLang();
-    if (storedLang && storedLang !== serverDefaultLang) setLangState(storedLang);
-
-    const storedOrg = getStoredOrg();
-    if (storedOrg !== null && storedOrg !== (initialOrgId ?? null)) setAsOrgState(storedOrg);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Refs to avoid stale closures in persist callbacks
+  // Ref for theme-changed listener (avoids re-registering on every theme change)
   const themeRef = useRef(theme);
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
-  const langRef = useRef(lang);
-  useEffect(() => { langRef.current = lang; }, [lang]);
-
-  const asOrgRef = useRef(asOrg);
-  useEffect(() => { asOrgRef.current = asOrg; }, [asOrg]);
-
   useEffect(() => {
-    // Skip the initial render — the theme script in <head> already set data-theme.
-    // Only apply updates when the user explicitly changes the theme.
-    if (theme !== initialThemeRef.current) {
-      document.documentElement.setAttribute('data-theme', theme);
-    }
+    const html = document.documentElement;
+    html.setAttribute('data-theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -203,79 +182,56 @@ export function PreferencesProvider({
     [theme]
   );
 
-  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
+    if (!onUpdateCustomData) return;
+    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang, asOrg } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist theme:', r.error);
+    }
+  }, [onUpdateCustomData, lang, asOrg]);
 
-  const persistPreferences = useCallback(async (
-    updates: Partial<{ theme: 'dark' | 'light'; lang: string; asOrg: string | null }>,
-  ): Promise<ActionResult> => {
-    if (!onUpdateCustomData) return { ok: true };
+  const persistLangToApi = useCallback(async (newLang: string) => {
+    if (!onUpdateCustomData) return;
+    const r = await onUpdateCustomData({ Preferences: { theme, lang: newLang, asOrg } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist lang:', r.error);
+    }
+  }, [onUpdateCustomData, theme, asOrg]);
 
-    return new Promise<ActionResult>((resolve) => {
-      if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
-      persistTimeoutRef.current = setTimeout(async () => {
-        // Read latest refs at flush time
-        const r = await onUpdateCustomData({
-          Preferences: {
-            theme: themeRef.current,
-            lang: langRef.current,
-            asOrg: asOrgRef.current,
-          },
-        });
-        if (!r.ok) {
-          console.error('[PreferencesProvider] Failed to persist preferences:', r.error);
-        }
-        resolve(r);
-      }, 100);
-    });
-  }, [onUpdateCustomData]);
+  const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
+    if (!onUpdateCustomData) return;
+    const r = await onUpdateCustomData({ Preferences: { theme, lang, asOrg: newOrgId } });
+    if (!r.ok) {
+      console.error('[PreferencesProvider] Failed to persist org:', r.error);
+    }
+  }, [onUpdateCustomData, theme, lang]);
 
-  const setMode = useCallback(async (newTheme: 'dark' | 'light') => {
-    const prev = theme;
+  const setMode = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    const r = await persistPreferences({ theme: newTheme });
-    if (!r.ok) {
-      // Rollback
-      setStoredTheme(prev);
-      setThemeState(prev);
-      console.error('[PreferencesProvider] Failed to persist theme, rolled back:', r.error);
-    }
+    persistThemeToApi(newTheme);
     window.dispatchEvent(new Event('theme-changed'));
-  }, [persistPreferences, theme]);
+  }, [persistThemeToApi]);
 
   const toggleMode = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setMode(next);
   }, [theme, setMode]);
 
-  const setLang = useCallback(async (newLang: string) => {
-    const prev = lang;
+  const setLang = useCallback((newLang: string) => {
     setStoredLang(newLang);
     setLangState(newLang);
-    const r = await persistPreferences({ lang: newLang });
-    if (!r.ok) {
-      // Rollback
-      setStoredLang(prev);
-      setLangState(prev);
-      console.error('[PreferencesProvider] Failed to persist lang, rolled back:', r.error);
-    }
+    persistLangToApi(newLang);
     window.dispatchEvent(new Event('preferences-changed'));
     onLangChange?.();
-  }, [persistPreferences, onLangChange, lang]);
+  }, [persistLangToApi, onLangChange]);
 
-  const setAsOrg = useCallback(async (newOrgId: string | null) => {
-    const prev = asOrg;
+  const setAsOrg = useCallback((newOrgId: string | null) => {
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    const r = await persistPreferences({ asOrg: newOrgId });
-    if (!r.ok) {
-      // Rollback
-      setStoredOrg(prev);
-      setAsOrgState(prev);
-      console.error('[PreferencesProvider] Failed to persist org, rolled back:', r.error);
-    }
+    persistOrgToApi(newOrgId);
     window.dispatchEvent(new Event('preferences-changed'));
-  }, [persistPreferences, asOrg]);
+  }, [persistOrgToApi]);
 
   const value = useMemo(
     () => ({
@@ -297,7 +253,12 @@ export function useThemeMode(): ThemeModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.theme;
+    // Always read current value from storage, not React state
+    const storedTheme = getStoredTheme();
+    return {
+      ...context.theme,
+      mode: storedTheme ?? context.theme.mode,
+    };
   }
 
   if (typeof window === 'undefined') {
@@ -332,7 +293,12 @@ export function useLangMode(): LangModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.lang;
+    // Always read current value from storage, not React state
+    const storedLang = getStoredLang();
+    return {
+      ...context.lang,
+      lang: storedLang ?? context.lang.lang,
+    };
   }
 
   if (typeof window === 'undefined') {
@@ -353,7 +319,12 @@ export function useOrgMode(): OrgModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    return context.org;
+    // Always read current value from storage, not React state
+    const storedOrg = getStoredOrg();
+    return {
+      ...context.org,
+      asOrg: storedOrg ?? context.org.asOrg,
+    };
   }
 
   if (typeof window === 'undefined') {
@@ -368,12 +339,4 @@ export function useOrgMode(): OrgModeContextValue {
     asOrg: stored,
     setAsOrg: () => {},
   };
-}
-
-export function clearAllPreferences(): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(THEME_STORAGE_KEY);
-  sessionStorage.removeItem(LANG_STORAGE_KEY);
-  sessionStorage.removeItem(ORG_STORAGE_KEY);
-  sessionStorage.removeItem('user-data');
 }

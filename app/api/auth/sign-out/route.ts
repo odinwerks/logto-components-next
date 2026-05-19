@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
-import { checkSameOrigin } from '../../../logto-kit/logic/origin-guard';
 import { error } from '../../../logto-kit/logic/log';
-import { getBaseUrl } from '../../../logto-kit/logic/env';
 
 export async function POST(request: NextRequest) {
-  const originError = checkSameOrigin(request);
-  if (originError) return originError;
-
-  const baseUrl = getBaseUrl();
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
 
   try {
     await signOut(getLogtoConfig());

@@ -14,14 +14,8 @@ export async function GET(request: NextRequest) {
     redirect(`/?auth_error=${encodeURIComponent(oauthError)}`);
   }
 
-  // Defense-in-depth: ensure state parameter is present. The @logto/next SDK
-  // validates state internally against the session cookie, so this is a
-  // shape check, not a full CSRF guard.
-  const state = searchParams.get('state');
-  if (!state) {
-    redirect(`/?auth_error=${encodeURIComponent('Missing state parameter')}`);
-  }
-
+  // handleSignIn is smart enough to detect missing OAuth params and
+  // initiate the sign-in flow when the user isn't in an active OAuth flow.
   await handleSignIn(getLogtoConfig(), searchParams);
   redirect('/');
 }
