@@ -31,7 +31,7 @@ logto-dash is a **self-hosted authentication dashboard** intended for developers
 - **Same-origin enforcement.** Non-Server-Action route handlers (`/api/wipe`, `/api/auth/sign-out`) validate the `Origin`/`Referer` header against `BASE_URL` on every POST. GET requests perform cookie clearing or sign-out for browser redirect flows. POST requests require same-origin validation.
 - **Input validation at trust boundaries.** Every `'use server'` function validates its client-supplied arguments before performing any privileged operation. IDs are restricted to `[A-Za-z0-9_-]{1,128}`. Types are asserted against allowlists. Complex inputs (customData) are whitelist-filtered.
 - **Error message sanitisation.** In production, errors returned to the browser are fixed error codes. Raw upstream text (which can contain email addresses, request details, and internal information) is discarded client-side and retained only in server-side logs.
-- **Mass-assignment prevention.** `updateUserCustomData` accepts only the `Preferences` key, and within it only `asOrg`, `themeMode`, and `language`. All other keys are dropped silently.
+- **Mass-assignment prevention.** `updateUserCustomData` accepts only the `Preferences` key, and within it only `asOrg`, `theme`, and `lang`. All other keys are dropped silently.
 - **Security headers.** Every response includes CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy headers.
 
 ## Non-Guarantees (What You Must Do)

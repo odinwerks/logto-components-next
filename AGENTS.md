@@ -37,3 +37,14 @@ These functions/environmental constants must NEVER be modified without explicit 
 - Before claiming a working pattern is a "bug," check git history to see if it was intentionally designed that way.
 - Verify against Logto MCP (`Logto_queryKnowledgeBase`) before changing any OAuth/M2M/token-related code.
 - When a commit introduces multiple changes, trace back to the last known-working commit and diff carefully.
+
+# Commands
+
+```bash
+npm run dev          # Dev server (port 3000)
+npm run build        # Production build
+npm test             # Vitest watch mode
+npm run test:run     # Vitest single run
+npm run lint         # Next.js lint
+npm run type-check   # tsc --noEmit
+```

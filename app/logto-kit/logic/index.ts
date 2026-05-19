@@ -51,8 +51,20 @@ export {
   generateTotpSecret,
   addMfaVerification,
   deleteMfaVerification,
+  replaceTotpVerification,
   generateBackupCodes,
   getBackupCodes,
+  requestWebAuthnRegistration,
+  verifyAndLinkWebAuthn,
+  renamePasskey,
+  getUserSessions,
+  getSessionsWithDeviceMeta,
+  revokeUserSession,
+  revokeAllOtherSessions,
+  getUserGrants,
+  revokeUserGrant,
+  getOrganizationUserPermissions,
+  getUserRoles,
   introspectTokenWithOrg,
 } from './actions/index';
 
@@ -69,5 +81,7 @@ export {
   validateUrl,
   validateJsonObject,
 } from './validation';
+
+export { formatPhone } from './formatting';
 
 export type { ValidationResult } from './validation';

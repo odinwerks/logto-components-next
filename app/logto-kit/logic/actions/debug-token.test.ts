@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const mockToken = vi.fn<string, []>();
+const mockToken = vi.fn<() => Promise<string>>();
 
 vi.mock('./tokens', () => ({
   getTokenForServerAction: mockToken,

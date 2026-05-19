@@ -8,15 +8,15 @@ services:
       # They are sourced from your .env file when you run `docker compose build`.
       # Set PUBLIC_BASE_URL in .env to your public CF tunnel URL.
       args:
-        NEXT_PUBLIC_THEME:              ${THEME:-Default}
-        NEXT_PUBLIC_LANG_MAIN:          ${LANG_MAIN:-en-US}
-        NEXT_PUBLIC_LANG_AVAILABLE:     ${LANG_AVAILABLE:-en-US}
-        NEXT_PUBLIC_MFA_ISSUER:         ${MFA_ISSUER:-MyApp}
-        NEXT_PUBLIC_DEFAULT_THEME_MODE: ${DEFAULT_THEME_MODE:-dark}
-        NEXT_PUBLIC_USER_SHAPE:         ${USER_SHAPE:-circle}
-        NEXT_PUBLIC_NAME_TYPE:          ${NAME_TYPE:-given_family}
-        NEXT_PUBLIC_LOAD_TABS:          ${LOAD_TABS:-profile,preferences,security,organizations,identities}
-        NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY:-3000}
+        NEXT_PUBLIC_THEME:              ${THEME}
+        NEXT_PUBLIC_LANG_MAIN:          ${LANG_MAIN}
+        NEXT_PUBLIC_LANG_AVAILABLE:     ${LANG_AVAILABLE}
+        NEXT_PUBLIC_MFA_ISSUER:         ${MFA_ISSUER}
+        NEXT_PUBLIC_DEFAULT_THEME_MODE: ${DEFAULT_THEME_MODE}
+        NEXT_PUBLIC_USER_SHAPE:         ${USER_SHAPE}
+        NEXT_PUBLIC_NAME_TYPE:          ${NAME_TYPE}
+        NEXT_PUBLIC_LOAD_TABS:          ${LOAD_TABS}
+        NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY}
     networks:
       - dash-net
     # Port 2999 is NOT exposed to the host — only cloudflared can reach it
@@ -34,32 +34,32 @@ services:
       - COOKIE_SECRET=${COOKIE_SECRET}
       - SCOPES=${SCOPES}
       # ── M2M (account deletion, RBAC) ─────────────────────────────────────
-      - LOGTO_M2M_APP_ID=${LOGTO_M2M_APP_ID:-}
-      - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET:-}
-      - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL:-}
+      - LOGTO_M2M_APP_ID=${LOGTO_M2M_APP_ID}
+      - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET}
+      - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL}
       # ── Avatar storage (S3-compatible / Supabase) ─────────────────────────
-      - PFP_BACKEND=${PFP_BACKEND:-logto}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
-      - S3_PUBLIC_URL=${S3_PUBLIC_URL:-}
-      - S3_ENDPOINT=${S3_ENDPOINT:-}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-}
-      - S3_REGION=${S3_REGION:-auto}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - PFP_BACKEND=${PFP_BACKEND}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_PUBLIC_URL=${S3_PUBLIC_URL}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_REGION=${S3_REGION}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       # ── Debug (set DEBUG=true to enable verbose server logging) ───────────
-      - DEBUG=${DEBUG:-}
+      - DEBUG=${DEBUG}
       # ── Plain errors (set PLAIN_ERRORS=true to get full error text) ────────
-      - PLAIN_ERRORS=${PLAIN_ERRORS:-false}
+      - PLAIN_ERRORS=${PLAIN_ERRORS}
       # ── UI / theme vars (server-side reads bare names via readEnv) ──────────
-      - THEME=${THEME:-Default}
-      - LANG_MAIN=${LANG_MAIN:-en-US}
-      - LANG_AVAILABLE=${LANG_AVAILABLE:-en-US}
-      - MFA_ISSUER=${MFA_ISSUER:-MyApp}
-      - DEFAULT_THEME_MODE=${DEFAULT_THEME_MODE:-dark}
-      - USER_SHAPE=${USER_SHAPE:-circle}
-      - NAME_TYPE=${NAME_TYPE:-given_family}
-      - LOAD_TABS=${LOAD_TABS:-profile,preferences,security,organizations,identities}
-      - DELETE_REDIRECT_DELAY=${DELETE_REDIRECT_DELAY:-3000}
+      - THEME=${THEME}
+      - LANG_MAIN=${LANG_MAIN}
+      - LANG_AVAILABLE=${LANG_AVAILABLE}
+      - MFA_ISSUER=${MFA_ISSUER}
+      - DEFAULT_THEME_MODE=${DEFAULT_THEME_MODE}
+      - USER_SHAPE=${USER_SHAPE}
+      - NAME_TYPE=${NAME_TYPE}
+      - LOAD_TABS=${LOAD_TABS}
+      - DELETE_REDIRECT_DELAY=${DELETE_REDIRECT_DELAY}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('net').createConnection(2999,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})\""]
       interval: 15s

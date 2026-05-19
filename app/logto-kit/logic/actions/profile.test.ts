@@ -304,7 +304,9 @@ describe('updateAvatarUrl', () => {
     const result = await updateAvatarUrl(url);
 
     expect(result.ok).toBe(false);
-    expect(result.error).toBeTruthy();
+    if (!result.ok) {
+      expect(result.error).toBeTruthy();
+    }
     expect(patchMyAccount).not.toHaveBeenCalled();
   });
 

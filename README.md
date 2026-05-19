@@ -40,8 +40,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 11-tab navigation definitions
-│   │   ├── Particles.tsx            # Canvas particle animation
+│   │   ├── nav-data.tsx             # 14-tab navigation definitions
 │   │   ├── types.ts                # Type definitions
 │   │   ├── docs/                   # Per-tab documentation files (TSX)
 │   │   │   ├── getting-started.tsx
@@ -84,7 +83,6 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   │   ├── client.tsx
 │   │   │   │   ├── index.tsx
 │   │   │   │   ├── types.ts
-│   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx
 │   │   │   │   │   ├── ContactRow.tsx
@@ -282,8 +280,10 @@ COOKIE_SECRET=your-random-secret
 # Scopes (comma-separated, required - no defaults)
 # Must include: openid,profile,custom_data,email,phone,identities,sessions
 # Add: organizations for org features
+# Add: organization_roles for org role data
 # Add: offline_access for refresh tokens
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions
+# Custom scopes pass through to the Logto SDK unchanged
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles
 ```
 
 ### Permission-Based Access Control & Account Management
@@ -307,6 +307,13 @@ You have to set this up for pfp uploads and account deletion to work. Also to re
 # Allowed: profile, preferences, security, sessions, identities, organizations, dev
 # Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations; debug, data, raw → dev
 LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
+```
+
+### Account Deletion
+
+```env
+# Redirect delay after account deletion in ms (default: 3000)
+DELETE_REDIRECT_DELAY=3000
 ```
 
 ### Theme Configuration
@@ -380,7 +387,7 @@ S3_REGION=auto
 
 ### NEXT_PUBLIC_* Variants
 
-All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`.
+All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`.
 
 ### Docker-Only Variables
 
@@ -466,7 +473,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area - lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 11-tab navigation definitions with section hints |
+| `nav-data.tsx` | 14-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
@@ -477,13 +484,10 @@ The demo app consists of:
 | `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
 | `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
-| `docs/errors.tsx` | Error handling guide - sanitization, 21 error codes, safeAction, server action pattern (4 pages) |
+| `docs/errors.tsx` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
 | `docs/guards.tsx` | Input guards - 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
 | `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
 | `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
-| `docs/errors.tsx` | Error handling guide: sanitization, error codes, server action pattern |
-| `docs/guards.tsx` | Input guards reference: 13 assert guards, safeUrl, pickPreferences, origin-guard |
-| `docs/logging.tsx` | Logging reference: LOG_BACKEND routing, unstructured + structured APIs |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
 | `utils/SectionComponents.tsx` | Pre-built page components for documentation (Badge, Note, StepList, Table) |
@@ -924,7 +928,6 @@ import {
   validateUsername,
   validateUrl,
   validateE164,
-  captureMessage,
 } from './logto-kit';
 
 import type {
@@ -1711,7 +1714,6 @@ All server actions are exported from `logto-kit` and can be used in your own cus
 ```tsx
 import {
   fetchDashboardData,
-  fetchUserBadgeData,
   signOutUser,
   updateUserBasicInfo,
   updateUserProfile,
@@ -1745,7 +1747,7 @@ import {
   getUserGrants,
   revokeUserGrant,
   getOrganizationUserPermissions,
-  recordHeartbeat,
+  getUserRoles,
 } from './logto-kit';
 ```
 
@@ -1795,7 +1797,7 @@ await addMfaVerification({ type: 'Totp', payload: { secret, code: '123456' } }, 
 await deleteMfaVerification('mfaVerificationId', 'verificationRecordId');
 
 // Replace an existing TOTP verification (unlinks old, links new)
-await replaceTotpVerification({ secret: 'new-totp-secret', code: '123456' }, 'verificationRecordId');
+await replaceTotpVerification('new-totp-secret', '123456', 'verificationRecordId');
 
 // Generate backup codes
 const { codes } = await generateBackupCodes('verificationRecordId');
@@ -1854,19 +1856,20 @@ await revokeUserGrant('grantId');
 // Get all permissions for a user in a specific organization
 const permissions = await getOrganizationUserPermissions('org-123');
 // Returns: string[] (e.g., ['read:users', 'write:users'])
+
+// Get all roles assigned to the authenticated user
+const roles = await getUserRoles();
+// Returns: DataResult<UserRole[]> ({ id, name, description, type, tenantId, isDefault })
 ```
 
 ### Utilities
 
 ```tsx
-import { formatPhone, captureMessage } from './logto-kit';
+import { formatPhone } from './logto-kit';
 
 // Format a raw E.164 phone number for display
 const displayPhone = formatPhone('+12345678901');
-// → "+1 (234) 567-8901"
-
-// Safe extraction of client-visible error text
-const message = captureMessage(rawError);
+// "+1 (234) 567-8901"
 ```
 
 ### Identity Verification
