@@ -205,6 +205,46 @@ describe('revokeAllOtherSessions', () => {
     expect(deletedPaths.some(p => p.includes('other-uid-2'))).toBe(true);
   });
 
+  it('uses JTI (session ID) not UID (user ID) in revokeUserSession API path (BUG-001)', async () => {
+    // Sessions with deliberately different UID and JTI values to catch bugs
+    // where s.payload.uid (user ID) is passed instead of s.payload.jti (session ID).
+    const sessions = [
+      mockSession('current-session', true),
+      mockSession('other-session', false),
+    ];
+    // Override JTI to be distinct from UID so we can tell them apart
+    sessions[0].payload.jti = 'jti-current-abc';
+    sessions[0].payload.uid = 'uid-current-xyz';
+    sessions[1].payload.jti = 'jti-other-def';
+    sessions[1].payload.uid = 'uid-other-123';
+
+    const deletedPaths: string[] = [];
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions });
+      }
+      if (opts.method === 'DELETE') {
+        deletedPaths.push(path);
+        return mockJsonResponse({}, 204);
+      }
+      return mockJsonResponse({}, 200);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(true);
+
+    // Should have called DELETE for the non-current session
+    expect(deletedPaths).toHaveLength(1);
+
+    // The path should contain JTI (jti-other-def), NOT UID (uid-other-123)
+    const path = deletedPaths[0];
+    expect(path).toContain('jti-other-def');
+    expect(path).not.toContain('uid-other-123');
+  });
+
   it('resolves with ok when there is exactly one session and it is the current one', async () => {
     const currentSession = mockSession('only-session', true);
 

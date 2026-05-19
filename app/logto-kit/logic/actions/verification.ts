@@ -16,6 +16,14 @@ import { ValidationError } from '../validation';
 
 export async function verifyPasswordForIdentity(password: string): Promise<DataResult<{ verificationRecordId: string }>> {
   return safeAction(async () => {
+    // Guard: password must be a non-empty string with reasonable length
+    if (typeof password !== 'string' || password.length === 0 || password.length > 256) {
+      throw new ValidationError('INVALID_INPUT', 'password');
+    }
+    // Block control characters (except common whitespace)
+    if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(password)) {
+      throw new ValidationError('INVALID_INPUT', 'password');
+    }
     const res = await makeRequest('/api/verifications/password', {
       method: 'POST',
       body: { password },

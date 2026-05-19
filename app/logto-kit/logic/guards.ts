@@ -198,7 +198,7 @@ export function pickPreferences(input: unknown): PreferencesShape {
         throw new ValidationError('INVALID_THEME_MODE', 'Preferences.theme');
       }
     } else if (key === 'lang') {
-      if (typeof value === 'string' && /^[A-Za-z0-9._-]{1,16}$/.test(value)) {
+      if (typeof value === 'string' && /^[A-Za-z0-9_-]{1,16}$/.test(value)) {
         out.lang = value;
       } else {
         throw new ValidationError('INVALID_LANGUAGE', 'Preferences.lang');

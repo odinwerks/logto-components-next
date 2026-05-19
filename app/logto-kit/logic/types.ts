@@ -249,4 +249,4 @@ export const isDashboardAuthError = (result: DashboardResult): result is Dashboa
   !result.success && 'needsAuth' in result;
 
 export const isDashboardFetchError = (result: DashboardResult): result is DashboardFetchError =>
-  'error' in result;
+  !result.success && ('error' in result || 'needsAuth' in result);

@@ -203,38 +203,37 @@ export function PreferencesProvider({
     [theme]
   );
 
-  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light'): Promise<ActionResult> => {
-    if (!onUpdateCustomData) return { ok: true };
-    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: langRef.current, asOrg: asOrgRef.current } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist theme:', r.error);
-    }
-    return r;
-  }, [onUpdateCustomData]);
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const persistLangToApi = useCallback(async (newLang: string): Promise<ActionResult> => {
+  const persistPreferences = useCallback(async (
+    updates: Partial<{ theme: 'dark' | 'light'; lang: string; asOrg: string | null }>,
+  ): Promise<ActionResult> => {
     if (!onUpdateCustomData) return { ok: true };
-    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist lang:', r.error);
-    }
-    return r;
-  }, [onUpdateCustomData]);
 
-  const persistOrgToApi = useCallback(async (newOrgId: string | null): Promise<ActionResult> => {
-    if (!onUpdateCustomData) return { ok: true };
-    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: langRef.current, asOrg: newOrgId } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist org:', r.error);
-    }
-    return r;
+    return new Promise<ActionResult>((resolve) => {
+      if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
+      persistTimeoutRef.current = setTimeout(async () => {
+        // Read latest refs at flush time
+        const r = await onUpdateCustomData({
+          Preferences: {
+            theme: themeRef.current,
+            lang: langRef.current,
+            asOrg: asOrgRef.current,
+          },
+        });
+        if (!r.ok) {
+          console.error('[PreferencesProvider] Failed to persist preferences:', r.error);
+        }
+        resolve(r);
+      }, 100);
+    });
   }, [onUpdateCustomData]);
 
   const setMode = useCallback(async (newTheme: 'dark' | 'light') => {
     const prev = theme;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    const r = await persistThemeToApi(newTheme);
+    const r = await persistPreferences({ theme: newTheme });
     if (!r.ok) {
       // Rollback
       setStoredTheme(prev);
@@ -242,7 +241,7 @@ export function PreferencesProvider({
       console.error('[PreferencesProvider] Failed to persist theme, rolled back:', r.error);
     }
     window.dispatchEvent(new Event('theme-changed'));
-  }, [persistThemeToApi, theme]);
+  }, [persistPreferences, theme]);
 
   const toggleMode = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -253,7 +252,7 @@ export function PreferencesProvider({
     const prev = lang;
     setStoredLang(newLang);
     setLangState(newLang);
-    const r = await persistLangToApi(newLang);
+    const r = await persistPreferences({ lang: newLang });
     if (!r.ok) {
       // Rollback
       setStoredLang(prev);
@@ -262,13 +261,13 @@ export function PreferencesProvider({
     }
     window.dispatchEvent(new Event('preferences-changed'));
     onLangChange?.();
-  }, [persistLangToApi, onLangChange, lang]);
+  }, [persistPreferences, onLangChange, lang]);
 
   const setAsOrg = useCallback(async (newOrgId: string | null) => {
     const prev = asOrg;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    const r = await persistOrgToApi(newOrgId);
+    const r = await persistPreferences({ asOrg: newOrgId });
     if (!r.ok) {
       // Rollback
       setStoredOrg(prev);
@@ -276,7 +275,7 @@ export function PreferencesProvider({
       console.error('[PreferencesProvider] Failed to persist org, rolled back:', r.error);
     }
     window.dispatchEvent(new Event('preferences-changed'));
-  }, [persistOrgToApi, asOrg]);
+  }, [persistPreferences, asOrg]);
 
   const value = useMemo(
     () => ({

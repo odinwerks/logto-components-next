@@ -177,10 +177,10 @@ export function ContactRow({
         <FlowModal
           title={modalKind === 'remove'
             ? (type === 'email' ? (t.security.removeEmail || 'Remove email') : (t.security.removePhone || 'Remove phone'))
-            : (currentValue ? `Update ${label.toLowerCase()}` : `Add ${label.toLowerCase()}`)}
+            : (type === 'email' ? t.security.updateEmailTitle : t.security.updatePhoneTitle)}
           subtitle={modalKind === 'remove'
-            ? `Confirm your password to remove this ${label.toLowerCase()}.`
-            : `Enter your new ${label.toLowerCase()}, then confirm your password.`}
+            ? (type === 'email' ? t.security.removeEmailSubtitle : t.security.removePhoneSubtitle)
+            : (type === 'email' ? t.security.updateEmailConfirm : t.security.updatePhoneConfirm)}
           step={step}
           onPasswordSubmit={handlePassword}
           onCodeSubmit={handleCode}
@@ -191,7 +191,7 @@ export function ContactRow({
           t={t}
           extra={modalKind === 'edit' && step.kind === 'password' ? (
             <div style={{ marginBottom: '1rem' }}>
-              <Lbl colors={colors}>{currentValue ? `New ${label.toLowerCase()}` : label}</Lbl>
+              <Lbl colors={colors}>{currentValue ? (type === 'email' ? t.security.email : t.security.phone) : label}</Lbl>
               <Input
                 type={type === 'email' ? 'email' : 'tel'}
                 value={newValue}

@@ -8,7 +8,6 @@ import { Pencil, X, Mail, Phone, Shield } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { readEnv } from '../../../logic/env';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
-import { updateAvatarUrl } from '../../../logic/actions';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
@@ -207,8 +206,11 @@ export function ProfileTab({
   const { upload, isUploading, clearError } = useAvatarUpload({
     userId: userData.id,
     onSuccess: async (url: string) => {
-      const result = await updateAvatarUrl(url);
-      if (!result.ok) { onError(result.error); return; }
+      // Logto backend already persisted the avatar via POST /api/my-account/avatar
+      if (readEnv('PFP_BACKEND')?.toLowerCase() !== 'logto') {
+        const result = await onUpdateAvatarUrl(url);
+        if (!result.ok) { onError(result.error); return; }
+      }
       onSuccess(t.profile.avatarUpdated);
       refreshData();
       setAvatarModalOpen(false);

@@ -185,7 +185,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     const results: PromiseSettledResult<void>[] = [];
     for (const s of othersToRevoke) {
       const result = await Promise.race([
-        revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty')
+        revokeUserSession(s.payload.jti, verificationRecordId, 'firstParty')
           .then(r => { if (!r.ok) throw new Error(r.error); })
           .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
           .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),
@@ -219,11 +219,15 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
 
 /**
  * Gets the user's grants.
+ * @param identityVerificationRecordId - Verification record from a prior identity check.
  * @returns Array of grants.
  */
-export async function getUserGrants(): Promise<DataResult<unknown[]>> {
+export async function getUserGrants(identityVerificationRecordId: string): Promise<DataResult<unknown[]>> {
   return safeAction(async () => {
-    const res = await makeRequest('/api/my-account/grants');
+    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    const res = await makeRequest('/api/my-account/grants', {
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
     await throwOnApiError(res, 'FETCH_FAILED', 'get-grants');
     const data = await res.json();
     return data.grants ?? [];

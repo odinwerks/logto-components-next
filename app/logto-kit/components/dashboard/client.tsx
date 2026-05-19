@@ -17,7 +17,6 @@ import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
 import { UserBadge } from '../userbutton';
-import { readEnv } from '../../logic/env';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 
 // Import MfaVerification type
@@ -112,6 +111,7 @@ function getTabIcon(id: TabId) {
 interface DashboardClientProps {
   initialData: DashboardData;
   currentOrgId?: string;
+  userShape?: 'circle' | 'sq' | 'rsq';
   translations: Translations;
   allTranslations: Record<string, Translations>;
   supportedLangs: string[];
@@ -135,7 +135,7 @@ interface DashboardClientProps {
   onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp?: number) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
   onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<ActionResult>;
@@ -152,6 +152,7 @@ interface DashboardClientProps {
 export function DashboardClient({
   initialData,
   currentOrgId,
+  userShape = 'circle',
   translations: serverTranslations,
   allTranslations,
   supportedLangs,
@@ -240,9 +241,6 @@ export function DashboardClient({
     await onSignOut();
   }, [onSignOut]);
 
-  // ── Pre-compute env-dependant values (avoid readEnv in render path) ────────
-  const userShape = (readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle';
-
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
@@ -262,6 +260,14 @@ export function DashboardClient({
         fontFamily: 'var(--font-ibm-plex-mono)',
       }}
     >
+        {/* Tab animation keyframes */}
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}</style>
+
         {/* Centered Modal */}
         <div
           style={{

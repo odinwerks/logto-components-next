@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
-import { FlowModal, BackupCodesModal } from './FlowModal';
+import { FlowModal, PasswordVerifyModal, BackupCodesModal } from './FlowModal';
 
 describe('FlowModal — localization', () => {
   const noop = () => {};
@@ -83,6 +83,68 @@ describe('FlowModal — localization', () => {
   });
 });
 
+describe('FlowModal — TOTP auto-submit behavior', () => {
+  const noop = () => {};
+
+  it('calls onTotpSubmit when 6th digit is typed', () => {
+    const onTotpSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Setup TOTP"
+        subtitle="Scan QR code"
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        onTotpSubmit={onTotpSubmit}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('000000');
+    expect(input).toBeInTheDocument();
+
+    // Typing fewer than 6 digits should NOT trigger submission
+    fireEvent.change(input, { target: { value: '123' } });
+    expect(onTotpSubmit).not.toHaveBeenCalled();
+
+    // Typing the 6th digit should trigger submission
+    fireEvent.change(input, { target: { value: '123456' } });
+    expect(onTotpSubmit).toHaveBeenCalledTimes(1);
+    expect(onTotpSubmit).toHaveBeenCalledWith('123456', 'SECRET123', 'iv1');
+  });
+
+  it('allows re-submission immediately when code changes (no 2-second dead zone)', () => {
+    const onTotpSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Setup TOTP"
+        subtitle="Scan QR code"
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        onTotpSubmit={onTotpSubmit}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('000000');
+
+    // First submission (6 digits)
+    fireEvent.change(input, { target: { value: '123456' } });
+    expect(onTotpSubmit).toHaveBeenCalledTimes(1);
+
+    // User clears and types a different code — should submit again immediately
+    // (simulating retry after failed verification)
+    fireEvent.change(input, { target: { value: '654321' } });
+    expect(onTotpSubmit).toHaveBeenCalledTimes(2);
+    expect(onTotpSubmit).toHaveBeenLastCalledWith('654321', 'SECRET123', 'iv1');
+  });
+});
+
 describe('BackupCodesModal — theming', () => {
   it('renders with theme colors for border, not hardcoded hex', () => {
     render(
@@ -123,5 +185,129 @@ describe('BackupCodesModal — theming', () => {
     expect(screen.getByText(enUS.mfa.existingCodes)).toBeInTheDocument();
     expect(screen.getByText('ABC123')).toBeInTheDocument();
     expect(screen.getByText('DEF456')).toBeInTheDocument();
+  });
+});
+
+describe('FlowModal — Escape key dismissal', () => {
+  const noop = () => {};
+
+  it('calls onClose when Escape is pressed', () => {
+    const onClose = vi.fn();
+    render(
+      <FlowModal
+        title="Test"
+        subtitle="Test subtitle"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onClose for other keys', () => {
+    const onClose = vi.fn();
+    render(
+      <FlowModal
+        title="Test"
+        subtitle="Test subtitle"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('cleans up event listener on unmount', () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <FlowModal
+        title="Test"
+        subtitle="Test subtitle"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    unmount();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('PasswordVerifyModal — Escape key dismissal', () => {
+  const noop = () => {};
+
+  it('calls onClose when Escape is pressed', () => {
+    const onClose = vi.fn();
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onClose for other keys', () => {
+    const onClose = vi.fn();
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('cleans up event listener on unmount', () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={onClose}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    unmount();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

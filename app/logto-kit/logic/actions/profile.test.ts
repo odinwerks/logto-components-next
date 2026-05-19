@@ -269,3 +269,55 @@ describe('updateUserCustomData', () => {
     );
   });
 });
+
+// ============================================================================
+// updateAvatarUrl — must reject non-HTTP URLs to prevent stored XSS
+// ============================================================================
+
+describe('updateAvatarUrl', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it('passes a valid absolute HTTP URL through to patchMyAccount', async () => {
+    const { updateAvatarUrl } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateAvatarUrl('https://cdn.example.com/avatar.png');
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { avatar: 'https://cdn.example.com/avatar.png' },
+      'Avatar update failed',
+    );
+  });
+
+  it.each([
+    ['javascript: URL', 'javascript:alert(1)'],
+    ['data: URL',       'data:image/png;base64,abc'],
+    ['non-URL text',    'not-a-url-at-all'],
+  ])('rejects a %s to prevent stored XSS', async (_, url) => {
+    const { updateAvatarUrl } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateAvatarUrl(url);
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(patchMyAccount).not.toHaveBeenCalled();
+  });
+
+  it('converts null to null avatar (removes avatar)', async () => {
+    const { updateAvatarUrl } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateAvatarUrl('');
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { avatar: null },
+      'Avatar update failed',
+    );
+  });
+});

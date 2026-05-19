@@ -27,7 +27,7 @@ interface SecurityTabProps {
   onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
   onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
-  onDeleteAccount: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp?: number) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
   onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<ActionResult>;
@@ -91,7 +91,7 @@ export function SecurityTab({
   const [mfaList, setMfaList] = useState<MfaVerification[]>([]);
   const [mfaLoading, setMfaLoading] = useState(false);
 
-  const loadMfa = useCallback(async () => {
+  const loadMfaFn = useCallback(async () => {
     setMfaLoading(true);
     const r = await onGetMfaVerifications();
     if (!r.ok) { onError(r.error); setMfaList([]); setMfaLoading(false); return; }
@@ -99,7 +99,16 @@ export function SecurityTab({
     setMfaLoading(false);
   }, [onGetMfaVerifications, onError]);
 
-  useEffect(() => { loadMfa(); }, [loadMfa]);
+  const loadMfaRef = useRef(loadMfaFn);
+  loadMfaRef.current = loadMfaFn;
+
+  // Load MFA list once on mount (via ref to avoid dep on unstable callbacks)
+  useEffect(() => { loadMfaRef.current(); }, []);
+
+  // Also expose a manual reload that respects latest props
+  const refreshMfa = useCallback(() => {
+    return loadMfaRef.current();
+  }, []);
 
   const totpFactor   = mfaList.find(v => v.type === 'Totp');
   const backupFactor = mfaList.find(v => v.type === 'BackupCode');
@@ -144,7 +153,7 @@ export function SecurityTab({
     if (!r.ok) { onError(r.error); closeTotp(); return; }
     onSuccess(t.mfa.totpEnrolled);
     closeTotp();
-    await loadMfa();
+    await refreshMfa();
   };
 
   // ── Delete TOTP modal ──
@@ -164,7 +173,7 @@ export function SecurityTab({
     if (!delResult.ok) { onError(delResult.error); closeDelTotp(); return; }
     onSuccess(t.mfa.factorRemoved);
     closeDelTotp();
-    await loadMfa();
+    await refreshMfa();
   };
 
   // ── Backup codes ──
@@ -173,7 +182,7 @@ export function SecurityTab({
 
   const openBackup = () => { backupAbortRef.current = false; setBackupStep({ kind: 'password' }); };
   const closeBackupModal = () => { backupAbortRef.current = true; setBackupStep(null); };
-  const closeCodesModal = async () => { setBackupCodes(null); await loadMfa(); };
+  const closeCodesModal = async () => { setBackupCodes(null); await refreshMfa(); };
 
   const handleBackupPw = async (pw: string) => {
     setBackupStep({ kind: 'loading', message: 'Generating codes…' });
@@ -193,6 +202,7 @@ export function SecurityTab({
 
   // ── Delete account modal ──
   const [deleteStep, setDeleteStep] = useState<ModalStep | null>(null);
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDeleteAccount = async (pw: string) => {
     setDeleteStep({ kind: 'loading', message: t.mfa.verifying });
@@ -200,8 +210,13 @@ export function SecurityTab({
     if (deleteAbortRef.current) return;
     if (!identityResult.ok) { onError(identityResult.error); setDeleteStep(null); return; }
 
+    const verificationTimestamp = Date.now();
+
     setDeleteStep({ kind: 'loading', message: t.security.deletingAccount });
-    const deleteResult = await onDeleteAccount(identityResult.data.verificationRecordId);
+    const deleteResult = await onDeleteAccount(
+      identityResult.data.verificationRecordId,
+      verificationTimestamp,
+    );
     if (deleteAbortRef.current) return;
     if (!deleteResult.ok) { onError(deleteResult.error); setDeleteStep(null); return; }
 
@@ -209,10 +224,17 @@ export function SecurityTab({
     onSuccess(t.security.accountDeleted);
 
     const delayMs = parseInt(readEnv('DELETE_REDIRECT_DELAY') || '3000', 10);
-    setTimeout(() => {
+    redirectTimerRef.current = setTimeout(() => {
       window.location.href = '/';
     }, delayMs);
   };
+
+  // Cleanup redirect timer on unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
 
   // ── Passkey registration ──
   const [passkeyRegStep, setPasskeyRegStep] = useState<ModalStep | null>(null);
@@ -258,7 +280,7 @@ export function SecurityTab({
       if (!linkResult.ok) { onError(linkResult.error); setPasskeyRegStep(null); return; }
       onSuccess(t.mfa.passkeyAdded);
       setPasskeyRegStep(null);
-      await loadMfa();
+      await refreshMfa();
     } catch (err) {
       // User cancelled the browser's WebAuthn prompt — close silently
       if (err instanceof Error && (err.name === 'NotAllowedError' || err.message.includes('not allowed'))) {
@@ -282,7 +304,7 @@ export function SecurityTab({
     onSuccess(t.mfa.passkeyDeleted);
     setDelPasskeyStep(null);
     setPasskeyToDelete(null);
-    await loadMfa();
+    await refreshMfa();
   };
 
   const handleRenamePasskeyPw = async (pw: string) => {
@@ -302,7 +324,7 @@ export function SecurityTab({
     onSuccess(t.mfa.passkeyRenamed);
     setRenamePasskeyStep(null);
     setPasskeyToRename(null);
-    await loadMfa();
+    await refreshMfa();
   };
 
   return (

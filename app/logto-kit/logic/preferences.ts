@@ -22,7 +22,7 @@ const PREFS_KEY = 'Preferences';
  * Extracts UserPreferences from a UserData object.
  * Returns null if the Preferences key does not exist or is malformed.
  */
-export function getPreferencesFromUserData(userData: UserData): UserPreferences | null {
+export function getPreferencesFromUserData(userData: UserData): Partial<UserPreferences> | null {
   const customData = userData.customData;
   if (!customData || typeof customData !== 'object') return null;
 
@@ -48,9 +48,9 @@ export function getPreferencesFromUserData(userData: UserData): UserPreferences 
   if (!theme && !lang && !hasAsOrg) return null;
 
   return {
-    theme: theme ?? 'dark',
-    lang: lang ?? 'en-US',
-    asOrg,
+    ...(theme !== undefined && { theme }),
+    ...(lang !== undefined && { lang }),
+    ...(hasAsOrg && { asOrg }),
   };
 }
 

@@ -31,24 +31,22 @@ interface SessionsTabProps {
   onError: (message: string) => void;
 }
 
-const VERIFICATION_TTL_MS = 9 * 60 * 1000;
+const VERIFICATION_TTL_MS = 10 * 60 * 1000;
 
 function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: string | null; size: number }) {
-  if (os === 'Linux') {
-    return <img src="/os-icons/Tux.jpg" alt="Linux" width={size} height={size} style={{ display: 'block' }} />;
+  const [imgError, setImgError] = useState(false);
+
+  const src = os === 'Linux' ? '/os-icons/Tux.jpg'
+    : os === 'Windows' ? '/os-icons/MacroSlop.svg'
+    : os === 'macOS' ? '/os-icons/MacOS.svg'
+    : os === 'iOS' ? '/os-icons/ios.svg'
+    : os === 'Android' ? '/os-icons/Android.svg'
+    : null;
+
+  if (src && !imgError) {
+    return <img src={src} alt={os ?? 'OS'} width={size} height={size} style={{ display: 'block' }} onError={() => setImgError(true)} />;
   }
-  if (os === 'Windows') {
-    return <img src="/os-icons/MacroSlop.svg" alt="Windows" width={size} height={size} style={{ display: 'block' }} />;
-  }
-  if (os === 'macOS') {
-    return <img src="/os-icons/MacOS.svg" alt="macOS" width={size} height={size} style={{ display: 'block' }} />;
-  }
-  if (os === 'iOS') {
-    return <img src="/os-icons/ios.svg" alt="iOS" width={size} height={size} style={{ display: 'block' }} />;
-  }
-  if (os === 'Android') {
-    return <img src="/os-icons/Android.svg" alt="Android" width={size} height={size} style={{ display: 'block' }} />;
-  }
+
   if (deviceType === 'mobile') return <Smartphone size={size} strokeWidth={1.5} />;
   return <Monitor size={size} strokeWidth={1.5} />;
 }
@@ -208,6 +206,10 @@ export function SessionsTab({
   };
 
   const startRevokeVerification = (sessionId: string) => {
+    // Prevent opening a new modal while one is already active
+    // to avoid silently overwriting the revoke target.
+    if (revokeTargetRef.current !== null) return;
+
     setRevokingId(sessionId);
     revokeTargetRef.current = { kind: 'single', id: sessionId };
     setModalPurpose('revoke');

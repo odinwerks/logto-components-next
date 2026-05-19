@@ -216,7 +216,7 @@ export function UserButton({
   colors: providedColors,
   do: customAction,
 }: UserButtonProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, colors, handleClick } =
+  const { userData, loading, showFallback, imageFailed, setImageFailed, colors, t, handleClick } =
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
   const [hovered, setHovered] = useState(false);
@@ -258,7 +258,7 @@ export function UserButton({
         transition: 'opacity 0.15s, transform 0.1s',
       }}
       onClick={handleClick}
-      aria-label="Open user dashboard"
+      aria-label={t.common.loggedInAs}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}

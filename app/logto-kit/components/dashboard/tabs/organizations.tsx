@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
@@ -22,6 +22,57 @@ interface OrganizationsTabProps {
   colors: ThemeColors;
   t: Translations;
 }
+
+// ─── OrgCard (extracted from OrganizationsTab to prevent re-creation on every render) ───
+interface OrgCardProps {
+  org: { id: string; name: string };
+  isSelected: boolean;
+  isLoading: string | null;
+  handleOrgClick: (orgId: string) => Promise<void>;
+  colors: ThemeColors;
+  t: Translations;
+}
+
+const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgCardProps) => {
+  const c = colors;
+  return (
+    <button
+      onClick={() => handleOrgClick(org.id)}
+      role="radio"
+      aria-checked={isSelected}
+      style={{
+        padding: '0.625rem 0.75rem',
+        background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
+        border: `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
+        borderRadius: '0.25rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        cursor: isLoading === org.id ? 'wait' : 'pointer',
+        opacity: isLoading === org.id ? 0.6 : 1,
+        transition: 'all 0.15s ease',
+        boxShadow: isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+        width: '100%',
+        textAlign: 'left',
+      }}
+    >
+      <div>
+        <div style={{
+          color: isSelected ? c.accentBlue : c.textPrimary,
+          fontSize: '0.6875rem',
+          fontWeight: 600,
+          fontFamily: FONT_MONO,
+        }}>
+          {org.name}
+          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: '0.5625rem' }}>{t.organizations.active}</span>}
+        </div>
+        <div style={{ color: c.textTertiary, fontSize: '0.5625rem', marginTop: '0.125rem', fontFamily: FONT_MONO }}>
+          {t.organizations.idLabel}: {org.id}
+        </div>
+      </div>
+    </button>
+  );
+};
 
 export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: OrganizationsTabProps) {
   const c = colors;
@@ -103,8 +154,10 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
     try {
       const isValid = await setActiveOrg(orgId);
       if (!isValid) return;
-      setAsOrg(orgId);
-      router.refresh();
+      startTransition(() => {
+        setAsOrg(orgId);
+        router.refresh();
+      });
     } catch (err) {
       console.error('[OrganizationsTab] Failed to switch organization:', err);
       setErrorMsg('Failed to switch organization. Please try again.');
@@ -158,44 +211,6 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
     color: c.textTertiary,
   };
 
-  const OrgCard = ({ org, isSelected }: { org: { id: string; name: string }; isSelected: boolean }) => (
-    <button
-      onClick={() => handleOrgClick(org.id)}
-      role="radio"
-      aria-checked={isSelected}
-      style={{
-        padding: '0.625rem 0.75rem',
-        background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
-        border: `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
-        borderRadius: '0.25rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        cursor: isLoading === org.id ? 'wait' : 'pointer',
-        opacity: isLoading === org.id ? 0.6 : 1,
-        transition: 'all 0.15s ease',
-        boxShadow: isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
-        width: '100%',
-        textAlign: 'left',
-      }}
-    >
-      <div>
-        <div style={{
-          color: isSelected ? c.accentBlue : c.textPrimary,
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          fontFamily: FONT_MONO,
-        }}>
-          {org.name}
-          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: '0.5625rem' }}>{t.organizations.active}</span>}
-        </div>
-        <div style={{ color: c.textTertiary, fontSize: '0.5625rem', marginTop: '0.125rem', fontFamily: FONT_MONO }}>
-          {t.organizations.idLabel}: {org.id}
-        </div>
-      </div>
-    </button>
-  );
-
   return (
     <div>
       {/* Organizations */}
@@ -242,6 +257,10 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
                   key={org.id}
                   org={org}
                   isSelected={org.id === activeOrgId}
+                  isLoading={isLoading}
+                  handleOrgClick={handleOrgClick}
+                  colors={colors}
+                  t={t}
                 />
               ))}
             </div>

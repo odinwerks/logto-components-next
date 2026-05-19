@@ -57,6 +57,7 @@ export default function SessionHeartbeat() {
     const intervalId = setInterval(ping, PING_INTERVAL_MS);
 
     return () => {
+      mountedRef.current = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(intervalId);
     };

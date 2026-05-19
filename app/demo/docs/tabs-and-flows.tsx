@@ -559,7 +559,7 @@ function GrantManagementSection() {
         of the user. Revoking a grant forces the app to re-authenticate.
       </p>
       <CodeBlock title="Server actions" code={`// Get all active grants for the user
-const grants = await getUserGrants(); // returns DataResult<GrantInfo[]>
+const grants = await getUserGrants(identityVerificationRecordId); // returns DataResult<GrantInfo[]>
 
 // Revoke all grants for a specific application
 await revokeUserGrant(grantId, identityVerificationRecordId); // returns ActionResult

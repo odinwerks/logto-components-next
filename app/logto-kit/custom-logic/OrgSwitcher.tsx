@@ -43,13 +43,13 @@ export function OrgSwitcher({ organizations, currentOrgId, mode, colors, t }: Or
   const handleChange = async (newOrgId: string) => {
     const orgIdToSet = newOrgId || null;
     
-    if (orgIdToSet !== null) {
-      const isValid = await setActiveOrg(orgIdToSet);
-      if (!isValid) return;
-    }
-    
     setIsLoading(true);
     try {
+      if (orgIdToSet !== null) {
+        const isValid = await setActiveOrg(orgIdToSet);
+        if (!isValid) return;
+      }
+      
       setAsOrg(orgIdToSet);
       setSelected(newOrgId);
       router.refresh();

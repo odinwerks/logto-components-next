@@ -8,8 +8,10 @@ export async function GET(request: NextRequest) {
 
   const oauthError = searchParams.get('error');
   if (oauthError) {
-    const errorDescription = searchParams.get('error_description') || oauthError;
-    redirect(`/?auth_error=${encodeURIComponent(errorDescription)}`);
+    // Only pass the error code, NOT the error_description — reflecting user-controlled
+    // content from the IdP creates a reflected-content vulnerability window.
+    // The error code is a fixed OAuth2 enum value (access_denied, invalid_request, etc.).
+    redirect(`/?auth_error=${encodeURIComponent(oauthError)}`);
   }
 
   // Defense-in-depth: ensure state parameter is present. The @logto/next SDK

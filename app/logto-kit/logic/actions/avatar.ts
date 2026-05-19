@@ -1,7 +1,7 @@
 'use server';
 
 import * as Minio from 'minio';
-import { introspectToken } from '../utils';
+import { getCleanEndpoint, introspectToken } from '../utils';
 import { assertSafeUserId } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { plainCode } from '../errors';
@@ -314,7 +314,7 @@ export async function uploadAvatar(
 
   // ── Backend selection ────────────────────────────────────────────────
   if (process.env.PFP_BACKEND?.trim().toLowerCase() === 'logto') {
-    const endpoint = process.env.ENDPOINT?.replace(/\/$/, '');
+    const endpoint = getCleanEndpoint();
     if (!endpoint) throw plainCode('UPLOAD_FAILED');
 
     const token = sessionToken;

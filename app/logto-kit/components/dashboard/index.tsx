@@ -110,6 +110,7 @@ export async function Dashboard() {
             userData: result.userData,
           }}
           currentOrgId={resolvedOrg ?? undefined}
+          userShape={(process.env.NEXT_PUBLIC_USER_SHAPE as 'circle' | 'sq' | 'rsq') ?? 'circle'}
           translations={translations}
           allTranslations={allTranslations}
           supportedLangs={supportedLangs}

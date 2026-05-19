@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -69,6 +69,16 @@ export function PasswordVerifyModal({
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
   const dangerColor = c.accentRed;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   return (
     <Overlay onDismiss={onClose}>
@@ -195,13 +205,22 @@ export function FlowModal({
   const [showPw, setShowPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [code, setCode] = useState('');
-  const [totpSubmitting, setTotpSubmitting] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [renameVal, setRenameVal] = useState('');
 
   const dangerColor = c.accentRed;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const copySecret = () => {
     if (step.kind !== 'totp-scan') return;
@@ -363,11 +382,8 @@ export function FlowModal({
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                         setCode(val);
-                        if (val.length === 6 && !totpSubmitting) {
-                          setTotpSubmitting(true);
+                        if (val.length === 6) {
                           onTotpSubmit?.(val, step.secret, step.identityVerificationId);
-                          // Reset after a delay to allow re-submission if needed
-                          setTimeout(() => setTotpSubmitting(false), 2000);
                         }
                       }}
                       placeholder="000000"

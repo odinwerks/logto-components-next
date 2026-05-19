@@ -101,14 +101,17 @@ export const logtoConfig = (() => {
     scopes: allScopes,
   };
 
-  // Runtime guard: prevent serving with placeholder secrets in production
-  if (config.appSecret === 'build-placeholder' && nodeEnv === 'production') {
+  // Runtime guard: prevent serving with placeholder secrets in production.
+  // During `next build` (esp. Docker), env files are excluded from the build
+  // context, so placeholders are expected. The guard re-runs at server start.
+  const isNextBuild = process.env.npm_lifecycle_event === 'build';
+  if (config.appSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
     throw new Error(
       'FATAL: appSecret is still "build-placeholder" at runtime in production. ' +
       'Set APP_SECRET environment variable before starting the server.'
     );
   }
-  if (config.cookieSecret === 'build-placeholder' && nodeEnv === 'production') {
+  if (config.cookieSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
     throw new Error(
       'FATAL: cookieSecret is still "build-placeholder" at runtime in production. ' +
       'Set COOKIE_SECRET environment variable before starting the server.'
@@ -159,10 +162,9 @@ export async function getManagementApiToken(): Promise<string> {
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     resource,
-    // Omit scope to receive only the default scopes assigned to this M2M app.
-    // The blast radius is determined by Console permissions.
-    // See SECURITY.md for setup instructions.
-    scope: '',
+    // Intentionally no scope parameter: the IdP will apply only the default scopes
+    // assigned to this M2M app in the Logto Console. Keep Console permissions
+    // as narrow as possible — see SECURITY.md for setup instructions.
   });
 
   const res = await fetch(tokenEndpoint, {

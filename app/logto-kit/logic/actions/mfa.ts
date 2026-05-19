@@ -7,6 +7,7 @@ import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
+import { ValidationError } from '../validation';
 
 /**
  * Gets the user's MFA verifications.
@@ -61,6 +62,33 @@ export async function addMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     const { type, payload } = verification;
+
+    // ── Validate payload fields (type-safe via discriminated union) ────────
+    if (type === 'Totp') {
+      // TotpVerificationPayload: { code: string; secret: string }
+      if (typeof payload.code !== 'string' || payload.code.length > 16) {
+        throw new ValidationError('INVALID_INPUT', 'verification.code');
+      }
+      if (typeof payload.secret !== 'string' || payload.secret.length > 64) {
+        throw new ValidationError('INVALID_INPUT', 'verification.secret');
+      }
+    } else {
+      // WebAuthn / BackupCode — both have [key: string]: unknown index signatures
+      const genericPayload = payload as Record<string, unknown>;
+      if (typeof genericPayload.code === 'string' && genericPayload.code.length > 16) {
+        throw new ValidationError('INVALID_INPUT', 'verification.code');
+      }
+      if (typeof genericPayload.secret === 'string' && genericPayload.secret.length > 64) {
+        throw new ValidationError('INVALID_INPUT', 'verification.secret');
+      }
+      if (
+        typeof genericPayload.newIdentifierVerificationRecordId === 'string' &&
+        genericPayload.newIdentifierVerificationRecordId.length > 128
+      ) {
+        throw new ValidationError('INVALID_INPUT', 'verification.newIdentifierVerificationRecordId');
+      }
+    }
+
     const res = await makeRequest('/api/my-account/mfa-verifications', {
       method: 'POST',
       body: { type, ...payload },

@@ -81,7 +81,7 @@ function identityDetail(t: Translations, identity: {
   return t.identities.unknownDetail;
 }
 
-function ProviderIcon({ target, textColor }: { target: string; textColor: string }) {
+function ProviderIcon({ target, textColor, t }: { target: string; textColor: string; t: Translations }) {
   const icon = PROVIDER_ICONS[target];
   if (icon) return (
     <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -89,7 +89,7 @@ function ProviderIcon({ target, textColor }: { target: string; textColor: string
     </div>
   );
   return (
-    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.625rem' }}>
+    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.625rem' }} aria-label={providerName(t, target)} role="img">
       {target.charAt(0).toUpperCase()}
     </div>
   );
@@ -238,7 +238,7 @@ export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps)
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <ProviderIcon target={target} textColor={c.textPrimary} />
+                    <ProviderIcon target={target} textColor={c.textPrimary} t={t} />
                   </div>
 
                   <div style={{ minWidth: 0 }}>

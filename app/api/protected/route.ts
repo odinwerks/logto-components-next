@@ -85,8 +85,13 @@ export async function POST(request: NextRequest) {
       return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
     }
 
+    // Defensive guard: ensure asOrg is a non-empty string even if validation passes
+    if (!userData.asOrg) {
+      return apiError('PERMISSION_DENIED', 'Active organization is required', 403);
+    }
+
     const { getOrganizationUserPermissions } = await import('../../logto-kit/logic/actions');
-    const permResult = await getOrganizationUserPermissions(userData.asOrg!);
+    const permResult = await getOrganizationUserPermissions(userData.asOrg);
     const userPermissions = permResult.ok ? permResult.data : [];
 
     const requiredPerms = Array.isArray(actionConfig.requiredPerm)
@@ -96,12 +101,12 @@ export async function POST(request: NextRequest) {
     const hasPermission = requiredPerms.every(perm => userPermissions.includes(perm));
 
     if (!hasPermission) {
-      return apiError('PERMISSION_DENIED', `User lacks required permission: ${requiredPerms.join(', ')}`, 403);
+      return apiError('PERMISSION_DENIED', 'Insufficient permissions for this action', 403);
     }
 
     const result = await actionConfig.handler({
       userId: id,
-      orgId: userData.asOrg!,
+      orgId: userData.asOrg,
       payload: payload || {},
     });
 

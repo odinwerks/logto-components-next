@@ -201,6 +201,15 @@ describe('pickPreferences', () => {
     expect(() => pickPreferences({ lang: '../etc' })).toThrow(ValidationError);
   });
 
+  it('rejects dot in lang (BCP 47 uses hyphen, not dot)', () => {
+    // Dot is not a valid BCP 47 separator and has no legitimate use;
+    // allowing it could enable prototype-pollution vectors if the value
+    // is later used as an object key.
+    expect(() => pickPreferences({ lang: 'en.US' })).toThrow(ValidationError);
+    expect(() => pickPreferences({ lang: '..' })).toThrow(ValidationError);
+    expect(() => pickPreferences({ lang: 'x.y.z' })).toThrow(ValidationError);
+  });
+
   it('returns empty object for null/undefined input', () => {
     expect(pickPreferences(null)).toEqual({});
     expect(pickPreferences(undefined)).toEqual({});

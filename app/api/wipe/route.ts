@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoConfig } from '../../logto';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
+import { getBaseUrl } from '../../logto-kit/logic/env';
 import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
@@ -20,8 +21,7 @@ export async function POST(request: NextRequest) {
   const originError = checkSameOrigin(request);
   if (originError) return originError;
 
-  // FIX: was process.env.APP_URL (undefined in .env) — BASE_URL is correct.
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
   const response = clearLogtoCookies(

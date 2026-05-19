@@ -1,3 +1,4 @@
+import { isDev } from './dev-mode';
 import type { Translations } from '../locales';
 
 export class ValidationError extends Error {
@@ -83,7 +84,7 @@ export function validateJsonObject(value: string, t: Translations['validation'],
   } catch (e) {
     if (e instanceof ValidationError) throw e;
     throw new ValidationError(
-      `${t.invalidJson}: ${e instanceof Error ? e.message : 'parse error'}`,
+      `${t.invalidJson}${isDev && e instanceof Error ? ': ' + e.message : ''}`,
       field
     );
   }

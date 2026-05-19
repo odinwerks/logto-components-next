@@ -18,7 +18,7 @@ export async function makeRequest(
   } = {}
 ): Promise<Response> {
   // Guard: only allow /api/ paths, no path traversal
-  if (!path.startsWith('/api/') || path.includes('..')) {
+  if (!path.startsWith('/api/') || path.includes('..') || path.includes('?') || path.includes('#') || path.includes('//')) {
     throw new Error(`Invalid API path: ${path}`);
   }
 

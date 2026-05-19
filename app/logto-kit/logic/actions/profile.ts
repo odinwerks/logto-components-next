@@ -45,6 +45,10 @@ export async function updateUserProfile(profile: {
   });
 }
 
+// In-flight lock to prevent concurrent GET-PATCH races when
+// PreferencesProvider calls updateUserCustomData in rapid succession.
+let customDataUpdateLock: Promise<void> | null = null;
+
 /**
  * Updates the user's custom data Preferences.
  *
@@ -57,9 +61,9 @@ export async function updateUserProfile(profile: {
  * keys set by other apps, Logto Console, or other flows. We must GET first, merge
  * the Preferences delta into the full customData, then PATCH the merged result.
  *
- * There is a narrow race window between GET and PATCH; for user preference fields
- * (theme, lang, org) simultaneous conflicting writes are extremely rare and the
- * last-write-wins outcome is acceptable.
+ * An in-flight lock serializes concurrent calls so the GET-PATCH cycle completes
+ * atomically, preventing lost-write races when PreferencesProvider fires multiple
+ * persist calls in quick succession.
  */
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<ActionResult> {
   return safeAction(async () => {
@@ -67,31 +71,48 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const safePrefs = pickPreferences(rawPrefs);
     if (Object.keys(safePrefs).length === 0) return;
 
-    // GET the full account to read current customData before merging.
-    // Required because Logto's PATCH completely replaces customData (no shallow-merge).
-    const existing = await makeRequest('/api/my-account', { method: 'GET' });
-    await throwOnApiError(existing, 'FETCH_FAILED', 'Get my account for customData merge');
-    const existingData = await existing.json() as { customData?: Record<string, unknown> };
-    const existingCustomData = existingData?.customData ?? {};
+    // Serialize updates: wait for any in-flight update to complete before starting
+    if (customDataUpdateLock) {
+      await customDataUpdateLock.catch(() => {}); // absorb failures
+    }
 
-    const merged = {
-      ...existingCustomData,
-      Preferences: {
-        ...(existingCustomData.Preferences as Record<string, unknown> ?? {}),
-        ...safePrefs,
-      },
-    };
-
-    const res = await makeRequest('/api/my-account', {
-      method: 'PATCH',
-      body: { customData: merged },
+    // Create a new lock
+    let releaseLock: () => void;
+    customDataUpdateLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
     });
-    await throwOnApiError(res, 'UPDATE_FAILED', 'Update custom data');
+
+    try {
+      // GET the full account to read current customData before merging.
+      // Required because Logto's PATCH completely replaces customData (no shallow-merge).
+      const existing = await makeRequest('/api/my-account', { method: 'GET' });
+      await throwOnApiError(existing, 'FETCH_FAILED', 'Get my account for customData merge');
+      const existingData = await existing.json() as { customData?: Record<string, unknown> };
+      const existingCustomData = existingData?.customData ?? {};
+
+      const merged = {
+        ...existingCustomData,
+        Preferences: {
+          ...(existingCustomData.Preferences as Record<string, unknown> ?? {}),
+          ...safePrefs,
+        },
+      };
+
+      const res = await makeRequest('/api/my-account', {
+        method: 'PATCH',
+        body: { customData: merged },
+      });
+      await throwOnApiError(res, 'UPDATE_FAILED', 'Update custom data');
+    } finally {
+      customDataUpdateLock = null;
+      releaseLock!();
+    }
   });
 }
 
 export async function updateAvatarUrl(avatarUrl: string): Promise<ActionResult> {
   return safeAction(async () => {
+    if (avatarUrl) assertHttpUrl(avatarUrl, 'avatar');
     await patchMyAccount({ avatar: avatarUrl || null }, 'Avatar update failed');
   });
 }
