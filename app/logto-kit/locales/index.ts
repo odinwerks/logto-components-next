@@ -171,6 +171,12 @@ export interface KitTranslations {
     roleIdLabel: string;
     rolesError: string;
     loading: string;
+    personalPermissions: string;
+    personalPermissionsDesc: string;
+    noPersonalPermissions: string;
+    loadingPermissions: string;
+    permissionsError: string;
+    resourceLabel: string;
   };
   
   // Verification

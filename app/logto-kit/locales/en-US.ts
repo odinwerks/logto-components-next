@@ -157,6 +157,12 @@ export const enUS: Translations = {
     roleIdLabel: 'Role ID',
     rolesError: 'Failed to load roles.',
     loading: 'Loading...',
+    personalPermissions: 'PERSONAL PERMISSIONS',
+    personalPermissionsDesc: 'Permissions from your global roles. These apply across the tenant, outside organizations.',
+    noPersonalPermissions: 'No permissions assigned.',
+    loadingPermissions: 'Loading permissions...',
+    permissionsError: 'Failed to load permissions.',
+    resourceLabel: 'Resource',
   },
   
   // Verification

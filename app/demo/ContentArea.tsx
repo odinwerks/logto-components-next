@@ -20,6 +20,7 @@ const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType 
   'errors': () => import('./docs/errors'),
   'guards': () => import('./docs/guards'),
   'logging': () => import('./docs/logging'),
+  'primitives': () => import('./docs/primitives'),
 };
 
 interface ContentAreaProps {

@@ -9,6 +9,15 @@ vi.mock('../../logto-kit/logic/actions/tokens', () => ({
 vi.mock('@logto/next/server-actions', () => ({
   getAccessToken: vi.fn().mockResolvedValue('mock-token'),
   getOrganizationToken: vi.fn().mockResolvedValue('mock-org-token'),
+  getLogtoContext: vi.fn().mockResolvedValue({
+    isAuthenticated: true,
+    claims: { sub: 'mock-user-id' },
+    userInfo: {
+      sub: 'mock-user-id',
+      organizations: [],
+      custom_data: { Preferences: { asOrg: null } },
+    },
+  }),
 }));
 
 vi.mock('../../logto-kit/logic/utils', () => ({
@@ -29,10 +38,6 @@ vi.mock('../../logto-kit/logic/actions', () => ({
 }));
 
 vi.mock('../../logto-kit/custom-actions/validation', () => ({
-  fetchUserRbacData: vi.fn().mockResolvedValue({
-    organizations: [],
-    asOrg: null,
-  }),
   validateOrgMembership: vi.fn().mockResolvedValue({ ok: true }),
 }));
 

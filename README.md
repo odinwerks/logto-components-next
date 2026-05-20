@@ -40,7 +40,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   ├── ContentArea.tsx           # Main content area with doc registry
 │   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
 │   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 14-tab navigation definitions
+│   │   ├── nav-data.tsx             # 15-tab navigation definitions
 │   │   ├── types.ts                # Type definitions
 │   │   ├── docs/                   # Per-tab documentation files (TSX)
 │   │   │   ├── getting-started.tsx
@@ -442,7 +442,7 @@ The project includes a demo app at `/demo` that acts as a self-documenting showc
 
 ### What It Is
 
-The demo app (`app/demo/`) is a standalone application with 14 sidebar tabs - one for each major logto-kit component or concept:
+The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - one for each major logto-kit component or concept:
 
 | Tab | Type | Description |
 |-----|------|-------------|
@@ -460,6 +460,7 @@ The demo app (`app/demo/`) is a standalone application with 14 sidebar tabs - on
 | Error Handling | reference | Error sanitization: 21 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
 | Input Guards | reference | Input validation at trust boundaries: 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv |
 | Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
+| Primitives | reference | Reusable building blocks: useRefreshable() hook, <RefreshButton />, direct org token fetch, PermissionsBlock pattern |
 
 Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
@@ -473,7 +474,7 @@ The demo app consists of:
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area - lazy-loads doc files from the registry |
 | `Particles.tsx` | Canvas-based particle animation |
-| `nav-data.tsx` | 14-tab navigation definitions with section hints |
+| `nav-data.tsx` | 15-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
@@ -487,6 +488,7 @@ The demo app consists of:
 | `docs/errors.tsx` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
 | `docs/guards.tsx` | Input guards - 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
 | `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
+| `docs/primitives.tsx` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
 | `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
 | `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `utils/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
@@ -509,7 +511,7 @@ To add documentation for a new tab:
 ### Using the Demo App
 
 Visit `/demo` to see the demo app in action. It displays:
-- A sidebar with 14 navigation tabs covering every major logto-kit feature
+- A sidebar with 15 navigation tabs covering every major logto-kit feature
 - A UserCard showing the logged-in user with name and avatar
 - A theme toggle button
 - A particle background effect
@@ -1460,6 +1462,41 @@ The tab system is pretty simple - look at existing tabs for examples.
 2. Follow the pattern in existing locale files
 3. Register in `locales/index.ts` and add the locale code to the `LocaleCode` type
 4. Add to `LANG_AVAILABLE` in `.env`
+
+### Refreshable Data Blocks (Primitives)
+
+Three reusable building blocks for data that needs live-refreshing without full page reloads or re-authentication:
+
+| Primitive | File | Purpose |
+|-----------|------|---------|
+| `useRefreshable()` hook | `hooks/use-refreshable.ts` | 0→35ms→1 toggle -- unmounts children, waits one render cycle, remounts fresh |
+| `<RefreshButton />` | `components/dashboard/shared/RefreshButton.tsx` | Shared button that lives inside the guarded block |
+| Direct token fetch | `logic/actions/organizations.ts` | Calls Logto's `/oidc/token` directly, bypassing the SDK's cookie-persisted `accessTokenMap` cache |
+
+**Why this pattern exists:**
+
+`getOrganizationToken()` returns stale cached tokens. Direct POST to `/oidc/token` bypasses the cache without cookie writes.
+
+**Usage pattern:**
+```tsx
+function MyDataBlock({ orgId }) {
+  const { visible, triggerRefresh } = useRefreshable();
+  const [data, setData] = useState([]);
+  
+  useEffect(() => { fetchMyData(orgId).then(setData); }, [orgId]);
+  
+  if (!visible) return null; // 0 = unloaded
+  
+  return (
+    <div>
+      <RefreshButton onClick={triggerRefresh} loading={loading} ... />
+      {data.map(d => <div key={d.id}>{d.label}</div>)}
+    </div>
+  );
+}
+```
+
+Documented in the Primitives tab in `app/demo/docs/primitives.tsx`.
 
 ## Cookie & Session Management
 

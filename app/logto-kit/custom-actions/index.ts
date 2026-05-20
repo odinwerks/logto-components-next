@@ -30,6 +30,17 @@ async function loadActions(): Promise<ActionRegistry> {
     'calc-scientific': scientific,
   };
 
+  // Validate that every registered action has a valid requiredPerm
+  for (const [name, config] of Object.entries(_actionsCache)) {
+    const { requiredPerm } = config;
+    const isValidString = typeof requiredPerm === 'string' && requiredPerm.length > 0;
+    const isValidArray = Array.isArray(requiredPerm) && requiredPerm.length > 0 && requiredPerm.every((p) => typeof p === 'string' && p.length > 0);
+    if (!isValidString && !isValidArray) {
+      console.warn(`[loadActions] Action "${name}" has invalid requiredPerm: ${JSON.stringify(requiredPerm)}. Removing from registry.`);
+      delete _actionsCache[name];
+    }
+  }
+
   return _actionsCache;
 }
 

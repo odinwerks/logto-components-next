@@ -16,6 +16,13 @@ interface RbacValidationResult {
   detail?: string;
 }
 
+/**
+ * @deprecated Use getLogtoContext(getLogtoConfig(), { fetchUserInfo: true }) instead.
+ * This function performed a redundant fetch of the OIDC /me endpoint and also fetched
+ * organization permissions internally, leading to double-fetching when used in the
+ * Protected Actions API route. The route now uses getLogtoContext for user info and
+ * getOrganizationUserPermissions directly for permissions.
+ */
 export async function fetchUserRbacData(token: string, overrideOrgId?: string | null): Promise<RbacUserData> {
   const cleanEndpoint = await getCleanEndpoint();
   const res = await fetch(`${cleanEndpoint}/oidc/me`, {

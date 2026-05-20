@@ -140,9 +140,13 @@ export function PreferencesProvider({
     return initialOrgId ?? null;
   });
 
-  // Ref for theme-changed listener (avoids re-registering on every theme change)
+  // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);
+  const langRef = useRef(lang);
+  const asOrgRef = useRef(asOrg);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(() => { langRef.current = lang; }, [lang]);
+  useEffect(() => { asOrgRef.current = asOrg; }, [asOrg]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -184,27 +188,28 @@ export function PreferencesProvider({
 
   const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
     if (!onUpdateCustomData) return;
-    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang, asOrg } });
+    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: langRef.current, asOrg: asOrgRef.current } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist theme:', r.error);
     }
-  }, [onUpdateCustomData, lang, asOrg]);
+  }, [onUpdateCustomData]);
 
   const persistLangToApi = useCallback(async (newLang: string) => {
     if (!onUpdateCustomData) return;
-    const r = await onUpdateCustomData({ Preferences: { theme, lang: newLang, asOrg } });
+    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist lang:', r.error);
     }
-  }, [onUpdateCustomData, theme, asOrg]);
+  }, [onUpdateCustomData]);
 
   const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
-    if (!onUpdateCustomData) return;
-    const r = await onUpdateCustomData({ Preferences: { theme, lang, asOrg: newOrgId } });
+    if (!onUpdateCustomData) return true;
+    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: langRef.current, asOrg: newOrgId } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist org:', r.error);
     }
-  }, [onUpdateCustomData, theme, lang]);
+    return r.ok;
+  }, [onUpdateCustomData]);
 
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
     setStoredTheme(newTheme);
@@ -227,9 +232,15 @@ export function PreferencesProvider({
   }, [persistLangToApi, onLangChange]);
 
   const setAsOrg = useCallback((newOrgId: string | null) => {
+    const previousOrg = asOrgRef.current;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    persistOrgToApi(newOrgId);
+    persistOrgToApi(newOrgId).then((ok) => {
+      if (!ok) {
+        console.warn('[PreferencesProvider] Org persistence failed, reverting sessionStorage');
+        setStoredOrg(previousOrg);
+      }
+    });
     window.dispatchEvent(new Event('preferences-changed'));
   }, [persistOrgToApi]);
 

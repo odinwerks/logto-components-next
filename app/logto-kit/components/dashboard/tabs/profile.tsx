@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { UserData, UserRole } from '../../../logic/types';
+import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Pencil, X, Mail, Phone, Shield } from 'lucide-react';
@@ -13,9 +13,12 @@ import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
 import { ContactRow, Card, HR, SL } from '../shared/ContactRow';
 import { RoleCard } from '../shared/RoleCard';
+import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
+import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles } from '../../../actions/load-personal-roles';
+import { loadPersonalPermissions } from '../../../actions/load-personal-permissions';
 
 const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
   <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
@@ -41,6 +44,107 @@ const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
     </path>
   </svg>
 );
+
+const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
+
+// ─── PersonalPermissionsBlock — refreshable wrapper for personal (global RBAC)
+//     permissions. Uses the same pattern as OrganizationsTab's PermissionsBlock. ───
+interface PersonalPermissionsBlockProps {
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  t: Translations;
+}
+
+const PersonalPermissionsBlock = ({ mode, colors, t }: PersonalPermissionsBlockProps) => {
+  const c = colors;
+  const { visible, triggerRefresh } = useRefreshable();
+  const [permissions, setPermissions] = useState<PersonalPermission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPermissions([]);
+    setLoading(true);
+    setError(false);
+
+    loadPersonalPermissions()
+      .then(r => {
+        if (cancelled) return;
+        if (r.ok) setPermissions(r.data);
+        else { console.error('[PersonalPermissionsBlock] Failed:', r.error); setError(true); }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('[PersonalPermissionsBlock] Error:', err);
+        setError(true);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <SL colors={colors}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {t.profile.personalPermissions}
+          <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} t={t} />
+        </span>
+      </SL>
+      <Card mode={mode} colors={colors}>
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, marginBottom: '0.75rem' }}>
+            {t.profile.personalPermissionsDesc}
+          </p>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
+              <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loadingPermissions}
+            </div>
+          ) : error ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.accentRed }}>
+              <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
+              <p>{t.profile.permissionsError}</p>
+            </div>
+          ) : permissions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
+              <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
+              <p>{t.profile.noPersonalPermissions}</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {permissions.map((perm, index) => (
+                <div
+                  key={`${perm.resourceIndicator}:${perm.scope}-${index}`}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    background: c.bgPrimary,
+                    border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary, fontWeight: 600 }}>
+                    {perm.scope}
+                  </span>
+                  <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
+                    {t.profile.resourceLabel}: {perm.resourceName}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </>
+  );
+};
 
 interface ProfileTabProps {
   userData:          UserData;
@@ -108,6 +212,7 @@ export function ProfileTab({
   useEffect(() => {
     let cancelled = false;
     if (!userData.id) return;
+    setUserRoles([]);
     setRolesLoading(true);
     setRolesError(false);
     loadPersonalRoles()
@@ -694,6 +799,9 @@ export function ProfileTab({
           )}
         </div>
       </Card>
+
+      <PersonalPermissionsBlock mode={mode} colors={colors} t={t} />
+
     </div>
   );
 }

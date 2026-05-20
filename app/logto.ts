@@ -85,8 +85,10 @@ export const logtoConfig = (() => {
 
   const nodeEnv = process.env.NODE_ENV || 'development';
 
-  // NOTE: resources is intentionally empty. Account API tokens use getAccessToken(config, '').
-  const resources: string[] = [];
+  // NOTE: Account API tokens use getAccessToken(config, '').
+  // urn:logto:resource:organizations helps the auth server track org scopes
+  // so refreshed org tokens include the user's current organization permissions.
+  const resources: string[] = ['urn:logto:resource:organizations'];
 
   const allScopes = parseScopes(scopeString);
 

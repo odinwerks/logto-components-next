@@ -95,7 +95,7 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
 function handleAuthFetchError(err: unknown, label: string): never {
   error(`${label}:`, err);
   const msg = err instanceof Error ? err.message : String(err);
-  // Stale cookies → redirect to sign-in for fresh authentication.
+  // Any auth error → redirect to sign-in for fresh authentication.
   if (msg.includes('Cookies can only be modified')) redirect('/api/auth/sign-in');
   redirect('/api/auth/sign-in');
 }
@@ -111,12 +111,12 @@ function handleAuthFetchError(err: unknown, label: string): never {
  */
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
-    const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
+    const result = await fetchWithRetry(async (): Promise<DashboardResult> => {
       // Removed redundant getTokenForServerAction() — getLogtoContext handles refresh internally
       const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {
-        return { success: false, needsAuth: true } as any;
+        return { success: false, needsAuth: true };
       }
 
       if (!userInfo) {

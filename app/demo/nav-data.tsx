@@ -92,6 +92,13 @@ const RocketIcon = () => (
   </svg>
 );
 
+const PrimitivesIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <path d="M8 1L15 4.5v7L8 15 1 11.5v-7L8 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    <path d="M8 8L1 4.5M8 8l7-3.5M8 8v7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export const NAV_ITEMS: NavItem[] = [
   {
     id: 'getting-started',
@@ -219,6 +226,15 @@ export const NAV_ITEMS: NavItem[] = [
     desc: 'Configurable logging with LOG_BACKEND routing. Two APIs: unstructured (log/warn/error/debug) and structured (logEvent). Pino integration for production observability.',
     sections: ['Overview', 'Unstructured API', 'Structured API', 'Integration'],
   },
+  {
+    id: 'primitives',
+    label: 'Primitives',
+    code: false,
+    type: 'reference',
+    icon: <PrimitivesIcon />,
+    desc: 'Reusable building blocks: useRefreshable() hook (unmount/remount pattern), <RefreshButton />, direct org token fetch, and the PermissionsBlock pattern for live-refreshing data.',
+    sections: ['useRefreshable()', '<RefreshButton />', 'Direct token fetch', 'PermissionsBlock pattern'],
+  },
 ];
 
 export const SECTION_HINTS: SectionHint = {
@@ -248,4 +264,8 @@ export const SECTION_HINTS: SectionHint = {
   'Replace the demo': 'Swap DemoApp with your component...',
   'Tab overview': 'All tabs, hooks, actions summary...',
   'Security': 'TOTP, backup codes, password, account deletion...',
+  'useRefreshable()': '0/1 toggle hook, triggerRefresh API, 35ms gap mechanism...',
+  '<RefreshButton />': 'Shared button component, props, design tokens, placement rules...',
+  'Direct token fetch': 'Bypassing SDK accessTokenMap cache, direct /oidc/token call...',
+  'PermissionsBlock pattern': 'Full annotated example combining hook + button + fetch...',
 };

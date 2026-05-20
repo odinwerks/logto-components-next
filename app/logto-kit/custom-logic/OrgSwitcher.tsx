@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, startTransition } from 'react';
 import { setActiveOrg } from './actions/set-active-org';
 import { useOrgMode } from '../components/handlers/preferences';
 import type { OrganizationData } from './types';
@@ -50,9 +50,11 @@ export function OrgSwitcher({ organizations, currentOrgId, mode, colors, t }: Or
         if (!isValid) return;
       }
       
-      setAsOrg(orgIdToSet);
-      setSelected(newOrgId);
-      router.refresh();
+      startTransition(() => {
+        setAsOrg(orgIdToSet);
+        setSelected(newOrgId);
+        router.refresh();
+      });
     } finally {
       setIsLoading(false);
     }

@@ -57,6 +57,31 @@ export interface UserRole {
   isDefault?: boolean;
 }
 
+export interface RoleScopeResource {
+  id: string;
+  name: string;
+  indicator: string;
+  isDefault: boolean;
+  tenantId: string;
+  accessTokenTtl: number;
+}
+
+export interface RoleScope {
+  id: string;
+  name: string;
+  description: string | null;
+  resourceId: string;
+  tenantId: string;
+  createdAt: number;
+  resource: RoleScopeResource;
+}
+
+export interface PersonalPermission {
+  scope: string;
+  resourceName: string;
+  resourceIndicator: string;
+}
+
 // ============================================================================
 // MFA Types
 // ============================================================================
@@ -249,4 +274,4 @@ export const isDashboardAuthError = (result: DashboardResult): result is Dashboa
   !result.success && 'needsAuth' in result;
 
 export const isDashboardFetchError = (result: DashboardResult): result is DashboardFetchError =>
-  !result.success && ('error' in result || 'needsAuth' in result);
+  !result.success && 'error' in result;

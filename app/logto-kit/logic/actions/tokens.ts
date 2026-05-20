@@ -15,8 +15,8 @@ export async function getTokenForServerAction(): Promise<string> {
 }
 
 /**
- * Gets a fresh access token for server actions.
- * @returns The access token string.
+ * Convenience alias for getTokenForServerAction.
+ * Note: may return a cached token from the SDK — name preserved for compatibility.
  */
 export async function getFreshAccessToken(): Promise<string> {
   return await getTokenForServerAction();

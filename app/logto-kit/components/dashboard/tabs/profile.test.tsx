@@ -19,6 +19,7 @@ vi.mock('../../../logic/actions', () => ({
   updateAvatarUrl: async () => ({ ok: true } as ActionResult),
   uploadAvatar: async () => ({ ok: true, data: { url: null } }),
   getUserRoles: async () => ({ ok: true, data: [] }),
+  getUserScopes: async () => ({ ok: true, data: [] }),
 }));
 
 // Mock use-avatar-upload

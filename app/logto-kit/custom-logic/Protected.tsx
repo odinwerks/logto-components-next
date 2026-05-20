@@ -97,7 +97,6 @@ export function Protected({
   const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
   const [isLoadingPerms, setIsLoadingPerms] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const loadingRef = useRef<Promise<void> | null>(null);
 
   // Single combined effect for permission loading
   useEffect(() => {
@@ -124,7 +123,7 @@ export function Protected({
     setIsLoadingPerms(true);
     setLoadError(false);
 
-    loadingRef.current = loadOrganizationPermissions(targetOrgId)
+    loadOrganizationPermissions(targetOrgId)
       .then((result) => {
         if (!cancelled) {
           if (!result.ok) { console.error(result.error); setLoadedPerms([]); }
@@ -142,7 +141,6 @@ export function Protected({
 
     return () => {
       cancelled = true;
-      loadingRef.current = null;
     };
   }, [userData, orgId, orgName, asOrg]);
 

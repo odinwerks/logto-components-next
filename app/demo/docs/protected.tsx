@@ -134,15 +134,10 @@ function ProtectedApiSection() {
         Server-side endpoint for permission-gated actions. Validates token via OIDC introspection,
         checks org membership, verifies permissions, then runs the handler.
       </p>
-      <CodeBlock title="POST /api/protected" code={`const freshToken = await getFreshAccessToken();
-const { userData } = useLogto();
-
-const response = await fetch('/api/protected', {
+      <CodeBlock title="POST /api/protected" code={`const response = await fetch('/api/protected', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: freshToken,      // fresh access token
-    id: userData.id,        // must match token.sub
     action: 'action-name',  // registered action name
     payload: { /* optional */ }
   })
@@ -156,16 +151,6 @@ const response = await fetch('/api/protected', {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style={styles.tdPropStyle}>token</td>
-            <td style={styles.tdStyle}>Yes</td>
-            <td style={styles.tdStyle}>Valid JWT access token</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPropStyle}>id</td>
-            <td style={styles.tdStyle}>Yes</td>
-            <td style={styles.tdStyle}>User ID (validated against token.sub)</td>
-          </tr>
           <tr>
             <td style={styles.tdPropStyle}>action</td>
             <td style={styles.tdStyle}>Yes</td>
@@ -201,7 +186,7 @@ function ApiResponseSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>MISSING_FIELDS</td>
-            <td style={styles.tdStyle}>token, id, or action missing</td>
+            <td style={styles.tdStyle}>action missing</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>TOKEN_INVALID</td>
@@ -400,8 +385,6 @@ function LiveRbacDemoSection() {
       <CodeBlock title="curl" code={`curl -X POST localhost:3000/api/protected \\
   -H "Content-Type: application/json" \\
   -d '{
-    "token": "YOUR_ACCESS_TOKEN",
-    "id": "YOUR_USER_ID",
     "action": "my-action",
     "payload": { "foo": "bar" }
   }'`} />

@@ -2,10 +2,14 @@
 
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto';
+import { assertSafeLogtoId } from '../../logic/guards';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
   // Always null is valid — user wants to be themselves (no org context).
   if (orgId === null) return true;
+  if (!orgId) return false;
+
+  assertSafeLogtoId(orgId, 'orgId');
 
   // Use fetchUserInfo: true to get the live org list from the OIDC userinfo
   // endpoint, NOT the cached token claims. This matches how fetchDashboardData
@@ -17,6 +21,9 @@ export async function setActiveOrg(orgId: string | null): Promise<boolean> {
 
   if (!isAuthenticated) return false;
 
-  const userOrgs = (userInfo?.organizations as string[] | undefined) ?? [];
+  const rawOrgs = userInfo?.organizations;
+  const userOrgs: string[] = Array.isArray(rawOrgs)
+    ? rawOrgs.filter((o): o is string => typeof o === 'string')
+    : [];
   return userOrgs.includes(orgId);
 }

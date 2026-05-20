@@ -18,6 +18,8 @@ export type {
   TotpVerificationPayload,
   WebAuthnVerificationPayload,
   BackupCodeVerificationPayload,
+  PersonalPermission,
+  RoleScope,
 } from './types';
 
 export {
@@ -65,6 +67,7 @@ export {
   revokeUserGrant,
   getOrganizationUserPermissions,
   getUserRoles,
+  getUserScopes,
   introspectTokenWithOrg,
 } from './actions/index';
 

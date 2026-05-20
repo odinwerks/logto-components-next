@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getLogtoContext } from '@logto/next/server-actions';
 import { getAction } from '../../logto-kit/custom-actions';
-import { fetchUserRbacData, validateOrgMembership } from '../../logto-kit/custom-actions/validation';
+import { validateOrgMembership } from '../../logto-kit/custom-actions/validation';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
+import { getLogtoConfig } from '../../logto';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json(
@@ -66,9 +68,15 @@ export async function POST(request: NextRequest) {
       return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
     }
 
-    let userData;
+    // Fetch user info via Logto context (includes live org membership and preferences)
+    let userOrgs: string[] = [];
+    let asOrg: string | null = null;
     try {
-      userData = await fetchUserRbacData(token);
+      const { userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
+      userOrgs = (userInfo?.organizations as string[]) || [];
+      const customData = (userInfo?.custom_data as Record<string, unknown>) || {};
+      const prefs = (customData?.Preferences as { asOrg?: string | null }) || {};
+      asOrg = prefs.asOrg ?? null;
     } catch (error) {
       debugError('[Protected API] User data fetch error:', error instanceof Error ? error.message : String(error));
       return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
@@ -80,18 +88,18 @@ export async function POST(request: NextRequest) {
       return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
     }
 
-    const orgValidation = await validateOrgMembership(userData.organizations, userData.asOrg);
+    const orgValidation = await validateOrgMembership(userOrgs, asOrg);
     if (!orgValidation.ok) {
       return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
     }
 
     // Defensive guard: ensure asOrg is a non-empty string even if validation passes
-    if (!userData.asOrg) {
+    if (!asOrg) {
       return apiError('PERMISSION_DENIED', 'Active organization is required', 403);
     }
 
     const { getOrganizationUserPermissions } = await import('../../logto-kit/logic/actions');
-    const permResult = await getOrganizationUserPermissions(userData.asOrg);
+    const permResult = await getOrganizationUserPermissions(asOrg);
     const userPermissions = permResult.ok ? permResult.data : [];
 
     const requiredPerms = Array.isArray(actionConfig.requiredPerm)
@@ -104,13 +112,17 @@ export async function POST(request: NextRequest) {
       return apiError('PERMISSION_DENIED', 'Insufficient permissions for this action', 403);
     }
 
-    const result = await actionConfig.handler({
-      userId: id,
-      orgId: userData.asOrg,
-      payload: payload || {},
-    });
+    try {
+      const result = await actionConfig.handler({
+        userId: id,
+        orgId: asOrg,
+        payload: payload ?? {},
+      });
 
-    return NextResponse.json({ ok: true, data: result });
+      return NextResponse.json({ ok: true, data: result });
+    } catch (handlerError) {
+      return apiError('VALIDATION_ERROR', handlerError instanceof Error ? handlerError.message : 'Invalid input', 400);
+    }
   } catch (error) {
     debugError('[Protected API] Unexpected error:', error instanceof Error ? error.message : String(error));
     return apiError('INTERNAL_ERROR', 'Internal server error', 500);

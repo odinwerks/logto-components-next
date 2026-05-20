@@ -157,6 +157,12 @@ export const kaGE: Translations = {
     roleIdLabel: 'როლის ID',
     rolesError: 'როლების ჩატვირთვა ვერ მოხერხდა.',
     loading: 'იტვირთება...',
+    personalPermissions: 'პერსონალური ნებართვები',
+    personalPermissionsDesc: 'თქვენი გლობალური როლების ნებართვები. მოქმედებს მთელს სისტემაში, ორგანიზაციების მიღმა.',
+    noPersonalPermissions: 'ნებართვები არ არის მინიჭებული.',
+    loadingPermissions: 'ნებართვები იტვირთება...',
+    permissionsError: 'ნებართვების ჩატვირთვა ვერ მოხერხდა.',
+    resourceLabel: 'რესურსი',
   },
   
   // Verification
