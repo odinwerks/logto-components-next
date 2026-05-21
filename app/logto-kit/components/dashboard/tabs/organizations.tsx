@@ -83,9 +83,10 @@ interface PermissionsBlockProps {
   colors: ThemeColors;
   t: Translations;
   userData: UserData;
+  scrollWell?: boolean;
 }
 
-const PermissionsBlock = ({ activeOrgId, colors, t, userData }: PermissionsBlockProps) => {
+const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: PermissionsBlockProps) => {
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
@@ -159,11 +160,11 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData }: PermissionsBlock
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
-        <RefreshButton onClick={triggerRefresh} loading={permissionsLoading} colors={colors} t={t} />
+        <RefreshButton onClick={triggerRefresh} loading={permissionsLoading} colors={colors} />
       </div>
-      <div style={wellStyle}>
+      <div style={{ ...wellStyle, ...(scrollWell ? { flex: 1, minHeight: 0, overflowY: 'auto' as const, marginBottom: 0 } : {}) }}>
         {organizationPermissions.length === 0 ? (
           <div style={emptyStateStyle}>
             {permissionsLoading
@@ -286,7 +287,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
   };
 
   return (
-    <div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Organizations */}
       <p style={sectionLabel}>{t.organizations.orgs}</p>
       <div style={wellStyle}>
@@ -338,57 +339,66 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
         )}
       </div>
 
-      {/* Roles */}
-      <p style={sectionLabel}>{t.organizations.orgRoles}</p>
-      <div style={wellStyle}>
-        {!activeOrgId && (
-          <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-            {t.organizations.selectOrgForRoles}
-          </p>
-        )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
+        {/* Roles */}
+        <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <p style={{ ...sectionLabel, marginBottom: 0 }}>{t.organizations.orgRoles}</p>
+            <RefreshButton onClick={() => router.refresh()} loading={false} colors={colors} />
+          </div>
+          <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
+            {!activeOrgId && (
+              <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
+                {t.organizations.selectOrgForRoles}
+              </p>
+            )}
 
-        {organizationRoles.length === 0 ? (
-          <div style={emptyStateStyle}>
-            {activeOrgId
-              ? t.organizations.noRoles
-              : t.organizations.selectOrgForRoles
-            }
+            {organizationRoles.length === 0 ? (
+              <div style={emptyStateStyle}>
+                {activeOrgId
+                  ? t.organizations.noRoles
+                  : t.organizations.selectOrgForRoles
+                }
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {organizationRoles.map((role, index) => {
+                  const org = organizations.find(o => o.id === role.organizationId);
+                  return (
+                    <RoleCard
+                      key={`${role.id}-${index}`}
+                      name={role.name}
+                      subtitle={org?.name || role.organizationId}
+                      subtitleLabel={t.organizations.organizationLabel}
+                      id={role.id}
+                      idLabel={t.organizations.roleIdLabel}
+                      colors={colors}
+                      t={t}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {organizationRoles.map((role, index) => {
-              const org = organizations.find(o => o.id === role.organizationId);
-              return (
-                <RoleCard
-                  key={`${role.id}-${index}`}
-                  name={role.name}
-                  subtitle={org?.name || role.organizationId}
-                  subtitleLabel={t.organizations.organizationLabel}
-                  id={role.id}
-                  idLabel={t.organizations.roleIdLabel}
-                  colors={colors}
-                  t={t}
-                />
-              );
-            })}
-          </div>
-        )}
+        </div>
+
+        {/* Permissions — refreshable block remounts on refresh */}
+        <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+          {activeOrgId ? (
+            <PermissionsBlock activeOrgId={activeOrgId} colors={colors} t={t} userData={userData} scrollWell />
+          ) : (
+            <>
+              <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
+              <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
+                <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
+                  {t.organizations.selectOrgForPermissions}
+                </p>
+                <div style={emptyStateStyle}>{t.organizations.noActiveOrg}</div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-
-      {/* Permissions — refreshable block remounts on refresh */}
-      {activeOrgId ? (
-        <PermissionsBlock activeOrgId={activeOrgId} colors={colors} t={t} userData={userData} />
-      ) : (
-        <>
-          <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
-          <div style={wellStyle}>
-            <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-              {t.organizations.selectOrgForPermissions}
-            </p>
-            <div style={emptyStateStyle}>{t.organizations.noActiveOrg}</div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

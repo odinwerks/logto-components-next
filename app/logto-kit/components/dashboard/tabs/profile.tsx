@@ -53,9 +53,10 @@ interface PersonalPermissionsBlockProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  cardStyle?: React.CSSProperties;
 }
 
-const PersonalPermissionsBlock = ({ mode, colors, t }: PersonalPermissionsBlockProps) => {
+const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermissionsBlockProps) => {
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
   const [permissions, setPermissions] = useState<PersonalPermission[]>([]);
@@ -89,13 +90,13 @@ const PersonalPermissionsBlock = ({ mode, colors, t }: PersonalPermissionsBlockP
 
   return (
     <>
-      <Card mode={mode} colors={colors}>
-        <div style={{ padding: '1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <Card mode={mode} colors={colors} style={cardStyle}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
               {t.profile.personalPermissionsDesc}
             </p>
-            <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} t={t} />
+            <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} />
           </div>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
@@ -205,6 +206,7 @@ export function ProfileTab({
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState(false);
+  const [rolesRefreshKey, setRolesRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,7 +232,7 @@ export function ProfileTab({
         if (!cancelled) setRolesLoading(false);
       });
     return () => { cancelled = true; };
-  }, [userData.id]);
+  }, [userData.id, rolesRefreshKey]);
 
   const nameChanged = nameType === 'given_family'
     ? (givenName  !== (userData.profile?.givenName  ?? '') ||
@@ -423,7 +425,7 @@ export function ProfileTab({
   const inCropMode = !!cropPreviewUrl;
 
   return (
-    <div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {avatarModalOpen && (
         <Overlay onDismiss={handleCloseModal}>
           <div style={{
@@ -757,45 +759,50 @@ export function ProfileTab({
         />
       </Card>
 
-      <Card mode={mode} colors={colors}>
-        <div style={{ padding: '1rem 1.25rem' }}>
-          <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, marginBottom: '0.75rem' }}>
-            {t.profile.rolesDescription}
-          </p>
-          {rolesLoading ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
-              <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loading}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
+        <Card mode={mode} colors={colors} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
+                {t.profile.rolesDescription}
+              </p>
+              <RefreshButton onClick={() => setRolesRefreshKey(k => k + 1)} loading={rolesLoading} colors={colors} />
             </div>
-          ) : rolesError ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
-              <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
-              <p>{t.profile.rolesError}</p>
-            </div>
-          ) : userRoles.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
-              <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
-              <p>{t.profile.noRoles}</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {userRoles.map((role) => (
-                <RoleCard
-                  key={role.id}
-                  name={role.name}
-                  subtitle={role.description}
-                  subtitleLabel={t.profile.roleDescriptionLabel}
-                  id={role.id}
-                  idLabel={t.profile.roleIdLabel}
-                  colors={colors}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </Card>
+            {rolesLoading ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+                <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loading}
+              </div>
+            ) : rolesError ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
+                <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
+                <p>{t.profile.rolesError}</p>
+              </div>
+            ) : userRoles.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+                <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
+                <p>{t.profile.noRoles}</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {userRoles.map((role) => (
+                  <RoleCard
+                    key={role.id}
+                    name={role.name}
+                    subtitle={role.description}
+                    subtitleLabel={t.profile.roleDescriptionLabel}
+                    id={role.id}
+                    idLabel={t.profile.roleIdLabel}
+                    colors={colors}
+                    t={t}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
 
-      <PersonalPermissionsBlock mode={mode} colors={colors} t={t} />
+        <PersonalPermissionsBlock mode={mode} colors={colors} t={t} cardStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 0 }} />
+      </div>
 
     </div>
   );

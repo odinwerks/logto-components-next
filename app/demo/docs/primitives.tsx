@@ -119,17 +119,12 @@ function RefreshButtonSection() {
           <tr>
             <td style={styles.tdPropStyle}>loading</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>boolean</code></td>
-            <td style={styles.tdStyle}>Shows "..." while data is loading, disables click</td>
+            <td style={styles.tdStyle}>Lowers opacity while data is loading, disables click</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>colors</td>
             <td style={styles.tdStyle}><code style={styles.codeSmStyle}>ThemeColors</code></td>
             <td style={styles.tdStyle}>Theme color tokens for border, text color</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPropStyle}>t</td>
-            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>Translations</code></td>
-            <td style={styles.tdStyle}>i18n object, uses <code style={styles.codeSmStyle}>t.dashboard.refresh</code></td>
           </tr>
         </tbody>
       </table>
@@ -221,7 +216,6 @@ function PermissionsBlockSection() {
           onClick={triggerRefresh}
           loading={loading}
           colors={colors}
-          t={t}
         />
       </div>
       <div>

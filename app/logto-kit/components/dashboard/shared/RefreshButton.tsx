@@ -1,18 +1,15 @@
 'use client';
 
 import type { ThemeColors } from '../../../themes';
-import type { Translations } from '../../../locales';
+import { RefreshCw } from 'lucide-react';
 
 interface RefreshButtonProps {
   onClick: () => void;
   loading: boolean;
   colors: ThemeColors;
-  t: Translations;
 }
 
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
-
-export function RefreshButton({ onClick, loading, colors: c, t }: RefreshButtonProps) {
+export function RefreshButton({ onClick, loading, colors: c }: RefreshButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -23,14 +20,15 @@ export function RefreshButton({ onClick, loading, colors: c, t }: RefreshButtonP
         borderRadius: '0.25rem',
         color: c.textTertiary,
         cursor: loading ? 'wait' : 'pointer',
-        fontSize: '0.5625rem',
-        fontFamily: FONT_MONO,
-        padding: '0.125rem 0.5rem',
+        padding: '0.25rem',
         opacity: loading ? 0.5 : 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        lineHeight: 0,
       }}
-      title={t.dashboard.refresh}
     >
-      {loading ? '...' : t.dashboard.refresh}
+      <RefreshCw size={12} strokeWidth={1.5} />
     </button>
   );
 }
