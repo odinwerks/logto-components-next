@@ -478,15 +478,9 @@ export function SecurityTab({
         />
       )}
 
-      {/* ── Page description ── */}
-      <div style={{ marginBottom: '1.625rem' }}>
-        <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65 }}>
-          {t.security.description}
-        </p>
-      </div>
+
 
       {/* ── Password ── */}
-      <SL colors={colors}>{t.security.password || 'Password'}</SL>
       <Card mode={mode} colors={colors}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -505,7 +499,6 @@ export function SecurityTab({
       </Card>
 
       {/* ── Two-factor authentication ── */}
-      <SL colors={colors}>{t.security.twoFactorAuth}</SL>
       <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
@@ -566,7 +559,6 @@ export function SecurityTab({
       </Card>
 
       {/* ── Backup codes ── */}
-      <SL colors={colors}>{t.mfa.backupCodesTitle}</SL>
       <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
@@ -605,7 +597,6 @@ export function SecurityTab({
       </Card>
 
       {/* ── Passkeys ── */}
-      <SL colors={colors}>{t.mfa.passkeys}</SL>
       <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           {/* Header row */}

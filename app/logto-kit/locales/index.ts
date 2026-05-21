@@ -51,8 +51,6 @@ export interface KitTranslations {
   // Security tab
   security: {
     title: string;
-    description: string;
-    contactAndCredentials: string;
     email: string;
     phone: string;
     password: string;
@@ -86,7 +84,6 @@ export interface KitTranslations {
     confirmDeleteAccount: string;
     accountDeleted: string;
     deletingAccount: string;    passwordChangeFailed: string;
-    twoFactorAuth: string;
     reconfigure: string;
   };
 
@@ -163,15 +160,12 @@ export interface KitTranslations {
     usernamePlaceholder: string;
     emailPlaceholder: string;
     phonePlaceholder: string;
-    contactAndCredentials: string;
-    roles: string;
     noRoles: string;
     rolesDescription: string;
     roleDescriptionLabel: string;
     roleIdLabel: string;
     rolesError: string;
     loading: string;
-    personalPermissions: string;
     personalPermissionsDesc: string;
     noPersonalPermissions: string;
     loadingPermissions: string;
@@ -254,8 +248,6 @@ export interface KitTranslations {
     orgRoles: string;
     noOrganizations: string;
     noRoles: string;
-    description: string;
-    rolesDescription: string;
     idLabel: string;
     organizationLabel: string;
     roleIdLabel: string;
@@ -265,7 +257,6 @@ export interface KitTranslations {
     beYourself: string;
     orgPermissions: string;
     selectOrgForRoles: string;
-    orgPermissionsDesc: string;
     selectOrgForPermissions: string;
     loadingPermissions: string;
     noActiveOrg: string;

@@ -11,7 +11,7 @@ import { useAvatarUpload } from '../../handlers/use-avatar-upload';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
-import { ContactRow, Card, HR, SL } from '../shared/ContactRow';
+import { ContactRow, Card, HR } from '../shared/ContactRow';
 import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
@@ -89,17 +89,14 @@ const PersonalPermissionsBlock = ({ mode, colors, t }: PersonalPermissionsBlockP
 
   return (
     <>
-      <SL colors={colors}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {t.profile.personalPermissions}
-          <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} t={t} />
-        </span>
-      </SL>
       <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
-          <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, marginBottom: '0.75rem' }}>
-            {t.profile.personalPermissionsDesc}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
+              {t.profile.personalPermissionsDesc}
+            </p>
+            <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} t={t} />
+          </div>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
               <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loadingPermissions}
@@ -718,7 +715,6 @@ export function ProfileTab({
           </div>
       </div>
 
-      <SL colors={colors}>{t.profile.contactAndCredentials}</SL>
       <Card mode={mode} colors={colors}>
         <ContactRow
           label={t.security.email}
@@ -761,7 +757,6 @@ export function ProfileTab({
         />
       </Card>
 
-      <SL colors={colors}>{t.profile.roles}</SL>
       <Card mode={mode} colors={colors}>
         <div style={{ padding: '1rem 1.25rem' }}>
           <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, marginBottom: '0.75rem' }}>

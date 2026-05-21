@@ -164,10 +164,6 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData }: PermissionsBlock
         <RefreshButton onClick={triggerRefresh} loading={permissionsLoading} colors={colors} t={t} />
       </div>
       <div style={wellStyle}>
-        <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-          {t.organizations.orgPermissionsDesc}
-        </p>
-
         {organizationPermissions.length === 0 ? (
           <div style={emptyStateStyle}>
             {permissionsLoading
@@ -294,10 +290,6 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
       {/* Organizations */}
       <p style={sectionLabel}>{t.organizations.orgs}</p>
       <div style={wellStyle}>
-        <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-          {t.organizations.description}
-        </p>
-
         {organizations.length === 0 ? (
           <div style={emptyStateStyle}>{t.organizations.noOrganizations}</div>
         ) : (
@@ -349,12 +341,11 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
       {/* Roles */}
       <p style={sectionLabel}>{t.organizations.orgRoles}</p>
       <div style={wellStyle}>
-        <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-          {activeOrgId
-            ? t.organizations.rolesDescription
-            : t.organizations.selectOrgForRoles
-          }
-        </p>
+        {!activeOrgId && (
+          <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
+            {t.organizations.selectOrgForRoles}
+          </p>
+        )}
 
         {organizationRoles.length === 0 ? (
           <div style={emptyStateStyle}>
