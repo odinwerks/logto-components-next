@@ -630,11 +630,11 @@ function OrgRolesSection() {
     <SectionWrap label="Organizations - role display">
       <p style={styles.textStyle}>
         Org roles come from OIDC claims as <code style={styles.codeStyle}>org_id:role_name</code>{' '}
-        strings — no UUID, no description. The tab resolves them in two steps:
+        strings, no UUID, no description. The tab resolves them in two steps:
       </p>
       <ol style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>
-          <strong>Batch resolve UUIDs</strong> —{' '}
+          <strong>Batch resolve UUIDs</strong>{' '}
           <code style={styles.codeSmStyle}>loadOrganizationUserRoles(orgId)</code> calls{' '}
           <code style={styles.codeSmStyle}>GET /api/organizations/{'{orgId}'}/users/{'{userId}'}/roles</code>{' '}
           (user-scoped, server-side session token for userId). Returns full{' '}
@@ -642,7 +642,7 @@ function OrgRolesSection() {
           Matched by name against OIDC claims.
         </li>
         <li>
-          <strong>Lazy description on hover</strong> —{' '}
+          <strong>Lazy description on hover</strong>{' '}
           <code style={styles.codeSmStyle}>RoleCard</code> calls{' '}
           <code style={styles.codeSmStyle}>getRoleDetails(roleId)</code> only when the user hovers
           the Info icon. Results cached in a module-scoped Map so subsequent hovers are instant.

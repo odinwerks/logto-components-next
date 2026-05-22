@@ -38,8 +38,8 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
 
 /**
  * Fetches the roles assigned to the current user within a specific organization.
- * Uses the user-scoped endpoint so only the caller's own roles are returned —
- * no name-matching needed. Each role includes its real UUID and description.
+ * Uses the user-scoped endpoint so only the caller's own roles are returned.
+ * No name-matching needed. Each role includes its real UUID and description.
  */
 export async function getOrganizationUserRoles(orgId: string): Promise<DataResult<UserRole[]>> {
   return safeAction(async () => {
