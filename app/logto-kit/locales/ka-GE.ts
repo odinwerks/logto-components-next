@@ -116,7 +116,7 @@ export const kaGE: Translations = {
     notSet: '(არ არის მითითებული)',
     avatarUrl: 'ავატარის URL',
     editAvatarUrl: 'ავატარის URL-ის რედაქტირება',
-    profilePhoto: 'პროფილის ფოტო',
+    profilePhoto: 'ატვირთეთ პროფილის ფოტო',
     dragDrop: 'გადაიყვანეთ ან',
     browse: 'აირჩიეთ',
     saveUrl: 'URL-ის შენახვა',

@@ -116,7 +116,7 @@ export const enUS: Translations = {
     notSet: '(not set)',
     avatarUrl: 'AVATAR URL',
     editAvatarUrl: 'EDIT AVATAR URL',
-    profilePhoto: 'PROFILE PHOTO',
+    profilePhoto: 'Upload profile picture',
     dragDrop: 'Drag & drop or',
     browse: 'browse',
     saveUrl: 'Save URL',

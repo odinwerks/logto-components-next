@@ -439,7 +439,7 @@ export function ProfileTab({
             flexDirection: 'column',
             transition: 'max-width 0.25s ease',
           }}>
-            {/* Header — X only */}
+            {/* Header — title + delete text + X */}
             <div style={{
               padding: '1rem 1.25rem',
               borderBottom: `1px solid ${c.borderColor}`,
@@ -447,18 +447,58 @@ export function ProfileTab({
               justifyContent: 'space-between',
               alignItems: 'center',
             }}>
-              <p style={{
-                fontFamily: ty.fontSans,
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: c.textPrimary,
-                margin: 0,
-                letterSpacing: '-0.02em',
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
               }}>
-                {inCropMode
-                  ? t.profile.adjustPhoto
-                  : t.profile.profilePhoto}
-              </p>
+                <span style={{
+                  fontFamily: ty.fontSans,
+                  fontWeight: 600,
+                  fontSize: '0.9375rem',
+                  color: c.textPrimary,
+                  letterSpacing: '-0.02em',
+                }}>
+                  {inCropMode
+                    ? t.profile.adjustPhoto
+                    : t.profile.profilePhoto}
+                </span>
+                {!inCropMode && savedAvatarUrl && (
+                  <span style={{
+                    fontSize: ty.size.sm,
+                    color: c.textTertiary,
+                    fontFamily: ty.fontSans,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}>
+                    {t.profile.deletePfpPrefix}{' '}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!avatarLoading && !isUploading) handleRemoveAvatar();
+                      }}
+                      disabled={avatarLoading || isUploading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: avatarLoading || isUploading ? 'not-allowed' : 'pointer',
+                        color: c.accentRed,
+                        fontWeight: ty.weight.semibold,
+                        fontSize: 'inherit',
+                        fontFamily: 'inherit',
+                        textDecoration: 'underline',
+                        opacity: avatarLoading || isUploading ? 0.5 : 1,
+                      }}
+                    >
+                      {t.profile.deletePfpHighlight}
+                    </button>
+                    {' '}{t.profile.deletePfpSuffix}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleCloseModal}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textTertiary, padding: '0.25rem', display: 'flex' }}
@@ -528,40 +568,6 @@ export function ProfileTab({
                     </p>
                   </div>
                 </div>
-
-                {savedAvatarUrl && (
-                  <p style={{
-                    margin: '0.875rem 0 0',
-                    textAlign: 'center',
-                    fontSize: ty.size.sm,
-                    color: c.textTertiary,
-                    fontFamily: ty.fontSans,
-                  }}>
-                    {t.profile.deletePfpPrefix}{' '}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!avatarLoading && !isUploading) handleRemoveAvatar();
-                      }}
-                      disabled={avatarLoading || isUploading}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: avatarLoading || isUploading ? 'not-allowed' : 'pointer',
-                        color: c.accentRed,
-                        fontWeight: ty.weight.semibold,
-                        fontSize: 'inherit',
-                        fontFamily: 'inherit',
-                        textDecoration: 'underline',
-                        opacity: avatarLoading || isUploading ? 0.5 : 1,
-                      }}
-                    >
-                      {t.profile.deletePfpHighlight}
-                    </button>
-                    {' '}{t.profile.deletePfpSuffix}
-                  </p>
-                )}
               </div>
             ) : (
               /* ── Crop mode: large cropper + controls ── */
