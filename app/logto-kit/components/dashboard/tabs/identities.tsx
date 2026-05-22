@@ -104,9 +104,10 @@ interface IdentitiesTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  mobmode?: number;
 }
 
-export function IdentitiesTab({ userData, mode, colors, t }: IdentitiesTabProps) {
+export function IdentitiesTab({ userData, mode, colors, t, mobmode }: IdentitiesTabProps) {
   const c = colors;
 
   // ─── Inlined component styles (replaces cs.*) ───

@@ -23,6 +23,7 @@ interface SessionsTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  mobmode?: number;
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
@@ -56,6 +57,7 @@ export function SessionsTab({
   mode,
   colors,
   t,
+  mobmode,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
@@ -63,6 +65,7 @@ export function SessionsTab({
   onSuccess,
   onError,
 }: SessionsTabProps) {
+  const isMobile = mobmode === 1;
   // ─── Replaced tk(tc) with direct color references ───
   const c = colors;
   const T = {
@@ -473,17 +476,17 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: '5.5rem',
+                height: isMobile ? 'auto' : '5.5rem',
               }}>
-                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 0 0 0.875rem' }}>
-                  <OsIcon os={os} deviceType={deviceType} size={40} />
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: isMobile ? '0.75rem 0 0.75rem 0.75rem' : '0 0 0 0.875rem' }}>
+                  <OsIcon os={os} deviceType={deviceType} size={isMobile ? 32 : 40} />
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0.75rem' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.75rem' : '0 0.75rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                     <h3 style={{
                       fontFamily: T.font,
-                      fontSize: '0.875rem',
+                      fontSize: isMobile ? '0.8125rem' : '0.875rem',
                       fontWeight: 500,
                       color: T.text,
                       margin: 0,
@@ -495,16 +498,16 @@ export function SessionsTab({
                     </h3>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                    <span style={{ whiteSpace: 'nowrap' }}>{t.sessions.loggedInAt}: {formatDate(session.payload.loginTs)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: isMobile ? '0.625rem' : '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>{isMobile ? formatDate(session.payload.loginTs) : `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`}</span>
                   </div>
 
-                  <div style={{ marginTop: '0.125rem', fontSize: '0.6875rem', color: T.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', color: T.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <span>{t.sessions.expires}: {formatDate(session.payload.exp)}</span>
                   </div>
 
                   {meta?.lastActive && (
-                    <div style={{ marginTop: '0.125rem', fontSize: '0.6875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
                       {meta.lastActive === 'now' ? (
                         <span style={{
@@ -520,61 +523,83 @@ export function SessionsTab({
                   )}
                 </div>
 
-                <SessionMiniMap
-                  ip={ip}
-                  mode={mode}
-                  colors={c}
-                  t={t}
-                  refreshKey={geoRefreshKey}
-                  onClick={openMapModal}
-                  onGeoLoaded={handleGeoLoaded}
-                />
+                {!isMobile && (
+                  <SessionMiniMap
+                    ip={ip}
+                    mode={mode}
+                    colors={c}
+                    t={t}
+                    refreshKey={geoRefreshKey}
+                    onClick={openMapModal}
+                    onGeoLoaded={handleGeoLoaded}
+                  />
+                )}
 
-                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
                   {session.meta?.isCurrent ? (
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.3rem',
                       fontFamily: T.font,
-                      fontSize: '0.6875rem',
+                      fontSize: isMobile ? '0.625rem' : '0.6875rem',
                       fontWeight: 600,
-                      padding: '0.3125rem 0.75rem',
+                      padding: isMobile ? '0.25rem 0.5rem' : '0.3125rem 0.75rem',
                       borderRadius: '0.25rem',
                       whiteSpace: 'nowrap',
                       border: mode === 'dark' ? '1px solid #34c759' : '1px solid #2ea843',
                       background: mode === 'dark' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(52, 199, 89, 0.15)',
                       color: mode === 'dark' ? '#34c759' : '#1a7a2e',
                     }}>
-                      <span style={{
-                        width: '0.4rem',
-                        height: '0.4rem',
-                        borderRadius: '50%',
-                        background: 'currentColor',
-                        display: 'inline-block',
-                      }} />
+                      {!isMobile && (
+                        <span style={{
+                          width: '0.4rem',
+                          height: '0.4rem',
+                          borderRadius: '50%',
+                          background: 'currentColor',
+                          display: 'inline-block',
+                        }} />
+                      )}
                       {t.sessions.thisDevice}
                     </span>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => startRevokeVerification(session.payload.uid)}
-                      disabled={!!revokingId || revokingAll}
-                      mode={mode}
-                      colors={c}
-                    >
-                      {revokingId === session.payload.uid ? (
-                        t.common.loading
-                      ) : (
-                        <>
-                          <Trash2 size={12} />
-                          {t.sessions.revoke}
-                        </>
-                      )}
-                    </Button>
+                    isMobile ? (
+                      <button
+                        onClick={() => startRevokeVerification(session.payload.uid)}
+                        disabled={!!revokingId || revokingAll}
+                        aria-label={t.sessions.revoke}
+                        style={{
+                          width: '1.75rem', height: '1.75rem',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'transparent',
+                          border: `1px solid ${T.border}`,
+                          borderRadius: '0.25rem',
+                          color: T.muted,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      ><Trash2 size={12} /></button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => startRevokeVerification(session.payload.uid)}
+                        disabled={!!revokingId || revokingAll}
+                        mode={mode}
+                        colors={c}
+                      >
+                        {revokingId === session.payload.uid ? (
+                          t.common.loading
+                        ) : (
+                          <>
+                            <Trash2 size={12} />
+                            {t.sessions.revoke}
+                          </>
+                        )}
+                      </Button>
+                    )
                   )}
-                  {ipLabel && (
+                  {!isMobile && ipLabel && (
                     <span style={{ fontSize: '0.625rem', color: T.sub, whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.3 }}>
                       {ip && <span>{ip}</span>}
                       {ip && geoForIp && <br />}
@@ -603,7 +628,7 @@ export function SessionsTab({
         />
       )}
 
-      {mapModalGeo && (
+      {!isMobile && mapModalGeo && (
         <SessionMapModal
           geo={mapModalGeo}
           ip={mapModalIp}

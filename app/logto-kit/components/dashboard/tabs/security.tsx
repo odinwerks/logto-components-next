@@ -19,6 +19,7 @@ interface SecurityTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  mobmode?: number;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
   onGetMfaVerifications: () => Promise<DataResult<MfaVerification[]>>;
   onGenerateTotpSecret: () => Promise<DataResult<{ secret: string }>>;
@@ -38,7 +39,7 @@ interface SecurityTabProps {
 const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
 
 export function SecurityTab({
-  userData, mode, colors, t,
+  userData, mode, colors, t, mobmode,
   onVerifyPassword,
   onGetMfaVerifications, onGenerateTotpSecret,
   onAddMfaVerification, onDeleteMfaVerification,

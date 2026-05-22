@@ -24,6 +24,7 @@ interface OrganizationsTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  mobmode?: number;
 }
 
 // ─── OrgCard (extracted from OrganizationsTab to prevent re-creation on every render) ───
@@ -197,7 +198,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
   );
 };
 
-export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: OrganizationsTabProps) {
+export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobmode }: OrganizationsTabProps) {
   const c = colors;
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();

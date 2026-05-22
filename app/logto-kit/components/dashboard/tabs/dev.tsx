@@ -57,9 +57,10 @@ interface DevTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  mobmode?: number;
 }
 
-export function DevTab({ userData, mode, colors, t }: DevTabProps) {
+export function DevTab({ userData, mode, colors, t, mobmode }: DevTabProps) {
   const c = colors;
 
   // Hard gate: in production this component renders nothing. Defense in depth

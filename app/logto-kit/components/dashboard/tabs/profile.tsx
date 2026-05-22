@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone, Shield } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Shield, Check } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { readEnv } from '../../../logic/env';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
@@ -149,6 +149,7 @@ interface ProfileTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t:                 Translations;
+  mobmode?: number;
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
@@ -166,12 +167,13 @@ interface ProfileTabProps {
 }
 
 export function ProfileTab({
-  userData, mode, colors, t,
+  userData, mode, colors, t, mobmode,
   onUpdateBasicInfo, onUpdateAvatarUrl, onUpdateProfile,
   onVerifyPassword, onSendEmailVerification, onSendPhoneVerification,
   onVerifyCode, onUpdateEmail, onUpdatePhone, onRemoveEmail, onRemovePhone,
   onSuccess, onError, refreshData,
 }: ProfileTabProps) {
+  const isMobile = mobmode === 1;
   const c = colors;
   const ty = {
     fontSans: "'DM Sans', system-ui, sans-serif",
@@ -646,78 +648,134 @@ export function ProfileTab({
           </div>
 
           <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.75rem' }}>
-            {/* Username row — shown in username and full modes */}
-            {(nameType === 'username' || nameType === 'full') && (
-              <div style={{ width: '100%' }}>
-                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                  <Input
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    placeholder={t.profile.usernamePlaceholder}
-                    mode={mode} colors={colors}
-                    style={{ padding: '0.375rem 0.75rem', flex: 1 }}
-                  />
-                  {/* Buttons only inside username div in username-only mode */}
-                  {nameType === 'username' && (
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                      {nameChanged && (
-                        <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                          {t.profile.discard}
-                        </Button>
+            {!isMobile ? (
+              <>
+                {/* Username row — shown in username and full modes */}
+                {(nameType === 'username' || nameType === 'full') && (
+                  <div style={{ width: '100%' }}>
+                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                      <Input
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        placeholder={t.profile.usernamePlaceholder}
+                        mode={mode} colors={colors}
+                        style={{ padding: '0.375rem 0.75rem', flex: 1 }}
+                      />
+                      {nameType === 'username' && nameChanged && (
+                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                          <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {t.profile.discard}
+                          </Button>
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {nameLoading
+                              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
+                              : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
+                            }
+                          </Button>
+                        </div>
                       )}
-                      <Button variant="primary" onClick={handleSaveName} disabled={!nameChanged || nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                        {nameLoading
-                          ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
-                          : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
-                        }
-                      </Button>
                     </div>
+                  </div>
+                )}
+
+                {/* Given/Family grid — shown in given_family and full modes */}
+                {(nameType === 'given_family' || nameType === 'full') && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
+                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
+                    <div />
+                    <Input
+                      value={givenName}
+                      onChange={e => setGivenName(e.target.value)}
+                      placeholder={t.profile.firstNamePlaceholder}
+                      mode={mode} colors={colors}
+                      style={{ padding: '0.375rem 0.75rem' }}
+                    />
+                    <Input
+                      value={familyName}
+                      onChange={e => setFamilyName(e.target.value)}
+                      placeholder={t.profile.lastNamePlaceholder}
+                      mode={mode} colors={colors}
+                      style={{ padding: '0.375rem 0.75rem' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {nameChanged && (
+                        <>
+                          <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {t.profile.discard}
+                          </Button>
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {nameLoading
+                              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
+                              : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
+                            }
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(nameType === 'username' || nameType === 'full') && (
+                    <Input
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      placeholder={t.profile.usernamePlaceholder}
+                      mode={mode} colors={colors}
+                      style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                    />
+                  )}
+                  {(nameType === 'given_family' || nameType === 'full') && (
+                    <>
+                      <Input
+                        value={givenName}
+                        onChange={e => setGivenName(e.target.value)}
+                        placeholder={t.profile.firstNamePlaceholder}
+                        mode={mode} colors={colors}
+                        style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                      />
+                      <Input
+                        value={familyName}
+                        onChange={e => setFamilyName(e.target.value)}
+                        placeholder={t.profile.lastNamePlaceholder}
+                        mode={mode} colors={colors}
+                        style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                      />
+                    </>
                   )}
                 </div>
-              </div>
-            )}
-
-            {/* Given/Family grid — shown in given_family and full modes */}
-            {(nameType === 'given_family' || nameType === 'full') && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
-                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
-                <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
-                <div />
-                <Input
-                  value={givenName}
-                  onChange={e => setGivenName(e.target.value)}
-                  placeholder={t.profile.firstNamePlaceholder}
-                  mode={mode} colors={colors}
-                  style={{ padding: '0.375rem 0.75rem' }}
-                />
-                <Input
-                  value={familyName}
-                  onChange={e => setFamilyName(e.target.value)}
-                  placeholder={t.profile.lastNamePlaceholder}
-                  mode={mode} colors={colors}
-                  style={{ padding: '0.375rem 0.75rem' }}
-                />
-                {/* Buttons in grid for given_family and full modes */}
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {nameChanged && (
-                      <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                        {t.profile.discard}
-                      </Button>
-                    )}
-                    <Button
-                      variant="primary"
+                {nameChanged && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexShrink: 0 }}>
+                    <button
+                      onClick={handleDiscardName}
+                      disabled={nameLoading}
+                      aria-label={t.profile.discard}
+                      style={{
+                        width: '2rem', height: '2rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: `1px solid ${c.borderColor}`,
+                        borderRadius: '0.25rem', cursor: nameLoading ? 'not-allowed' : 'pointer',
+                        color: c.textTertiary, padding: 0,
+                      }}
+                    ><X size={14} /></button>
+                    <button
                       onClick={handleSaveName}
-                      disabled={!nameChanged || nameLoading}
-                      mode={mode} colors={colors}
-                      style={{ padding: '0.375rem 0.875rem' }}
-                    >
-                      {nameLoading
-                        ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
-                        : <><CheckIcon   size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
-                      }
-                    </Button>
+                      disabled={nameLoading}
+                      aria-label={t.profile.saveChanges}
+                      style={{
+                        width: '2rem', height: '2rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
+                        borderRadius: '0.25rem', cursor: nameLoading ? 'not-allowed' : 'pointer',
+                        color: '#fff', padding: 0,
+                      }}
+                    >{nameLoading ? <SpinnerIcon size={12} color="#fff" /> : <Check size={14} />}</button>
                   </div>
+                )}
               </div>
             )}
           </div>
