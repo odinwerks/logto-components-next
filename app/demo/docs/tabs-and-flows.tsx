@@ -63,7 +63,7 @@ function OverviewSection() {
             <td style={styles.tdPathStyle}>Organizations</td>
             <td style={styles.tdStyle}>1 + common</td>
             <td style={styles.tdStyle}>useOrgMode</td>
-            <td style={styles.tdStyle}>1</td>
+            <td style={styles.tdStyle}>2</td>
           </tr>
           <tr>
             <td style={styles.tdPathStyle}>Dev</td>
@@ -624,6 +624,68 @@ router.refresh();`} />
   );
 }
 
+function OrgRolesSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Organizations - role display">
+      <p style={styles.textStyle}>
+        Org roles come from OIDC claims as <code style={styles.codeStyle}>org_id:role_name</code>{' '}
+        strings — no UUID, no description. The tab resolves them in two steps:
+      </p>
+      <ol style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
+        <li>
+          <strong>Batch resolve UUIDs</strong> —{' '}
+          <code style={styles.codeSmStyle}>loadOrganizationUserRoles(orgId)</code> calls{' '}
+          <code style={styles.codeSmStyle}>GET /api/organizations/{'{orgId}'}/users/{'{userId}'}/roles</code>{' '}
+          (user-scoped, server-side session token for userId). Returns full{' '}
+          <code style={styles.codeSmStyle}>UserRole[]</code> with real UUIDs and descriptions.
+          Matched by name against OIDC claims.
+        </li>
+        <li>
+          <strong>Lazy description on hover</strong> —{' '}
+          <code style={styles.codeSmStyle}>RoleCard</code> calls{' '}
+          <code style={styles.codeSmStyle}>getRoleDetails(roleId)</code> only when the user hovers
+          the Info icon. Results cached in a module-scoped Map so subsequent hovers are instant.
+        </li>
+      </ol>
+      <CodeBlock title="RoleCard hover-fetch" code={`// In-memory cache shared across all RoleCard instances
+const descriptionCache = new Map<string, string | null>();
+
+const fetchDescription = async () => {
+  if (!roleId) return;
+  if (description !== undefined) return; // pre-filled from batch API
+
+  const cached = descriptionCache.get(roleId);
+  if (cached !== undefined) return;
+
+  const result = await getRoleDetails(roleId);
+  if (result.ok) {
+    const desc = result.data.description || null;
+    descriptionCache.set(roleId, desc);
+    setResolvedDescription(desc);
+  }
+};`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Portal tooltip:</strong>{' '}
+        The tooltip renders via <code style={styles.codeSmStyle}>createPortal</code> to{' '}
+        <code style={styles.codeSmStyle}>document.body</code> with{' '}
+        <code style={styles.codeSmStyle}>position: fixed</code>, positioned above the Info
+        icon using <code style={styles.codeSmStyle}>getBoundingClientRect()</code>. This avoids
+        clipping by parent <code style={styles.codeSmStyle}>overflow: hidden</code> containers.
+        A <code style={styles.codeSmStyle}>Loader2</code> spinner shows while the description
+        is being fetched.
+      </div>
+      <p style={styles.textStyle}>
+        Personal roles (Profile tab) follow the same <code style={styles.codeStyle}>RoleCard</code> {/* style cascade */}
+        component with descriptions pre-filled from the{' '}
+        <code style={styles.codeSmStyle}>getUserRoles()</code> response (which includes full
+        <code style={styles.codeSmStyle}>UserRole</code> objects from{' '}
+        <code style={styles.codeSmStyle}>GET /api/users/{'{userId}'}/roles</code>).
+      </p>
+    </SectionWrap>
+  );
+}
+
 function DevSection() {
   const styles = useDocStyles();
   return (
@@ -775,6 +837,7 @@ export default function TabsAndFlowsDoc() {
         <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
           <div style={styles.colLeftStyle}>
             <OrgPropsSection />
+            <OrgRolesSection />
           </div>
           <div style={styles.colLeftStyle}>
             <DevSection />

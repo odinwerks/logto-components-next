@@ -12,6 +12,7 @@ import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
 import { useOrgMode } from '../../handlers/preferences';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
+import { loadOrganizationUserRoles } from '../../../actions/load-org-roles';
 
 // ─── Hardcoded design tokens ───
 const FONT_SANS = "'DM Sans', system-ui, sans-serif";
@@ -217,6 +218,33 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
   // Only show roles for the active organization (security: don't show org roles when "be yourself")
   const organizationRoles = activeOrgId ? (userData.organizationRoles || []).filter(role => role.organizationId === activeOrgId) : [];
 
+  // Fetch the user's org role details from Management API (real UUIDs + descriptions)
+  const [orgUserRoles, setOrgUserRoles] = useState<Record<string, { id: string; description?: string }>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    setOrgUserRoles({});
+
+    if (!activeOrgId || organizationRoles.length === 0) return;
+
+    loadOrganizationUserRoles(activeOrgId).then(result => {
+      if (cancelled) return;
+      if (!result.ok) {
+        console.error('[OrganizationsTab] Failed to load org user roles:', result.error);
+        return;
+      }
+      const map: Record<string, { id: string; description?: string }> = {};
+      for (const apiRole of result.data) {
+        map[apiRole.name] = { id: apiRole.id, description: apiRole.description };
+      }
+      setOrgUserRoles(map);
+    });
+
+    return () => { cancelled = true; };
+    // intentional: relies on unmount/remount for refresh, not dependency tracking
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeOrgId, userData]);
+
   const handleOrgClick = async (orgId: string) => {
     if (switchingRef.current) return;
     if (orgId === activeOrgId) return;
@@ -363,15 +391,13 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t }: Or
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {organizationRoles.map((role, index) => {
-                  const org = organizations.find(o => o.id === role.organizationId);
+                  const apiData = orgUserRoles[role.name];
                   return (
                     <RoleCard
                       key={`${role.id}-${index}`}
                       name={role.name}
-                      subtitle={org?.name || role.organizationId}
-                      subtitleLabel={t.organizations.organizationLabel}
-                      id={role.id}
-                      idLabel={t.organizations.roleIdLabel}
+                      roleId={apiData?.id}
+                      description={apiData?.description}
                       colors={colors}
                       t={t}
                     />

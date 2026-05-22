@@ -3,12 +3,81 @@
 import { getManagementApiToken } from '../../../logto';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { debugLog } from '../debug';
-import { assertSafeUserId } from '../guards';
+import { assertSafeUserId, assertSafeLogtoId } from '../guards';
 import { safeAction, type DataResult } from './safe';
 import type { UserRole, PersonalPermission, RoleScope } from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize } from '../errors';
+
+export async function getRoleDetails(roleId: string): Promise<DataResult<UserRole>> {
+  return safeAction(async () => {
+    assertSafeLogtoId(roleId, 'roleId');
+    const token = await getManagementApiToken();
+    const endpoint = getCleanEndpoint();
+    const url = `${endpoint}/api/roles/${encodeURIComponent(roleId)}`;
+
+    debugLog(`[getRoleDetails] Fetching role ${roleId} from ${url}`);
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      warn(`[getRoleDetails] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      throw new Error(`Management API returned ${res.status}`);
+    }
+
+    const data = (await res.json()) as UserRole;
+    debugLog(`[getRoleDetails] Parsed role ${data.id}: ${data.name}`);
+    return data;
+  });
+}
+
+/**
+ * Fetches the roles assigned to the current user within a specific organization.
+ * Uses the user-scoped endpoint so only the caller's own roles are returned —
+ * no name-matching needed. Each role includes its real UUID and description.
+ */
+export async function getOrganizationUserRoles(orgId: string): Promise<DataResult<UserRole[]>> {
+  return safeAction(async () => {
+    assertSafeLogtoId(orgId, 'orgId');
+
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    const userId = introspection.sub;
+    if (!userId) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    assertSafeUserId(userId);
+
+    const token = await getManagementApiToken();
+    const endpoint = getCleanEndpoint();
+    const url = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
+
+    debugLog(`[getOrganizationUserRoles] Fetching roles for user ${userId} in org ${orgId}`);
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      warn(`[getOrganizationUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      throw new Error(`Management API returned ${res.status}`);
+    }
+
+    const data = (await res.json()) as UserRole[];
+    debugLog(`[getOrganizationUserRoles] Parsed ${data.length} roles for user ${userId} in org ${orgId}`);
+    return data;
+  });
+}
 
 export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
   return safeAction(async () => {

@@ -794,10 +794,8 @@ export function ProfileTab({
                   <RoleCard
                     key={role.id}
                     name={role.name}
-                    subtitle={role.description}
-                    subtitleLabel={t.profile.roleDescriptionLabel}
-                    id={role.id}
-                    idLabel={t.profile.roleIdLabel}
+                    roleId={role.id}
+                    description={role.description}
                     colors={colors}
                     t={t}
                   />
