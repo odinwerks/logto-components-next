@@ -146,14 +146,23 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
+    // Step 1: Generate codes (no verification header needed)
+    const genRes = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
       method: 'POST',
+    });
+
+    await throwOnApiError(genRes, 'BACKUP_CODES_FAILED', 'backup-gen');
+
+    const { codes } = await genRes.json();
+
+    // Step 2: Enroll/bind codes to the account
+    const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
+      method: 'POST',
+      body: { type: 'BackupCode', codes },
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
-    
-    await throwOnApiError(res, 'BACKUP_CODES_FAILED', 'backup-gen');
 
-    const { codes } = await res.json();
+    await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
     // Audit (best-effort — failure must not break the main action)
     try {

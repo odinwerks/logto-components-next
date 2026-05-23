@@ -53,6 +53,7 @@ export function SecurityTab({
   onSuccess, onError,
 }: SecurityTabProps) {
   const c = colors;
+  const isMobile = mobmode === 1;
   const T = {
     font: "'DM Sans', system-ui, sans-serif",
     mono: "'IBM Plex Mono', 'Courier New', monospace",
@@ -80,7 +81,6 @@ export function SecurityTab({
 
   // ── Abort refs (prevent reopened modals after close during loading) ──
   const totpAbortRef = useRef(false);
-  const delTotpAbortRef = useRef(false);
   const backupAbortRef = useRef(false);
   const deleteAbortRef = useRef(false);
   const passkeyRegAbortRef = useRef(false);
@@ -122,16 +122,31 @@ export function SecurityTab({
   // ── TOTP modal ──
   const [totpStep, setTotpStep] = useState<ModalStep | null>(null);
   const [totpPwErr, setTotpPwErr] = useState('');
+  const [totpMode, setTotpMode] = useState<'setup' | 'remove'>('setup');
 
-  const openTotp = () => { totpAbortRef.current = false; setTotpStep({ kind: 'password' }); setTotpPwErr(''); };
-  const closeTotp = () => { totpAbortRef.current = true; setTotpStep(null); };
+  const openTotp = () => { totpAbortRef.current = false; setTotpStep({ kind: 'password' }); setTotpMode('setup'); setTotpPwErr(''); };
+  const closeTotp = () => { totpAbortRef.current = true; setTotpStep(null); setTotpMode('setup'); };
 
   const handleTotpPassword = async (pw: string) => {
     setTotpPwErr('');
-    setTotpStep({ kind: 'loading', message: 'Verifying password…' });
+    if (totpMode === 'remove') {
+      if (!totpFactor) return;
+      setTotpStep({ kind: 'loading', message: t.mfa.verifying });
+      const identityResult = await onVerifyPassword(pw);
+      if (totpAbortRef.current) return;
+      if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
+      const delResult = await onDeleteMfaVerification(totpFactor.id, identityResult.data.verificationRecordId);
+      if (totpAbortRef.current) return;
+      if (!delResult.ok) { onError(delResult.error); setTotpStep({ kind: 'password' }); return; }
+      onSuccess(t.mfa.factorRemoved);
+      closeTotp();
+      await refreshMfa();
+      return;
+    }
+    setTotpStep({ kind: 'loading', message: t.mfa.verifying });
     const identityResult = await onVerifyPassword(pw);
     if (totpAbortRef.current) return;
-    if (!identityResult.ok) { onError(identityResult.error); closeTotp(); return; }
+    if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
     setTotpStep({ kind: 'loading', message: 'Generating secret…' });
     const secretResult = await onGenerateTotpSecret();
     if (totpAbortRef.current) return;
@@ -154,26 +169,6 @@ export function SecurityTab({
     if (!r.ok) { onError(r.error); closeTotp(); return; }
     onSuccess(t.mfa.totpEnrolled);
     closeTotp();
-    await refreshMfa();
-  };
-
-  // ── Delete TOTP modal ──
-  const [delTotpStep, setDelTotpStep] = useState<ModalStep | null>(null);
-
-  const openDelTotp = () => { delTotpAbortRef.current = false; setDelTotpStep({ kind: 'password' }); };
-  const closeDelTotp = () => { delTotpAbortRef.current = true; setDelTotpStep(null); };
-
-  const handleDelTotpPw = async (pw: string) => {
-    if (!totpFactor) return;
-    setDelTotpStep({ kind: 'loading', message: 'Removing…' });
-    const identityResult = await onVerifyPassword(pw);
-    if (delTotpAbortRef.current) return;
-    if (!identityResult.ok) { onError(identityResult.error); closeDelTotp(); return; }
-    const delResult = await onDeleteMfaVerification(totpFactor.id, identityResult.data.verificationRecordId);
-    if (delTotpAbortRef.current) return;
-    if (!delResult.ok) { onError(delResult.error); closeDelTotp(); return; }
-    onSuccess(t.mfa.factorRemoved);
-    closeDelTotp();
     await refreshMfa();
   };
 
@@ -330,33 +325,38 @@ export function SecurityTab({
 
   return (
     <div>
-      {/* TOTP setup modal */}
+      {/* TOTP setup / remove modal */}
       {totpStep && (
         <FlowModal
-          title={totpFactor ? t.security.reconfigureAuthenticator : t.mfa.totp}
-          subtitle={totpFactor ? t.security.reconfigureAuthenticatorDesc : t.mfa.totpDescription}
+          title={totpMode === 'remove'
+            ? t.security.removeAuthenticator
+            : totpFactor ? t.security.reconfigureAuthenticator : t.mfa.totp}
+          subtitle={totpMode === 'remove'
+            ? t.security.removeAuthenticatorDesc
+            : totpFactor ? t.security.reconfigureAuthenticatorDesc : t.mfa.totpDescription}
           step={totpStep}
-        onPasswordSubmit={handleTotpPassword}
-        onTotpSubmit={handleTotpActivate}
-        onClose={closeTotp}
-        passwordError={totpPwErr}
-        mode={mode}
-        colors={colors}
-        t={t}
-        />
-      )}
-
-      {/* Delete TOTP modal */}
-      {delTotpStep && (
-        <FlowModal
-          title={t.security.removeAuthenticator}
-          subtitle={t.security.removeAuthenticatorDesc}
-          step={delTotpStep}
-      onPasswordSubmit={handleDelTotpPw}
-      onClose={closeDelTotp}
-      mode={mode}
-      colors={colors}
-      t={t}
+          onPasswordSubmit={handleTotpPassword}
+          onTotpSubmit={handleTotpActivate}
+          onClose={closeTotp}
+          passwordError={totpPwErr}
+          headerExtra={totpMode === 'setup' && totpFactor && totpStep.kind === 'password' ? (
+            <button
+              onClick={() => { setTotpMode('remove'); setTotpPwErr(''); }}
+              style={{
+                background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', color: c.accentRed,
+                fontWeight: 600, fontSize: '0.75rem',
+                fontFamily: T.font, textDecoration: 'underline',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t.profile.deleteHint}
+            </button>
+          ) : undefined}
+          hideFooterClose={true}
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -535,14 +535,23 @@ export function SecurityTab({
 
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {totpFactor ? (
-                <>
-                  <Button size="sm" variant="ghost" onClick={openTotp} mode={mode} colors={colors}>
-                    <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.security.reconfigure}
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={openDelTotp} mode={mode} colors={colors}>
-                    <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
-                  </Button>
-                </>
+                <button onClick={openTotp} aria-label={t.security.reconfigure} style={{
+                  width: '2rem', height: '2rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                  borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+                }}>
+                  <RefreshCw size={14} strokeWidth={1.5} />
+                </button>
+              ) : isMobile ? (
+                <button onClick={openTotp} aria-label={t.mfa.generateTotpSecret} style={{
+                  width: '2rem', height: '2rem', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
+                  borderRadius: '0.25rem', cursor: 'pointer', color: '#fff', padding: 0,
+                }}>
+                  <Plus size={14} strokeWidth={1.5} />
+                </button>
               ) : (
                 <Button size="sm" variant="primary" onClick={openTotp} mode={mode} colors={colors}>
                   <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
@@ -589,9 +598,14 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              <Button size="sm" onClick={() => openBackup()} mode={mode} colors={colors}>
-                <RefreshCw size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.generateNewCodes}
-              </Button>
+              <button onClick={() => openBackup()} style={{
+                width: '2rem', height: '2rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+              }}>
+                <RefreshCw size={14} strokeWidth={1.5} />
+              </button>
             </div>
           </div>
         </div>
@@ -620,16 +634,34 @@ export function SecurityTab({
                 )}
               </div>
             </div>
-            <Button size="sm" variant="primary" onClick={() => {
-              if (!webAuthnSupported) {
-                onError(t.mfa.webauthnNotSupported);
-                return;
-              }
-              passkeyRegAbortRef.current = false;
-              setPasskeyRegStep({ kind: 'password' });
-            }} mode={mode} colors={colors}>
-              <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
-            </Button>
+            {isMobile ? (
+              <button onClick={() => {
+                if (!webAuthnSupported) {
+                  onError(t.mfa.webauthnNotSupported);
+                  return;
+                }
+                passkeyRegAbortRef.current = false;
+                setPasskeyRegStep({ kind: 'password' });
+              }} aria-label={t.mfa.addPasskey} style={{
+                width: '2rem', height: '2rem', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
+                borderRadius: '0.25rem', cursor: 'pointer', color: '#fff', padding: 0,
+              }}>
+                <Plus size={14} strokeWidth={1.5} />
+              </button>
+            ) : (
+              <Button size="sm" variant="primary" onClick={() => {
+                if (!webAuthnSupported) {
+                  onError(t.mfa.webauthnNotSupported);
+                  return;
+                }
+                passkeyRegAbortRef.current = false;
+                setPasskeyRegStep({ kind: 'password' });
+              }} mode={mode} colors={colors}>
+                <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
+              </Button>
+            )}
           </div>
 
           {/* Passkey list */}

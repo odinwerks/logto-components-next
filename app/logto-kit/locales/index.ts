@@ -68,9 +68,11 @@ export interface KitTranslations {
     updateEmailTitle: string;
     updateEmailConfirm: string;
     removeEmailSubtitle: string;
+    addEmailTitle: string;
     updatePhoneTitle: string;
     updatePhoneConfirm: string;
     removePhoneSubtitle: string;
+    addPhoneTitle: string;
     enterValueFirst: string;
     reconfigureAuthenticator: string;
     reconfigureAuthenticatorDesc: string;
@@ -171,6 +173,9 @@ export interface KitTranslations {
     loadingPermissions: string;
     permissionsError: string;
     resourceLabel: string;
+    takePicture: string;
+    chooseFromGallery: string;
+    deleteHint: string;
   };
   
   // Verification

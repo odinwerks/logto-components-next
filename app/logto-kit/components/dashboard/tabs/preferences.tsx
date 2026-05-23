@@ -52,38 +52,75 @@ function ThemeSVG({ mode, tall }: { mode: 'light' | 'dark'; tall?: boolean }) {
   const acc = '#3060e0';
   const accL = isDark ? '#1e3060' : '#dae3fc';
 
-  const h = tall ? 160 : 100;
-  const tabYs = tall
-    ? [16, 22, 28, 34, 40, 46, 52, 58, 64, 70]
-    : [16, 22, 28, 34, 40];
+  if (tall) {
+    return (
+      <svg viewBox="0 0 160 160" style={{ width: '100%', display: 'block' }}>
+        <rect width="160" height="160" fill={bg} />
+
+        {/* Top header bar */}
+        <rect x="0" y="0" width="160" height="12" fill={side} />
+        <rect x="0" y="12" width="160" height="0.5" fill={bdr} />
+        <rect x="6" y="4" width="10" height="3" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="20" y="4.5" width="28" height="2" rx="0.5" fill={txt} opacity="0.85" />
+        <rect x="146" y="3" width="10" height="10" rx="0.5" fill={bdr} />
+
+        {/* Section label */}
+        <rect x="8" y="16" width="18" height="1.5" rx="0.5" fill={sub} opacity="0.5" />
+
+        {/* Profile card */}
+        <rect x="4" y="21" width="152" height="30" rx="0.5" fill={surf} stroke={bdr} strokeWidth="0.5" />
+        <rect x="10" y="26" width="12" height="12" rx="1.5" fill={bdr} />
+        <rect x="26" y="27" width="32" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="26" y="33" width="44" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="134" y="27" width="12" height="12" rx="0.5" fill={acc} opacity="0.8" />
+
+        {/* Contact group card (email + phone) */}
+        <rect x="4" y="55" width="152" height="46" rx="0.5" fill={surf} stroke={bdr} strokeWidth="0.5" />
+        <rect x="10" y="62" width="8" height="8" rx="0.5" fill={bdr} />
+        <rect x="22" y="61" width="26" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="22" y="67" width="40" height="2" rx="0.5" fill={sub} opacity="0.5" />
+        <rect x="134" y="61" width="14" height="10" rx="0.5" fill={bdr} />
+        <rect x="10" y="78" width="140" height="0.5" fill={bdr} />
+        <rect x="10" y="85" width="8" height="8" rx="0.5" fill={bdr} />
+        <rect x="22" y="84" width="28" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="22" y="90" width="36" height="2" rx="0.5" fill={sub} opacity="0.5" />
+
+        {/* Security card */}
+        <rect x="4" y="110" width="152" height="22" rx="0.5" fill={surf} stroke={bdr} strokeWidth="0.5" />
+        <rect x="10" y="116" width="8" height="8" rx="0.5" fill={bdr} />
+        <rect x="22" y="116" width="30" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+        <rect x="22" y="122" width="50" height="2" rx="0.5" fill={sub} opacity="0.5" />
+
+        {/* Bottom tab bar */}
+        <rect x="0" y="146" width="160" height="14" fill={side} />
+        <rect x="0" y="146" width="160" height="0.5" fill={bdr} />
+        <rect x="9" y="151" width="14" height="4" rx="0.5" fill={acc} />
+        <rect x="41" y="151" width="14" height="4" rx="0.5" fill={sub} opacity="0.3" />
+        <rect x="73" y="151" width="14" height="4" rx="0.5" fill={sub} opacity="0.3" />
+        <rect x="105" y="151" width="14" height="4" rx="0.5" fill={sub} opacity="0.3" />
+        <rect x="137" y="151" width="14" height="4" rx="0.5" fill={sub} opacity="0.3" />
+      </svg>
+    );
+  }
+
+  const h = 100;
+  const tabYs = [16, 22, 28, 34, 40];
 
   return (
-    <svg viewBox={`0 0 160 ${h}`} style={{ width: '100%', display: 'block' }}>
-      <rect width="160" height={h} fill={bg} />
-      <rect width="28" height={h} fill={side} />
+    <svg viewBox="0 0 160 100" style={{ width: '100%', display: 'block' }}>
+      <rect width="160" height="100" fill={bg} />
+      <rect width="28" height="100" fill={side} />
       <rect x="4" y="6" width="20" height="5" rx="1" fill={bdr} />
       {tabYs.map((y, i) => (
         <g key={i}>
           <rect x={i === 0 ? 0 : 2} y={y} width={i === 0 ? 3 : 0} height="4.5" fill={i === 0 ? acc : 'transparent'} />
           <rect x="6" y={y + 0.5} width="4" height="3.5" rx="0.5" fill={i === 0 ? accL : bdr} />
-          <rect x="12" y={y + 1} width={[12, 10, 13, 9, 11, 10, 12, 8, 11, 8][i]} height="2" rx="0.5" fill={i === 0 ? acc : sub} />
+          <rect x="12" y={y + 1} width={[12, 10, 13, 9, 11][i]} height="2" rx="0.5" fill={i === 0 ? acc : sub} />
         </g>
       ))}
-      {tall && (
-        <>
-          <rect x="6" y="78" width="4" height="3.5" rx="0.5" fill={sub} opacity="0.3" />
-          <rect x="12" y="78.8" width="8" height="2" rx="0.5" fill={sub} opacity="0.2" />
-          <rect x="6" y="85" width="4" height="3.5" rx="0.5" fill={sub} opacity="0.5" />
-          <rect x="12" y="85.8" width="10" height="2" rx="0.5" fill={sub} opacity="0.3" />
-        </>
-      )}
-      {!tall && (
-        <>
-          <rect x="6" y="88" width="4" height="3.5" rx="0.5" fill={sub} opacity="0.5" />
-          <rect x="12" y="88.8" width="10" height="2" rx="0.5" fill={sub} opacity="0.3" />
-        </>
-      )}
-      <rect x="28" width="132" height={h} fill={surf} />
+      <rect x="6" y="88" width="4" height="3.5" rx="0.5" fill={sub} opacity="0.5" />
+      <rect x="12" y="88.8" width="10" height="2" rx="0.5" fill={sub} opacity="0.3" />
+      <rect x="28" width="132" height="100" fill={surf} />
       <rect x="36" y="10" width="38" height="5" rx="1" fill={txt} opacity="0.85" />
       <rect x="36" y="17" width="60" height="2.5" rx="0.8" fill={sub} opacity="0.6" />
       <rect x="36" y="28" width="22" height="2" rx="0.5" fill={sub} opacity="0.4" />
@@ -92,26 +129,12 @@ function ThemeSVG({ mode, tall }: { mode: 'light' | 'dark'; tall?: boolean }) {
       <rect x="56" y="38" width="30" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
       <rect x="56" y="43" width="45" height="2" rx="0.5" fill={sub} opacity="0.5" />
       <rect x="130" y="40" width="16" height="7" rx="0.5" fill={acc} opacity="0.8" />
-      {tall && (
-        <>
-          <rect x="36" y="59" width="116" height="22" fill={isDark ? '#131318' : '#f8f8fc'} stroke={bdr} strokeWidth="0.5" />
-          <rect x="40" y="63" width="12" height="12" rx="0.5" fill={bdr} />
-          <rect x="56" y="64" width="35" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
-          <rect x="56" y="69" width="48" height="2" rx="0.5" fill={sub} opacity="0.5" />
-          <rect x="36" y="88" width="116" height="22" fill={isDark ? '#131318' : '#f8f8fc'} stroke={bdr} strokeWidth="0.5" />
-          <rect x="40" y="92" width="12" height="12" rx="0.5" fill={bdr} />
-          <rect x="56" y="93" width="28" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
-          <rect x="56" y="98" width="40" height="2" rx="0.5" fill={sub} opacity="0.5" />
-        </>
-      )}
-      {!tall && (
-        <rect x="36" y="59" width="116" height="22" fill={isDark ? '#131318' : '#f8f8fc'} stroke={bdr} strokeWidth="0.5" />
-      )}
-      {!tall && <rect x="40" y="63" width="12" height="12" rx="0.5" fill={bdr} />}
-      {!tall && <rect x="56" y="64" width="24" height="2.5" rx="0.5" fill={txt} opacity="0.7" />}
-      {!tall && <rect x="56" y="69" width="38" height="2" rx="0.5" fill={sub} opacity="0.5" />}
-      <rect x="118" y={tall ? 118 : 86} width="30" height="8" rx="0.5" fill={acc} />
-      <rect x="88" y={tall ? 118 : 86} width="26" height="8" rx="0.5" fill={bdr} />
+      <rect x="36" y="59" width="116" height="22" fill={isDark ? '#131318' : '#f8f8fc'} stroke={bdr} strokeWidth="0.5" />
+      <rect x="40" y="63" width="12" height="12" rx="0.5" fill={bdr} />
+      <rect x="56" y="64" width="24" height="2.5" rx="0.5" fill={txt} opacity="0.7" />
+      <rect x="56" y="69" width="38" height="2" rx="0.5" fill={sub} opacity="0.5" />
+      <rect x="88" y="86" width="26" height="8" rx="0.5" fill={bdr} />
+      <rect x="118" y="86" width="30" height="8" rx="0.5" fill={acc} />
     </svg>
   );
 }

@@ -7,7 +7,7 @@ import { formatPhone } from '../../../logic/formatting';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import type { ModalStep } from './FlowModal';
 import { FlowModal } from './FlowModal';
-import { Plus, Mail, Phone as PhoneIcon, LucideIcon } from 'lucide-react';
+import { Plus, Mail, Phone as PhoneIcon, LucideIcon, Pencil } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
 
@@ -104,6 +104,7 @@ export interface ContactRowProps {
   onRemove: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
+  mobmode?: number;
   t: Translations;
   mode: 'dark' | 'light';
   colors: ThemeColors;
@@ -112,7 +113,7 @@ export interface ContactRowProps {
 export function ContactRow({
   label, Icon, currentValue, type, placeholder,
   onVerifyPassword, onSendVerification, onVerifyCodeAndUpdate, onRemove,
-  onSuccess, onError, t, mode, colors,
+  onSuccess, onError, mobmode, t, mode, colors,
 }: ContactRowProps) {
   const c = colors;
   const T = {
@@ -130,12 +131,12 @@ export function ContactRow({
   const newValueRef = React.useRef(newValue);
   newValueRef.current = newValue;
 
+  const isMobile = mobmode === 1;
   const displayValue = type === 'phone' && currentValue
     ? formatPhone(currentValue)
     : currentValue;
 
   const openEdit = () => { setNewValue(currentValue ?? ''); setPwErr(''); setStep({ kind: 'password' }); setModalKind('edit'); };
-  const openRemove = () => { setPwErr(''); setStep({ kind: 'password' }); setModalKind('remove'); };
   const close = () => { setModalKind(null); setStep({ kind: 'password' }); setPwErr(''); };
 
   const handlePassword = async (pw: string) => {
@@ -177,7 +178,9 @@ export function ContactRow({
         <FlowModal
           title={modalKind === 'remove'
             ? (type === 'email' ? (t.security.removeEmail || 'Remove email') : (t.security.removePhone || 'Remove phone'))
-            : (type === 'email' ? t.security.updateEmailTitle : t.security.updatePhoneTitle)}
+            : currentValue
+              ? (type === 'email' ? t.security.updateEmailTitle : t.security.updatePhoneTitle)
+              : (type === 'email' ? t.security.addEmailTitle : t.security.addPhoneTitle)}
           subtitle={modalKind === 'remove'
             ? (type === 'email' ? t.security.removeEmailSubtitle : t.security.removePhoneSubtitle)
             : (type === 'email' ? t.security.updateEmailConfirm : t.security.updatePhoneConfirm)}
@@ -203,6 +206,21 @@ export function ContactRow({
               />
             </div>
           ) : undefined}
+          headerExtra={modalKind === 'edit' && currentValue && step.kind === 'password' ? (
+            <button
+              onClick={() => { setModalKind('remove'); setPwErr(''); }}
+              style={{
+                background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', color: c.accentRed,
+                fontWeight: 600, fontSize: '0.75rem',
+                fontFamily: T.font, textDecoration: 'underline',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t.profile.deleteHint}
+            </button>
+          ) : undefined}
+          hideFooterClose={true}
         />
       )}
 
@@ -218,12 +236,29 @@ export function ContactRow({
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: isMobile ? '0.25rem' : '0.375rem', flexDirection: isMobile ? 'column' : 'row', flexShrink: 0 }}>
           {currentValue ? (
-            <>
+            isMobile ? (
+              <button onClick={openEdit} aria-label={t.profile.edit} style={{
+                width: '2rem', height: '2rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+              }}>
+                <Pencil size={14} strokeWidth={1.5} />
+              </button>
+            ) : (
               <Button size="sm" onClick={openEdit} mode={mode} colors={colors}>{t.profile.edit}</Button>
-              <Button size="sm" variant="danger" onClick={openRemove} mode={mode} colors={colors}>{t.profile.remove}</Button>
-            </>
+            )
+          ) : isMobile ? (
+            <button onClick={openEdit} aria-label={t.profile.add} style={{
+              width: '2rem', height: '2rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
+              borderRadius: '0.25rem', cursor: 'pointer', color: '#fff', padding: 0,
+            }}>
+              <Plus size={14} strokeWidth={1.5} />
+            </button>
           ) : (
             <Button size="sm" variant="primary" onClick={openEdit} mode={mode} colors={colors}>
               <Plus size={'0.6875rem'} color={c.contrastText} strokeWidth={1.5} /> {t.profile.add}

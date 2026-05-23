@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone, Shield, Check } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image } from 'lucide-react';
 import { UserBadge } from '../../userbutton';
 import { readEnv } from '../../../logic/env';
 import { useAvatarUpload } from '../../handlers/use-avatar-upload';
@@ -174,6 +174,7 @@ export function ProfileTab({
   onSuccess, onError, refreshData,
 }: ProfileTabProps) {
   const isMobile = mobmode === 1;
+  const isDark = mode === 'dark';
   const c = colors;
   const ty = {
     fontSans: "'DM Sans', system-ui, sans-serif",
@@ -287,6 +288,7 @@ export function ProfileTab({
   }, [userData, nameType]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -466,7 +468,7 @@ export function ProfileTab({
                     ? t.profile.adjustPhoto
                     : t.profile.profilePhoto}
                 </span>
-                {!inCropMode && savedAvatarUrl && (
+                {!isMobile && !inCropMode && savedAvatarUrl && (
                   <span style={{
                     fontSize: ty.size.sm,
                     color: c.textTertiary,
@@ -516,61 +518,115 @@ export function ProfileTab({
               style={{ display: 'none' }}
               onChange={handleFileInputChange}
             />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="user"
+              style={{ display: 'none' }}
+              onChange={handleFileInputChange}
+            />
 
             {!inCropMode ? (
-              /* ── Upload mode: full-width drop zone ── */
-              <div style={{ padding: '1.5rem' }}>
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    const f = e.dataTransfer.files?.[0];
-                    if (f) handleFileSelected(f);
-                  }}
-                  onClick={(e) => {
-                    if (!isUploading) fileInputRef.current?.click();
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+              isMobile ? (
+                /* ── Upload mode (mobile): 3-button layout ── */
+                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {savedAvatarUrl && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (!avatarLoading && !isUploading) handleRemoveAvatar(); }}
+                      disabled={avatarLoading || isUploading}
+                      style={{
+                        width: '100%', padding: '0.75rem 1rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        background: c.errorBg, border: `1px solid ${isDark ? '#ef444459' : '#dc262659'}`,
+                        borderRadius: '0.375rem', cursor: avatarLoading || isUploading ? 'not-allowed' : 'pointer',
+                        color: c.accentRed, fontFamily: ty.fontSans, fontWeight: 500, fontSize: ty.size.sm,
+                        opacity: avatarLoading || isUploading ? 0.5 : 1,
+                      }}
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} /> {t.profile.removeAvatar}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => cameraInputRef.current?.click()}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                      borderRadius: '0.375rem', cursor: 'pointer',
+                      color: c.textSecondary, fontFamily: ty.fontSans, fontWeight: 500, fontSize: ty.size.sm,
+                    }}
+                  >
+                    <Camera size={16} strokeWidth={1.5} /> {t.profile.takePicture}
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                      borderRadius: '0.375rem', cursor: 'pointer',
+                      color: c.textSecondary, fontFamily: ty.fontSans, fontWeight: 500, fontSize: ty.size.sm,
+                    }}
+                  >
+                    <Image size={16} strokeWidth={1.5} /> {t.profile.chooseFromGallery}
+                  </button>
+                </div>
+              ) : (
+                /* ── Upload mode (desktop): full-width drop zone ── */
+                <div style={{ padding: '1.5rem' }}>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
                       e.preventDefault();
+                      setIsDragging(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) handleFileSelected(f);
+                    }}
+                    onClick={(e) => {
                       if (!isUploading) fileInputRef.current?.click();
-                    }
-                  }}
-                  style={{
-                    ...dropZoneStyle,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.75rem',
-                    minHeight: '12.5rem',
-                    borderRadius: '0.375rem',
-                  }}
-                >
-                  <UploadIcon size={2.5} color={c.textTertiary} />
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{
-                      margin: 0,
-                      fontSize: ty.size.md,
-                      color: c.textSecondary,
-                      fontFamily: ty.fontSans,
-                      fontWeight: ty.weight.medium,
-                    }}>
-                      {t.profile.dragDrop}{' '}
-                      <span style={{ color: c.accentBlue, textDecoration: 'underline', pointerEvents: 'none' }}>
-                        {t.profile.browse}
-                      </span>
-                    </p>
-                    <p style={{ margin: '0.375rem 0 0', ...cs.text.mutedMono }}>
-                      PNG · JPEG · WebP · GIF · max 2 MB
-                    </p>
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!isUploading) fileInputRef.current?.click();
+                      }
+                    }}
+                    style={{
+                      ...dropZoneStyle,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.75rem',
+                      minHeight: '12.5rem',
+                      borderRadius: '0.375rem',
+                    }}
+                  >
+                    <UploadIcon size={2.5} color={c.textTertiary} />
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{
+                        margin: 0,
+                        fontSize: ty.size.md,
+                        color: c.textSecondary,
+                        fontFamily: ty.fontSans,
+                        fontWeight: ty.weight.medium,
+                      }}>
+                        {t.profile.dragDrop}{' '}
+                        <span style={{ color: c.accentBlue, textDecoration: 'underline', pointerEvents: 'none' }}>
+                          {t.profile.browse}
+                        </span>
+                      </p>
+                      <p style={{ margin: '0.375rem 0 0', ...cs.text.mutedMono }}>
+                        PNG · JPEG · WebP · GIF · max 2 MB
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )
             ) : (
               /* ── Crop mode: large cropper + controls ── */
               <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
@@ -582,9 +638,6 @@ export function ProfileTab({
                 />
 
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', width: '100%' }}>
-                  <Button variant="secondary" onClick={handleCancelCrop} mode={mode} colors={colors}>
-                    {t.profile.cancel}
-                  </Button>
                   <Button
                     variant="primary"
                     onClick={handleApplyCrop}
@@ -799,7 +852,7 @@ export function ProfileTab({
             return { ok: true };
           }}
           onRemove={async (id): Promise<ActionResult> => { const r = await onRemoveEmail(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
-          onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
+          onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
         <HR colors={colors} />
         <ContactRow
@@ -819,7 +872,7 @@ export function ProfileTab({
             return { ok: true };
           }}
           onRemove={async (id): Promise<ActionResult> => { const r = await onRemovePhone(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
-          onSuccess={onSuccess} onError={onError} t={t} mode={mode} colors={colors}
+          onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
       </Card>
 

@@ -163,7 +163,7 @@ function HR({ colors }: { colors: ThemeColors }) {
 
 export function FlowModal({
   title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
-  passwordError, extra, mode, colors, t, danger,
+  passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger,
 }: {
   title: string;
   subtitle: string;
@@ -176,6 +176,8 @@ export function FlowModal({
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
+  headerExtra?: React.ReactNode;
+  hideFooterClose?: boolean;
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
@@ -249,9 +251,12 @@ export function FlowModal({
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
         }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
-              {title}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.1875rem' }}>
+              <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, letterSpacing: '-0.02em', margin: 0 }}>
+                {title}
+              </p>
+              {headerExtra}
+            </div>
             <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
@@ -286,7 +291,9 @@ export function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                {!hideFooterClose && (
+                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                )}
                 <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
                   {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
@@ -325,7 +332,9 @@ export function FlowModal({
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                {!hideFooterClose && (
+                  <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                )}
                 <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} mode={mode} colors={colors}>
                   Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
