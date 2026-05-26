@@ -87,6 +87,7 @@ export function SecurityTab({
   const renameAbortRef = useRef(false);
   const delPasskeyAbortRef = useRef(false);
   const pwChangeAbortRef = useRef(false);
+  const passkeyActionAbortRef = useRef(false);
 
   // ── MFA list ──
   const [mfaList, setMfaList] = useState<MfaVerification[]>([]);
@@ -254,6 +255,11 @@ export function SecurityTab({
   const [renamePasskeyStep, setRenamePasskeyStep] = useState<ModalStep | null>(null);
   const [passkeyToRename, setPasskeyToRename] = useState<string | null>(null);
 
+  // ── Passkey action (mobile unified rename/remove modal) ──
+  const [passkeyActionMode, setPasskeyActionMode] = useState<'rename' | 'remove'>('rename');
+  const [passkeyActionStep, setPasskeyActionStep] = useState<ModalStep | null>(null);
+  const [passkeyActionId, setPasskeyActionId] = useState<string | null>(null);
+
   const handlePasskeyRegPassword = async (pw: string) => {
     setPasskeyRegStep({ kind: 'loading', message: t.mfa.verifying });
     const identityResult = await onVerifyPassword(pw);
@@ -320,6 +326,41 @@ export function SecurityTab({
     onSuccess(t.mfa.passkeyRenamed);
     setRenamePasskeyStep(null);
     setPasskeyToRename(null);
+    await refreshMfa();
+  };
+
+  // ── Unified mobile passkey action handler ──
+  const handlePasskeyActionPw = async (pw: string) => {
+    if (!passkeyActionId) return;
+    if (passkeyActionMode === 'remove') {
+      setPasskeyActionStep({ kind: 'loading', message: t.mfa.removing });
+      const identityResult = await onVerifyPassword(pw);
+      if (passkeyActionAbortRef.current) return;
+      if (!identityResult.ok) { onError(identityResult.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
+      const delResult = await onDeleteMfaVerification(passkeyActionId, identityResult.data.verificationRecordId);
+      if (passkeyActionAbortRef.current) return;
+      if (!delResult.ok) { onError(delResult.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
+      onSuccess(t.mfa.passkeyDeleted);
+      setPasskeyActionStep(null);
+      setPasskeyActionId(null);
+      await refreshMfa();
+      return;
+    }
+    setPasskeyActionStep({ kind: 'loading', message: t.mfa.verifying });
+    const identityResult = await onVerifyPassword(pw);
+    if (passkeyActionAbortRef.current) return;
+    if (!identityResult.ok) { onError(identityResult.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
+    setPasskeyActionStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyActionId });
+  };
+
+  const handlePasskeyActionRenameSubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
+    setPasskeyActionStep({ kind: 'loading', message: t.mfa.verifying });
+    const r = await onRenamePasskey(passkeyId, name, verificationRecordId);
+    if (passkeyActionAbortRef.current) return;
+    if (!r.ok) { onError(r.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
+    onSuccess(t.mfa.passkeyRenamed);
+    setPasskeyActionStep(null);
+    setPasskeyActionId(null);
     await refreshMfa();
   };
 
@@ -449,8 +490,8 @@ export function SecurityTab({
         />
       )}
 
-      {/* Delete passkey modal */}
-      {delPasskeyStep && (
+      {/* Delete passkey modal (desktop) */}
+      {!isMobile && delPasskeyStep && (
         <FlowModal
           title={t.mfa.deletePasskey}
           subtitle={t.mfa.deletePasskeyDesc}
@@ -464,8 +505,8 @@ export function SecurityTab({
         />
       )}
 
-      {/* Rename passkey modal */}
-      {renamePasskeyStep && (
+      {/* Rename passkey modal (desktop) */}
+      {!isMobile && renamePasskeyStep && (
         <FlowModal
           title={t.mfa.renamePasskey}
           subtitle={t.mfa.renamePasskeyDesc}
@@ -476,6 +517,36 @@ export function SecurityTab({
       mode={mode}
       colors={colors}
       t={t}
+        />
+      )}
+
+      {/* Unified passkey action modal (mobile) */}
+      {isMobile && passkeyActionStep && (
+        <FlowModal
+          title={passkeyActionMode === 'remove' ? t.mfa.deletePasskey : t.mfa.renamePasskey}
+          subtitle={passkeyActionMode === 'remove' ? t.mfa.deletePasskeyDesc : t.mfa.renamePasskeyDesc}
+          step={passkeyActionStep}
+          onPasswordSubmit={handlePasskeyActionPw}
+          onRenamePasskeySubmit={handlePasskeyActionRenameSubmit}
+          onClose={() => { passkeyActionAbortRef.current = true; setPasskeyActionStep(null); setPasskeyActionId(null); }}
+          danger={passkeyActionMode === 'remove'}
+          headerExtra={passkeyActionMode === 'rename' && passkeyActionStep.kind === 'password' ? (
+            <button
+              onClick={() => { setPasskeyActionMode('remove'); }}
+              style={{
+                background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', color: c.accentRed,
+                fontWeight: 600, fontSize: '0.75rem',
+                fontFamily: T.font, textDecoration: 'underline',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t.profile.deleteHint}
+            </button>
+          ) : undefined}
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -493,9 +564,20 @@ export function SecurityTab({
               <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: T.muted }}>••••••••••••</p>
             </div>
           </div>
-          <Button size="sm" onClick={() => { pwChangeAbortRef.current = false; setPwChangeErr(''); setPwStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-            {t.security.changePassword}
-          </Button>
+          {isMobile ? (
+            <button onClick={() => { pwChangeAbortRef.current = false; setPwChangeErr(''); setPwStep({ kind: 'password' }); }} aria-label={t.security.changePassword} style={{
+              width: '2rem', height: '2rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+              borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+            }}>
+              <Pencil size={14} strokeWidth={1.5} />
+            </button>
+          ) : (
+            <Button size="sm" onClick={() => { pwChangeAbortRef.current = false; setPwChangeErr(''); setPwStep({ kind: 'password' }); }} mode={mode} colors={colors}>
+              {t.security.changePassword}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -683,14 +765,25 @@ export function SecurityTab({
                     </p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-                  <Button size="sm" variant="ghost" onClick={() => { renameAbortRef.current = false; setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-                    <Pencil size={'0.6875rem'} strokeWidth={1.5} /> {t.profile.edit}
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => { delPasskeyAbortRef.current = false; setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-                    <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
-                  </Button>
-                </div>
+                {isMobile ? (
+                  <button onClick={() => { passkeyActionAbortRef.current = false; setPasskeyActionId(passkey.id); setPasskeyActionMode('rename'); setPasskeyActionStep({ kind: 'password' }); }} aria-label={t.profile.edit} style={{
+                    width: '2rem', height: '2rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+                  }}>
+                    <Pencil size={14} strokeWidth={1.5} />
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+                    <Button size="sm" variant="ghost" onClick={() => { renameAbortRef.current = false; setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
+                      <Pencil size={'0.6875rem'} strokeWidth={1.5} /> {t.profile.edit}
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => { delPasskeyAbortRef.current = false; setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
+                      <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

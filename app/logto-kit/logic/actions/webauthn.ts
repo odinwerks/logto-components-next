@@ -61,7 +61,7 @@ export async function verifyAndLinkWebAuthn(
     // Step 2: verify the browser ceremony result
     const verifyRes = await makeRequest('/api/verifications/web-authn/registration/verify', {
       method: 'POST',
-      body: { payload, verificationRecordId },
+        body: { payload: { ...(payload as Record<string, unknown>), type: 'WebAuthn' }, verificationRecordId },
     });
 
     await throwOnApiError(verifyRes, 'MFA_ENROLL_FAILED', 'webauthn-verify');

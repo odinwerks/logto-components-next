@@ -170,7 +170,7 @@ describe('verifyAndLinkWebAuthn', () => {
     const [firstCall] = vi.mocked(makeRequest).mock.calls;
     expect(firstCall[1]).toMatchObject({
       method: 'POST',
-      body: { payload: validPayload, verificationRecordId: validVrecId },
+      body: { payload: { ...validPayload, type: 'WebAuthn' }, verificationRecordId: validVrecId },
     });
   });
 

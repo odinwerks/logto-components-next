@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { enUS } from '../../../locales/en-US';
 import { DARK_COLORS } from '../../../themes';
 
+vi.mock('@logto/next/server-actions', () => ({
+  getLogtoContext: vi.fn(),
+  getAccessToken: vi.fn(),
+  signOut: vi.fn(),
+}));
+
 // ── Mocks (use vi.hoisted for values vi.mock factories need) ──
 
 const { mockReadEnv, MockUserBadge } = vi.hoisted(() => ({

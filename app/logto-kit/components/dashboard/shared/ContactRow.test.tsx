@@ -16,7 +16,7 @@ let flowModalStep: string = 'password';
 
 vi.mock('./FlowModal', () => ({
   FlowModal: ({
-    step, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra,
+    step, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra, headerExtra,
   }: Record<string, unknown>) => {
     // Expose handlers for test access
     flowModalHandlers = {
@@ -29,6 +29,7 @@ vi.mock('./FlowModal', () => ({
       <div data-testid="flow-modal" data-step={flowModalStep}>
         {passwordError ? <div data-testid="password-error">{passwordError as string}</div> : null}
         {extra ? <div data-testid="extra">{'extra'}</div> : null}
+        {headerExtra ? <div data-testid="header-extra">{headerExtra as React.ReactNode}</div> : null}
       </div>
     );
   },
@@ -62,7 +63,8 @@ function openEditModal() {
 }
 
 function openRemoveModal() {
-  fireEvent.click(screen.getByText(enUS.profile.remove));
+  openEditModal();
+  fireEvent.click(screen.getByText(enUS.profile.deleteHint));
 }
 
 describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
