@@ -1,11 +1,8 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { DashboardClient } from './client';
-import { PreferencesProvider } from '../handlers/preferences';
-import { UserDataProvider } from '../handlers/user-data-context';
 import {
   updateUserBasicInfo,
   updateUserProfile,
-  updateUserCustomData,
   updateAvatarUrl,
   verifyPasswordForIdentity,
   sendEmailVerificationCode,
@@ -33,7 +30,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { getDefaultThemeMode, DARK_COLORS } from '../../themes';
+import { DARK_COLORS } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -50,8 +47,6 @@ export async function Dashboard() {
   // ── Tabs (ordered from ENV) ────────────────────────────────────────────────
   const loadedTabs = getLoadedTabs();
 
-  // ── Theme default from ENV ─────────────────────────────────────────────────
-  const defaultThemeMode = getDefaultThemeMode();
   const errorColors = DARK_COLORS;
 
   // ── Fetch user data ────────────────────────────────────────────────────────
@@ -95,16 +90,10 @@ export async function Dashboard() {
     );
   }
 
-  // ── Resolve theme from user preferences or default ─────────────────────────
-  // Provider checks sessionStorage first, falls back to this value
   const userPrefs = getPreferencesFromUserData(result.userData);
-  const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
-  const resolvedLang = userPrefs?.lang ?? locale;
   const resolvedOrg = userPrefs?.asOrg ?? null;
 
   return (
-    <UserDataProvider userData={result.userData}>
-      <PreferencesProvider initialTheme={resolvedTheme} initialLang={resolvedLang} initialOrgId={resolvedOrg} onUpdateCustomData={updateUserCustomData}>
         <DashboardClient
           initialData={{
             userData: result.userData,
@@ -142,8 +131,6 @@ export async function Dashboard() {
           onRevokeAllOtherSessions={revokeAllOtherSessions}
           onSignOut={signOutUser}
         />
-      </PreferencesProvider>
-    </UserDataProvider>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ReactNode } from 'react';
 
-function useIsPortrait(): boolean {
+export function useIsPortrait(): boolean {
   const [portrait, setPortrait] = useState(false);
 
   useEffect(() => {

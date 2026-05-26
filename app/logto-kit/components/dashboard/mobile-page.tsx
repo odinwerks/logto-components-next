@@ -1,6 +1,5 @@
 import { fetchDashboardData } from '../../logic/actions';
 import { MobileClient } from './mobile-client';
-import { LogtoProvider } from '../handlers/logto-provider';
 import {
   updateUserBasicInfo,
   updateUserProfile,
@@ -32,7 +31,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { getDefaultThemeMode, DARK_COLORS } from '../../themes';
+import { DARK_COLORS } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -45,7 +44,6 @@ export async function MobileDashboard() {
   const supportedLangs = getSupportedLangs();
   const loadedTabs = getLoadedTabs();
 
-  const defaultThemeMode = getDefaultThemeMode();
   const errorColors = DARK_COLORS;
 
   const result = await fetchDashboardData();
@@ -89,17 +87,9 @@ export async function MobileDashboard() {
   }
 
   const userPrefs = getPreferencesFromUserData(result.userData);
-  const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
-  const resolvedLang = userPrefs?.lang ?? locale;
   const resolvedOrg = userPrefs?.asOrg ?? null;
 
   return (
-    <LogtoProvider
-      userData={result.userData}
-      initialTheme={resolvedTheme}
-      initialLang={resolvedLang}
-      initialOrgId={resolvedOrg}
-    >
       <MobileClient
           initialData={{
             userData: result.userData,
@@ -137,6 +127,5 @@ export async function MobileDashboard() {
           onRevokeAllOtherSessions={revokeAllOtherSessions}
           onSignOut={signOutUser}
         />
-    </LogtoProvider>
   );
 }

@@ -7,6 +7,7 @@ import type { Translations } from '../../locales';
 import type { ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../handlers/preferences';
 import { useUserDataContext } from '../handlers/user-data-context';
+import { useLogto } from '../handlers/logto-provider';
 import { ToastContainer } from './shared/Toast';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
@@ -118,6 +119,8 @@ export function MobileClient({
     [lang, allTranslations, serverTranslations]
   );
 
+  const { closeDashboard } = useLogto();
+
   const userDataFromContext = useUserDataContext();
   const userData = userDataFromContext ?? initialData.userData;
 
@@ -221,6 +224,41 @@ export function MobileClient({
             />
           ))}
         </div>
+
+        {/* Close dashboard button */}
+        <button
+          onClick={closeDashboard}
+          aria-label="Close dashboard"
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            right: '1.35rem',
+            width: '2.5rem',
+            height: '2.5rem',
+            borderRadius: '0.5rem',
+            border: `1px solid ${colors.borderColor}`,
+            background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(0.5rem)',
+            WebkitBackdropFilter: 'blur(0.5rem)',
+            color: colors.textTertiary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            transition: 'background 0.15s ease, color 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.bgSecondary;
+            e.currentTarget.style.color = colors.textPrimary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+            e.currentTarget.style.color = colors.textTertiary;
+          }}
+        >
+          <ArrowLeft size={18} />
+        </button>
 
         <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
       </div>
