@@ -6,6 +6,7 @@ import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
+import { DashboardRouter } from '../dashboard/dashboard-router';
 
 interface LogtoContextValue {
   userData: UserData;
@@ -34,7 +35,7 @@ export function useLogto(): LogtoContextValue {
 export interface LogtoProviderProps {
   children: ReactNode;
   userData: UserData;
-  dashboard?: ReactNode;
+  dashboard?: { desktop: ReactNode; mobile: ReactNode };
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
@@ -48,7 +49,7 @@ function LogtoProviderContent({
   children,
 }: {
   userData: UserData;
-  dashboard?: ReactNode;
+  dashboard?: { desktop: ReactNode; mobile: ReactNode };
   children: ReactNode;
 }) {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
@@ -136,7 +137,7 @@ function LogtoProviderContent({
                 ✕
               </button>
               <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                {dashboard}
+                <DashboardRouter desktop={dashboard.desktop} mobile={dashboard.mobile} />
               </div>
             </div>
           </div>

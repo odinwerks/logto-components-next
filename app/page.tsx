@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { fetchDashboardData } from './logto-kit/logic/actions';
 import { Dashboard } from './logto-kit/components/dashboard';
+import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
 import { DARK_COLORS, getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
@@ -45,7 +46,7 @@ export default async function HomePage() {
     <main style={{ minHeight: '100vh' }}>
       <LogtoProvider
         userData={result.userData}
-        dashboard={<Dashboard />}
+        dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
         initialTheme={resolvedTheme}
         initialLang={resolvedLang}
         initialOrgId={resolvedOrg}
