@@ -142,6 +142,7 @@ DELETE_REDIRECT_DELAY=3000 # ms before redirect after account deletion
 # -- Debug --
 DEBUG=                    # Set to true for verbose server logging
 PLAIN_ERRORS=false        # Set to true for full error text in responses
+LOGTO_DANGER_EXPOSE_TOKEN=false  # ⚠️ true = show access token in Dev tab (NEVER in prod)
 LOG_BACKEND=console       # console | logtail (structured logging backend)`} />
       <CodeBlock title="SCOPES" code={`# Minimum (includes sessions)
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions

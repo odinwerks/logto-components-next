@@ -292,7 +292,7 @@ SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,
 # M2M for Management API (required for account deletion)
 LOGTO_M2M_APP_ID=your-m2m-app-id
 LOGTO_M2M_APP_SECRET=your-m2m-app-secret
-LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api
+LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api  # Logto Cloud. For OSS, defaults to https://default.logto.app/api
 
 # Token Introspection (required for Protected Actions API)
 LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
@@ -368,9 +368,17 @@ LANG_AVAILABLE=en-US,ka-GE
 # DEBUG=true
 ```
 
-### S3 Storage (for Avatar Upload)
+### Avatar Storage Backend
+
+Choose between two storage backends for avatar uploads:
+
+#### Option 1: S3-Compatible Storage
+
+Set `PFP_BACKEND=s3` (default) and configure S3 variables:
 
 ```env
+PFP_BACKEND=s3
+
 # S3-Compatible Storage (Supabase, AWS S3, MinIO, DigitalOcean Spaces)
 S3_BUCKET_NAME=avatars
 S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars
@@ -383,7 +391,19 @@ S3_REGION=auto
 # SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-> **Note**: Full S3 configuration details are in the [Avatar Upload](#avatar-upload) section below.
+Use this when you want full control over storage, already have S3 infrastructure, or need CDN integration.
+
+#### Option 2: Logto Native Avatar API
+
+Set `PFP_BACKEND=logto` to use Logto's built-in avatar handling:
+
+```env
+PFP_BACKEND=logto
+```
+
+No S3 configuration required. Logto handles upload, storage, and cleanup internally using your existing Logto endpoint. Use this for simpler deployments without external storage infrastructure.
+
+> **Note**: Full configuration details are in `.env.example` and the [Avatar Upload](#avatar-upload) section below.
 
 ### NEXT_PUBLIC_* Variants
 
@@ -457,7 +477,7 @@ The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - on
 | i18n | config | Translation files, language switching |
 | Sessions | component | Active session management with device info, IP geolocation, and revocation |
 | Calculator | component | Permission-gated calculator demo with live RBAC examples |
-| Error Handling | reference | Error sanitization: 21 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
+| Error Handling | reference | Error sanitization: 23 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
 | Input Guards | reference | Input validation at trust boundaries: 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv |
 | Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
 | Primitives | reference | Reusable building blocks: useRefreshable() hook, <RefreshButton />, direct org token fetch, PermissionsBlock pattern |
@@ -485,7 +505,7 @@ The demo app consists of:
 | `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
 | `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
-| `docs/errors.tsx` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
+| `docs/errors.tsx` | Error handling guide - sanitization, 23 error codes, safeAction, server action pattern (4 pages) |
 | `docs/guards.tsx` | Input guards - 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
 | `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
 | `docs/primitives.tsx` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
@@ -1980,7 +2000,7 @@ npm run test:run
 npm test
 ```
 
-**Test coverage** (10+ test files):
+**Test coverage** (27 test files):
 - Security: `origin-guard.test.ts`, `guards.test.ts`, `dev-mode.test.ts`
 - Logic: `validation.test.ts`, `errors.test.ts`
 - Actions: `sessions.test.ts`, `webauthn.test.ts`

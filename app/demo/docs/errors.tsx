@@ -108,7 +108,7 @@ function ErrorCodesSection() {
   return (
     <SectionWrap label="Error codes">
       <p style={styles.textStyle}>
-        All 21 error codes. These are the only strings clients receive in production
+        All 23 error codes. These are the only strings clients receive in production
         (unless <code style={styles.codeStyle}>PLAIN_ERRORS=true</code>).
       </p>
       <table style={styles.tableStyle}>
@@ -174,6 +174,10 @@ function ErrorCodesSection() {
           <tr>
             <td style={styles.tdPropStyle}>BACKUP_CODES_FAILED</td>
             <td style={styles.tdStyle}>Backup code generation or fetch failed</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>BACKUP_CODES_NO_MFA_FACTOR</td>
+            <td style={styles.tdStyle}>MFA factor not found for backup code operation</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>PASSWORD_UPDATE_FAILED</td>

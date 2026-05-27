@@ -217,11 +217,15 @@ function ApiCallSection() {
         </p>
         <ol style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
           <li>Evaluates the expression locally (parser in <code style={styles.codeSmStyle}>evaluate()</code>)</li>
-          <li>Gets a fresh access token via <code style={styles.codeSmStyle}>getFreshAccessToken()</code></li>
-          <li>Calls <code style={styles.codeSmStyle}>POST /api/protected</code> with the result</li>
+          <li>Calls <code style={styles.codeSmStyle}>POST /api/protected</code> with the action and payload</li>
+          <li>The API derives the access token and user ID server-side from the session cookie</li>
         </ol>
         <CodeBlock title="handleCalculate in CalculatorClient.tsx" code={`const handleCalculate = useCallback(async (result: number) => {
-  const freshToken = await getFreshAccessToken();
+  if (!userData?.id) {
+    alert('Not authenticated');
+    return;
+  }
+
   const hasScientific = /\\b(sin|cos|tan|log|ln|...)\\b/.test(state.expr);
   const action = hasScientific ? 'calc-scientific' : 'calc-basic';
 
@@ -229,20 +233,23 @@ function ApiCallSection() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      token: freshToken,
-      id: userData.id,
       action,
       payload: { expression: state.expr, result },
     }),
   });
 
   const res = await response.json();
-  if (res.ok) {
+  if (res.ok && res.data) {
     console.log(\`✅ Calculation succeeded: \${res.data.message}\`);
   } else {
     alert(\`Permission denied: \${res.message}\`);
   }
 }, [userData, state.expr]);`} />
+        <p style={styles.textStyle}>
+          <strong>Note:</strong> The API route derives authentication server-side via{' '}
+          <code style={styles.codeSmStyle}>getTokenForServerAction()</code> which reads the session cookie.
+          No token or user ID needs to be sent in the request body — the server handles auth automatically.
+        </p>
       </div>
     </div>
   );

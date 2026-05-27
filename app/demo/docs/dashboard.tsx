@@ -199,6 +199,171 @@ function NotesSection() {
 // Page 3 Sections
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function MobileOverviewSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Mobile layout system">
+      <p style={styles.textStyle}>
+        The dashboard adapts to screen orientation using a responsive router pattern.
+        Portrait mode triggers a mobile-specific UI optimized for touch interactions.
+      </p>
+      <CodeBlock title="Component hierarchy" code={`LogtoProvider
+  └─ DashboardRouter  ← switches based on orientation
+       ├─ desktop: DashboardClient (sidebar + content)
+       └─ mobile:  MobileClient   (menu + tab views)`} />
+      <p style={{ ...styles.textStyle, marginBottom: 0 }}>
+        Detection uses CSS media query, not screen width. A narrow landscape window
+        renders desktop layout; a portrait phone renders mobile layout.
+      </p>
+    </SectionWrap>
+  );
+}
+
+function UseIsPortraitSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="useIsPortrait() hook">
+      <p style={styles.textStyle}>
+        Returns <code style={styles.codeStyle}>true</code> when the viewport matches
+        <code style={styles.codeStyle}> (orientation: portrait)</code>.
+      </p>
+      <CodeBlock title="Implementation" code={`function useIsPortrait(): boolean {
+  const [portrait, setPortrait] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    setPortrait(mq.matches);
+    const handler = (e) => setPortrait(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  return portrait;
+}`} />
+      <table style={styles.tableStyle}>
+        <thead>
+          <tr>
+            <th style={styles.thStyle}>Return</th>
+            <th style={styles.thStyle}>Trigger</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={styles.tdPropStyle}>boolean</td>
+            <td style={styles.tdStyle}>Re-evaluates on orientation change</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Server render:</strong>{' '}
+        Defaults to <code style={styles.codeSmStyle}>false</code> (desktop) until hydrated.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function DashboardRouterSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="DashboardRouter component">
+      <p style={styles.textStyle}>
+        Simple switch component that renders either desktop or mobile content
+        based on the result of <code style={styles.codeStyle}>useIsPortrait()</code>.
+      </p>
+      <CodeBlock title="Props and usage" code={`function DashboardRouter({
+  desktop,
+  mobile,
+}: {
+  desktop: ReactNode;
+  mobile: ReactNode;
+}) {
+  const isPortrait = useIsPortrait();
+  return <>{isPortrait ? mobile : desktop}</>;
+}`} />
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Placement:</strong>{' '}
+        Used inside LogtoProvider when rendering the dashboard modal.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function DesktopMobilePropSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="{ desktop, mobile } prop pattern">
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>LogtoProvider</code> accepts dashboard as an object
+        with both variants pre-rendered as Server Components.
+      </p>
+      <CodeBlock title="LogtoProviderProps" code={`interface LogtoProviderProps {
+  dashboard?: { desktop: ReactNode; mobile: ReactNode };
+  // ... other props
+}
+
+// Usage
+<LogtoProvider
+  dashboard={{
+    desktop: <Dashboard />,
+    mobile:  <Dashboard mobile />
+  }}
+>`} />
+      <p style={styles.textStyle}>
+        Both variants are pre-rendered Server Components. The router selects which to show.
+      </p>
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Alternative:</strong>{' '}
+        Pass a single <code style={styles.codeSmStyle}>dashboard</code> prop for desktop-only rendering.
+      </div>
+    </SectionWrap>
+  );
+}
+
+function MobileClientSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="MobileClient features">
+      <p style={styles.textStyle}>
+        Full-screen mobile dashboard with two-view navigation and touch-optimized interactions.
+      </p>
+      <table style={styles.tableStyle}>
+        <thead>
+          <tr>
+            <th style={styles.thStyle}>Feature</th>
+            <th style={styles.thStyle}>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={styles.tdPropStyle}>Two-view navigation</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>menu</code> tab list, <code style={styles.codeSmStyle}>tab</code> active content</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>Staggered animations</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>mStagger</code> keyframes with <code style={styles.codeSmStyle}>index * 0.08s</code> delay</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>Touch feedback</td>
+            <td style={styles.tdStyle}><code style={styles.codeSmStyle}>onTouchStart</code>/<code style={styles.codeSmStyle}>onTouchEnd</code> with 150ms release delay</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>Floating actions</td>
+            <td style={styles.tdStyle}>Fixed back button, close dashboard button</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}><code style={styles.codeSmStyle}>mobmode</code> prop</td>
+            <td style={styles.tdStyle}>Passed to all tabs for mobile-specific rendering</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Tab mobmode:</strong>{' '}
+        See tabs-and-flows.tsx for details on how tabs adapt rendering when <code style={styles.codeSmStyle}>mobmode=1</code>.
+      </div>
+    </SectionWrap>
+  );
+}
+
 function WiringSection() {
   const styles = useDocStyles();
   return (
@@ -366,6 +531,21 @@ export default function DashboardDoc() {
           <div style={styles.colLeftStyle}>
             <ClickSection />
             <WhySection />
+          </div>
+        </div>
+      </Section>
+
+      {/* Page 4: Mobile Dashboard (two-column layout) */}
+      <Section id={4}>
+        <div style={{ ...styles.twoColLayoutStyle, minHeight: '100%', padding: '16px' }}>
+          <div style={styles.colLeftStyle}>
+            <MobileOverviewSection />
+            <UseIsPortraitSection />
+          </div>
+          <div style={styles.colLeftStyle}>
+            <DashboardRouterSection />
+            <DesktopMobilePropSection />
+            <MobileClientSection />
           </div>
         </div>
       </Section>

@@ -82,8 +82,15 @@ LOAD_TABS=profile,preferences,security,organizations`} />
         <strong style={styles.strongNoteStyle}>Common props:</strong>{' '}
         Every tab receives <code style={styles.codeSmStyle}>userData: UserData</code>,{' '}
         <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
-        <code style={styles.codeSmStyle}>colors: ThemeColors</code>, and{' '}
-        <code style={styles.codeSmStyle}>t: Translations</code>. These are omitted from individual prop tables below.
+        <code style={styles.codeSmStyle}>colors: ThemeColors</code>,{' '}
+        <code style={styles.codeSmStyle}>t: Translations</code>, and{' '}
+        <code style={styles.codeSmStyle}>mobmode?: number</code>. These are omitted from individual prop tables below.
+      </div>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>mobmode:</strong>{' '}
+        Mobile rendering flag. <code style={styles.codeSmStyle}>mobmode === 1</code> enables compact layouts,
+        reduced spacing, and mobile-optimized button styling. Desktop clients omit this prop (undefined → desktop mode).
+        Affects form layout, avatar modal (camera/upload buttons vs drag-and-drop), and action button placement.
       </div>
     </SectionWrap>
   );
@@ -234,6 +241,127 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
         <code style={styles.codeSmStyle}>handleSaveName</code> updates display name (if non-empty)
         then always updates profile fields. Avatar upload uses{' '}
         <code style={styles.codeSmStyle}>updateAvatarUrl</code> imported directly (not the prop).
+      </div>
+    </SectionWrap>
+  );
+}
+
+function ImageCropperSection() {
+  const styles = useDocStyles();
+  return (
+    <SectionWrap label="Profile - ImageCropper">
+      <p style={styles.textStyle}>
+        Canvas-based image cropping component. Supports drag/pan, zoom, pinch gestures,
+        rule-of-thirds overlay, and multiple crop shapes. Used in Profile tab for avatar cropping.
+      </p>
+      <table style={styles.tableStyle}>
+        <thead>
+          <tr>
+            <th style={styles.thStyle}>Prop</th>
+            <th style={styles.thStyle}>Type</th>
+            <th style={styles.thStyle}>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={styles.tdPathStyle}>imageUrl</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
+            <td style={styles.tdStyle}>Source URL (blob:, data:, or crossOrigin image)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>shape</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'circle' | 'sq' | 'rsq'`}</code></td>
+            <td style={styles.tdStyle}>Crop shape: circle, square, or rounded square</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>outputSize</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
+            <td style={styles.tdStyle}>Output image dimensions (default: 512)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>displaySize</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
+            <td style={styles.tdStyle}>Canvas display size in px (default: 180)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>mode</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'dark' | 'light'`}</code></td>
+            <td style={styles.tdStyle}>Theme mode (inherited from parent)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>colors</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
+            <td style={styles.tdStyle}>Theme color object (inherited from parent)</td>
+          </tr>
+        </tbody>
+      </table>
+      <CodeBlock title="Ref interface" code={`export interface ImageCropperRef {
+  cropToBlob: () => Promise<Blob | null>;
+}
+
+// Usage:
+const cropperRef = useRef<ImageCropperRef>(null);
+const blob = await cropperRef.current?.cropToBlob(); // PNG, 0.92 quality`} />
+      <table style={styles.tableStyle}>
+        <thead>
+          <tr>
+            <th style={styles.thStyle}>Shape</th>
+            <th style={styles.thStyle}>Value</th>
+            <th style={styles.thStyle}>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={styles.tdPathStyle}>Circle</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'circle'`}</code></td>
+            <td style={styles.tdStyle}>Circular crop mask (for avatars)</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>Square</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'sq'`}</code></td>
+            <td style={styles.tdStyle}>Sharp square corners</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPathStyle}>Rounded square</td>
+            <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'rsq'`}</code></td>
+            <td style={styles.tdStyle}>Rounded corners (20% radius)</td>
+          </tr>
+        </tbody>
+      </table>
+      <CodeBlock title="Usage example" code={`import { ImageCropper, ImageCropperRef } from '../shared/ImageCropper';
+
+function AvatarUpload() {
+  const cropperRef = useRef<ImageCropperRef>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  const handleCrop = async () => {
+    const blob = await cropperRef.current?.cropToBlob();
+    if (blob) {
+      const file = new File([blob], 'avatar.png', { type: 'image/png' });
+      await uploadAvatar(file);
+    }
+  };
+
+  return imageUrl ? (
+    <ImageCropper
+      ref={cropperRef}
+      imageUrl={imageUrl}
+      shape="circle"
+      outputSize={512}
+      displaySize={180}
+      mode={mode}
+      colors={colors}
+    />
+  ) : (
+    <FileInput onSelect={setImageUrl} />
+  );
+}`} />
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Shape fallback:</strong>{' '}
+        <code style={styles.codeSmStyle}>shape</code> prop defaults to{' '}
+        <code style={styles.codeSmStyle}>USER_SHAPE</code> env var, then{' '}
+        <code style={styles.codeSmStyle}>{`'circle'`}</code>. Canvas is 512×512 internally,
+        scaled down to <code style={styles.codeSmStyle}>displaySize</code> for rendering.
       </div>
     </SectionWrap>
   );
@@ -712,6 +840,15 @@ const handleInvalidateSession = async () => {
         which is necessary to clear cookies/sessions. <code style={styles.codeSmStyle}>router.push</code>{' '}
         would not work here.
       </div>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Production gate:</strong>{' '}
+        Defense-in-depth protection. The server filters <code style={styles.codeSmStyle}>dev</code>{' '}
+        from <code style={styles.codeSmStyle}>LOAD_TABS</code> when{' '}
+        <code style={styles.codeSmStyle}>NODE_ENV !== &apos;development&apos;</code>.
+        Additionally, the component itself checks <code style={styles.codeSmStyle}>isDev</code>{' '}
+        and renders a fallback UI (ShieldAlert icon + &quot;Dev tab is disabled in production builds&quot;)
+        instead of the debug content. This prevents accidental exposure if the tab is somehow loaded.
+      </div>
     </SectionWrap>
   );
 }
@@ -772,6 +909,7 @@ export default function TabsAndFlowsDoc() {
           <div style={styles.colLeftStyle}>
             <ProfilePropsSection />
             <ProfileHooksSection />
+            <ImageCropperSection />
           </div>
         </div>
       </Section>
