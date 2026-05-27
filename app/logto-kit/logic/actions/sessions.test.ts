@@ -138,6 +138,27 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0].meta?.isCurrent).toBe(false);
   });
+
+  it('returns sessions with empty userId when token introspection fails (BUG-006)', async () => {
+    // Simulate introspection failure (e.g., LOGTO_INTROSPECTION_URL not configured)
+    vi.mocked(introspectToken).mockRejectedValue(
+      new Error('Logto introspection not configured')
+    );
+    const session = mockSession('session-d', true);
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [session] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    // Should NOT fail even though introspection failed
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    // userId should be empty string as fallback
+    expect(result.data[0].meta?.userId).toBe('');
+  });
 });
 
 // ============================================================================
@@ -205,18 +226,21 @@ describe('revokeAllOtherSessions', () => {
     expect(deletedPaths.some(p => p.includes('other-uid-2'))).toBe(true);
   });
 
-  it('uses JTI (session ID) not UID (user ID) in revokeUserSession API path (BUG-001)', async () => {
+  it('uses payload.uid (OIDC session UID) not payload.jti (JWT ID) in revokeUserSession API path', async () => {
     // Sessions with deliberately different UID and JTI values to catch bugs
-    // where s.payload.uid (user ID) is passed instead of s.payload.jti (session ID).
+    // where s.payload.jti (JWT ID) is passed instead of s.payload.uid (OIDC session UID).
     const sessions = [
       mockSession('current-session', true),
       mockSession('other-session', false),
     ];
-    // Override JTI to be distinct from UID so we can tell them apart
+    // Override JTI and UID to be distinct so we can tell them apart
     sessions[0].payload.jti = 'jti-current-abc';
     sessions[0].payload.uid = 'uid-current-xyz';
     sessions[1].payload.jti = 'jti-other-def';
     sessions[1].payload.uid = 'uid-other-123';
+
+    // Mock introspection to return sid matching the current session's uid
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true, sid: 'uid-current-xyz' });
 
     const deletedPaths: string[] = [];
 
@@ -239,10 +263,10 @@ describe('revokeAllOtherSessions', () => {
     // Should have called DELETE for the non-current session
     expect(deletedPaths).toHaveLength(1);
 
-    // The path should contain JTI (jti-other-def), NOT UID (uid-other-123)
+    // The path should contain UID (uid-other-123), NOT JTI (jti-other-def)
     const path = deletedPaths[0];
-    expect(path).toContain('jti-other-def');
-    expect(path).not.toContain('uid-other-123');
+    expect(path).toContain('uid-other-123');
+    expect(path).not.toContain('jti-other-def');
   });
 
   it('resolves with ok when there is exactly one session and it is the current one', async () => {

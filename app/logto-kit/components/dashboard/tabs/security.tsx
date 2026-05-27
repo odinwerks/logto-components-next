@@ -20,7 +20,7 @@ interface SecurityTabProps {
   colors: ThemeColors;
   t: Translations;
   mobmode?: number;
-  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onGetMfaVerifications: () => Promise<DataResult<MfaVerification[]>>;
   onGenerateTotpSecret: () => Promise<DataResult<{ secret: string }>>;
   onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<ActionResult>;
@@ -36,6 +36,9 @@ interface SecurityTabProps {
   onError: (message: string) => void;
 }
 
+// NOTE: This var is evaluated at module scope in a client component.
+// Server uses MFA_ISSUER; browser uses NEXT_PUBLIC_MFA_ISSUER.
+// They MUST be set to the same value to avoid SSR/client hydration mismatch.
 const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
 
 export function SecurityTab({
@@ -115,6 +118,8 @@ export function SecurityTab({
   const totpFactor   = mfaList.find(v => v.type === 'Totp');
   const backupFactor = mfaList.find(v => v.type === 'BackupCode');
   const webAuthnFactors = mfaList.filter(v => v.type === 'WebAuthn');
+  // Logto requires at least one other MFA factor before backup codes can be enrolled.
+  const hasOtherMfaFactor = mfaList.some(v => v.type === 'Totp' || v.type === 'WebAuthn');
 
   const fmt = (d: string) => new Date(d).toLocaleString(undefined, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -188,7 +193,14 @@ export function SecurityTab({
     if (!identityResult.ok) { onError(identityResult.error); closeBackupModal(); return; }
     const codesResult = await onGenerateBackupCodes(identityResult.data.verificationRecordId);
     if (backupAbortRef.current) return;
-    if (!codesResult.ok) { onError(codesResult.error); closeBackupModal(); return; }
+    if (!codesResult.ok) {
+      // Surface the "no other MFA factor" constraint as an actionable message.
+      onError(codesResult.error === 'BACKUP_CODES_NO_MFA_FACTOR'
+        ? t.mfa.backupCodesRequireOtherFactor
+        : codesResult.error);
+      closeBackupModal();
+      return;
+    }
     setBackupCodes(codesResult.data.codes.map(code => ({ code, used: false })));
     closeBackupModal();
   };
@@ -207,12 +219,10 @@ export function SecurityTab({
     if (deleteAbortRef.current) return;
     if (!identityResult.ok) { onError(identityResult.error); setDeleteStep(null); return; }
 
-    const verificationTimestamp = Date.now();
-
     setDeleteStep({ kind: 'loading', message: t.security.deletingAccount });
     const deleteResult = await onDeleteAccount(
       identityResult.data.verificationRecordId,
-      verificationTimestamp,
+      identityResult.data.verificationTimestamp,  // server-derived, from Logto's expiresAt
     );
     if (deleteAbortRef.current) return;
     if (!deleteResult.ok) { onError(deleteResult.error); setDeleteStep(null); return; }
@@ -220,7 +230,8 @@ export function SecurityTab({
     setDeleteStep({ kind: 'loading', message: t.security.accountDeleted });
     onSuccess(t.security.accountDeleted);
 
-    const delayMs = parseInt(readEnv('DELETE_REDIRECT_DELAY') || '3000', 10);
+    const rawDelay = parseInt(readEnv('DELETE_REDIRECT_DELAY') || '3000', 10);
+    const delayMs = Number.isFinite(rawDelay) && rawDelay >= 0 ? rawDelay : 3000;
     redirectTimerRef.current = setTimeout(() => {
       window.location.href = '/';
     }, delayMs);
@@ -680,12 +691,22 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              <button onClick={() => openBackup()} style={{
-                width: '2rem', height: '2rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
-                borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
-              }}>
+              <button
+                onClick={() => {
+                  if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
+                  openBackup();
+                }}
+                title={!hasOtherMfaFactor ? t.mfa.backupCodesRequireOtherFactor : undefined}
+                style={{
+                  width: '2rem', height: '2rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                  borderRadius: '0.25rem',
+                  cursor: !hasOtherMfaFactor ? 'not-allowed' : 'pointer',
+                  color: !hasOtherMfaFactor ? c.textTertiary : c.textSecondary,
+                  opacity: !hasOtherMfaFactor ? 0.45 : 1,
+                  padding: 0,
+                }}>
                 <RefreshCw size={14} strokeWidth={1.5} />
               </button>
             </div>

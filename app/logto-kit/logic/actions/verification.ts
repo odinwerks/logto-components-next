@@ -14,7 +14,7 @@ import { ValidationError } from '../validation';
 // Password Verification
 // ============================================================================
 
-export async function verifyPasswordForIdentity(password: string): Promise<DataResult<{ verificationRecordId: string }>> {
+export async function verifyPasswordForIdentity(password: string): Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>> {
   return safeAction(async () => {
     // Guard: password must be a non-empty string with reasonable length
     if (typeof password !== 'string' || password.length === 0 || password.length > 256) {
@@ -33,7 +33,18 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     if (!parsed.verificationRecordId) {
       throw plainCode('VERIFICATION_FAILED');
     }
-    return { verificationRecordId: parsed.verificationRecordId };
+    // Store Logto's expiresAt directly (server-authoritative).
+    // Previously this computed issued-at ≈ expiresAt - 10min, which hardcoded
+    // Logto's TTL. Storing expiresAt itself means the staleness check in
+    // account.ts just compares Date.now() > verificationTimestamp — no TTL
+    // assumption needed. Fallback: now + 10min if Logto omits expiresAt.
+    const verificationTimestamp = parsed.expiresAt
+      ? new Date(parsed.expiresAt).getTime()
+      : Date.now() + 10 * 60 * 1000;
+    return {
+      verificationRecordId: parsed.verificationRecordId,
+      verificationTimestamp,  // milliseconds; = expiresAt, server-derived
+    };
   });
 }
 
@@ -96,6 +107,21 @@ export async function verifyVerificationCode(
     assertVerificationType(type);
     assertVerificationCode(code);
     assertSafeLogtoId(verificationId, 'verificationId');
+
+    // Validate value format — mirrors the checks in send*VerificationCode.
+    // The value is forwarded verbatim to Logto, so reject bad-shaped input here
+    // rather than letting an arbitrary string reach the upstream API.
+    if (type === 'email') {
+      if (typeof value !== 'string' || value.length === 0 || value.length > 128
+          || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        throw new ValidationError('INVALID_INPUT', 'value');
+      }
+    } else {
+      if (typeof value !== 'string' || value.length === 0 || value.length > 20
+          || !/^\+[1-9]\d{1,14}$/.test(value)) {
+        throw new ValidationError('INVALID_INPUT', 'value');
+      }
+    }
 
     const res = await makeRequest('/api/verifications/verification-code/verify', {
       method: 'POST',

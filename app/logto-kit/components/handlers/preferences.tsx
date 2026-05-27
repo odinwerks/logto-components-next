@@ -237,8 +237,9 @@ export function PreferencesProvider({
     setAsOrgState(newOrgId);
     persistOrgToApi(newOrgId).then((ok) => {
       if (!ok) {
-        console.warn('[PreferencesProvider] Org persistence failed, reverting sessionStorage');
+        console.warn('[PreferencesProvider] Org persistence failed, reverting');
         setStoredOrg(previousOrg);
+        setAsOrgState(previousOrg); // also revert React state
       }
     });
     window.dispatchEvent(new Event('preferences-changed'));
@@ -270,6 +271,10 @@ export function useThemeMode(): ThemeModeContextValue {
       ...context.theme,
       mode: storedTheme ?? context.theme.mode,
     };
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[useThemeMode] No PreferencesProvider found. Theme changes will not persist.');
   }
 
   if (typeof window === 'undefined') {

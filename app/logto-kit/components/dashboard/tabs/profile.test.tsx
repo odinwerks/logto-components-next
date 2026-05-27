@@ -291,8 +291,10 @@ describe('ProfileTab — behavioral', () => {
     expect(familyInput.value).toBe('Jones');
   });
 
-  // BUG-015 FIX: onError fires first, then refreshData (so user sees error before data refreshes)
-  it('given_family mode — calls onError before refreshData when profile update fails after basic info succeeds', async () => {
+  // BUG-008 FIX: when Step 2 (profile update) fails after Step 1 (basic info) succeeds,
+  // onError fires but refreshData must NOT be called — preserving the user's in-progress
+  // edits so they can correct and retry without losing their changes.
+  it('given_family mode — calls onError but NOT refreshData when profile update fails after basic info succeeds', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
     const refreshData = vi.fn();
@@ -334,11 +336,8 @@ describe('ProfileTab — behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /save changes/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    // onError must be called before refreshData (user sees error, then data refreshes)
+    // onError must be called, but refreshData must NOT be — edits are preserved for retry.
     expect(onError).toHaveBeenCalled();
-    expect(refreshData).toHaveBeenCalled();
-    const errorCallOrder = onError.mock.invocationCallOrder[0];
-    const refreshCallOrder = refreshData.mock.invocationCallOrder[0];
-    expect(errorCallOrder).toBeLessThan(refreshCallOrder);
+    expect(refreshData).not.toHaveBeenCalled();
   });
 });

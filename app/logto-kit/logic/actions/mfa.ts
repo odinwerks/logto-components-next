@@ -3,7 +3,7 @@
 import type { MfaVerification, MfaVerificationPayload } from '../types';
 import { assertSafeLogtoId, assertMfaType } from '../guards';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
@@ -155,14 +155,27 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
 
     const { codes } = await genRes.json();
 
-    // Step 2: Enroll/bind codes to the account
+    // Step 2: Enroll/bind codes to the account.
+    //
+    // Logto enforces: backup codes require at least one other MFA factor (TOTP
+    // or WebAuthn) to be enrolled first. If none exists, Logto returns 422.
+    // We surface this as a specific error so the UI can show an actionable
+    // message instead of the generic "backup codes failed."
     const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
       method: 'POST',
       body: { type: 'BackupCode', codes },
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
 
-    await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
+    if (!enrollRes.ok) {
+      if (enrollRes.status === 422) {
+        // 422 = "requires at least one other MFA factor" (Logto API constraint).
+        // The generate step above already ran — no rollback needed as Logto
+        // does not commit the generated codes until enrollment succeeds.
+        throw plainCode('BACKUP_CODES_NO_MFA_FACTOR');
+      }
+      await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
+    }
 
     // Audit (best-effort — failure must not break the main action)
     try {

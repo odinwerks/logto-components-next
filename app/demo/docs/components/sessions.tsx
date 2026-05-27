@@ -257,10 +257,7 @@ function SessionsGeolocationSection() {
         <CodeBlock title="Related files" code={`// Geolocation cache (5min TTL)
 app/logto-kit/components/dashboard/shared/geo-cache.ts
 
-// Static tile minimap
-app/logto-kit/components/dashboard/shared/SessionMiniMap.tsx
-
-// Google Maps modal
+// Location info card modal (OSM + Google Maps links)
 app/logto-kit/components/dashboard/shared/SessionMapModal.tsx`} />
       </div>
     </div>

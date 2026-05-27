@@ -70,9 +70,9 @@ describe('deleteUserAccount', () => {
 
   // ── Freshness check: expired timestamp ──────────────────────────────────
 
-  it('rejects a verification record older than 10 minutes', async () => {
+  it('rejects a verification record whose expiresAt is in the past', async () => {
     const { deleteUserAccount } = await import('./account');
-    const expiredTs = Date.now() - 11 * 60 * 1000; // 11 minutes ago
+    const expiredTs = Date.now() - 11 * 60 * 1000; // expiresAt was 11 min ago → rejected
 
     const result = await deleteUserAccount('verif_record_1', expiredTs);
 
@@ -85,7 +85,9 @@ describe('deleteUserAccount', () => {
 
   it('allows a verification record within the 10-minute window', async () => {
     const { deleteUserAccount } = await import('./account');
-    const freshTs = Date.now() - 1 * 60 * 1000; // 1 minute ago
+    // verificationTimestamp is now expiresAt (not issued-at).
+    // 9 minutes from now = record was issued 1 min ago, expires in 9 min → valid.
+    const freshTs = Date.now() + 9 * 60 * 1000;
 
     const result = await deleteUserAccount('verif_record_1', freshTs);
 
@@ -120,9 +122,10 @@ describe('deleteUserAccount', () => {
 
   // ── Exactly at the 10-minute boundary ───────────────────────────────────
 
-  it('allows a verification record exactly 10 minutes old', async () => {
+  it('allows a verification record that has not yet expired', async () => {
     const { deleteUserAccount } = await import('./account');
-    const boundaryTs = Date.now() - 10 * 60 * 1000; // exactly 10 minutes ago
+    // verificationTimestamp is now expiresAt. Any future timestamp is valid.
+    const boundaryTs = Date.now() + 100; // expires 100ms from now → still valid
 
     const result = await deleteUserAccount('verif_record_1', boundaryTs);
 

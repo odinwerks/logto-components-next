@@ -71,9 +71,17 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
     }
     const sessions = sessionsResult.data;
 
-    const token = await getTokenForServerAction();
-    const introspection = await introspectToken(token);
-    const userId = introspection.sub || '';
+    // Introspection is optional — userId is only used for display metadata.
+    // If introspection fails (e.g., LOGTO_INTROSPECTION_URL not configured),
+    // use empty string as fallback. This prevents the sessions tab from breaking.
+    let userId = '';
+    try {
+      const token = await getTokenForServerAction();
+      const introspection = await introspectToken(token);
+      userId = introspection.sub || '';
+    } catch {
+      // Introspection failed; use empty userId as fallback
+    }
 
     const enrichedSessions: LogtoSession[] = sessions.map(session => {
       const signInContext = session.lastSubmission?.signInContext;
@@ -128,13 +136,13 @@ export async function revokeUserSession(
       'logto-verification-id': identityVerificationRecordId,
     };
 
-    const qs = revokeGrantsTarget ? `?revokeGrantsTarget=${encodeURIComponent(revokeGrantsTarget)}` : '';
-    const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}${qs}`;
+    const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}`;
 
-    debugLog(`[revokeUserSession] Calling DELETE ${safePath}`);
+    debugLog(`[revokeUserSession] Calling DELETE ${safePath}${revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : ''}`);
     const res = await makeRequest(safePath, {
       method: 'DELETE',
       extraHeaders,
+      ...(revokeGrantsTarget && { query: { revokeGrantsTarget } }),
     });
 
     debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
@@ -147,8 +155,9 @@ export async function revokeUserSession(
 /**
  * Revokes all sessions except the caller's current session.
  *
- * Safety guard: identifies the current session via JTI matching from
- * token introspection. Falls back to `isCurrent` field if JTI is unavailable.
+ * Safety guard: identifies the current session via session UID matching from
+ * token introspection (`sid` claim = OIDC session UID = payload.uid).
+ * Falls back to `isCurrent` field if `sid` is unavailable.
  * Throws if neither method can identify the current session.
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
@@ -164,20 +173,23 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     }
     const sessions = sessionsResult.data;
 
-    // Identify current session via token introspection (JTI matching)
+    // Identify current session via token introspection.
+    // The introspection `sid` claim is the OIDC session UID — matches payload.uid.
+    // Fall back to isCurrent flag if sid is absent.
     const token = await getTokenForServerAction();
     const introspection = await introspectToken(token);
-    const currentJti = introspection.jti;
+    const currentSid = introspection.sid;  // session UID, matches payload.uid
 
-    const currentSession = currentJti
-      ? sessions.find(s => s.payload.jti === currentJti)
+    const currentSession = currentSid
+      ? sessions.find(s => s.payload.uid === currentSid)
       : sessions.find(s => s.isCurrent === true);
 
     if (!currentSession) {
-      throw new Error('Cannot identify current session — JTI mismatch.');
+      throw new Error('Cannot identify current session — session UID mismatch.');
     }
 
-    const othersToRevoke = sessions.filter(s => s.payload.jti !== currentSession.payload.jti);
+    // Filter by uid (the session identifier, not the JWT id)
+    const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.payload.uid);
     debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
     // Revoke sessions sequentially with a small delay to avoid hitting
@@ -185,7 +197,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     const results: PromiseSettledResult<void>[] = [];
     for (const s of othersToRevoke) {
       const result = await Promise.race([
-        revokeUserSession(s.payload.jti, verificationRecordId, 'firstParty')
+        revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty')  // uid, not jti
           .then(r => { if (!r.ok) throw new Error(r.error); })
           .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
           .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),

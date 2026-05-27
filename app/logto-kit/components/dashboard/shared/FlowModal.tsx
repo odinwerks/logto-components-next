@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -70,15 +70,16 @@ export function PasswordVerifyModal({
   const [showPw, setShowPw] = useState(false);
   const dangerColor = c.accentRed;
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) {
-        onClose();
-      }
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, []);
 
   return (
     <Overlay onDismiss={onClose}>
@@ -214,15 +215,16 @@ export function FlowModal({
 
   const dangerColor = c.accentRed;
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) {
-        onClose();
-      }
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, []);
 
   const copySecret = () => {
     if (step.kind !== 'totp-scan') return;
@@ -561,21 +563,27 @@ export function BackupCodesModal({
             </div>
           )}
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(9.375rem, 1fr))',
-            gap: '0.375rem', marginBottom: '1rem',
-          }}>
-            {codes.map((c, i) => (
-              <div key={i} style={{
-                fontFamily: T.mono, fontSize: '0.75rem', color: c.used ? T.muted : T.text,
-                padding: '0.5rem 0.6875rem', background: T.bg,
-                border: `1px solid ${T.border}`, letterSpacing: '0.06em',
-                textDecoration: c.used ? 'line-through' : 'none',
-              }}>
-                {c.code}
-              </div>
-            ))}
-          </div>
+          {codes.length === 0 ? (
+            <div style={{ padding: '1rem', textAlign: 'center', color: T.muted, fontFamily: T.mono, fontSize: '0.75rem' }}>
+              Loading codes...
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(9.375rem, 1fr))',
+              gap: '0.375rem', marginBottom: '1rem',
+            }}>
+              {codes.map((c) => (
+                <div key={c.code} style={{
+                  fontFamily: T.mono, fontSize: '0.75rem', color: c.used ? T.muted : T.text,
+                  padding: '0.5rem 0.6875rem', background: T.bg,
+                  border: `1px solid ${T.border}`, letterSpacing: '0.06em',
+                  textDecoration: c.used ? 'line-through' : 'none',
+                }}>
+                  {c.code}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem' }}>

@@ -17,12 +17,21 @@ function clearLogtoCookies(request: NextRequest, response: NextResponse): NextRe
 
 /**
  * GET clears Logto cookies and redirects home.
- * Convenience handler for browser navigation — no CSRF protection needed
- * since it only clears cookies and redirects.
+ * Convenience handler for browser navigation — plain cookie-clear needs no
+ * CSRF protection (not a privileged operation, must remain browser-navigable).
+ * The ?force=true path triggers a server-side signOut and IS protected.
  */
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
+
+  // Only protect the destructive force-signOut path.
+  // Plain cookie-clear is safe without CSRF protection since it's
+  // not a privileged operation and must remain browser-navigable.
+  if (force) {
+    const originError = checkSameOrigin(request);
+    if (originError) return originError;
+  }
 
   const response = clearLogtoCookies(
     request,

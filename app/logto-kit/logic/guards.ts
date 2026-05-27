@@ -223,6 +223,10 @@ export function pickPreferences(input: unknown): PreferencesShape {
  *   - Query-parameter smuggling by embedding `?` in a path segment.
  *   - Double-encoding mistakes.
  *
+ * NOTE: This function is currently used only in tests and demo documentation.
+ * It is kept as a utility for future use when constructing URLs with
+ * user-influenced path segments or query parameters.
+ *
  * Paths passed here must be `/`-separated. Segments MUST NOT be pre-encoded;
  * this function calls `encodeURIComponent` on each one.
  *

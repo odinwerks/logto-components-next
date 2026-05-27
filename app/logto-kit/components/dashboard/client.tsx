@@ -120,7 +120,7 @@ interface DashboardClientProps {
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
-  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;

@@ -115,7 +115,7 @@ const requiredProps = {
   onUpdateBasicInfo: stubAction,
   onUpdateAvatarUrl: stubAction,
   onUpdateProfile: stubAction,
-  onVerifyPassword: stubDataAction as () => Promise<DataResult<{ verificationRecordId: string }>>,
+  onVerifyPassword: stubDataAction as () => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>,
   onSendEmailVerification: stubDataAction as () => Promise<DataResult<{ verificationId: string }>>,
   onSendPhoneVerification: stubDataAction as () => Promise<DataResult<{ verificationId: string }>>,
   onVerifyCode: stubDataAction as () => Promise<DataResult<{ verificationRecordId: string }>>,

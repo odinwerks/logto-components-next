@@ -27,26 +27,26 @@ const getBorderRadius = (shape: string, rsqRadius: string): string => {
 
 const getInitials = (data: UserData): string => {
   if (!data) return '?';
-  if (data.profile?.givenName && data.profile?.familyName) {
-    return `${data.profile.givenName[0]}${data.profile.familyName[0]}`.toUpperCase();
+  if (data.profile?.givenName?.trim() && data.profile?.familyName?.trim()) {
+    return `${data.profile.givenName.trim()[0]}${data.profile.familyName.trim()[0]}`.toUpperCase();
   }
-  if (data.name) {
-    const parts = data.name.split(' ');
+  if (data.name?.trim()) {
+    const parts = data.name.trim().split(' ');
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return parts[0][0]?.toUpperCase() || '?';
   }
-  if (data.username) return data.username[0]?.toUpperCase() || '?';
+  if (data.username?.trim()) return data.username.trim()[0]?.toUpperCase() || '?';
   return '?';
 };
 
 function getDisplayName(data: UserData): string {
-  if (data.name) return data.name;
-  if (data.profile?.givenName && data.profile?.familyName) {
-    return `${data.profile.givenName} ${data.profile.familyName}`;
+  if (data.name?.trim()) return data.name.trim();
+  if (data.profile?.givenName?.trim() && data.profile?.familyName?.trim()) {
+    return `${data.profile.givenName.trim()} ${data.profile.familyName.trim()}`;
   }
-  if (data.username) return data.username;
-  if (data.primaryEmail) return data.primaryEmail;
-  if (data.primaryPhone) return data.primaryPhone;
+  if (data.username?.trim()) return data.username.trim();
+  if (data.primaryEmail?.trim()) return data.primaryEmail.trim();
+  if (data.primaryPhone?.trim()) return data.primaryPhone.trim();
   return 'User';
 }
 

@@ -352,6 +352,7 @@ export interface KitTranslations {
     deletePasskeyDesc: string;
     passkeyDeleted: string;
     webauthnNotSupported: string;
+    backupCodesRequireOtherFactor: string;
   };
   
   // Dev tab

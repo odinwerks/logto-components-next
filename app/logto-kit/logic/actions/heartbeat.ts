@@ -1,5 +1,6 @@
 'use server';
 
+import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 
 /**
@@ -15,6 +16,8 @@ import { makeRequest } from './request';
  */
 export async function recordHeartbeat(): Promise<void> {
   try {
+    const token = await getTokenForServerAction().catch(() => null);
+    if (!token) return; // Not authenticated - silently skip
     await makeRequest('/api/my-account/sessions/heartbeat', { method: 'POST' });
   } catch {
     // Best-effort — silently absorb all errors.

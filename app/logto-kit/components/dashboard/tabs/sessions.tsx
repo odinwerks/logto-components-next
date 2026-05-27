@@ -7,9 +7,8 @@ import type { Translations } from '../../../locales';
 import { Monitor, Smartphone, Trash2, Lock, Clock, MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
-import { SessionMiniMap } from '../shared/SessionMiniMap';
 import { SessionMapModal } from '../shared/SessionMapModal';
-import { clearGeoCache } from '../shared/geo-cache';
+import { fetchGeo, getCachedGeo, clearGeoCache } from '../shared/geo-cache';
 import type { GeoLocation } from '../shared/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
@@ -90,8 +89,7 @@ export function SessionsTab({
   const [modalStep, setModalStep] = useState<PasswordModalStep | null>(null);
   const [modalError, setModalError] = useState<string>('');
   const [modalPurpose, setModalPurpose] = useState<'view' | 'revoke'>('view');
-  const [geoMap, setGeoMap] = useState<Map<string, GeoLocation>>(new Map());
-  const [geoRefreshKey, setGeoRefreshKey] = useState(0);
+  const [locatingIp, setLocatingIp] = useState<string | null>(null);
   const [mapModalGeo, setMapModalGeo] = useState<GeoLocation | null>(null);
   const [mapModalIp, setMapModalIp] = useState<string>('');
 
@@ -118,19 +116,21 @@ export function SessionsTab({
     }
   }, [verificationRecordId, verificationExpiry]);
 
-  const handleGeoLoaded = useCallback((ip: string, geo: GeoLocation) => {
-    setGeoMap(prev => {
-      if (prev.get(ip) === geo) return prev;
-      const next = new Map(prev);
-      next.set(ip, geo);
-      return next;
-    });
-  }, []);
-
   const openMapModal = useCallback((geo: GeoLocation, ip: string) => {
     setMapModalGeo(geo);
     setMapModalIp(ip);
   }, []);
+
+  const handleLocate = useCallback(async (ip: string) => {
+    if (!ip) return;
+    const cached = getCachedGeo(ip);
+    if (cached) { openMapModal(cached, ip); return; }
+    setLocatingIp(ip);
+    const geo = await fetchGeo(ip);
+    setLocatingIp(null);
+    if (geo) openMapModal(geo, ip);
+    // silently no-op when ipapi returns nothing (private IP, rate-limited, etc.)
+  }, [openMapModal]);
 
   const verifyAndLoad = useCallback(async (password: string) => {
     setModalStep({ kind: 'loading', message: t.sessions.processing });
@@ -183,8 +183,8 @@ export function SessionsTab({
 
   const handleRefresh = useCallback(async () => {
     clearGeoCache();
-    setGeoMap(new Map());
-    setGeoRefreshKey(k => k + 1);
+    setMapModalGeo(null);
+    setMapModalIp('');
     if (!isVerificationValid) {
       setViewState('unverified');
       return;
@@ -208,6 +208,13 @@ export function SessionsTab({
     setModalError('');
   };
 
+  /**
+   * Initiates session revocation flow.
+   *
+   * NOTE: The revokeGrantsTarget is always 'firstParty' in handlePasswordSubmit,
+   * regardless of whether called from mobile or desktop view. This is intentional
+   * to revoke first-party app grants while preserving third-party grants.
+   */
   const startRevokeVerification = (sessionId: string) => {
     // Prevent opening a new modal while one is already active
     // to avoid silently overwriting the revoke target.
@@ -463,10 +470,6 @@ export function SessionsTab({
             const title = getSessionTitle(session);
             const deviceLabel = getDeviceLabel(session);
             const ip = meta?.ip ?? null;
-            const geoForIp = ip ? geoMap.get(ip) : undefined;
-            const ipLabel = ip
-              ? (geoForIp ? `${ip} · ${[geoForIp.city, geoForIp.country].filter(Boolean).join(', ')}` : ip)
-              : null;
 
             return (
               <div key={session.payload.jti ?? session.payload.uid} style={{
@@ -522,18 +525,6 @@ export function SessionsTab({
                     </div>
                   )}
                 </div>
-
-                {!isMobile && (
-                  <SessionMiniMap
-                    ip={ip}
-                    mode={mode}
-                    colors={c}
-                    t={t}
-                    refreshKey={geoRefreshKey}
-                    onClick={openMapModal}
-                    onGeoLoaded={handleGeoLoaded}
-                  />
-                )}
 
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
                   {session.meta?.isCurrent ? (
@@ -599,12 +590,53 @@ export function SessionsTab({
                       </Button>
                     )
                   )}
-                  {!isMobile && ipLabel && (
-                    <span style={{ fontSize: '0.625rem', color: T.sub, whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.3 }}>
-                      {ip && <span>{ip}</span>}
-                      {ip && geoForIp && <br />}
-                      {geoForIp && <span>{[geoForIp.city, geoForIp.country].filter(Boolean).join(', ')}</span>}
-                    </span>
+                  {ip && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      marginTop: isMobile ? '0.25rem' : '0.375rem',
+                    }}>
+                      <span style={{
+                        fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+                        fontSize: '0.5625rem',
+                        color: T.muted,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {ip}
+                      </span>
+                      <button
+                        onClick={() => handleLocate(ip)}
+                        disabled={locatingIp === ip}
+                        aria-label={t.sessions.ipLocation}
+                        title={t.sessions.ipLocation}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '1.25rem',
+                          height: '1.25rem',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          cursor: locatingIp === ip ? 'not-allowed' : 'pointer',
+                          color: locatingIp === ip ? T.muted : T.sub,
+                          padding: 0,
+                          opacity: locatingIp === ip ? 0.5 : 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {locatingIp === ip ? (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+                              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/>
+                            </path>
+                          </svg>
+                        ) : (
+                          <MapPin size={10} strokeWidth={1.5} />
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -628,7 +660,7 @@ export function SessionsTab({
         />
       )}
 
-      {!isMobile && mapModalGeo && (
+      {mapModalGeo && (
         <SessionMapModal
           geo={mapModalGeo}
           ip={mapModalIp}

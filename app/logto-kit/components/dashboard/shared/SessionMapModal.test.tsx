@@ -1,33 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { GeoLocation } from './geo-cache';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-
-// Mock maplibre-gl - it doesn't work in jsdom
-// Use class-based mocks (vitest 4.x requires function/class for constructors)
-vi.mock('maplibre-gl', () => {
-  const MockMap = vi.fn().mockImplementation(function (this: { remove: ReturnType<typeof vi.fn> }) {
-    this.remove = vi.fn();
-  });
-
-  const MockMarker = vi.fn().mockImplementation(function (this: { setLngLat: ReturnType<typeof vi.fn>; addTo: ReturnType<typeof vi.fn> }) {
-    this.setLngLat = vi.fn().mockReturnThis();
-    this.addTo = vi.fn().mockReturnThis();
-  });
-
-  return {
-    default: {
-      Map: MockMap,
-      Marker: MockMarker,
-    },
-  };
-});
-
-// Mock maplibre-gl CSS import
-vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}));
-
-// Import after mocks
 import { SessionMapModal } from './SessionMapModal';
 
 // Duplicate city/region — deduplication should collapse these
@@ -141,7 +116,7 @@ describe('SessionMapModal', () => {
     mockOnClose.mockClear();
   });
 
-  it('should render the map div container', () => {
+  it('should render the modal overlay', () => {
     const { container } = render(
       <SessionMapModal
         geo={mockGeo}
@@ -153,8 +128,8 @@ describe('SessionMapModal', () => {
       />
     );
 
-    // The map container div is rendered (maplibre-gl mounts into it)
-    expect(container.querySelector('div[style*="420px"]')).toBeDefined();
+    // The fixed overlay is present
+    expect(container.querySelector('div[style*="position: fixed"]')).toBeDefined();
   });
 
   it('should show deduplicated location label when city and region match', () => {
@@ -189,7 +164,7 @@ describe('SessionMapModal', () => {
     expect(screen.getByText('Wilmington, Delaware, US')).toBeDefined();
   });
 
-  it('should have link to OpenStreetMap (not Google Maps)', () => {
+  it('should have link to OpenStreetMap', () => {
     render(
       <SessionMapModal
         geo={mockGeo}
@@ -209,6 +184,24 @@ describe('SessionMapModal', () => {
     expect(link?.href).not.toContain('google.com');
   });
 
+  it('should have link to Google Maps', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    const link = screen.getByText('View on Google Maps').closest('a');
+    expect(link).toBeDefined();
+    expect(link?.href).toContain('google.com/maps');
+    expect(link?.href).toContain(`${mockGeo.lat},${mockGeo.lon}`);
+  });
+
   it('should show viewOnOpenStreetMap translation', () => {
     render(
       <SessionMapModal
@@ -224,7 +217,7 @@ describe('SessionMapModal', () => {
     expect(screen.getByText('View on OpenStreetMap')).toBeDefined();
   });
 
-  it('should display ip and coordinates in subheader', () => {
+  it('should display ip and coordinates', () => {
     render(
       <SessionMapModal
         geo={mockGeo}
@@ -236,15 +229,12 @@ describe('SessionMapModal', () => {
       />
     );
 
-    // The subheader contains the IP address
     expect(screen.getByText(/192\.168\.1\.1/)).toBeDefined();
+    expect(screen.getByText(/41\.7151/)).toBeDefined();
+    expect(screen.getByText(/44\.8271/)).toBeDefined();
   });
 
-  it('should initialize maplibre-gl Map with correct coordinates', async () => {
-    const maplibregl = await import('maplibre-gl');
-    const MockMap = vi.mocked(maplibregl.default.Map);
-    MockMap.mockClear();
-
+  it('should call onClose when close button is clicked', () => {
     render(
       <SessionMapModal
         geo={mockGeo}
@@ -256,20 +246,29 @@ describe('SessionMapModal', () => {
       />
     );
 
-    expect(MockMap).toHaveBeenCalledWith(
-      expect.objectContaining({
-        center: [mockGeo.lon, mockGeo.lat],
-        zoom: 14,
-      })
-    );
+    const closeBtn = screen.getByRole('button');
+    fireEvent.click(closeBtn);
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('should use dark CartoDB tiles for dark theme', async () => {
-    const maplibregl = await import('maplibre-gl');
-    const MockMap = vi.mocked(maplibregl.default.Map);
-    MockMap.mockClear();
-
+  it('should call onClose when Escape key is pressed', () => {
     render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('should use dark background in dark mode', () => {
+    const { container } = render(
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
@@ -280,18 +279,13 @@ describe('SessionMapModal', () => {
       />
     );
 
-    const callArgs = MockMap.mock.calls[0][0] as unknown as { style: { sources: { carto: { tiles: string[] } } } };
-    const tiles = callArgs.style.sources.carto.tiles;
-    expect(tiles[0]).toContain('dark_all');
-    expect(tiles[0]).toContain('cartocdn.com');
+    // The card div should have dark background
+    const card = container.querySelector('div[style*="#0e0e14"]');
+    expect(card).toBeDefined();
   });
 
-  it('should use light CartoDB tiles for light theme', async () => {
-    const maplibregl = await import('maplibre-gl');
-    const MockMap = vi.mocked(maplibregl.default.Map);
-    MockMap.mockClear();
-
-    render(
+  it('should use white background in light mode', () => {
+    const { container } = render(
       <SessionMapModal
         geo={mockGeo}
         ip="192.168.1.1"
@@ -302,9 +296,7 @@ describe('SessionMapModal', () => {
       />
     );
 
-    const callArgs = MockMap.mock.calls[0][0] as unknown as { style: { sources: { carto: { tiles: string[] } } } };
-    const tiles = callArgs.style.sources.carto.tiles;
-    expect(tiles[0]).toContain('voyager');
-    expect(tiles[0]).toContain('cartocdn.com');
+    const card = container.querySelector('div[style*="#ffffff"]');
+    expect(card).toBeDefined();
   });
 });

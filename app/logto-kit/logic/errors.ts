@@ -63,6 +63,7 @@ export type ErrorCode =
   | 'MFA_ENROLL_FAILED'
   | 'MFA_REMOVE_FAILED'
   | 'BACKUP_CODES_FAILED'
+  | 'BACKUP_CODES_NO_MFA_FACTOR'
   | 'PASSWORD_UPDATE_FAILED'
   | 'EMAIL_UPDATE_FAILED'
   | 'PHONE_UPDATE_FAILED'
@@ -134,7 +135,7 @@ export async function throwOnApiError(
   // Always log server-side regardless of env — full detail, no truncation.
   if (typeof console !== 'undefined') {
     warn(
-      `[${operation}] HTTP ${res.status}: ${detail}`,
+      `[${operation}] HTTP ${res.status}: ${detail.replace(/[\r\n]/g, ' ').substring(0, 1000)}`,
     );
   }
 

@@ -7,9 +7,15 @@ import {
   assertNameField,
   assertUsername,
   assertHttpUrl,
+  assertSafeUserId,
   pickPreferences,
+  decodeLogtoAccessToken,
 } from '../guards';
 import { safeAction, type ActionResult, type DataResult } from './safe';
+import { getTokenForServerAction } from './tokens';
+import { getManagementApiToken } from '../../../logto';
+import { getCleanEndpoint } from '../utils';
+import { warn } from '../log';
 
 export async function updateUserBasicInfo(updates: {
   name?: string;
@@ -47,23 +53,30 @@ export async function updateUserProfile(profile: {
 
 // In-flight lock to prevent concurrent GET-PATCH races when
 // PreferencesProvider calls updateUserCustomData in rapid succession.
-let customDataUpdateLock: Promise<void> | null = null;
+// Per-user Map keyed by user ID to avoid blocking different users.
+const customDataUpdateLocks = new Map<string, Promise<void>>();
+const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
 
 /**
- * Updates the user's custom data Preferences.
+ * Updates the user's custom data Preferences via the Logto Management API.
  *
  * Only the `Preferences` key is allowed through; all others are dropped
  * (mass-assignment protection). Within Preferences, only whitelisted keys
  * (asOrg, theme, lang) are accepted.
  *
- * NOTE: Logto's Account API uses 'replace' mode for customData — a PATCH with
- * { customData: { Preferences: {...} } } would wipe all other top-level customData
- * keys set by other apps, Logto Console, or other flows. We must GET first, merge
- * the Preferences delta into the full customData, then PATCH the merged result.
+ * Uses PATCH /api/users/{userId}/custom-data (Management API) rather than
+ * PATCH /api/my-account (Account API). The Management API performs a
+ * top-level shallow merge, so only the `Preferences` key is updated — other
+ * top-level customData keys set by other applications are not touched.
  *
- * An in-flight lock serializes concurrent calls so the GET-PATCH cycle completes
- * atomically, preventing lost-write races when PreferencesProvider fires multiple
- * persist calls in quick succession.
+ * A GET is still required to read the current inner Preferences sub-object
+ * before merging (the sub-object itself is fully replaced on PATCH).
+ *
+ * An in-memory lock serializes concurrent calls within the same process to
+ * prevent the GET-PATCH inner-key race for a single user. Cross-process races
+ * on individual Preferences keys (theme, lang, asOrg) are possible in
+ * horizontally-scaled deployments but result only in the last write winning on
+ * that specific key — other applications' customData is always safe.
  */
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<ActionResult> {
   return safeAction(async () => {
@@ -71,40 +84,82 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const safePrefs = pickPreferences(rawPrefs);
     if (Object.keys(safePrefs).length === 0) return;
 
-    // Serialize updates: wait for any in-flight update to complete before starting
-    if (customDataUpdateLock) {
-      await customDataUpdateLock.catch(() => {}); // absorb failures
+    // Get user ID for per-user locking
+    const token = await getTokenForServerAction();
+    const claims = decodeLogtoAccessToken(token);
+    const userId = claims.sub;
+    if (!userId) {
+      throw new Error('Cannot determine user ID for customData update');
+    }
+    assertSafeUserId(userId);
+
+    // Serialize updates for this user: wait for any in-flight update to complete
+    const existingLock = customDataUpdateLocks.get(userId);
+    if (existingLock) {
+      await existingLock.catch(() => {}); // absorb failures
     }
 
-    // Create a new lock
+    // Prevent unbounded growth
+    if (customDataUpdateLocks.size >= MAX_LOCK_ENTRIES) {
+      // Clear all entries - they're stale anyway (locks should be short-lived)
+      customDataUpdateLocks.clear();
+    }
+
+    // Create a new lock for this user
     let releaseLock: () => void;
-    customDataUpdateLock = new Promise<void>((resolve) => {
+    const lockPromise = new Promise<void>((resolve) => {
       releaseLock = resolve;
     });
+    customDataUpdateLocks.set(userId, lockPromise);
 
     try {
-      // GET the full account to read current customData before merging.
-      // Required because Logto's PATCH completely replaces customData (no shallow-merge).
-      const existing = await makeRequest('/api/my-account', { method: 'GET' });
-      await throwOnApiError(existing, 'FETCH_FAILED', 'Get my account for customData merge');
-      const existingData = await existing.json() as { customData?: Record<string, unknown> };
-      const existingCustomData = existingData?.customData ?? {};
+      const mgmtToken = await getManagementApiToken();
+      const endpoint = getCleanEndpoint();
 
-      const merged = {
-        ...existingCustomData,
-        Preferences: {
-          ...(existingCustomData.Preferences as Record<string, unknown> ?? {}),
-          ...safePrefs,
+      // GET current Preferences via Management API.
+      // Using the Management API's custom-data endpoint avoids the Account API's
+      // full-replace PATCH, which would wipe top-level customData keys written by
+      // other applications, Logto Console, or other flows.
+      const getRes = await fetch(
+        `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
+        {
+          headers: { Authorization: `Bearer ${mgmtToken}` },
+          cache: 'no-store',
         },
-      };
+      );
+      let existingPrefs: Record<string, unknown> = {};
+      if (getRes.ok) {
+        const existingCustomData = (await getRes.json()) as Record<string, unknown>;
+        existingPrefs = (existingCustomData.Preferences as Record<string, unknown>) ?? {};
+      }
 
-      const res = await makeRequest('/api/my-account', {
-        method: 'PATCH',
-        body: { customData: merged },
-      });
-      await throwOnApiError(res, 'UPDATE_FAILED', 'Update custom data');
+      // Merge only the inner Preferences sub-object keys.
+      const mergedPrefs = { ...existingPrefs, ...safePrefs };
+
+      // PATCH via Management API — top-level shallow merge.
+      // Logto merges { Preferences: mergedPrefs } into the stored customData at the
+      // top level, leaving all other top-level keys (other apps, Logto Console, etc.)
+      // untouched. The inner Preferences object is fully replaced, hence the GET above.
+      const patchRes = await fetch(
+        `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${mgmtToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ customData: { Preferences: mergedPrefs } }),
+          cache: 'no-store',
+        },
+      );
+
+      if (!patchRes.ok) {
+        const errBody = await patchRes.text().catch(() => patchRes.statusText);
+        warn(`[updateUserCustomData] Management API PATCH failed ${patchRes.status}: ${errBody.substring(0, 200)}`);
+        throw new Error('UPDATE_FAILED');
+      }
     } finally {
-      customDataUpdateLock = null;
+      customDataUpdateLocks.delete(userId);
       releaseLock!();
     }
   });

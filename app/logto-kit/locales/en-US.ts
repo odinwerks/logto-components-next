@@ -338,6 +338,7 @@ export const enUS: Translations = {
     deletePasskeyDesc: 'Verify your password to remove this passkey.',
     passkeyDeleted: 'Passkey removed',
     webauthnNotSupported: 'Your browser does not support passkeys.',
+    backupCodesRequireOtherFactor: 'Set up an authenticator app or passkey first before generating backup codes.',
   },
   
   // Dev tab

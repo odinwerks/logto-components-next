@@ -256,7 +256,14 @@ export function ProfileTab({
           if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         }
         const profileResult = await onUpdateProfile({ givenName, familyName });
-        if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
+        if (!profileResult.ok) {
+          // Don't refreshData() here — Step 1 (name) already succeeded server-side,
+          // but Step 2 (givenName/familyName) failed. Resetting local state would
+          // discard the user's edits with no way to retry. Show the error and let
+          // them correct and try again.
+          onError(profileResult.error);
+          return;
+        }
       } else if (nameType === 'username') {
         const result = await onUpdateBasicInfo({ username });
         if (!result.ok) { onError(result.error); refreshData(); return; }
@@ -271,7 +278,12 @@ export function ProfileTab({
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         if (nameFieldsChanged) {
           const profileResult = await onUpdateProfile({ givenName, familyName });
-          if (!profileResult.ok) { onError(profileResult.error); refreshData(); return; }
+          if (!profileResult.ok) {
+            // Same rationale as given_family branch: Step 1 succeeded, don't
+            // wipe local state on Step 2 failure — preserve edits for retry.
+            onError(profileResult.error);
+            return;
+          }
         }
       }
       onSuccess(t.profile.profileUpdated);
@@ -299,6 +311,14 @@ export function ProfileTab({
 
   useEffect(() => { cropPreviewUrlRef.current = cropPreviewUrl; }, [cropPreviewUrl]);
 
+  /**
+   * Sync server data to local form state.
+   *
+   * NOTE: These effects intentionally overwrite local edits when server data changes.
+   * This is a data consistency tradeoff: the form always reflects the current server state.
+   * User edits that haven't been saved are discarded when data refreshes.
+   * This is by design to prevent stale data from persisting after server updates.
+   */
   useEffect(() => {
     setUsername(userData.username ?? '');
   }, [userData.username]);

@@ -5,7 +5,7 @@ import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
 
-// ── Mock geo-cache to avoid network requests in SessionMiniMap ──
+// ── Mock geo-cache to avoid network requests ──
 const { mockGetCachedGeo, mockFetchGeo, mockClearGeoCache } = vi.hoisted(() => ({
   mockGetCachedGeo: vi.fn().mockReturnValue(null),
   mockFetchGeo: vi.fn().mockResolvedValue(null),
@@ -348,7 +348,7 @@ describe('SessionsTab', () => {
         expect(onRevokeSession).toHaveBeenCalledTimes(2);
       });
 
-      // First call: should have ses-2 as session ID
+      // First call: should have ses-2 as session ID (uid, NOT jti)
       const firstCallSessionId = onRevokeSession.mock.calls[0][0];
       expect(firstCallSessionId).toBe('ses-2');
 

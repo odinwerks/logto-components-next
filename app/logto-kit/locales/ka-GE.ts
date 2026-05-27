@@ -338,6 +338,7 @@ export const kaGE: Translations = {
     deletePasskeyDesc: 'იმისთვის რომ ეს გასაღები წაშალოთ, საჭიროა პაროლის გადამოწმება.',
     passkeyDeleted: 'გასაღები წაშლილია.',
     webauthnNotSupported: 'თქვენს ბრაუზერს არ გააჩნია გასაღებების მხარდაჭერა.',
+    backupCodesRequireOtherFactor: 'სარეზერვო კოდების გენერირებამდე დაარეგისტრირეთ ავთენტიფიკაციის აპლიკაცია ან გასაღები.',
   },
   
   // Dev tab
