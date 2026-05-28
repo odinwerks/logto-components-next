@@ -63,7 +63,6 @@ export type ErrorCode =
   | 'MFA_ENROLL_FAILED'
   | 'MFA_REMOVE_FAILED'
   | 'BACKUP_CODES_FAILED'
-  | 'BACKUP_CODES_NO_MFA_FACTOR'
   | 'PASSWORD_UPDATE_FAILED'
   | 'EMAIL_UPDATE_FAILED'
   | 'PHONE_UPDATE_FAILED'
@@ -114,8 +113,12 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  * Throws a sanitised Error if the response is not OK. Logs the full upstream
  * detail server-side for the operator.
  *
+ * When PLAIN_ERRORS=false (production): extracts Logto's `message` field from
+ * the JSON body and passes it through directly as a user-facing error.
+ * Falls back to the fixed code only when no message is available.
+ *
  * @param res       The fetch Response.
- * @param fallback  Error code used when PLAIN_ERRORS is not 'true'.
+ * @param fallback  Error code used when no Logto message is available.
  * @param operation Label for server-side logging.
  */
 export async function throwOnApiError(
@@ -139,12 +142,31 @@ export async function throwOnApiError(
     );
   }
 
+  // PLAIN_ERRORS=true: full debugging detail (status + raw body)
   if (plainErrors) {
     throw new Error(
       `${fallback} ${res.status}: ${detail}`,
     );
   }
 
+  // Try to extract Logto's user-facing message from the JSON body.
+  // Logto returns {"code": "...", "message": "..."} for known errors.
+  try {
+    const parsed = JSON.parse(detail);
+    if (typeof parsed?.message === 'string' && parsed.message.trim()) {
+      const err = new Error(parsed.message);
+      err.name = 'SanitizedError';
+      throw err;
+    }
+  } catch (parseErr) {
+    // If it's our own SanitizedError, re-throw it
+    if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
+      throw parseErr;
+    }
+    // Not JSON or no message field — fall through to fixed code
+  }
+
+  // Fallback: fixed error code
   const safe = new Error(fallback);
   safe.name = 'SanitizedError';
   throw safe;

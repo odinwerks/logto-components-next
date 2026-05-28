@@ -193,14 +193,7 @@ export function SecurityTab({
     if (!identityResult.ok) { onError(identityResult.error); closeBackupModal(); return; }
     const codesResult = await onGenerateBackupCodes(identityResult.data.verificationRecordId);
     if (backupAbortRef.current) return;
-    if (!codesResult.ok) {
-      // Surface the "no other MFA factor" constraint as an actionable message.
-      onError(codesResult.error === 'BACKUP_CODES_NO_MFA_FACTOR'
-        ? t.mfa.backupCodesRequireOtherFactor
-        : codesResult.error);
-      closeBackupModal();
-      return;
-    }
+    if (!codesResult.ok) { onError(codesResult.error); closeBackupModal(); return; }
     setBackupCodes(codesResult.data.codes.map(code => ({ code, used: false })));
     closeBackupModal();
   };

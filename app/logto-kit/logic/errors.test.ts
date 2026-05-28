@@ -47,4 +47,27 @@ describe('throwOnApiError from errors.ts', () => {
     const res = new Response('Server Error', { status: 500 });
     await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.toThrow();
   });
+
+  it('extracts Logto message field from JSON body', async () => {
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'user.backup_code_already_in_use', message: 'Backup code is already in use.' });
+    const res = new Response(body, { status: 422 });
+    await expect(throwOnApiError(res, 'BACKUP_CODES_FAILED')).rejects.toThrow('Backup code is already in use.');
+  });
+
+  it('falls back to code when no message field', async () => {
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response('Not Found', { status: 404 });
+    await expect(throwOnApiError(res, 'FETCH_FAILED')).rejects.toThrow('FETCH_FAILED');
+  });
+
+  it('falls back to code when message is empty', async () => {
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'some_error', message: '' });
+    const res = new Response(body, { status: 400 });
+    await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.toThrow('UPDATE_FAILED');
+  });
 });
