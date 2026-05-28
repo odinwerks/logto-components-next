@@ -418,11 +418,12 @@ export function SecurityTab({
           title={t.security.generateBackupCodesTitle}
           subtitle={t.mfa.verifyPasswordToGenerateBackupCodes}
           step={backupStep}
-      onPasswordSubmit={handleBackupPw}
-      onClose={closeBackupModal}
-      mode={mode}
-      colors={colors}
-      t={t}
+          onPasswordSubmit={handleBackupPw}
+          onClose={closeBackupModal}
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -465,10 +466,11 @@ export function SecurityTab({
             }
             setPwStep(null);
           }}
-      onClose={() => { pwChangeAbortRef.current = true; setPwStep(null); }}
-      mode={mode}
-      colors={colors}
-      t={t}
+          onClose={() => { pwChangeAbortRef.current = true; setPwStep(null); }}
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -478,12 +480,13 @@ export function SecurityTab({
           title={t.security.deleteAccount}
           subtitle={t.security.confirmDeleteAccount}
           step={deleteStep}
-      onPasswordSubmit={handleDeleteAccount}
-      onClose={() => { deleteAbortRef.current = true; setDeleteStep(null); }}
-      danger
-      mode={mode}
-      colors={colors}
-      t={t}
+          onPasswordSubmit={handleDeleteAccount}
+          onClose={() => { deleteAbortRef.current = true; setDeleteStep(null); }}
+          danger
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -493,11 +496,12 @@ export function SecurityTab({
           title={t.mfa.registerPasskey}
           subtitle={t.mfa.registerPasskeyDesc}
           step={passkeyRegStep}
-      onPasswordSubmit={handlePasskeyRegPassword}
-      onClose={() => { passkeyRegAbortRef.current = true; setPasskeyRegStep(null); }}
-      mode={mode}
-      colors={colors}
-      t={t}
+          onPasswordSubmit={handlePasskeyRegPassword}
+          onClose={() => { passkeyRegAbortRef.current = true; setPasskeyRegStep(null); }}
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -508,11 +512,12 @@ export function SecurityTab({
           subtitle={t.mfa.deletePasskeyDesc}
           step={delPasskeyStep}
           onPasswordSubmit={handleDelPasskeyPw}
-      onClose={() => { delPasskeyAbortRef.current = true; setDelPasskeyStep(null); setPasskeyToDelete(null); }}
-      danger
-      mode={mode}
-      colors={colors}
-      t={t}
+          onClose={() => { delPasskeyAbortRef.current = true; setDelPasskeyStep(null); setPasskeyToDelete(null); }}
+          danger
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -523,11 +528,12 @@ export function SecurityTab({
           subtitle={t.mfa.renamePasskeyDesc}
           step={renamePasskeyStep}
           onPasswordSubmit={handleRenamePasskeyPw}
-      onRenamePasskeySubmit={handleRenamePasskeySubmit}
-      onClose={() => { renameAbortRef.current = true; setRenamePasskeyStep(null); setPasskeyToRename(null); }}
-      mode={mode}
-      colors={colors}
-      t={t}
+          onRenamePasskeySubmit={handleRenamePasskeySubmit}
+          onClose={() => { renameAbortRef.current = true; setRenamePasskeyStep(null); setPasskeyToRename(null); }}
+          hideFooterClose
+          mode={mode}
+          colors={colors}
+          t={t}
         />
       )}
 
@@ -541,6 +547,7 @@ export function SecurityTab({
           onRenamePasskeySubmit={handlePasskeyActionRenameSubmit}
           onClose={() => { passkeyActionAbortRef.current = true; setPasskeyActionStep(null); setPasskeyActionId(null); }}
           danger={passkeyActionMode === 'remove'}
+          hideFooterClose
           headerExtra={passkeyActionMode === 'rename' && passkeyActionStep.kind === 'password' ? (
             <button
               onClick={() => { setPasskeyActionMode('remove'); }}

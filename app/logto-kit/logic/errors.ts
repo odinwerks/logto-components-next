@@ -162,13 +162,16 @@ export async function throwOnApiError(
  * Otherwise: returns just the code.
  */
 export function plainCode(code: ErrorCode, cause?: unknown): Error {
+  let err: Error;
   if (plainErrors && cause instanceof Error) {
-    return new Error(`${code}: ${cause.message}`);
+    err = new Error(`${code}: ${cause.message}`);
+  } else if (plainErrors && cause !== undefined) {
+    err = new Error(`${code}: ${String(cause)}`);
+  } else {
+    err = new Error(code);
   }
-  if (plainErrors && cause !== undefined) {
-    return new Error(`${code}: ${String(cause)}`);
-  }
-  return new Error(code);
+  err.name = 'SanitizedError';
+  return err;
 }
 
 export { captureMessage } from './capture-message';

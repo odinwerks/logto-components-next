@@ -168,6 +168,11 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
     });
 
     if (!enrollRes.ok) {
+      const enrollBody = await enrollRes.text();
+      console.log('[DEBUG] Backup codes enroll failed:', {
+        status: enrollRes.status,
+        body: enrollBody.substring(0, 500),
+      });
       if (enrollRes.status === 422) {
         // 422 = "requires at least one other MFA factor" (Logto API constraint).
         // The generate step above already ran — no rollback needed as Logto
