@@ -337,7 +337,6 @@ export function SessionsTab({
             {t.sessions.verifyToViewDesc}
           </p>
           <Button variant="primary" onClick={startViewVerification} mode={mode} colors={c}>
-            <Lock size={14} />
             {t.sessions.verifyPassword}
           </Button>
         </div>
@@ -479,17 +478,18 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: isMobile ? 'auto' : '5.5rem',
+                height: isMobile ? 'auto' : 'auto',
+                minHeight: isMobile ? 'auto' : '5.5rem',
               }}>
-                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: isMobile ? '0.75rem 0 0.75rem 0.75rem' : '0 0 0 0.875rem' }}>
-                  <OsIcon os={os} deviceType={deviceType} size={isMobile ? 32 : 40} />
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: isMobile ? '0.75rem 0 0.75rem 0.75rem' : '0.5rem 1.25rem 0.5rem 1rem' }}>
+                  <OsIcon os={os} deviceType={deviceType} size={isMobile ? 32 : 48} />
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.75rem' : '0 0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.75rem' : '0.5rem 1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: isMobile ? '0.25rem' : '0.375rem' }}>
                     <h3 style={{
                       fontFamily: T.font,
-                      fontSize: isMobile ? '0.8125rem' : '0.875rem',
+                      fontSize: isMobile ? '0.8125rem' : '0.9375rem',
                       fontWeight: 500,
                       color: T.text,
                       margin: 0,
@@ -499,18 +499,37 @@ export function SessionsTab({
                     }}>
                       {title || t.sessions.unknown}
                     </h3>
+                    {!isMobile && meta?.lastActive && (
+                      <span style={{
+                        fontFamily: T.font,
+                        fontSize: '0.6875rem',
+                        color: T.sub,
+                        flexShrink: 0,
+                      }}>
+                        {meta.lastActive === 'now' ? (
+                          <span style={{
+                            color: mode === 'dark' ? '#34c759' : '#1a7a2e',
+                            fontWeight: 600,
+                          }}>
+                            {t.sessions.activeNow}
+                          </span>
+                        ) : (
+                          formatDate(meta.lastActive)
+                        )}
+                      </span>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: isMobile ? '0.625rem' : '0.75rem', color: T.muted, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                    <span style={{ whiteSpace: 'nowrap' }}>{isMobile ? formatDate(session.payload.loginTs) : `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: isMobile ? '0.625rem' : '0.75rem', color: T.muted }}>
+                    <span>{isMobile ? formatDate(session.payload.loginTs) : `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`}</span>
                   </div>
 
-                  <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', color: T.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', color: T.sub }}>
                     <span>{t.sessions.expires}: {formatDate(session.payload.exp)}</span>
                   </div>
 
-                  {meta?.lastActive && (
-                    <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {isMobile && meta?.lastActive && (
+                    <div style={{ marginTop: '0.125rem', fontSize: '0.625rem' }}>
                       <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
                       {meta.lastActive === 'now' ? (
                         <span style={{
@@ -526,7 +545,7 @@ export function SessionsTab({
                   )}
                 </div>
 
-                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0 0.875rem 0 0.75rem', gap: '0.25rem' }}>
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0.5rem 1.25rem 0.5rem 0', gap: '0.375rem' }}>
                   {session.meta?.isCurrent ? (
                     <span style={{
                       display: 'inline-flex',
@@ -579,14 +598,7 @@ export function SessionsTab({
                         mode={mode}
                         colors={c}
                       >
-                        {revokingId === session.payload.uid ? (
-                          t.common.loading
-                        ) : (
-                          <>
-                            <Trash2 size={12} />
-                            {t.sessions.revoke}
-                          </>
-                        )}
+                        {revokingId === session.payload.uid ? t.common.loading : t.sessions.revoke}
                       </Button>
                     )
                   )}

@@ -628,14 +628,20 @@ export function SecurityTab({
 
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {totpFactor ? (
-                <button onClick={openTotp} aria-label={t.security.reconfigure} style={{
-                  width: '2rem', height: '2rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
-                  borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
-                }}>
-                  <RefreshCw size={14} strokeWidth={1.5} />
-                </button>
+                isMobile ? (
+                  <button onClick={openTotp} aria-label={t.security.reconfigure} style={{
+                    width: '2rem', height: '2rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem', cursor: 'pointer', color: c.textSecondary, padding: 0,
+                  }}>
+                    <RefreshCw size={14} strokeWidth={1.5} />
+                  </button>
+                ) : (
+                  <Button size="sm" onClick={openTotp} mode={mode} colors={colors}>
+                    {t.security.reconfigure}
+                  </Button>
+                )
               ) : isMobile ? (
                 <button onClick={openTotp} aria-label={t.mfa.generateTotpSecret} style={{
                   width: '2rem', height: '2rem', flexShrink: 0,
@@ -647,7 +653,7 @@ export function SecurityTab({
                 </button>
               ) : (
                 <Button size="sm" variant="primary" onClick={openTotp} mode={mode} colors={colors}>
-                  <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.generateTotpSecret}
+                  {t.mfa.generateTotpSecret}
                 </Button>
               )}
             </div>
@@ -691,24 +697,40 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              <button
-                onClick={() => {
-                  if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
-                  openBackup();
-                }}
-                title={!hasOtherMfaFactor ? t.mfa.backupCodesRequireOtherFactor : undefined}
-                style={{
-                  width: '2rem', height: '2rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
-                  borderRadius: '0.25rem',
-                  cursor: !hasOtherMfaFactor ? 'not-allowed' : 'pointer',
-                  color: !hasOtherMfaFactor ? c.textTertiary : c.textSecondary,
-                  opacity: !hasOtherMfaFactor ? 0.45 : 1,
-                  padding: 0,
-                }}>
-                <RefreshCw size={14} strokeWidth={1.5} />
-              </button>
+              {isMobile ? (
+                <button
+                  onClick={() => {
+                    if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
+                    openBackup();
+                  }}
+                  title={!hasOtherMfaFactor ? t.mfa.backupCodesRequireOtherFactor : undefined}
+                  style={{
+                    width: '2rem', height: '2rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem',
+                    cursor: !hasOtherMfaFactor ? 'not-allowed' : 'pointer',
+                    color: !hasOtherMfaFactor ? c.textTertiary : c.textSecondary,
+                    opacity: !hasOtherMfaFactor ? 0.45 : 1,
+                    padding: 0,
+                  }}
+                >
+                  <RefreshCw size={14} strokeWidth={1.5} />
+                </button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
+                    openBackup();
+                  }}
+                  disabled={!hasOtherMfaFactor}
+                  mode={mode}
+                  colors={colors}
+                >
+                  {t.security.generateBackupCodesTitle}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -762,7 +784,7 @@ export function SecurityTab({
                 passkeyRegAbortRef.current = false;
                 setPasskeyRegStep({ kind: 'password' });
               }} mode={mode} colors={colors}>
-                <Plus size={'0.6875rem'} color={mode === 'dark' ? '#fff' : colors.bgPrimary} strokeWidth={1.5} /> {t.mfa.addPasskey}
+                {t.mfa.addPasskey}
               </Button>
             )}
           </div>
@@ -798,10 +820,10 @@ export function SecurityTab({
                 ) : (
                   <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
                     <Button size="sm" variant="ghost" onClick={() => { renameAbortRef.current = false; setPasskeyToRename(passkey.id); setRenamePasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-                      <Pencil size={'0.6875rem'} strokeWidth={1.5} /> {t.profile.edit}
+                      {t.profile.edit}
                     </Button>
                     <Button size="sm" variant="danger" onClick={() => { delPasskeyAbortRef.current = false; setPasskeyToDelete(passkey.id); setDelPasskeyStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-                      <Trash2 size={'0.6875rem'} strokeWidth={1.5} /> {t.mfa.remove}
+                      {t.mfa.remove}
                     </Button>
                   </div>
                 )}

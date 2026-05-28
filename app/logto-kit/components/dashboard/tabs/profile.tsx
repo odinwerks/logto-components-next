@@ -741,10 +741,7 @@ export function ProfileTab({
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading
-                              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
-                              : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
-                            }
+                            {nameLoading ? t.profile.saving : t.profile.saveChanges}
                           </Button>
                         </div>
                       )}
@@ -779,10 +776,7 @@ export function ProfileTab({
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading
-                              ? <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.saving}</>
-                              : <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.saveChanges}</>
-                            }
+                            {nameLoading ? t.profile.saving : t.profile.saveChanges}
                           </Button>
                         </>
                       )}

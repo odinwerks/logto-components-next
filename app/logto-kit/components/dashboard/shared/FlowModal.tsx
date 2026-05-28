@@ -130,7 +130,6 @@ export function PasswordVerifyModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-          <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
           <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
             {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
@@ -404,7 +403,9 @@ export function FlowModal({
                       style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                      <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                      {!hideFooterClose && (
+                        <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                      )}
                       <Button variant="primary"
                         onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId)}
                         disabled={code.length !== 6} mode={mode} colors={colors}
@@ -440,7 +441,9 @@ export function FlowModal({
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                {!hideFooterClose && (
+                  <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                )}
                 <Button variant={danger ? 'danger' : 'primary'} onClick={() => newPw && onNewPasswordSubmit?.(newPw, step.verificationRecordId)} disabled={!newPw} mode={mode} colors={colors}>
                   {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
@@ -460,7 +463,9 @@ export function FlowModal({
                 mode={mode} colors={colors}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                {!hideFooterClose && (
+                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                )}
                 <Button variant="primary" onClick={() => renameVal.trim() && onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)} disabled={!renameVal.trim()} mode={mode} colors={colors}>
                   {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
