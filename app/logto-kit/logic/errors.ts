@@ -142,31 +142,29 @@ export async function throwOnApiError(
     );
   }
 
-  // PLAIN_ERRORS=true: full debugging detail (status + raw body)
-  if (plainErrors) {
-    throw new Error(
-      `${fallback} ${res.status}: ${detail}`,
-    );
-  }
-
-  // Try to extract Logto's user-facing message from the JSON body.
+  // Always try to extract Logto's user-facing message first.
   // Logto returns {"code": "...", "message": "..."} for known errors.
+  // This takes priority over PLAIN_ERRORS mode — the message is the answer.
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-      const err = new Error(parsed.message);
+      const err = new Error(parsed.message.trim());
       err.name = 'SanitizedError';
       throw err;
     }
   } catch (parseErr) {
-    // If it's our own SanitizedError, re-throw it
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
       throw parseErr;
     }
-    // Not JSON or no message field — fall through to fixed code
+    // Not JSON or no message field — fall through
   }
 
-  // Fallback: fixed error code
+  // No message field: PLAIN_ERRORS dumps full detail for debugging
+  if (plainErrors) {
+    throw new Error(`${fallback} ${res.status}: ${detail}`);
+  }
+
+  // Production fallback: fixed code only
   const safe = new Error(fallback);
   safe.name = 'SanitizedError';
   throw safe;
