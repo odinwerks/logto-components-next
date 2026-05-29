@@ -225,7 +225,7 @@ function evaluate(str: string, isRad: boolean): number {
 }
 
 export function CalculatorClient() {
-  const { userData } = useLogto();
+  const { userData, asOrg } = useLogto();
   const [state, setState] = useState<CalcState>(loadState);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const backspaceRef = useRef<HTMLButtonElement>(null);
@@ -289,6 +289,7 @@ export function CalculatorClient() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          orgId: asOrg,
           token: freshToken,
           id: userData.id,
           action,
