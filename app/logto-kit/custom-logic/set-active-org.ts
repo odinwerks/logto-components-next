@@ -3,10 +3,14 @@
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../config';
 import { assertSafeLogtoId } from '../logic/guards';
+import { updateUserCustomData } from '../logic/actions';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
-  // Always null is valid — user wants to be themselves (no org context).
-  if (orgId === null) return true;
+  // null is valid — user wants to be themselves (no org context).
+  if (orgId === null) {
+    await updateUserCustomData({ Preferences: { asOrg: null } });
+    return true;
+  }
   if (!orgId) return false;
 
   assertSafeLogtoId(orgId, 'orgId');
@@ -25,5 +29,16 @@ export async function setActiveOrg(orgId: string | null): Promise<boolean> {
   const userOrgs: string[] = Array.isArray(rawOrgs)
     ? rawOrgs.filter((o): o is string => typeof o === 'string')
     : [];
-  return userOrgs.includes(orgId);
+
+  const isValid = userOrgs.includes(orgId);
+
+  // Persist the active org to Logto custom_data while we have the membership
+  // result. This runs server-side and is awaited by callers before they update
+  // client state, so by the time the client updates sessionStorage the server
+  // source of truth is already consistent.
+  if (isValid) {
+    await updateUserCustomData({ Preferences: { asOrg: orgId } });
+  }
+
+  return isValid;
 }

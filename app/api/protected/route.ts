@@ -3,7 +3,7 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { getAction } from '../../logto-kit/action-registry';
 import { validateOrgMembership } from '../../logto-kit/action-registry/validation';
 import { introspectToken } from '../../logto-kit/logic/utils';
-import { assertSafeUserId, assertSafeLogtoId } from '../../logto-kit/logic/guards';
+import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
@@ -19,7 +19,6 @@ function apiError(error: string, message: string, status: number) {
 interface ProtectedRequestBody {
   action: string;
   payload?: unknown;
-  orgId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: ProtectedRequestBody = await request.json();
 
-    const { action, payload, orgId: clientOrgId } = body;
+    const { action, payload } = body;
 
     if (!action) {
       return apiError('MISSING_FIELDS', 'action is required', 400);
@@ -75,25 +74,9 @@ export async function POST(request: NextRequest) {
     try {
       const { userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
       userOrgs = (userInfo?.organizations as string[]) || [];
-
-      // Primary: use the org declared by the caller (validated against real membership below).
-      // This lets the client forward its active org context without requiring
-      // custom_data.Preferences.asOrg to be written first.
-      if (clientOrgId && typeof clientOrgId === 'string') {
-        try {
-          assertSafeLogtoId(clientOrgId, 'orgId');
-          asOrg = clientOrgId;
-        } catch {
-          // Malformed orgId from client — fall through to custom_data fallback
-        }
-      }
-
-      // Fallback: read from persisted user preference (written by PreferencesProvider)
-      if (!asOrg) {
-        const customData = (userInfo?.custom_data as Record<string, unknown>) || {};
-        const prefs = (customData?.Preferences as { asOrg?: string | null }) || {};
-        asOrg = prefs.asOrg ?? null;
-      }
+      const customData = (userInfo?.custom_data as Record<string, unknown>) || {};
+      const prefs = (customData?.Preferences as { asOrg?: string | null }) || {};
+      asOrg = prefs.asOrg ?? null;
     } catch (error) {
       debugError('[Protected API] User data fetch error:', error instanceof Error ? error.message : String(error));
       return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
