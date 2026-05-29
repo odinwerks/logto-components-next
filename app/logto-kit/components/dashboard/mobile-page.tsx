@@ -3,7 +3,6 @@ import { MobileClient } from './mobile-client';
 import {
   updateUserBasicInfo,
   updateUserProfile,
-  updateUserCustomData,
   updateAvatarUrl,
   verifyPasswordForIdentity,
   sendEmailVerificationCode,

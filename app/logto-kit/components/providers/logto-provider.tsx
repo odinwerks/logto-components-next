@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
+import { updateUserCustomData } from '../../logic/actions';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
 import { DashboardRouter, useIsPortrait } from '../dashboard/dashboard-router';
@@ -156,7 +157,7 @@ export function LogtoProvider({
   dashboard,
   initialTheme,
   initialLang,
-  onUpdateCustomData,
+  onUpdateCustomData = updateUserCustomData,
   onLangChange,
   initialOrgId,
 }: LogtoProviderProps) {
