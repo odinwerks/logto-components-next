@@ -1,7 +1,7 @@
 'use server';
 
 import { getAccessToken } from '@logto/next/server-actions';
-import { getLogtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../config';
 
 /**
  * Gets an access token for use in server actions.

@@ -84,3 +84,10 @@ export function getDefaultThemeMode(): 'dark' | 'light' {
   const raw = (readEnv('DEFAULT_THEME_MODE') || 'dark').trim().toLowerCase();
   return raw === 'light' ? 'light' : 'dark';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Typography tokens (shared across tab components)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const FONT_SANS = "'DM Sans', system-ui, sans-serif";
+export const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signOut } from '@logto/next/server-actions';
-import { getLogtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../../logto-kit/config';
 import { error } from '../../../logto-kit/logic/log';
 
 export async function POST(request: NextRequest) {

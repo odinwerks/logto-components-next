@@ -1,7 +1,7 @@
 'use server';
 
 import LogtoClient from '@logto/next/server-actions';
-import { getLogtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../config';
 import { debugLog } from '../debug';
 import { assertSafeLogtoId, decodeLogtoAccessToken } from '../guards';
 import { safeAction, type DataResult } from './safe';

@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import type { ThemeColors } from '../../../themes';
+import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { useThemeMode, useLangMode } from '../../handlers/preferences';
+import { useThemeMode, useLangMode } from '../../providers/preferences';
 
 // ─── Hardcoded design tokens ───
-const FONT_SANS = "'DM Sans', system-ui, sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons

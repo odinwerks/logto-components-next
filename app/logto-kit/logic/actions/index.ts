@@ -6,6 +6,9 @@
 // This file just re-exports them for convenient importing.
 // ============================================================================
 
+// Safe action wrapper types
+export type { ActionResult, DataResult } from './safe';
+
 // Shared Helpers
 export { throwOnApiError, patchMyAccount } from './shared';
 

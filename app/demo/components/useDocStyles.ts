@@ -1,6 +1,6 @@
 'use client';
 
-import { useThemeMode } from '../../logto-kit/components/handlers/preferences';
+import { useThemeMode } from '../../logto-kit/components/providers/preferences';
 
 export function useDocStyles() {
   const { mode } = useThemeMode();

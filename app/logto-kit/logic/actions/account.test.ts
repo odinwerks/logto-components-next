@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Module Mocks — hoisted above all imports
 // ============================================================================
 
-vi.mock('../../../logto', () => ({
+vi.mock('../../config', () => ({
   getManagementApiToken: vi.fn().mockResolvedValue('mock-m2m-token'),
 }));
 
@@ -42,7 +42,7 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
-import { getManagementApiToken } from '../../../logto';
+import { getManagementApiToken } from '../../config';
 
 // ============================================================================
 // deleteUserAccount — freshness check + account deletion

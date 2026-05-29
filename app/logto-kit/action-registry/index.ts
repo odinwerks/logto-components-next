@@ -11,8 +11,7 @@ export interface ActionConfig {
 
 export type ActionRegistry = Record<string, ActionConfig>;
 
-import { getBasicCalc } from './calc-actions/basic';
-import { getScientificCalc } from './calc-actions/scientific';
+import { getBasicCalc, getScientificCalc } from './calc-actions';
 
 // Lazy-loaded action cache
 let _actionsCache: ActionRegistry | null = null;

@@ -1,7 +1,7 @@
 export { Protected } from './Protected';
 
 export { OrgSwitcher } from './OrgSwitcher';
-export { setActiveOrg } from './actions/set-active-org';
+export { setActiveOrg } from './set-active-org';
 
 export async function OrgSwitcherWrapper(...args: Parameters<typeof import('./org-switcher-wrapper').OrgSwitcherWrapper>) {
   const mod = await import('./org-switcher-wrapper');
@@ -10,4 +10,4 @@ export async function OrgSwitcherWrapper(...args: Parameters<typeof import('./or
 
 export type {
   OrganizationData,
-} from './types';
+} from '../logic/types';

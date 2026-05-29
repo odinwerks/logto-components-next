@@ -1,9 +1,9 @@
 'use client';
 
-import CodeBlock from '../../utils/CodeBlock';
-import { SectionContainer, Section } from '../../utils/Section';
-import { useDocStyles } from '../../utils/useDocStyles';
-import CalculatorPanel from '../../logic/CalculatorPanel';
+import CodeBlock from '../../components/SyntaxBlock';
+import { SectionContainer, Section } from '../../components/Section';
+import { useDocStyles } from '../../components/useDocStyles';
+import CalculatorPanel from '../../components/calculator/CalculatorPanel';
 
 function OverviewSection() {
   const styles = useDocStyles();

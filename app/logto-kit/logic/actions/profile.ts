@@ -13,7 +13,7 @@ import {
 } from '../guards';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { getTokenForServerAction } from './tokens';
-import { getManagementApiToken } from '../../../logto';
+import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { warn } from '../log';
 

@@ -1,6 +1,6 @@
 import { UserScope } from '@logto/next';
-import { readEnv } from './logto-kit/logic/env';
-import { warn } from './logto-kit/logic/log';
+import { readEnv } from './logic/env';
+import { warn } from './logic/log';
 
 // Map SCOPES string to Logto enum
 const SCOPE_MAP: Record<string, string> = {
@@ -41,21 +41,6 @@ function getEnvVar(name: string, required = true): string {
   }
 
   return value;
-}
-
-/** @deprecated Kept for reference; the Account API uses an empty resource string. */
-function buildAccountApiResource(endpoint: string): string {
-  // NOTE: buildAccountApiResource is intentionally unused.
-  // The Logto Account API uses an empty resource string for getAccessToken(config, ''),
-  // so the resources array is correctly left empty here.
-  if (!endpoint.startsWith('http')) {
-    throw new Error(`ENDPOINT must start with http:// or https://. Got: "${endpoint}"`);
-  }
-
-  const cleanEndpoint = endpoint.replace(/\/+$/, '');
-  const resource = `${cleanEndpoint}/api`;
-
-  return resource;
 }
 
 function parseScopes(scopeString: string): string[] {

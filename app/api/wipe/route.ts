@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLogtoConfig } from '../../logto';
+import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
 import type { signOut as SignOutType } from '@logto/next/server-actions';

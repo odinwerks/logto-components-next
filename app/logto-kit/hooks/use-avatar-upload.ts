@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { uploadAvatar } from '@/app/logto-kit/logic/actions'
-import { captureMessage } from '../../logic/capture-message'
+import { uploadAvatar } from '../logic/actions'
+import { captureMessage } from '../logic/capture-message'
 
 export interface UseAvatarUploadOptions {
   /**

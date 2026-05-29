@@ -7,6 +7,7 @@ import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
+import { Lbl, HR } from './primitives';
 
 export function Overlay({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
   return (
@@ -151,14 +152,6 @@ export function PasswordVerifyModal({
       </div>
     </Overlay>
   );
-}
-
-function Lbl({ children, colors }: { children: React.ReactNode; colors: ThemeColors }) {
-  return <label style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{children}</label>;
-}
-
-function HR({ colors }: { colors: ThemeColors }) {
-  return <div style={{ height: '1px', background: `${colors.borderColor}cc`, border: 'none', margin: '0', flexShrink: 0 }} />;
 }
 
 export function FlowModal({

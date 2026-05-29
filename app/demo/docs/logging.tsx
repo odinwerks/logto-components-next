@@ -1,9 +1,9 @@
 'use client';
 
-import CodeBlock from '../utils/CodeBlock';
-import { SectionContainer, Section } from '../utils/Section';
-import { useDocStyles } from '../utils/useDocStyles';
-import { SectionHeader, SectionWrap } from '../utils/SectionComponents';
+import CodeBlock from '../components/SyntaxBlock';
+import { SectionContainer, Section } from '../components/Section';
+import { useDocStyles } from '../components/useDocStyles';
+import { SectionHeader, SectionWrap } from '../components/SectionComponents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Page 1: Overview

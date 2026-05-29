@@ -12,7 +12,7 @@ const { mockGetCachedGeo, mockFetchGeo, mockClearGeoCache } = vi.hoisted(() => (
   mockClearGeoCache: vi.fn(),
 }));
 
-vi.mock('../../shared/geo-cache', () => ({
+vi.mock('../../../logic/geo-cache', () => ({
   getCachedGeo: (...args: unknown[]) => mockGetCachedGeo(...args),
   fetchGeo: (...args: unknown[]) => mockFetchGeo(...args),
   clearGeoCache: () => mockClearGeoCache(),

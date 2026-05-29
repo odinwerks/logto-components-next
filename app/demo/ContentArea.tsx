@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useThemeMode } from '../logto-kit/components/handlers/preferences';
+import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 

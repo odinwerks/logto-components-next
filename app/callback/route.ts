@@ -1,7 +1,7 @@
 import { handleSignIn } from '@logto/next/server-actions';
 import { redirect } from 'next/navigation';
 import { NextRequest } from 'next/server';
-import { getLogtoConfig } from '../logto';
+import { getLogtoConfig } from '../logto-kit/config';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

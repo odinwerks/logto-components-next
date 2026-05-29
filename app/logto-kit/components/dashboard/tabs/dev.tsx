@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { KeyRound, Braces, Cookie, LogOut, ShieldAlert } from 'lucide-react';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
+import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
-import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
+import { loadOrganizationPermissions } from '../../../server-actions/load-org-permissions';
 import { getCurrentAccessToken } from '../../../logic/actions/debug-token';
 import { isDev } from '../../../logic/dev-mode';
 
@@ -49,8 +50,6 @@ function TruncatedToken({ token, mode, colors, t }: { token: string; mode: 'dark
 }
 
 // ─── Hardcoded design tokens (replaces theme.tokens.*) ───
-const FONT_SANS = "'DM Sans', system-ui, sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 interface DevTabProps {
   userData: UserData;

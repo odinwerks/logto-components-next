@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * logto-kit/components/handlers/session-heartbeat.tsx
+ * logto-kit/components/providers/session-heartbeat.tsx
  *
  * <SessionHeartbeat /> — zero-UI heartbeat engine.
  *

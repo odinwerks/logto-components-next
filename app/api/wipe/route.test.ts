@@ -43,7 +43,7 @@ function getSetCookies(res: Response): string[] {
 // ── Mocks ─────────────────────────────────────────────────────────────────
 
 // Mock the logto config to avoid env-var errors
-vi.mock('../../logto', () => ({
+vi.mock('../../logto-kit/config', () => ({
   getLogtoConfig: () => ({
     appId: 'test-app-id',
     appSecret: 'test-app-secret',

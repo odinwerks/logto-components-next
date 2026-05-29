@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
-import { useThemeMode, useLangMode } from '../handlers/preferences';
-import { useUserDataContext } from '../handlers/user-data-context';
+import { useThemeMode, useLangMode } from '../providers/preferences';
+import { useUserDataContext } from '../providers/user-data-context';
 import { ToastContainer } from './shared/Toast';
 import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
@@ -16,12 +16,13 @@ import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { DevTab } from './tabs/dev';
-import { UserBadge } from '../userbutton';
+import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
 import { Terminal, Monitor } from 'lucide-react';
+import { getTabLabel } from './tab-utils';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -32,19 +33,6 @@ const ibmPlexMono = IBM_Plex_Mono({
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab metadata
 // ─────────────────────────────────────────────────────────────────────────────
-
-function getTabLabel(id: TabId, t: Translations): string {
-  switch (id) {
-    case 'profile': return t.tabs.profile;
-    case 'preferences': return t.tabs.preferences;
-    case 'security': return t.tabs.security;
-    case 'sessions': return t.tabs.sessions;
-    case 'identities': return t.tabs.identities;
-    case 'organizations': return t.tabs.organizations;
-    case 'dev': return t.tabs.dev;
-    default: return (id as string).toUpperCase();
-  }
-}
 
 // Icons for sidebar navigation
 const UserIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (

@@ -4,19 +4,18 @@ import { useState, useEffect, useRef, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
+import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { CodeBlock } from '../shared/CodeBlock';
 import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
-import { setActiveOrg } from '../../../custom-logic/actions/set-active-org';
-import { useOrgMode } from '../../handlers/preferences';
+import { setActiveOrg } from '../../../custom-logic/set-active-org';
+import { useOrgMode } from '../../providers/preferences';
 import { useRefreshable } from '../../../hooks/use-refreshable';
-import { loadOrganizationPermissions } from '../../../actions/load-org-permissions';
-import { loadOrganizationUserRoles } from '../../../actions/load-org-roles';
+import { loadOrganizationPermissions } from '../../../server-actions/load-org-permissions';
+import { loadOrganizationUserRoles } from '../../../server-actions/load-org-roles';
 
 // ─── Hardcoded design tokens ───
-const FONT_SANS = "'DM Sans', system-ui, sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 interface OrganizationsTabProps {
   userData: UserData;

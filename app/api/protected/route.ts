@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLogtoContext } from '@logto/next/server-actions';
-import { getAction } from '../../logto-kit/custom-actions';
-import { validateOrgMembership } from '../../logto-kit/custom-actions/validation';
+import { getAction } from '../../logto-kit/action-registry';
+import { validateOrgMembership } from '../../logto-kit/action-registry/validation';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
-import { getLogtoConfig } from '../../logto';
+import { getLogtoConfig } from '../../logto-kit/config';
 
 function apiError(error: string, message: string, status: number) {
   return NextResponse.json(

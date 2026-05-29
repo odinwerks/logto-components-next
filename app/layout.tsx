@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Mono, Instrument_Serif } from 'next/font/google';
 import './globals.css';
-import AuthWatcher from './logto-kit/components/handlers/auth-watcher';
-import SessionHeartbeat from './logto-kit/components/handlers/session-heartbeat';
+import AuthWatcher from './logto-kit/components/providers/auth-watcher';
+import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],

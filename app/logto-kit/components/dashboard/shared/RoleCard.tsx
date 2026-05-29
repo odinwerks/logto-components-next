@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Info, Loader2 } from 'lucide-react';
 import { getRoleDetails } from '../../../logic/actions/roles';
 import type { ThemeColors } from '../../../themes';
+import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 
 interface RoleCardProps {
@@ -15,7 +16,6 @@ interface RoleCardProps {
   t: Translations;
 }
 
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 const descriptionCache = new Map<string, string | null>();
 

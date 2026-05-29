@@ -275,3 +275,13 @@ export const isDashboardAuthError = (result: DashboardResult): result is Dashboa
 
 export const isDashboardFetchError = (result: DashboardResult): result is DashboardFetchError =>
   !result.success && 'error' in result;
+
+// ============================================================================
+// Organization Types
+// ============================================================================
+
+export interface OrganizationData {
+  id: string;
+  name: string;
+  description?: string;
+}

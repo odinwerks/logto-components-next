@@ -3,11 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
+import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image } from 'lucide-react';
-import { UserBadge } from '../../userbutton';
+import { UserBadge } from '../../UserButton';
 import { readEnv } from '../../../logic/env';
-import { useAvatarUpload } from '../../handlers/use-avatar-upload';
+import { useAvatarUpload } from '../../../hooks/use-avatar-upload';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
@@ -17,8 +18,8 @@ import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
 import { useRefreshable } from '../../../hooks/use-refreshable';
-import { loadPersonalRoles } from '../../../actions/load-personal-roles';
-import { loadPersonalPermissions } from '../../../actions/load-personal-permissions';
+import { loadPersonalRoles } from '../../../server-actions/load-personal-roles';
+import { loadPersonalPermissions } from '../../../server-actions/load-personal-permissions';
 
 const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
   <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
@@ -45,7 +46,6 @@ const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
   </svg>
 );
 
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 
 // ─── PersonalPermissionsBlock — refreshable wrapper for personal (global RBAC)
 //     permissions. Uses the same pattern as OrganizationsTab's PermissionsBlock. ───

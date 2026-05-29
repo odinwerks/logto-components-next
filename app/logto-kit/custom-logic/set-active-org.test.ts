@@ -8,7 +8,7 @@ vi.mock('@logto/next/server-actions', () => ({
   getLogtoContext: vi.fn(),
 }));
 
-vi.mock('../../../logto', () => ({
+vi.mock('../config', () => ({
   getLogtoConfig: vi.fn().mockReturnValue({}),
 }));
 

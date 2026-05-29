@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLogto } from '../../logto-kit/components/handlers/logto-provider';
-import { getFreshAccessToken } from '../../logto-kit/logic/actions';
+import { useLogto } from '../../../logto-kit/components/providers/logto-provider';
+import { getFreshAccessToken } from '../../../logto-kit/logic/actions';
 
 interface CalcState {
   expr: string;

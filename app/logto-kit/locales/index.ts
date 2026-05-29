@@ -15,7 +15,7 @@ import { readEnv } from '../logic/env';
 
 export type LocaleCode = 'en-US' | 'ka-GE';
 
-export interface KitTranslations {
+export interface Translations {
   // Dashboard
   dashboard: {
     loading: string;
@@ -442,10 +442,10 @@ export interface KitTranslations {
 }
 
 // Backward-compatible alias
-export type Translations = KitTranslations;
+export type KitTranslations = Translations;
 
 // Registry of all locales
-const locales: Record<LocaleCode, KitTranslations> = {
+const locales: Record<LocaleCode, Translations> = {
   'en-US': enUS,
   'ka-GE': kaGE,
 };

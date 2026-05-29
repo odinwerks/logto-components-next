@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { fetchDashboardData } from './logto-kit/logic/actions';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
-import { LogtoProvider } from './logto-kit/components/handlers/logto-provider';
+import { LogtoProvider } from './logto-kit/components/providers/logto-provider';
 import { DARK_COLORS, getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
 import { getMainLocale } from './logto-kit/locales';

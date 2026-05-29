@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, startTransition } from 'react';
-import { setActiveOrg } from './actions/set-active-org';
-import { useOrgMode } from '../components/handlers/preferences';
-import type { OrganizationData } from './types';
+import { setActiveOrg } from './set-active-org';
+import { useOrgMode } from '../components/providers/preferences';
+import type { OrganizationData } from '../logic/types';
 import type { ThemeColors } from '../themes';
 
 interface OrgSwitcherProps {

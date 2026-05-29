@@ -55,10 +55,10 @@
  * // any user could call it directly via the browser console
  */
 
-import { ReactNode, useState, useEffect, useRef } from 'react';
-import { useOrgMode } from '../components/handlers/preferences';
-import { useLogto } from '../components/handlers/logto-provider';
-import { loadOrganizationPermissions } from '../actions/load-org-permissions';
+import { ReactNode, useState, useEffect } from 'react';
+import { useOrgMode } from '../components/providers/preferences';
+import { useLogto } from '../components/providers/logto-provider';
+import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
 import { debugLog } from '../logic/debug';
 
 /**

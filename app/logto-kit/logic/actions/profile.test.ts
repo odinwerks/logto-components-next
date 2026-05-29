@@ -65,7 +65,7 @@ vi.mock('../guards', () => {
   };
 });
 
-vi.mock('../../../logto', () => ({
+vi.mock('../../config', () => ({
   getManagementApiToken: vi.fn().mockResolvedValue('mock-mgmt-token'),
 }));
 
@@ -81,7 +81,7 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { decodeLogtoAccessToken, pickPreferences } from '../guards';
-import { getManagementApiToken } from '../../../logto';
+import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint } from '../utils';
 
 // ============================================================================

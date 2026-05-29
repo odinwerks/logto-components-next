@@ -1,8 +1,8 @@
 'use server';
 
-export async function getBasicCalc() {
-  return {
-    requiredPerm: 'calc:basic',
+function makeCalcAction(perm: string) {
+  return async () => ({
+    requiredPerm: perm,
     handler: async ({ payload }: { userId: string; orgId: string; payload: unknown }) => {
       if (typeof payload !== 'object' || payload === null) throw new Error('INVALID_PAYLOAD');
       const p = payload as Record<string, unknown>;
@@ -14,5 +14,8 @@ export async function getBasicCalc() {
         data: { expression, result }
       };
     },
-  };
+  });
 }
+
+export const getBasicCalc = makeCalcAction('calc:basic');
+export const getScientificCalc = makeCalcAction('calc:scientific');

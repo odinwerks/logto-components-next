@@ -1,8 +1,8 @@
 'use server';
 
 import { getLogtoContext } from '@logto/next/server-actions';
-import { getLogtoConfig } from '../../../logto';
-import { assertSafeLogtoId } from '../../logic/guards';
+import { getLogtoConfig } from '../config';
+import { assertSafeLogtoId } from '../logic/guards';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
   // Always null is valid — user wants to be themselves (no org context).

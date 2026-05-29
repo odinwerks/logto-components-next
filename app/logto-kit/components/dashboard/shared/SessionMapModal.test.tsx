@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { GeoLocation } from './geo-cache';
+import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { SessionMapModal } from './SessionMapModal';

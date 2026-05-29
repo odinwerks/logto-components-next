@@ -3,18 +3,17 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
+import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Monitor, Smartphone, Trash2, Lock, Clock, MapPin, RefreshCw } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
-import { fetchGeo, getCachedGeo, clearGeoCache } from '../shared/geo-cache';
-import type { GeoLocation } from '../shared/geo-cache';
+import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache';
+import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
 // ─── Hardcoded design tokens ───
-const FONT_SANS = "'DM Sans', system-ui, sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 const DASHBOARD_RADIUS = '0';
 
 interface SessionsTabProps {

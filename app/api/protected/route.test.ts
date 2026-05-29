@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { getAction } from '../../logto-kit/custom-actions';
+import { getAction } from '../../logto-kit/action-registry';
 
 vi.mock('../../logto-kit/logic/actions/tokens', () => ({
   getTokenForServerAction: vi.fn().mockResolvedValue('mock-token'),
@@ -29,7 +29,7 @@ vi.mock('../../logto-kit/logic/utils', () => ({
   }),
 }));
 
-vi.mock('../../logto-kit/custom-actions', () => ({
+vi.mock('../../logto-kit/action-registry', () => ({
   getAction: vi.fn().mockResolvedValue(null),
 }));
 
@@ -37,8 +37,31 @@ vi.mock('../../logto-kit/logic/actions', () => ({
   getOrganizationUserPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
 }));
 
-vi.mock('../../logto-kit/custom-actions/validation', () => ({
+vi.mock('../../logto-kit/action-registry/validation', () => ({
   validateOrgMembership: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
+vi.mock('../../logto-kit/config', () => ({
+  getLogtoConfig: vi.fn().mockReturnValue({
+    appId: 'test-app-id',
+    appSecret: 'test-app-secret',
+    endpoint: 'https://test.logto.app',
+    baseUrl: 'http://localhost:3000',
+    cookieSecret: 'test-cookie-secret',
+    cookieSecure: false,
+    resources: [],
+    scopes: [],
+  }),
+  logtoConfig: {
+    appId: 'test-app-id',
+    appSecret: 'test-app-secret',
+    endpoint: 'https://test.logto.app',
+    baseUrl: 'http://localhost:3000',
+    cookieSecret: 'test-cookie-secret',
+    cookieSecure: false,
+    resources: [],
+    scopes: [],
+  },
 }));
 
 // Reset env before each test since checkSameOrigin reads process.env.BASE_URL

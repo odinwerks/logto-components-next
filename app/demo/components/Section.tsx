@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { useThemeMode } from '../../logto-kit/components/handlers/preferences';
+import { useThemeMode } from '../../logto-kit/components/providers/preferences';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 

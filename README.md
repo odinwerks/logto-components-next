@@ -26,23 +26,21 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 ├── app/
 │   ├── api/
 │   │   ├── auth/
-│   │   │   ├── sign-in/
-│   │   │   │   └── route.ts
-│   │   │   └── sign-out/
-│   │   │       └── route.ts
-│   │   ├── protected/
-│   │   │   └── route.ts
-│   │   └── wipe/
-│   │       └── route.ts
-│   ├── callback/
-│   │   └── route.ts
-│   ├── demo/                         # Self-documenting showcase for logto-kit components
-│   │   ├── ContentArea.tsx           # Main content area with doc registry
-│   │   ├── Sidebar.tsx              # Navigation sidebar with theme toggle
-│   │   ├── index.tsx                # Demo page entry
-│   │   ├── nav-data.tsx             # 15-tab navigation definitions
-│   │   ├── types.ts                # Type definitions
-│   │   ├── docs/                   # Per-tab documentation files (TSX)
+│   │   │   ├── sign-in/route.ts
+│   │   │   └── sign-out/route.ts
+│   │   ├── protected/route.ts
+│   │   └── wipe/route.ts
+│   ├── callback/route.ts
+│   ├── demo/                              # Self-documenting showcase for logto-kit
+│   │   ├── components/                    # Shared UI and utilities for doc pages
+│   │   │   ├── calculator/
+│   │   │   │   ├── CalculatorClient.tsx   # Calculator UI + expression parser
+│   │   │   │   └── CalculatorPanel.tsx    # Protected wrapper for the calculator
+│   │   │   ├── SyntaxBlock.tsx            # Syntax-highlighted code block (VSCode Dark+)
+│   │   │   ├── Section.tsx                # Multi-page section layout with keyboard nav
+│   │   │   ├── SectionComponents.tsx      # Pre-built section header/wrap components
+│   │   │   └── useDocStyles.ts            # Shared CSS-in-JS styles for doc pages
+│   │   ├── docs/                          # Per-tab documentation files
 │   │   │   ├── getting-started.tsx
 │   │   │   ├── user-button.tsx
 │   │   │   ├── dashboard.tsx
@@ -55,112 +53,124 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   ├── errors.tsx
 │   │   │   ├── guards.tsx
 │   │   │   ├── logging.tsx
+│   │   │   ├── primitives.tsx
 │   │   │   └── components/
-│   │   │       ├── calculator.tsx
-│   │   │       └── sessions.tsx   # Sessions tab documentation
-│   │   ├── logic/                  # Demo-specific components
-│   │   │   ├── CalculatorPanel.tsx
-│   │   │   └── CalculatorClient.tsx
-│   │   └── utils/
-│   │       ├── CodeBlock.tsx
-│   │       ├── Section.tsx
-│   │       ├── SectionComponents.tsx
-│   │       └── useDocStyles.ts
+│   │   │       ├── calculator.tsx         # Calculator demo doc page
+│   │   │       └── sessions.tsx           # Sessions tab doc page
+│   │   ├── ContentArea.tsx
+│   │   ├── index.tsx
+│   │   ├── nav-data.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── types.ts
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── logto-kit/
-│   │   ├── actions/
-│   │   │   └── load-org-permissions.ts
+│   │   ├── config.ts                      # Logto SDK config + M2M token helper
+│   │   ├── action-registry/               # Protected action registry for /api/protected
+│   │   │   ├── index.ts                   # Registry types and getAction() loader
+│   │   │   ├── validation.ts              # Org membership validation
+│   │   │   └── calc-actions.ts            # Calculator action handlers (basic + scientific)
 │   │   ├── components/
-│   │   │   ├── handlers/
-│   │   │   │   ├── auth-watcher.tsx
-│   │   │   │   ├── session-heartbeat.tsx
-│   │   │   │   ├── preferences.tsx
-│   │   │   │   ├── logto-provider.tsx
-│   │   │   │   ├── use-avatar-upload.tsx
-│   │   │   │   └── user-data-context.tsx
+│   │   │   ├── providers/                 # Context providers and behavior components
+│   │   │   │   ├── auth-watcher.tsx       # Zero-UI component: refreshes on tab focus / reconnect
+│   │   │   │   ├── logto-provider.tsx     # Root provider composing theme + lang + org + dashboard
+│   │   │   │   ├── preferences.tsx        # Theme / lang / org context + useThemeMode etc.
+│   │   │   │   ├── session-heartbeat.tsx  # Zero-UI component: pings heartbeat every 30s
+│   │   │   │   └── user-data-context.tsx  # UserData context + useUserDataContext hook
 │   │   │   ├── dashboard/
-│   │   │   │   ├── client.tsx
-│   │   │   │   ├── index.tsx
+│   │   │   │   ├── client.tsx             # Desktop dashboard UI
+│   │   │   │   ├── dashboard-router.tsx   # Responsive desktop/mobile router
+│   │   │   │   ├── index.tsx              # Server component: fetches data, wires actions
+│   │   │   │   ├── mobile-client.tsx      # Mobile dashboard UI
+│   │   │   │   ├── mobile-page.tsx        # Server component: mobile counterpart
+│   │   │   │   ├── tab-utils.ts           # getTabLabel (shared by desktop + mobile)
 │   │   │   │   ├── types.ts
 │   │   │   │   ├── shared/
-│   │   │   │   │   ├── CodeBlock.tsx
-│   │   │   │   │   ├── ContactRow.tsx
-│   │   │   │   │   ├── FlowModal.tsx
-│   │   │   │   │   ├── ImageCropper.tsx
-│   │   │   │   │   ├── SessionMiniMap.tsx
+│   │   │   │   │   ├── CodeBlock.tsx      # Themed JSON/data display block
+│   │   │   │   │   ├── ContactRow.tsx     # Email/phone row with verification flow
+│   │   │   │   │   ├── FlowModal.tsx      # Multi-step modal for security flows
+│   │   │   │   │   ├── ImageCropper.tsx   # Canvas-based drag/zoom image cropper
+│   │   │   │   │   ├── primitives.tsx     # Shared UI atoms: Card, HR, IconBox, SL, Lbl
+│   │   │   │   │   ├── RefreshButton.tsx
+│   │   │   │   │   ├── RoleCard.tsx       # Role badge with lazy-loaded tooltip
 │   │   │   │   │   ├── SessionMapModal.tsx
-│   │   │   │   │   ├── Toast.tsx
-│   │   │   │   │   └── geo-cache.ts
+│   │   │   │   │   └── Toast.tsx
 │   │   │   │   └── tabs/
 │   │   │   │       ├── dev.tsx
 │   │   │   │       ├── identities.tsx
 │   │   │   │       ├── organizations.tsx
 │   │   │   │       ├── preferences.tsx
 │   │   │   │       ├── profile.tsx
-│   │   │   │       ├── sessions.tsx
-│   │   │   │       └── security.tsx
+│   │   │   │       ├── security.tsx
+│   │   │   │       └── sessions.tsx
 │   │   │   ├── shared/
-│   │   │   │   ├── Button.tsx
-│   │   │   │   └── Input.tsx
-│   │   │   └── userbutton/
-│   │   │       └── index.tsx
-│   │   ├── custom-actions/
-│   │   │   ├── index.ts                  # Action registry and types
-│   │   │   ├── validation.ts             # RBAC validation functions
-│   │   │   └── calc-actions/             # Calculator action handlers
-│   │   │       ├── basic.ts
-│   │   │       └── scientific.ts
-│   │   ├── custom-logic/
-│   │   │   ├── actions/
-│   │   │   │   └── set-active-org.ts    # Set active org
-│   │   │   ├── OrgSwitcher.tsx          # Org selector dropdown
-│   │   │   ├── org-switcher-wrapper.tsx # Server wrapper
-│   │   │   ├── Protected.tsx            # Client-side permission gate
-│   │   │   ├── types.ts                 # TypeScript types
-│   │   │   └── index.ts                # Exports
-│   │   ├── index.ts
+│   │   │   │   ├── Button.tsx             # Themed button (5 variants)
+│   │   │   │   └── Input.tsx              # Themed text input
+│   │   │   └── UserButton.tsx             # UserButton, UserBadge, UserCard components
+│   │   ├── custom-logic/                  # App-level feature implementations
+│   │   │   ├── index.ts
+│   │   │   ├── OrgSwitcher.tsx            # Org selector dropdown (client)
+│   │   │   ├── org-switcher-wrapper.tsx   # Server wrapper: fetches org list automatically
+│   │   │   ├── Protected.tsx              # Client-side UI permission gate
+│   │   │   └── set-active-org.ts          # Server action: validates org membership
+│   │   ├── hooks/                         # React hooks
+│   │   │   ├── use-avatar-upload.ts       # Hook wrapping the uploadAvatar server action
+│   │   │   └── use-refreshable.ts         # Hook for unmount/remount refresh cycles
+│   │   ├── index.ts                       # Public barrel
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
 │   │   │   ├── index.ts
 │   │   │   └── ka-GE.ts
 │   │   ├── logic/
-│   │   │   ├── actions/               # Modular server actions
-│   │   │   │   ├── shared.ts          # Shared helpers (throwOnApiError, patchMyAccount)
-│   │   │   │   ├── tokens.ts          # Token helpers
-│   │   │   │   ├── request.ts         # Request helper (makeRequest)
-│   │   │   │   ├── dashboard.ts       # Dashboard data fetching
-│   │   │   │   ├── auth.ts            # Authentication (signOutUser)
-│   │   │   │   ├── profile.ts         # Profile management
-│   │   │   │   ├── verification.ts    # Email/phone verification
-│   │   │   │   ├── mfa.ts             # MFA management (TOTP, backup codes)
-│   │   │   │   ├── webauthn.ts         # WebAuthn passkey management (register, rename)
-│   │   │   │   ├── password.ts        # Password updates
-│   │   │   │   ├── account.ts         # Account deletion
-│   │   │   │   ├── avatar.ts          # Avatar upload (S3/Supabase)
-│   │   │   │   ├── organizations.ts   # Organization permissions
-│   │   │   │   ├── sessions.ts        # Session management
-│   │   │   │   ├── heartbeat.ts       # Session heartbeat (recordHeartbeat server action)
-│   │   │   │   ├── introspection.ts   # Token introspection for RBAC
-│   │   │   │   └── index.ts           # Barrel file (re-exports all)
-│   │   │   ├── actions.ts             # Re-export barrel (backwards compat)
-│   │   │   ├── debug.ts               # Debug logging utility
-│   │   │   ├── env.ts                 # Environment variable handling
-│   │   │   ├── errors.ts              # Custom error classes
-│   │   │   ├── formatting.ts          # Text formatting utilities (formatPhone)
-│   │   │   ├── i18n.ts                # Internationalization logic
-│   │   │   ├── index.ts               # Main exports
-│   │   │   ├── preferences.ts         # Preference persistence logic
-│   │   │   ├── tabs.ts                # Tab configuration logic
-│   │   │   ├── types.ts               # TypeScript type definitions
-│   │   │   ├── utils.ts               # Utility functions (introspection, validation)
-│   │   │   └── validation.ts          # Input validation functions
+│   │   │   ├── actions/                   # Internal server actions
+│   │   │   │   ├── account.ts
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── avatar.ts              # Avatar upload (S3/Supabase)
+│   │   │   │   ├── dashboard.ts
+│   │   │   │   ├── debug-token.ts         # Dev-only token access (refused in production)
+│   │   │   │   ├── heartbeat.ts
+│   │   │   │   ├── introspection.ts
+│   │   │   │   ├── mfa.ts
+│   │   │   │   ├── organizations.ts
+│   │   │   │   ├── password.ts
+│   │   │   │   ├── profile.ts
+│   │   │   │   ├── request.ts             # Authenticated Account API HTTP client
+│   │   │   │   ├── roles.ts
+│   │   │   │   ├── safe.ts                # safeAction wrapper + ActionResult/DataResult types
+│   │   │   │   ├── sessions.ts
+│   │   │   │   ├── shared.ts              # patchMyAccount helper
+│   │   │   │   ├── tokens.ts
+│   │   │   │   ├── verification.ts
+│   │   │   │   ├── webauthn.ts
+│   │   │   │   └── index.ts               # Barrel (re-exports all actions)
+│   │   │   ├── audit.ts
+│   │   │   ├── capture-message.ts
+│   │   │   ├── debug.ts
+│   │   │   ├── dev-mode.ts
+│   │   │   ├── env.ts
+│   │   │   ├── errors.ts
+│   │   │   ├── formatting.ts              # formatPhone (E.164 display)
+│   │   │   ├── geo-cache.ts               # IP geolocation TTL cache (no React dependency)
+│   │   │   ├── guards.ts                  # Assert-style input guards for trust boundaries
+│   │   │   ├── i18n.ts
+│   │   │   ├── index.ts
+│   │   │   ├── log.ts
+│   │   │   ├── origin-guard.ts            # CSRF origin check for plain route handlers
+│   │   │   ├── preferences.ts
+│   │   │   ├── tabs.ts
+│   │   │   ├── types.ts                   # All domain types (UserData, MfaType, etc.)
+│   │   │   ├── utils.ts
+│   │   │   └── validation.ts
+│   │   ├── server-actions/                # Public server action adapters (client-callable)
+│   │   │   ├── load-org-permissions.ts
+│   │   │   ├── load-org-roles.ts
+│   │   │   ├── load-personal-permissions.ts
+│   │   │   └── load-personal-roles.ts
 │   │   └── themes/
 │   │       ├── default/
 │   │       │   ├── dark.css
 │   │       │   └── light.css
-│   │       └── index.ts
-│   ├── logto.ts
+│   │       └── index.ts                   # ThemeColors, DARK_COLORS, LIGHT_COLORS, FONT_SANS/MONO
 │   └── page.tsx
 ├── proxy.ts
 ├── .env.example
@@ -168,7 +178,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 ├── next.config.ts
 ├── next-env.d.ts
 ├── public/
-│   ├── os-icons/                   # OS icons for session cards (Tux.jpg, MacroSlop.svg, MacOS.svg, ios.svg, Android.svg)
+│   ├── os-icons/                          # OS icons for session cards
 │   └── robots.txt
 ├── package.json
 ├── README.md
@@ -177,7 +187,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 └── vitest.setup.ts
 ```
 
-Test files (`.test.ts` / `.test.tsx`) are co-located alongside their source modules - guards, validation, sessions, webauthn, dev-mode, errors, origin-guard, profile, and more.
+Test files (`.test.ts` / `.test.tsx`) are co-located alongside their source modules.
 
 ## Docker Deployment
 
@@ -510,10 +520,10 @@ The demo app consists of:
 | `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
 | `docs/primitives.tsx` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
 | `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
-| `utils/CodeBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
-| `utils/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
-| `utils/SectionComponents.tsx` | Pre-built page components for documentation (Badge, Note, StepList, Table) |
-| `utils/useDocStyles.ts` | Shared CSS-in-JS styles for documentation pages |
+| `components/SyntaxBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
+| `components/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
+| `components/SectionComponents.tsx` | Pre-built page components for documentation (SectionHeader, SectionWrap) |
+| `components/useDocStyles.ts` | Shared CSS-in-JS styles for documentation pages |
 
 ### Documentation Format
 
@@ -526,7 +536,7 @@ Typical layout:
 To add documentation for a new tab:
 1. Create `app/demo/docs/{tab-id}.tsx`
 2. Add the loader to `DOC_REGISTRY` in `ContentArea.tsx`
-3. Use `SectionContainer` / `Section` for pages, `CodeBlock` for code, and `ExampleCard` for live demos
+3. Use `SectionContainer` / `Section` for pages, `SyntaxBlock` for code, and `ExampleCard` for live demos
 
 ### Using the Demo App
 
@@ -543,14 +553,14 @@ The UserButton tab includes a Quick Start section, a full Props table with TypeS
 
 ### Documentation Utilities
 
-These shared utilities live in `app/demo/utils/` and are used by all doc files:
+These shared utilities live in `app/demo/components/` and are used by all doc files:
 
-#### CodeBlock
+#### SyntaxBlock
 
 A syntax-highlighted code block component using VSCode Dark+ color scheme. Includes a copy button that appears on hover.
 
 ```tsx
-import CodeBlock from '../utils/CodeBlock';
+import CodeBlock from '../components/SyntaxBlock';
 
 // Basic
 <CodeBlock code={`<UserButton Size="48px" />`} />
@@ -572,7 +582,7 @@ Features: regex-based TSX tokenizer (no external deps), horizontal scroll for lo
 A multi-page layout system. `SectionContainer` is the viewport that manages page transitions via CSS `translateY` - each `Section` child is a full-height page stacked vertically. Pages slide up/down with a cubic-bezier transition.
 
 ```tsx
-import { SectionContainer, Section } from '../utils/Section';
+import { SectionContainer, Section } from '../components/Section';
 
 export default function MyDoc() {
   return (
@@ -850,7 +860,7 @@ UserCard's "Logged in as" label is automatically translated based on the provide
 
 ### Calculator Demo
 
-A permission-gated calculator demonstrating the Protected Actions API. Located in `app/demo/logic/`.
+A permission-gated calculator demonstrating the Protected Actions API. Located in `app/demo/components/calculator/`.
 
 #### Files
 
@@ -858,8 +868,7 @@ A permission-gated calculator demonstrating the Protected Actions API. Located i
 |------|---------|
 | `CalculatorPanel.tsx` | Wrapper with `<Protected>` gate for `calc:basic` permission |
 | `CalculatorClient.tsx` | Calculator UI, expression parser, API calls on `=` |
-| `custom-actions/calc-actions/basic.ts` | Action handler for basic operations (+, −, ×, ÷, %) |
-| `custom-actions/calc-actions/scientific.ts` | Action handler for scientific functions (sin, cos, log, etc.) |
+| `action-registry/calc-actions.ts` | Action handlers for basic (+, -, x, /, %) and scientific (sin, cos, log, etc.) operations |
 
 #### How It Works
 
@@ -962,7 +971,7 @@ import type {
 } from './logto-kit';
 ```
 
-> **Note**: The permission validation functions (`fetchUserRbacData`, `validateOrgMembership`) are exported and available for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
+> **Note**: The permission validation function `validateOrgMembership` is available in `action-registry/validation.ts` for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
 
 ---
 
@@ -1110,7 +1119,7 @@ console.log(result.data);
 
 ### Registering Custom Actions
 
-Actions are registered in `app/logto-kit/custom-actions/index.ts`:
+Actions are registered in `app/logto-kit/action-registry/index.ts`:
 
 ```tsx
 import type { ActionRegistry, ActionConfig, ProtectedActionHandler } from './index';
@@ -1324,7 +1333,7 @@ export default function AdminPage() {
 | "PERMISSION_DENIED" | Verify user has the permission in Logto Console for the active organization |
 | "NO_ORG_SELECTED" | User must select an organization before calling Protected Actions API |
 | "ORG_NOT_MEMBER" | Selected org not in user's organization list |
-| "ACTION_NOT_FOUND" | Action not registered in `custom-actions/index.ts` |
+| `"ACTION_NOT_FOUND"` | Action not registered in `action-registry/index.ts` |
 | "TOKEN_INVALID" | Token expired, revoked, or userId mismatch |
 
 ---
@@ -1727,7 +1736,7 @@ The avatar upload system consists of:
 | File | Purpose |
 |------|---------|
 | `app/logto-kit/logic/actions/avatar.ts` | Server Action - validates file, derives auth from session, uploads to S3 |
-| `app/logto-kit/components/handlers/use-avatar-upload.tsx` | React hook for client-side upload logic |
+| `app/logto-kit/hooks/use-avatar-upload.ts` | React hook for client-side upload state management |
 
 The hook (`useAvatarUpload`) is already integrated into the Profile tab component. It:
 1. Builds a `FormData` with only the `file` field
@@ -2045,7 +2054,7 @@ Imagine: User (SEDH - evil dingus hacker) steals a token:
 
 **Phase 1: Core Security Module**
 
-1. Create `app/logto-kit/custom-actions/security-validation.ts`
+1. Create `app/logto-kit/action-registry/security-validation.ts`
    - Fetch user's active sessions from Logto API (`GET /api/my-account/sessions`)
    - Parse User-Agent header into components (browser, OS, device type)
    - Compare request context against all active sessions (any session match = pass)
@@ -2137,11 +2146,11 @@ Request arrives at /api/protected:
 
 | File | Changes |
 |------|---------|
-| `app/logto-kit/custom-actions/security-validation.ts` | **NEW**: UA parsing, GEO matching, session fetching |
+| `app/logto-kit/action-registry/security-validation.ts` | **NEW**: UA parsing, GEO matching, session fetching |
 | `app/api/protected/route.ts` | Add security validation pipeline |
-| `app/logto-kit/custom-actions/validation.ts` | Integrate security checks |
+| `app/logto-kit/action-registry/validation.ts` | Integrate security checks |
 | `app/logto-kit/components/dashboard/tabs/preferences.tsx` | Add travel mode toggle |
-| `app/logto-kit/logic/actions.ts` | Add `updateTravelMode` action |
+| `app/logto-kit/logic/actions/account.ts` | Add `updateTravelMode` action |
 | `app/logto-kit/locales/en-US.ts` | Add travel mode translations |
 | `app/logto-kit/locales/ka-GE.ts` | Add travel mode translations |
 
@@ -2212,7 +2221,7 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 - [x] For now: simple "is dark / is light" hook
 - [x] Later: full context provider that pulls theme from dashboard
 - [x] Added onUpdateCustomData prop for Logto sync
-- [x] Exported from handlers/ folder
+- [x] Exported from providers/ folder
 
 ### Lang Context Provider
 - [x] New LangModeProvider for language management

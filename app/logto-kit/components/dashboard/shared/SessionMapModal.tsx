@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { X, ExternalLink, MapPin } from 'lucide-react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import type { GeoLocation } from './geo-cache';
+import type { GeoLocation } from '../../../logic/geo-cache';
 
 interface SessionMapModalProps {
   geo: GeoLocation;

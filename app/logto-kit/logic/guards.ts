@@ -33,6 +33,7 @@
 
 import { decodeAccessToken, type AccessTokenClaims } from '@logto/js';
 import { ValidationError } from './validation';
+import type { MfaType, VerificationType } from './types';
 
 // ============================================================================
 // ID format guards
@@ -85,7 +86,6 @@ export function assertRevokeGrantsTarget(
 }
 
 const MFA_TYPES = ['Totp', 'WebAuthn', 'BackupCode'] as const;
-export type MfaType = (typeof MFA_TYPES)[number];
 
 export function assertMfaType(value: unknown): asserts value is MfaType {
   if (typeof value !== 'string' || !(MFA_TYPES as readonly string[]).includes(value)) {
@@ -94,7 +94,6 @@ export function assertMfaType(value: unknown): asserts value is MfaType {
 }
 
 const VERIFICATION_TYPES = ['email', 'phone'] as const;
-export type VerificationType = (typeof VERIFICATION_TYPES)[number];
 
 export function assertVerificationType(
   value: unknown,

@@ -4,7 +4,7 @@ import 'server-only';
 
 import { getLogtoContext } from '@logto/next/server-actions';
 import type { DashboardResult, DashboardSuccess, UserData } from '../types';
-import { getLogtoConfig } from '../../../logto';
+import { getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { debugLog } from '../debug';
 import { getTokenForServerAction } from './tokens';

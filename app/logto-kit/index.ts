@@ -1,14 +1,14 @@
 
 export { Dashboard } from './components/dashboard';
 
-export { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './components/handlers/preferences';
-export type { ThemeColors } from './components/handlers/preferences';
+export { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './components/providers/preferences';
+export type { ThemeColors } from './components/providers/preferences';
 
-export { UserDataProvider, useUserDataContext } from './components/handlers/user-data-context';
+export { UserDataProvider, useUserDataContext } from './components/providers/user-data-context';
 
-export { LogtoProvider, useLogto } from './components/handlers/logto-provider';
+export { LogtoProvider, useLogto } from './components/providers/logto-provider';
 
-export { UserButton, UserBadge, UserCard } from './components/userbutton';
+export { UserButton, UserBadge, UserCard } from './components/UserButton';
 
 export * from './logic';
 
@@ -27,6 +27,6 @@ export { getDefaultThemeMode } from './themes';
 export { getAllTranslations } from './locales';
 export type { KitTranslations, Translations } from './locales';
 
-export { useAvatarUpload } from './components/handlers/use-avatar-upload';
+export { useAvatarUpload } from './hooks/use-avatar-upload';
 
-export { default as AuthWatcher } from './components/handlers/auth-watcher';
+export { default as AuthWatcher } from './components/providers/auth-watcher';

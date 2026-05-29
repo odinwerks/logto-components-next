@@ -1,6 +1,6 @@
 'use server';
 
-import { getManagementApiToken } from '../../../logto';
+import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { debugLog } from '../debug';
 import { assertSafeUserId, assertSafeLogtoId } from '../guards';

@@ -1,4 +1,4 @@
-import { getLogtoConfig } from '../../logto';
+import { getLogtoConfig } from '../config';
 import type { OidcIntrospectionResponse } from './types';
 import { warn } from './log';
 import { sanitize } from './errors';

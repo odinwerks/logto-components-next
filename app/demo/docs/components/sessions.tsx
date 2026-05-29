@@ -1,8 +1,8 @@
 'use client';
 
-import CodeBlock from '../../utils/CodeBlock';
-import { SectionContainer, Section } from '../../utils/Section';
-import { useDocStyles } from '../../utils/useDocStyles';
+import CodeBlock from '../../components/SyntaxBlock';
+import { SectionContainer, Section } from '../../components/Section';
+import { useDocStyles } from '../../components/useDocStyles';
 
 function SessionsOverviewSection() {
   const styles = useDocStyles();

@@ -17,14 +17,6 @@ export interface ToastMessage {
   duration?: number;
 }
 
-interface VerificationState {
-  type:           'email' | 'phone' | null;
-  operation:      'add' | 'edit' | 'remove' | null;
-  step:           'password' | 'code' | null;
-  verificationId: string | null;
-  newValue:       string;
-}
-
 // Re-export convenience bundle
 export type {
   UserData, MfaVerification, MfaVerificationPayload,

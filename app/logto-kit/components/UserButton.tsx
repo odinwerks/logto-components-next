@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { UserData } from '../../logic/types';
-import type { ThemeColors } from '../../themes';
-import locales from '../../locales';
-import { useThemeMode } from '../handlers/preferences';
-import { useLogto } from '../handlers/logto-provider';
+import type { UserData } from '../logic/types';
+import type { ThemeColors } from '../themes';
+import locales from '../locales';
+import { useThemeMode } from './providers/preferences';
+import { useLogto } from './providers/logto-provider';
 import { User } from 'lucide-react';
-import { readEnv } from '../../logic/env';
+import { readEnv } from '../logic/env';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

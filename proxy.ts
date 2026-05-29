@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
-import { getLogtoConfig } from './app/logto';
+import { getLogtoConfig } from './app/logto-kit/config';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 

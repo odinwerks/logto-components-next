@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserCard } from '../logto-kit/components/userbutton';
-import { useThemeMode } from '../logto-kit/components/handlers/preferences';
+import { UserCard } from '../logto-kit/components/UserButton';
+import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import type { NavItem } from './types';
 
 interface SidebarProps {

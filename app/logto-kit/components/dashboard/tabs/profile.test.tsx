@@ -29,7 +29,7 @@ vi.mock('../../../logic/actions', () => ({
 }));
 
 // Mock use-avatar-upload
-vi.mock('../../handlers/use-avatar-upload', () => ({
+vi.mock('../../../hooks/use-avatar-upload', () => ({
   useAvatarUpload: () => ({
     upload: async () => null,
     isUploading: false,
@@ -39,7 +39,7 @@ vi.mock('../../handlers/use-avatar-upload', () => ({
 }));
 
 // Mock userbutton (avoids LogtoProvider dependency)
-vi.mock('../../userbutton', () => ({
+vi.mock('../../UserButton', () => ({
   UserBadge: MockUserBadge,
 }));
 

@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import type { TabId, ToastMessage } from './types';
 import type { Translations } from '../../locales';
 import type { ThemeColors } from '../../themes';
-import { useThemeMode, useLangMode } from '../handlers/preferences';
-import { useUserDataContext } from '../handlers/user-data-context';
-import { useLogto } from '../handlers/logto-provider';
+import { useThemeMode, useLangMode } from '../providers/preferences';
+import { useUserDataContext } from '../providers/user-data-context';
+import { useLogto } from '../providers/logto-provider';
 import { ToastContainer } from './shared/Toast';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
@@ -19,21 +19,7 @@ import { DevTab } from './tabs/dev';
 import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession } from '../../logic/types';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft } from 'lucide-react';
-
-// ── Tab labels (no icons, text-only) ────────────────────────────────────────
-
-function getTabLabel(id: TabId, t: Translations): string {
-  switch (id) {
-    case 'profile': return t.tabs.profile;
-    case 'preferences': return t.tabs.preferences;
-    case 'security': return t.tabs.security;
-    case 'sessions': return t.tabs.sessions;
-    case 'identities': return t.tabs.identities;
-    case 'organizations': return t.tabs.organizations;
-    case 'dev': return t.tabs.dev;
-    default: return (id as string).toUpperCase();
-  }
-}
+import { getTabLabel } from './tab-utils';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 

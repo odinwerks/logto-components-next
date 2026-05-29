@@ -8,7 +8,7 @@ This initializes the MCP context and ensures the AI assistant uses official Next
 
 These functions/environmental constants must NEVER be modified without explicit approval and verification against git history + Logto docs:
 
-## M2M Management API Token (`app/logto.ts :: getManagementApiToken`)
+## M2M Management API Token (`app/logto-kit/config.ts :: getManagementApiToken`)
 
 - **`scope`** MUST be `'all'`. Do NOT remove it, do NOT change it to `''`. The M2M client_credentials flow requires explicit scope. The blast radius is determined by Logto Console permissions, not this string.
 - **`resource`** for Logto OSS MUST be `'https://default.logto.app/api'` (hardcoded default). For Logto Cloud, it's `https://[tenant-id].logto.app/api` and should be set via `LOGTO_M2M_RESOURCE` env var.

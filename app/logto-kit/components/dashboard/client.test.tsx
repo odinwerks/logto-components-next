@@ -18,11 +18,11 @@ vi.mock('next/font/google', () => ({
   IBM_Plex_Mono: () => ({ className: 'ibm-plex-mono', style: {} }),
 }));
 
-vi.mock('../userbutton', () => ({
+vi.mock('../UserButton', () => ({
   UserBadge: (props: Record<string, unknown>) => mockUserBadge(props),
 }));
 
-vi.mock('../handlers/preferences', () => ({
+vi.mock('../providers/preferences', () => ({
   useThemeMode: () => ({
     mode: 'dark' as const,
     colors: {
@@ -40,7 +40,7 @@ vi.mock('../handlers/preferences', () => ({
   useLangMode: () => ({ lang: 'en' }),
 }));
 
-vi.mock('../handlers/user-data-context', () => ({
+vi.mock('../providers/user-data-context', () => ({
   useUserDataContext: () => null,
 }));
 
