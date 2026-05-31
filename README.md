@@ -268,7 +268,7 @@ v0.3.0 introduced dedicated security modules for defense-in-depth:
 
 | Module | Location | Purpose |
 |--------|----------|---------|
-| `origin-guard.ts` | `app/logto-kit/logic/origin-guard.ts` | CSRF protection - validates `Origin`/`Referer` header on all non-Server-Action API routes |
+| `origin-guard.ts` | `app/logto-kit/logic/origin-guard.ts` | CSRF protection - validates `Origin` header on all non-Server-Action API routes |
 | `guards.ts` | `app/logto-kit/logic/guards.ts` | Input validators for all trust boundaries - IDs, user IDs, MFA types, passkey names, custom data |
 | `audit.ts` | `app/logto-kit/logic/audit.ts` | Audit log primitive - emits structured events for mutations (no-op until you provide a custom transport) |
 | `dev-mode.ts` | `app/logto-kit/logic/dev-mode.ts` | `NODE_ENV` gate - strips dev-only features at runtime in non-development/test environments |
@@ -487,12 +487,12 @@ The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - on
 | i18n | config | Translation files, language switching |
 | Sessions | component | Active session management with device info, IP geolocation, and revocation |
 | Calculator | component | Permission-gated calculator demo with live RBAC examples |
-| Error Handling | reference | Error sanitization: 23 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
-| Input Guards | reference | Input validation at trust boundaries: 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv |
+| Error Handling | reference | Error sanitization: 22 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError |
+| Input Guards | reference | Input validation at trust boundaries: 10 assert guards, 8 validate functions, safeUrl, pickPreferences, origin-guard, readEnv |
 | Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
 | Primitives | reference | Reusable building blocks: useRefreshable() hook, <RefreshButton />, direct org token fetch, PermissionsBlock pattern |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 3-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
 ### How It Works
 
@@ -503,20 +503,19 @@ The demo app consists of:
 | `index.tsx` | Demo page entry point |
 | `Sidebar.tsx` | Navigation sidebar with user info and theme toggle |
 | `ContentArea.tsx` | Main content area - lazy-loads doc files from the registry |
-| `Particles.tsx` | Canvas-based particle animation |
 | `nav-data.tsx` | 15-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
 | `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
-| `docs/dashboard.tsx` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (3 pages) |
-| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (5 pages) |
+| `docs/dashboard.tsx` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (4 pages) |
+| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (8 pages) |
 | `docs/org-switcher.tsx` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
 | `docs/providers.tsx` | Providers documentation - LogtoProvider, hooks reference |
 | `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
 | `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
 | `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
-| `docs/errors.tsx` | Error handling guide - sanitization, 23 error codes, safeAction, server action pattern (4 pages) |
-| `docs/guards.tsx` | Input guards - 13 assert guards, 7 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
+| `docs/errors.tsx` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
+| `docs/guards.tsx` | Input guards - 13 assert guards, 8 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
 | `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
 | `docs/primitives.tsx` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
 | `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
@@ -549,7 +548,7 @@ Visit `/demo` to see the demo app in action. It displays:
 - Press **ArrowUp** / **ArrowDown** to switch between pages within a tab
 - Bottom-right chevron buttons and a page counter (e.g. "1/2") show the current position
 
-The UserButton tab includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards. The Dashboard tab covers internals, provider sync, tab configuration, and rendering patterns across 3 pages with a two-column grid layout.
+The UserButton tab includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards. The Dashboard tab covers internals, provider sync, tab configuration, and rendering patterns across 4 pages with a two-column grid layout.
 
 ### Documentation Utilities
 
@@ -737,7 +736,8 @@ Dashboard (Server Component)
 LogtoProvider is a convenience wrapper that combines `UserDataProvider` and `PreferencesProvider` into a single component. It also provides a `useLogto()` hook for accessing user data and access token anywhere in your app.
 
 ```tsx
-import { LogtoProvider, useLogto } from './logto-kit';
+import { LogtoProvider, useLogto, Dashboard } from './logto-kit';
+import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 
 function MyComponent() {
   const { userData, openDashboard } = useLogto();
@@ -746,6 +746,7 @@ function MyComponent() {
 
 <LogtoProvider 
   userData={userData}
+  dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
   initialTheme="dark"
   initialLang="en-US"
   onUpdateCustomData={updateCustomData}
@@ -757,7 +758,7 @@ function MyComponent() {
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `userData` | `UserData` | - | The user data object |
-| `dashboard` | `ReactNode` | - | Optional dashboard modal content |
+| `dashboard` | `{ desktop: ReactNode; mobile: ReactNode }` | - | Optional dashboard desktop/mobile views |
 | `initialTheme` | `'dark' \| 'light'` | `'dark'` | Initial theme mode |
 | `initialLang` | `string` | ENV `LANG_MAIN` | Initial language code |
 | `onUpdateCustomData` | `(data) => Promise<void>` | - | Callback for updating user custom data (forwarded to PreferencesProvider) |
@@ -873,10 +874,11 @@ A permission-gated calculator demonstrating the Protected Actions API. Located i
 #### How It Works
 
 1. `CalculatorPanel` wraps `CalculatorClient` with `<Protected orgId="5b6sw6p5uzti" perm="calc:basic">`
-2. Pressing `=` calls `POST /api/protected` with `action: 'calc-basic'` or `'calc-scientific'`
-3. The API validates the user's org membership and permission, then executes the handler
-4. Basic operations require `calc:basic` permission; scientific functions require `calc:scientific`
-5. Session state (expression, mode) persists via `sessionStorage`
+2. Each operation (+, −, ×, ÷, sin, cos, etc.) is sent to the Protected Actions API as an individual action (`calc/add`, `calc/multiply`, `calc/sin`, etc.)
+3. The API validates the user's personal role and permission, computes server-side, and returns the answer
+4. The calculator parses expressions into an AST and evaluates by calling the API for each node - it cannot calculate without the API
+5. Basic operations require `calc:basic` permission; scientific functions require `calc:scientific`
+6. Session state (expression, mode) persists via `sessionStorage`
 
 See the **Protected** tab in the demo app for a live RBAC demo with the calculator.
 
@@ -971,18 +973,19 @@ import type {
 } from './logto-kit';
 ```
 
-> **Note**: The permission validation function `validateOrgMembership` is available in `action-registry/validation.ts` for advanced use cases. For most apps, use the `<Protected />` component or the Protected Actions API (`POST /api/protected`) instead.
+> **Note**: For personal RBAC, use `orgId="self"` in `<Protected />` and the Protected Actions API. For org-scoped RBAC, pass the organization ID.
 
 ---
 
 ### \<Protected\> - UI Gate Component
 
-A **client component** that conditionally renders children based on organization permissions. Must be used within `LogtoProvider` context.
+A **client component** that conditionally renders children based on permissions. Must be used within `LogtoProvider` context.
 **Key behavior:**
-- Permissions are loaded asynchronously via `loadOrganizationPermissions(orgId)` on mount or org change
+- `orgId="self"` checks personal (global) roles and permissions
+- `orgId=<real>` checks organization-specific roles and permissions (requires `asOrg` match)
+- Permissions are loaded asynchronously on mount or context change
 - Shows `fallback` (or nothing) while loading
-- When `asOrg` changes (org switch or "Be yourself"), clears cached permissions and re-fetches
-- When org context is lost (`asOrg` = null), access is denied immediately
+- This is a UI convenience component, not a security boundary
 
 ```tsx
 import { Protected } from './logto-kit';
@@ -1014,7 +1017,7 @@ import { Protected } from './logto-kit';
 
 ```tsx
 <Protected
-  orgId="5b6sw6p5uzti"
+  orgId="your-org-id"
   perm="kidnap:kids"
   fallback={<div className="animate-pulse">Loading...</div>}
 >
@@ -1057,37 +1060,29 @@ A secure API endpoint for executing permission-gated actions from the client.
 **Endpoint:** `POST /api/protected`
 
 ```tsx
-import { getFreshAccessToken } from './logto-kit/logic/actions';
+import { useCallback } from 'react';
 
-// Inside a client component - get userData from context, token from server action
-const { userData } = useLogto();
-const freshToken = await getFreshAccessToken();
+// Inside a client component
+const callProtected = useCallback(async (action: string, payload: unknown) => {
+  const response = await fetch('/api/protected', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload })
+  });
 
-const response = await fetch('/api/protected', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    token: freshToken,
-    id: userData.id,
-    action: 'explode-earth',
-    payload: { force: true }
-  })
-});
-
-const result = await response.json();
-if (!result.ok) {
-  console.error(result.error, result.message);
-  return;
-}
-console.log(result.data);
+  const result = await response.json();
+  if (result.error) {
+    console.error(result.error);
+    return null;
+  }
+  return result.data;
+}, []);
 ```
 
 **Request:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `token` | string | Yes | User's access token |
-| `id` | string | Yes | User ID |
 | `action` | string | Yes | Action name registered in registry |
 | `payload` | unknown | No | Data to pass to the action handler (defaults to `{}` if omitted) |
 
@@ -1095,63 +1090,53 @@ console.log(result.data);
 
 ```tsx
 // Success (200)
-{ ok: true, data: <handler-return-value> }
+{ error: null, data: <handler-return-value> }
 
 // Error (status varies)
-{ ok: false, error: 'ERROR_CODE', message: '...' }
+{ error: 'ERROR_CODE', data: null }
 ```
 
 **Error Codes:**
 
 | Code | HTTP Status | Description |
 |------|-------------|-------------|
-| `MISSING_FIELDS` | 400 | token, id, or action missing |
-| `TOKEN_INVALID` | 400 / 401 | Invalid userId format (400), or token not active, expired, or userId mismatch (401) |
+| `MISSING_FIELDS` | 400 | action missing from request body |
+| `TOKEN_INVALID` | 401 | Token not active or expired |
 | `INTROSPECTION_ERROR` | 401 | Failed to validate token |
-| `USER_DATA_ERROR` | 500 | Failed to fetch user RBAC data |
-| `NO_ORG_SELECTED` | 403 | User has no org selected (need org context) |
-| `ORG_NOT_MEMBER` | 403 | User not member of selected org |
+| `UNAUTHORIZED` | 401 | Not authenticated or session expired |
+| `IMPROPER_SETUP_ERROR` | 500 | Action config missing requiredOrgId, requiredRoleId, or requiredPermId |
+| `ORG_NOT_MEMBER` | 403 | User not member of the required org |
 | `ACTION_NOT_FOUND` | 404 | Action doesn't exist in registry |
+| `ROLE_DENIED` | 403 | User lacks the required role |
 | `PERMISSION_DENIED` | 403 | User lacks required permission |
+| `INVALID_PAYLOAD` | 400 | Handler rejected the payload shape |
 | `INTERNAL_ERROR` | 500 | Unexpected server error (catch-all) |
 
 ---
 
 ### Registering Custom Actions
 
-Actions are registered in `app/logto-kit/action-registry/index.ts`:
+Actions are registered in `app/logto-kit/action-registry/` as async functions returning an `ActionConfig` with three required fields:
 
 ```tsx
-import type { ActionRegistry, ActionConfig, ProtectedActionHandler } from './index';
+import type { ActionConfig } from '../logic/types';
 
-const actions: ActionRegistry = {
-  'explode-earth': {
-    requiredPerm: 'launch-nuke',
+export async function getDoSomething(): Promise<ActionConfig> {
+  return {
+    requiredOrgId: 'self',              // 'self' = personal RBAC, or a real org ID
+    requiredRoleId: 'some-role-uuid',   // role ID(s) the user must have
+    requiredPermId: 'do:something',     // permission scope(s) required
     handler: async ({ userId, orgId, payload }) => {
       // Your protected logic here
-      // payload is typed as unknown, cast as needed
-      const { force } = payload as { force: boolean };
-      
-      return { success: true, message: 'Earth exploded!' };
+      return { success: true };
     },
-  },
-  'send-notification': {
-    requiredPerm: 'send-notifications',
-    handler: async ({ userId, orgId, payload }) => {
-      // ...
-      return { sent: true };
-    },
-  },
-};
-
-export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
-  return actions[actionName];
+  };
 }
 ```
 
 **Handler receives:**
-- `userId` - The authenticated user's ID
-- `orgId` - The active organization ID (resolved from `customData.Preferences.asOrg` via `fetchUserRbacData`)
+- `userId` - The authenticated user's ID (from token introspection)
+- `orgId` - The `requiredOrgId` value from the action config
 - `payload` - The payload sent from the client (defaults to `{}` if omitted)
 
 ---
@@ -1242,11 +1227,11 @@ function MyComponent() {
 
 #### Protected Actions API Flow
 
-1. **Client Request** - Client calls `POST /api/protected` with `{ token, id, action, payload }`
-2. **Token Validation** - Validates token via OIDC introspection
-3. **User Verification** - Verifies token `sub` matches provided `userId`
+1. **Client Request** - Client calls `POST /api/protected` with `{ action, payload? }` (token and userId are handled server-side)
+2. **Token Retrieval** - Gets the session token server-side via `getTokenForServerAction()`
+3. **Token Validation** - Validates token via OIDC introspection, extracting `sub` as the authenticated `userId`
 4. **RBAC Data Fetch** - Fetches user orgs and active org from `/oidc/me`
-5. **Org Membership Check** - Ensures user is member of selected org
+5. **Org Membership Check** - Ensures user is member of selected org (or passes through for personal RBAC with orgId="self")
 6. **Permission Check** - Calls Management API to verify user's organization token has required permission
 7. **Execute Action** - Runs the registered handler if all checks pass
 
@@ -1274,7 +1259,7 @@ BASE_URL=http://localhost:3000
 COOKIE_SECRET=your_cookie_secret
 
 # Scopes (must include org scopes ON TOP of the required ones)
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles
 
 # M2M for Management API
 LOGTO_M2M_APP_ID=your_m2m_app_id
@@ -1331,9 +1316,9 @@ export default function AdminPage() {
 | Permission always returns false | Check: 1) User has the permission in Logto Console, 2) Permission string matches exactly, 3) Management API token is configured |
 | Org switcher not appearing | User needs multiple organizations in their Logto claims |
 | "PERMISSION_DENIED" | Verify user has the permission in Logto Console for the active organization |
-| "NO_ORG_SELECTED" | User must select an organization before calling Protected Actions API |
+| "IMPROPER_SETUP_ERROR" | Action config missing required fields - check action registry for missing requiredOrgId, requiredRoleId, or requiredPermId |
 | "ORG_NOT_MEMBER" | Selected org not in user's organization list |
-| `"ACTION_NOT_FOUND"` | Action not registered in `action-registry/index.ts` |
+| "ACTION_NOT_FOUND" | Action not registered in `action-registry/index.ts` |
 | "TOKEN_INVALID" | Token expired, revoked, or userId mismatch |
 
 ---
@@ -1450,7 +1435,7 @@ This is the main use case - drop it into your app wherever you need it. The Dash
 
 ### Dashboard Provider Structure
 
-The Dashboard Server Component fetches user data on the server and renders as a centered modal. It automatically wraps your app with two context providers:
+The Dashboard Server Component fetches user data on the server and renders as a centered modal. When imported standalone, it does not automatically wrap your consuming app. Instead, it only wraps its own `DashboardClient` component with two context providers:
 
 ```tsx
 <UserDataProvider userData={userData}>
@@ -1459,6 +1444,8 @@ The Dashboard Server Component fetches user data on the server and renders as a 
   </PreferencesProvider>
 </UserDataProvider>
 ```
+
+A wrapper like `<LogtoProvider>` is needed to wrap the consuming application if you want these context providers and hooks to be accessible across your entire app subtree.
 
 This means:
 - **UserDataProvider** - Provides user data to all child components (server-fetched)
@@ -1498,7 +1485,7 @@ Three reusable building blocks for data that needs live-refreshing without full 
 
 | Primitive | File | Purpose |
 |-----------|------|---------|
-| `useRefreshable()` hook | `hooks/use-refreshable.ts` | 0→35ms→1 toggle -- unmounts children, waits one render cycle, remounts fresh |
+| `useRefreshable()` hook | `hooks/use-refreshable.ts` | 0→35ms→1 toggle - unmounts children, waits one render cycle, remounts fresh |
 | `<RefreshButton />` | `components/dashboard/shared/RefreshButton.tsx` | Shared button that lives inside the guarded block |
 | Direct token fetch | `logic/actions/organizations.ts` | Calls Logto's `/oidc/token` directly, bypassing the SDK's cookie-persisted `accessTokenMap` cache |
 
@@ -1935,7 +1922,7 @@ import { formatPhone } from './logto-kit';
 
 // Format a raw E.164 phone number for display
 const displayPhone = formatPhone('+12345678901');
-// "+1 (234) 567-8901"
+// "+1 234 567 8901"
 ```
 
 ### Identity Verification
@@ -2148,7 +2135,6 @@ Request arrives at /api/protected:
 |------|---------|
 | `app/logto-kit/action-registry/security-validation.ts` | **NEW**: UA parsing, GEO matching, session fetching |
 | `app/api/protected/route.ts` | Add security validation pipeline |
-| `app/logto-kit/action-registry/validation.ts` | Integrate security checks |
 | `app/logto-kit/components/dashboard/tabs/preferences.tsx` | Add travel mode toggle |
 | `app/logto-kit/logic/actions/account.ts` | Add `updateTravelMode` action |
 | `app/logto-kit/locales/en-US.ts` | Add travel mode translations |
@@ -2202,7 +2188,7 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 - [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
 - [x] Protected component - Complete (<Protected> client component with async permission loading)
 - [x] Protected Actions API - Complete (POST /api/protected endpoint)
-- [x] RBAC validation - Complete (validateRbac, fetchUserRbacData, validateOrgMembership)
+- [x] RBAC validation - Complete (verifyOrgAccess, verifyPersonalAccess, ActionConfig with mandatory fields)
 - [x] `fallback` prop - Complete (custom placeholder while loading/denied)
 - [ ] Fine-tune permission checks for your needs
 - [ ] Extensive testing before production use

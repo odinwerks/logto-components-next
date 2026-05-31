@@ -115,7 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <UserButtonIcon />,
-    desc: 'Standalone avatar component. Renders as UserButton (clickable, opens Dashboard modal) or UserBadge (display only). Priority: prop → context → auto-fetch. Falls back to a user icon after 1.5 s.',
+    desc: 'Standalone avatar component. Renders as UserButton (clickable, opens Dashboard modal), UserBadge (display only), or UserCard (inline with name/email). Priority: prop → context → auto-fetch. Falls back to a user icon after 1.5 s.',
     sections: ['Quick start', 'Props', 'Examples', 'Notes'],
   },
   {
@@ -125,7 +125,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'component',
     icon: <DashboardIcon />,
     desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Identities, Organizations, Dev (tokens, cookies, session). Drop it anywhere - wraps itself in required providers.',
-    sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering'],
+    sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering', 'Mobile'],
   },
   {
     id: 'tabs-and-flows',
@@ -160,7 +160,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'setup',
     icon: <ProvidersIcon />,
-    desc: 'LogtoProvider wraps UserDataProvider and PreferencesProvider. Exposes useLogto(), useUserDataContext(), useThemeMode(), useLangMode(), and useOrgMode() hooks to the entire subtree.',
+    desc: 'Provider hierarchy: PreferencesProvider (outer) wraps LogtoProviderContent which wraps UserDataProvider (inner). Exposes useLogto(), useUserDataContext(), useThemeMode(), useLangMode(), and useOrgMode() hooks to the entire subtree.',
     sections: ['Installation', 'Configuration', 'Hooks reference', 'Notes'],
   },
   {
@@ -205,7 +205,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'reference',
     icon: <ActionsApiIcon />,
-    desc: 'Error sanitization system. All errors returned to the client are fixed codes. 21 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError.',
+    desc: 'Error sanitization system. All errors returned to the client are fixed codes. 22 ErrorCodes, safeAction, ActionResult, DataResult, throwOnApiError, sanitize, LogtoApiError.',
     sections: ['Overview', 'Error Codes', 'Server Action Pattern', 'API Helpers'],
   },
   {
@@ -255,7 +255,7 @@ export const SECTION_HINTS: SectionHint = {
   'useLangMode hook': 'lang, setLang...',
   'ENV reference': 'LANG_MAIN, LANG_AVAILABLE, THEME, DEFAULT_THEME_MODE...',
   Endpoint: 'POST /api/protected - URL, method, auth...',
-  'Request schema': '{ token, id, action, payload? }...',
+  'Request schema': '{ action, payload? }...',
   'Response + error codes': '{ ok, data } or { ok, error, message }...',
   'Registering actions': 'ActionRegistry shape in custom-actions/index.ts...',
   'Logto Console': 'Regular Web App, M2M App...',
@@ -268,4 +268,5 @@ export const SECTION_HINTS: SectionHint = {
   '<RefreshButton />': 'Shared button component, props, design tokens, placement rules...',
   'Direct token fetch': 'Bypassing SDK accessTokenMap cache, direct /oidc/token call...',
   'PermissionsBlock pattern': 'Full annotated example combining hook + button + fetch...',
+  Mobile: 'useIsPortrait, DashboardRouter, desktop/mobile prop, MobileClient...',
 };

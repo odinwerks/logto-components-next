@@ -172,10 +172,10 @@ function ApiResponseSection() {
   return (
     <SectionWrap label="API Response & Errors">
       <CodeBlock title="Responses" code={`// Success
-{ "ok": true, "data": /* handler return value */ }
+{ "error": null, "data": /* handler return value */ }
 
 // Error
-{ "ok": false, "error": "ERROR_CODE", "message": "..." }`} />
+{ "error": "ERROR_CODE", "data": null }`} />
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -186,7 +186,7 @@ function ApiResponseSection() {
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>MISSING_FIELDS</td>
-            <td style={styles.tdStyle}>action missing</td>
+            <td style={styles.tdStyle}>action missing from request body</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>TOKEN_INVALID</td>
@@ -197,28 +197,32 @@ function ApiResponseSection() {
             <td style={styles.tdStyle}>Failed OIDC token validation</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>NO_ORG_SELECTED</td>
-            <td style={styles.tdStyle}>No active organization selected</td>
+            <td style={styles.tdPropStyle}>UNAUTHORIZED</td>
+            <td style={styles.tdStyle}>Not authenticated or session expired</td>
+          </tr>
+          <tr>
+            <td style={styles.tdPropStyle}>IMPROPER_SETUP_ERROR</td>
+            <td style={styles.tdStyle}>Action config missing requiredOrgId, requiredRoleId, or requiredPermId</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>ORG_NOT_MEMBER</td>
-            <td style={styles.tdStyle}>Not a member of selected org</td>
+            <td style={styles.tdStyle}>Not a member of the required organization</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>ACTION_NOT_FOUND</td>
             <td style={styles.tdStyle}>Action not registered</td>
           </tr>
           <tr>
+            <td style={styles.tdPropStyle}>ROLE_DENIED</td>
+            <td style={styles.tdStyle}>User lacks the required role</td>
+          </tr>
+          <tr>
             <td style={styles.tdPropStyle}>PERMISSION_DENIED</td>
             <td style={styles.tdStyle}>Lacks required permission</td>
           </tr>
           <tr>
-            <td style={styles.tdPropStyle}>ROLE_DENIED</td>
-            <td style={styles.tdStyle}>User lacks required organization role</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPropStyle}>VALIDATION_ERROR</td>
-            <td style={styles.tdStyle}>Input validation failed in custom action handler</td>
+            <td style={styles.tdPropStyle}>INVALID_PAYLOAD</td>
+            <td style={styles.tdStyle}>Handler rejected the payload shape</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>INTERNAL_ERROR</td>
@@ -239,38 +243,32 @@ function ActionRegistrationSection() {
   return (
     <SectionWrap label="Action Registration">
       <p style={styles.textStyle}>
-        Actions are registered in <code style={styles.codeStyle}>app/logto-kit/custom-actions/index.ts</code>{' '}
-        as async functions returning <code style={styles.codeStyle}>{`{ requiredPerm, handler }`}</code>.
+        Actions are registered in <code style={styles.codeStyle}>logto-kit/action-registry/calc-actions.ts</code>{' '}
+        as async functions returning an <code style={styles.codeStyle}>ActionConfig</code> with three
+        required fields: <code style={styles.codeSmStyle}>requiredOrgId</code>,{' '}
+        <code style={styles.codeSmStyle}>requiredRoleId</code>, and{' '}
+        <code style={styles.codeSmStyle}>requiredPermId</code>. Missing any of these throws{' '}
+        <code style={styles.codeSmStyle}>IMPROPER_SETUP_ERROR</code> at startup.
       </p>
-      <CodeBlock title="Example action" code={`// custom-actions/my-actions/do-something.ts
+      <CodeBlock title="Example action" code={`// action-registry/calc-actions.ts
 'use server';
 
-export async function getDoSomething() {
+export async function getCalcAdd() {
   return {
-    requiredPerm: 'do:something',
+    requiredOrgId: 'self',               // 'self' = personal RBAC, or a real org ID
+    requiredRoleId: 'calc-user-role-id', // role UUID(s) the user must have
+    requiredPermId: 'calc:basic',        // permission scope(s) required
     handler: async ({ userId, orgId, payload }) => {
-      // Business logic here
-      return { success: true };
+      const { a, b } = payload as { a: number; b: number };
+      return { answer: a + b };
     },
   };
-}
-
-// custom-actions/index.ts - lazy-loaded action registry
-let _actionsCache: ActionRegistry | null = null;
-
-async function loadActions(): Promise<ActionRegistry> {
-  if (_actionsCache) return _actionsCache;
-  const [doSomething] = await Promise.all([
-    getDoSomething(),
-  ]);
-  _actionsCache = { 'do-something': doSomething };
-  return _actionsCache;
-}
-
-export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
-  const actions = await loadActions();
-  return actions[actionName];
 }`} />
+      <p style={styles.textStyle}>
+        When <code style={styles.codeSmStyle}>requiredOrgId</code> is{' '}
+        <code style={styles.codeSmStyle}>"self"</code>, the route checks personal (global) roles
+        and permissions via the Management API. Otherwise it checks org-scoped roles and permissions.
+      </p>
       <table style={styles.tableStyle}>
         <thead>
           <tr>
@@ -281,15 +279,15 @@ export async function getAction(actionName: string): Promise<ActionConfig | unde
         <tbody>
           <tr>
             <td style={styles.tdPropStyle}>userId</td>
-            <td style={styles.tdStyle}>Authenticated user ID</td>
+            <td style={styles.tdStyle}>Authenticated user ID (from token introspection)</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>orgId</td>
-            <td style={styles.tdStyle}>Active organization ID</td>
+            <td style={styles.tdStyle}>The requiredOrgId value from the action config</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>payload</td>
-            <td style={styles.tdStyle}>Client-provided data</td>
+            <td style={styles.tdStyle}>Client-provided data (shape defined by the action)</td>
           </tr>
         </tbody>
       </table>
@@ -303,18 +301,22 @@ function PermissionSystemSection() {
     <SectionWrap label="Permission flow">
       <p style={styles.textStyle}>
         Both <code style={styles.codeSmStyle}>{`<Protected />`}</code> and{' '}
-        <code style={styles.codeSmStyle}>/api/protected</code> follow the same steps  - 
-        just client-side vs server-side:
+        <code style={styles.codeSmStyle}>/api/protected</code> enforce the same permissions,
+        but at different layers:
       </p>
-      <CodeBlock title="Steps" code={`// 1. Resolve active org (asOrg from customData.Preferences)
+      <CodeBlock title="Steps" code={`// 1. <Protected> (client-side, UI gate only):
+//    orgId="self" → loadPersonalPermissions() → check includes(requiredPerm)
+//    orgId=<real>  → loadOrganizationPermissions(asOrg) → check includes(requiredPerm)
 
-// 2. <Protected> (client-side):
-//    loadOrganizationPermissions(asOrg) → check includes(requiredPerm)
-
-// 3. POST /api/protected (server-side):
-//    introspectToken(token) → fetchUserRbacData(token)
-//    → validateOrgMembership → getOrganizationUserPermissions(asOrg)
-//    → requiredPerms.every(p => userPermissions.includes(p))`} />
+// 2. POST /api/protected (server-side, security boundary):
+//    introspectToken(token) → resolve action config
+//    → validate all 3 fields (requiredOrgId, requiredRoleId, requiredPermId)
+//    → requiredOrgId === 'self'
+//       ? verifyPersonalAccess() → M2M: GET /api/users/{id}/roles + scopes
+//       : verifyOrgAccess(orgId) → M2M: GET /api/orgs/{id}/users/{id}/roles + scopes
+//    → requiredRoleId.every(r => roles.some(r.id))
+//    → requiredPermId.every(p => permissions.includes(p))
+//    → handler({ userId, orgId, payload })`} />
     </SectionWrap>
   );
 }
@@ -384,21 +386,22 @@ function LiveRbacDemoSection() {
       </p>
       <CodeBlock title="curl" code={`curl -X POST localhost:3000/api/protected \\
   -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer <your_access_token>" \\
   -d '{
     "action": "my-action",
     "payload": { "foo": "bar" }
   }'`} />
       <CodeBlock title="Responses" code={`// 200 success
-{ "ok": true, "data": { ... } }
+{ "error": null, "data": { "answer": 42 } }
 
 // 401 invalid token
-{ "ok": false, "error": "TOKEN_INVALID", "message": "..." }
+{ "error": "TOKEN_INVALID", "data": null }
 
 // 403 no permission
-{ "ok": false, "error": "PERMISSION_DENIED", "message": "User lacks required permission: my:perm" }
+{ "error": "PERMISSION_DENIED", "data": null }
 
 // 404 action not found
-{ "ok": false, "error": "ACTION_NOT_FOUND", "message": "Action \\"foo\\" not found" }`} />
+{ "error": "ACTION_NOT_FOUND", "data": null }`} />
     </SectionWrap>
   );
 }

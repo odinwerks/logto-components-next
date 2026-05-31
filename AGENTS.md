@@ -12,20 +12,20 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 - **`scope`** MUST be `'all'`. Do NOT remove it, do NOT change it to `''`. The M2M client_credentials flow requires explicit scope. The blast radius is determined by Logto Console permissions, not this string.
 - **`resource`** for Logto OSS MUST be `'https://default.logto.app/api'` (hardcoded default). For Logto Cloud, it's `https://[tenant-id].logto.app/api` and should be set via `LOGTO_M2M_RESOURCE` env var.
-- **Fallback chain**: `process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api'` — do NOT derive from ENDPOINT.
+- **Fallback chain**: `process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api'`  do NOT derive from ENDPOINT.
 - These values are confirmed by Logto's official Management API documentation. Always verify against Logto MCP before proposing changes.
 
 ## Origin Guard (`app/logto-kit/logic/origin-guard.ts :: checkSameOrigin`)
 
 - **Do NOT add to auth routes** (`/api/auth/sign-in`, `/api/auth/sign-out`). Logto's OAuth `state` parameter provides CSRF protection for these flows. Adding `checkSameOrigin` there breaks local dev when BASE_URL doesn't match the browser's Origin.
-- **Only use on** `/api/wipe` and `/api/protected` — routes that don't go through Logto's OAuth flow and need CSRF protection.
-- **Source chain**: `process.env.BASE_URL || process.env.APP_URL` — no localhost bypasses, no PUBLIC_BASE_URL fallback.
+- **Only use on** `/api/wipe` and `/api/protected`  routes that don't go through Logto's OAuth flow and need CSRF protection.
+- **Source chain**: `process.env.BASE_URL || process.env.APP_URL`  no localhost bypasses, no PUBLIC_BASE_URL fallback.
 
 ## Auth Redirect (`app/page.tsx`)
 
-- Unauthenticated users redirect to **`/callback`**, not `/api/auth/sign-in`.
+- Unauthenticated users redirect to `/callback` from `page.tsx`, or `/api/auth/sign-in` from the proxy middleware.
 - The Logto SDK's `handleSignIn()` in the callback route handles BOTH OAuth callback AND sign-in initiation when no OAuth params are present.
-- Do NOT add state/param guards before `handleSignIn()` — the SDK needs to see the raw request params to decide what to do.
+- Do NOT add state/param guards before `handleSignIn()`  the SDK needs to see the raw request params to decide what to do.
 
 ## Env Vars
 

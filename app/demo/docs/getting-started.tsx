@@ -121,29 +121,29 @@ function EnvSection() {
           </tr>
         </tbody>
       </table>
-      <CodeBlock title="Feature-specific ENV" code={`# -- M2M (account deletion, RBAC) --
+      <CodeBlock title="Feature-specific ENV" code={`# - M2M (account deletion, RBAC) -
 LOGTO_M2M_APP_ID=         # M2M app ID from Logto Console
 LOGTO_M2M_APP_SECRET=     # M2M app secret
 LOGTO_INTROSPECTION_URL=  # Token introspection endpoint
 
-# -- Avatar --
-PFP_BACKEND=logto         # logto (default) | supabase | s3
+# - Avatar -
+PFP_BACKEND=s3           # s3 (default) | logto
 
-# -- Display --
+# - Display -
 NAME_TYPE=given_family    # given_family | full | username
 DEFAULT_THEME_MODE=dark   # dark | light
 
-# -- MFA --
+# - MFA -
 MFA_ISSUER=MyApp          # Shown in authenticator app
 
-# -- Security --
+# - Security -
 DELETE_REDIRECT_DELAY=3000 # ms before redirect after account deletion
 
-# -- Debug --
+# - Debug -
 DEBUG=                    # Set to true for verbose server logging
 PLAIN_ERRORS=false        # Set to true for full error text in responses
 LOGTO_DANGER_EXPOSE_TOKEN=false  # ⚠️ true = show access token in Dev tab (NEVER in prod)
-LOG_BACKEND=console       # console | logtail (structured logging backend)`} />
+LOG_BACKEND=both          # console | pino | both (default: both)`} />
       <CodeBlock title="SCOPES" code={`# Minimum (includes sessions)
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 
@@ -173,7 +173,8 @@ S3_SECRET_ACCESS_KEY=your-secret-key
 S3_REGION=auto
 S3_BUCKET_NAME=avatars
 S3_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public/avatars`} />
-      <CodeBlock title="Option C: Logto-hosted (default)" code={`# Set PFP_BACKEND=logto (default). Uses Logto's avatar endpoint.
+      <CodeBlock title="Option C: Logto-hosted" code={`# Default is PFP_BACKEND=s3 (S3-compatible storage).
+# Set PFP_BACKEND=logto to use Logto's avatar endpoint instead.
 # No additional ENV vars needed - avatar updates go through Logto Management API.
 PFP_BACKEND=logto`} />
       <div style={styles.noteStyle}>
@@ -216,7 +217,10 @@ function ReplaceSection() {
   const styles = useDocStyles();
   return (
     <SectionWrap label="Replace the demo">
-      <CodeBlock title="app/page.tsx" code={`import DemoApp from './demo'; // ← this is the demo
+      <CodeBlock title="app/page.tsx" code={`import { LogtoProvider } from './logto-kit';
+import { Dashboard } from './logto-kit/components/dashboard';
+import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
+import DemoApp from './demo'; // ← this is the demo
 
 export default async function HomePage() {
   const result = await fetchDashboardData();
@@ -225,7 +229,7 @@ export default async function HomePage() {
   return (
     <LogtoProvider
       userData={result.userData}
-      dashboard={<Dashboard />}
+      dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
     >
       <DemoApp />  {/* ← replace with your <App /> */}
     </LogtoProvider>
@@ -373,7 +377,7 @@ docker compose up -d`}
         are baked into the client bundle at build time. If you change any{' '}
         <code style={styles.codeSmStyle}>NEXT_PUBLIC_*</code> var in{' '}
         <code style={styles.codeSmStyle}>.env</code>, rebuild:{' '}
-        <code style={styles.codeSmStyle}>docker compose build --no-cache</code>
+        <code style={styles.codeSmStyle}>docker compose build -no-cache</code>
       </div>
     </SectionWrap>
   );

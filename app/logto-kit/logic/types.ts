@@ -80,6 +80,48 @@ export interface PersonalPermission {
   scope: string;
   resourceName: string;
   resourceIndicator: string;
+  description?: string | null;
+}
+
+/**
+ * Scope (permission) assigned to an organization role.
+ * Returned by GET /api/organization-roles/{id}/scopes.
+ * Note: flat structure — no resource field (unlike API resource scopes).
+ */
+export interface OrgRoleScope {
+  id: string;
+  name: string;
+  description: string | null;
+  tenantId: string;
+}
+
+// ============================================================================
+// Protected Action Types
+// ============================================================================
+
+export interface ProtectedActionHandler {
+  (data: { userId: string; orgId: string | null; payload: unknown }): Promise<unknown>;
+}
+
+/**
+ * Action configuration for the Protected Actions API.
+ *
+ * All three check categories MUST be defined. Missing any of them causes
+ * IMPROPER_SETUP_ERROR at startup. Use "self" for requiredOrgId to check
+ * personal (global) roles and permissions instead of an organization.
+ */
+export interface ActionConfig {
+  requiredOrgId: string;
+  requiredRoleId: string | string[];
+  requiredPermId: string | string[];
+  handler: ProtectedActionHandler;
+}
+
+export type ActionRegistry = Record<string, ActionConfig>;
+
+export interface PersonalAccessResult {
+  roles: UserRole[];
+  permissions: string[];
 }
 
 // ============================================================================

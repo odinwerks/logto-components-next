@@ -5,7 +5,8 @@ import type { UserData, UserRole, PersonalPermission } from '../../../logic/type
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image, Info } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { UserBadge } from '../../UserButton';
 import { readEnv } from '../../../logic/env';
 import { useAvatarUpload } from '../../../hooks/use-avatar-upload';
@@ -62,8 +63,12 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
   const [permissions, setPermissions] = useState<PersonalPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [activePerm, setActivePerm] = useState<PersonalPermission | null>(null);
 
   useEffect(() => {
+    if (!visible) return;
     let cancelled = false;
     setPermissions([]);
     setLoading(true);
@@ -84,9 +89,20 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [visible]);
 
   if (!visible) return null;
+
+  const handlePermMouseEnter = (e: React.MouseEvent, perm: PersonalPermission) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipPos({ x: rect.left, y: rect.bottom + 4 });
+    setActivePerm(perm);
+    setShowTooltip(true);
+  };
+
+  const handlePermMouseLeave = () => {
+    setShowTooltip(false);
+  };
 
   return (
     <>
@@ -131,15 +147,63 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
                   <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary, fontWeight: 600 }}>
                     {perm.scope}
                   </span>
-                  <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
-                    {t.profile.resourceLabel}: {perm.resourceName}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
+                      {t.profile.resourceLabel}: {perm.resourceName}
+                    </span>
+                    <span
+                      onMouseEnter={(e) => handlePermMouseEnter(e, perm)}
+                      onMouseLeave={handlePermMouseLeave}
+                      style={{ cursor: 'help', color: '#666', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      <Info size={14} />
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </Card>
+      {showTooltip && activePerm && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: tooltipPos.y,
+          left: tooltipPos.x,
+          background: c.bgSecondary,
+          border: `1px solid ${c.borderColor}`,
+          borderRadius: '0.25rem',
+          padding: '0.5rem 0.625rem',
+          minWidth: '14rem',
+          maxWidth: '18rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          zIndex: 10000,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.25rem',
+        }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+            <span style={{ color: c.textTertiary }}>{t.profile.roleIdLabel}: </span>
+            {activePerm.scope}
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+            <span style={{ color: c.textTertiary }}>{t.profile.resourceLabel}: </span>
+            {activePerm.resourceName}
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+            <span style={{ color: c.textTertiary }}>Resource Indicator: </span>
+            {activePerm.resourceIndicator}
+          </div>
+          {activePerm.description && (
+            <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+              <span style={{ color: c.textTertiary }}>Description: </span>
+              {activePerm.description}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
     </>
   );
 };

@@ -9,11 +9,10 @@ import {
   assertHttpUrl,
   assertSafeUserId,
   pickPreferences,
-  decodeLogtoAccessToken,
 } from '../guards';
 import { safeAction, type ActionResult, type DataResult } from './safe';
-import { getTokenForServerAction } from './tokens';
-import { getManagementApiToken } from '../../config';
+import { getLogtoContext } from '@logto/next/server-actions';
+import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { warn } from '../log';
 
@@ -85,19 +84,15 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     if (Object.keys(safePrefs).length === 0) return;
 
     // Get user ID for per-user locking
-    const token = await getTokenForServerAction();
-    const claims = decodeLogtoAccessToken(token);
-    const userId = claims.sub;
-    if (!userId) {
+    const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
+    if (!isAuthenticated || !claims?.sub) {
       throw new Error('Cannot determine user ID for customData update');
     }
+    const userId = claims.sub;
     assertSafeUserId(userId);
 
-    // Serialize updates for this user: wait for any in-flight update to complete
+    // Retrieve existingLock
     const existingLock = customDataUpdateLocks.get(userId);
-    if (existingLock) {
-      await existingLock.catch(() => {}); // absorb failures
-    }
 
     // Prevent unbounded growth
     if (customDataUpdateLocks.size >= MAX_LOCK_ENTRIES) {
@@ -113,6 +108,10 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     customDataUpdateLocks.set(userId, lockPromise);
 
     try {
+      if (existingLock) {
+        await existingLock.catch(() => {}); // absorb failures
+      }
+
       const mgmtToken = await getManagementApiToken();
       const endpoint = getCleanEndpoint();
 
@@ -159,7 +158,9 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
         throw new Error('UPDATE_FAILED');
       }
     } finally {
-      customDataUpdateLocks.delete(userId);
+      if (customDataUpdateLocks.get(userId) === lockPromise) {
+        customDataUpdateLocks.delete(userId);
+      }
       releaseLock!();
     }
   });

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, startTransition } from 'react';
+import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
+import { createPortal } from 'react-dom';
+import { Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
@@ -14,6 +16,8 @@ import { useOrgMode } from '../../providers/preferences';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadOrganizationPermissions } from '../../../server-actions/load-org-permissions';
 import { loadOrganizationUserRoles } from '../../../server-actions/load-org-roles';
+import { loadOrgPermissionDescriptions } from '../../../server-actions/load-org-permission-descriptions';
+import type { OrgRoleScope } from '../../../logic/types';
 
 // ─── Hardcoded design tokens ───
 
@@ -28,7 +32,7 @@ interface OrganizationsTabProps {
 
 // ─── OrgCard (extracted from OrganizationsTab to prevent re-creation on every render) ───
 interface OrgCardProps {
-  org: { id: string; name: string };
+  org: { id: string; name: string; description?: string };
   isSelected: boolean;
   isLoading: string | null;
   handleOrgClick: (orgId: string) => Promise<void>;
@@ -38,6 +42,26 @@ interface OrgCardProps {
 
 const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgCardProps) => {
   const c = colors;
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+
+  const handleMouseEnter = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setTooltipStyle({
+      position: 'fixed',
+      bottom: `${window.innerHeight - rect.top + 6}px`,
+      right: `${window.innerWidth - rect.right}px`,
+      zIndex: 9999,
+    });
+    setShowTooltip(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setShowTooltip(false);
+  }, []);
+
   return (
     <button
       onClick={() => handleOrgClick(org.id)}
@@ -69,8 +93,52 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgC
           {org.name}
           {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: '0.5625rem' }}>{t.organizations.active}</span>}
         </div>
-        <div style={{ color: c.textTertiary, fontSize: '0.5625rem', marginTop: '0.125rem', fontFamily: FONT_MONO }}>
-          {t.organizations.idLabel}: {org.id}
+        <div
+          ref={triggerRef}
+          style={{ display: 'inline-flex', alignItems: 'center', marginTop: '0.125rem' }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <Info
+            size={12}
+            strokeWidth={1.5}
+            style={{ color: c.textTertiary, cursor: 'help', flexShrink: 0 }}
+          />
+          {showTooltip &&
+            createPortal(
+              <div
+                style={tooltipStyle}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div
+                  style={{
+                    background: c.bgSecondary,
+                    border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem',
+                    padding: '0.5rem 0.625rem',
+                    minWidth: '14rem',
+                    maxWidth: '18rem',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+                    <span style={{ color: c.textTertiary }}>{t.organizations.idLabel}: </span>
+                    {org.id}
+                  </div>
+                  {org.description && (
+                    <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+                      <span style={{ color: c.textTertiary }}>Description: </span>
+                      {org.description}
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
         </div>
       </div>
     </button>
@@ -91,7 +159,11 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
+  const [enrichedPerms, setEnrichedPerms] = useState<Map<string, OrgRoleScope>>(new Map());
   const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [activePermissionInfo, setActivePermissionInfo] = useState<{ name: string; description?: string | null } | null>(null);
 
   const sectionLabel: React.CSSProperties = {
     fontFamily: FONT_SANS,
@@ -124,6 +196,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
   };
 
   useEffect(() => {
+    if (!visible) return;
     let cancelled = false;
 
     setLoadedPermissions([]);
@@ -143,6 +216,21 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
         if (cancelled) return;
         console.error('[PermissionsBlock] Failed to load permissions:', error);
         setLoadedPermissions([]);
+      });
+
+    loadOrgPermissionDescriptions(activeOrgId)
+      .then(r => {
+        if (cancelled) return;
+        if (r.ok) {
+          const map = new Map<string, OrgRoleScope>();
+          for (const scope of r.data) {
+            if (scope.name) map.set(scope.name, scope);
+          }
+          setEnrichedPerms(map);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) console.error('[PermissionsBlock] Failed to load permission descriptions:', err);
       })
       .finally(() => {
         if (!cancelled) {
@@ -151,13 +239,24 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
       });
 
     return () => { cancelled = true; };
-    // intentional: relies on unmount/remount for refresh, not dependency tracking
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeOrgId, userData]);
+  }, [activeOrgId, userData, visible]);
 
   const organizationPermissions = loadedPermissions;
 
   if (!visible) return null;
+
+  const handlePermMouseEnter = (e: React.MouseEvent, perm: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipPos({ x: rect.left, y: rect.bottom + 4 });
+    const info = enrichedPerms.get(perm);
+    setActivePermissionInfo({ name: perm, description: info?.description });
+    setShowTooltip(true);
+  };
+
+  const handlePermMouseLeave = () => {
+    setShowTooltip(false);
+  };
 
   return (
     <>
@@ -182,17 +281,57 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
                   background: c.bgPrimary,
                   border: `1px solid ${c.borderColor}`,
                   borderRadius: '0.25rem',
-                  fontFamily: FONT_MONO,
-                  fontSize: '0.6875rem',
-                  color: c.textPrimary,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}
               >
-                {permission}
+                <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary }}>
+                  {permission}
+                </span>
+                <span
+                  onMouseEnter={(e) => handlePermMouseEnter(e, permission)}
+                  onMouseLeave={handlePermMouseLeave}
+                  style={{ cursor: 'help', color: '#666', display: 'inline-flex', alignItems: 'center' }}
+                >
+                  <Info size={14} />
+                </span>
               </div>
             ))}
           </div>
         )}
       </div>
+      {showTooltip && activePermissionInfo && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: tooltipPos.y,
+          left: tooltipPos.x,
+          background: c.bgSecondary,
+          border: `1px solid ${c.borderColor}`,
+          borderRadius: '0.25rem',
+          padding: '0.5rem 0.625rem',
+          minWidth: '14rem',
+          maxWidth: '18rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          zIndex: 10000,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.25rem',
+        }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+            <span style={{ color: c.textTertiary }}>Permission: </span>
+            {activePermissionInfo.name}
+          </div>
+          {activePermissionInfo.description && (
+            <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+              <span style={{ color: c.textTertiary }}>Description: </span>
+              {activePermissionInfo.description}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
     </>
   );
 };

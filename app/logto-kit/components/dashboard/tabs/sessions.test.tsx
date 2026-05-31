@@ -357,4 +357,51 @@ describe('SessionsTab', () => {
       expect(secondCallSessionId).toBe('ses-2');
     });
   });
+
+  describe('BUG-014: macOS / Mac OS icon rendering', () => {
+    it('renders the macOS icon for both macOS and Mac OS values', async () => {
+      const macOSSessions: LogtoSession[] = [
+        {
+          payload: { loginTs: 1000, exp: 2000, uid: 'ses-mac-1', iat: 1000, jti: 'jti-mac-1', kind: 'Session', accountId: 'acct_1' },
+          meta: {
+            browser: 'Safari', browserVersion: '17',
+            os: 'macOS', osVersion: '14', deviceType: 'desktop',
+            ip: '1.2.3.4', isCurrent: true, lastActive: '500', jti: 'jti-mac-1',
+            userId: 'test-user', createdAt: '2024-01-01T00:00:00Z',
+          },
+          lastSubmission: null, clientId: null, accountId: 'acct_1', expiresAt: 2000,
+        },
+        {
+          payload: { loginTs: 1000, exp: 2000, uid: 'ses-mac-2', iat: 1000, jti: 'jti-mac-2', kind: 'Session', accountId: 'acct_1' },
+          meta: {
+            browser: 'Safari', browserVersion: '17',
+            os: 'Mac OS', osVersion: '14', deviceType: 'desktop',
+            ip: '1.2.3.5', isCurrent: false, lastActive: '500', jti: 'jti-mac-2',
+            userId: 'test-user', createdAt: '2024-01-01T00:00:00Z',
+          },
+          lastSubmission: null, clientId: null, accountId: 'acct_1', expiresAt: 2000,
+        }
+      ];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: macOSSessions,
+      });
+
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        const images = screen.getAllByRole('img');
+        const macosImg = images.find(img => img.getAttribute('alt') === 'macOS');
+        const macosImg2 = images.find(img => img.getAttribute('alt') === 'Mac OS');
+
+        expect(macosImg).toBeDefined();
+        expect(macosImg?.getAttribute('src')).toBe('/os-icons/MacOS.svg');
+
+        expect(macosImg2).toBeDefined();
+        expect(macosImg2?.getAttribute('src')).toBe('/os-icons/MacOS.svg');
+      });
+    });
+  });
 });

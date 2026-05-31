@@ -59,6 +59,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { useOrgMode } from '../components/providers/preferences';
 import { useLogto } from '../components/providers/logto-provider';
 import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
+import { loadPersonalPermissions } from '../server-actions/load-personal-permissions';
 import { debugLog } from '../logic/debug';
 
 /**
@@ -100,8 +101,40 @@ export function Protected({
 
   // Single combined effect for permission loading
   useEffect(() => {
-    // Guard: need all three to proceed
-    if (!userData || !orgId || !asOrg) {
+    // Guard: need userData to proceed
+    if (!userData) {
+      setLoadedPerms([]);
+      setIsLoadingPerms(false);
+      return;
+    }
+
+    // Personal scope bypass (orgId="self")
+    if (orgId === 'self') {
+      let cancelled = false;
+      setIsLoadingPerms(true);
+      setLoadError(false);
+
+      loadPersonalPermissions()
+        .then((result) => {
+          if (!cancelled) {
+            if (!result.ok) { console.error(result.error); setLoadedPerms([]); }
+            else { setLoadedPerms(result.data.map((p) => p.scope)); }
+            setIsLoadingPerms(false);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLoadedPerms([]);
+            setLoadError(true);
+            setIsLoadingPerms(false);
+          }
+        });
+
+      return () => { cancelled = true; };
+    }
+
+    // Organization scope
+    if (!orgId || !asOrg) {
       setLoadedPerms([]);
       setIsLoadingPerms(false);
       return;
@@ -161,12 +194,20 @@ export function Protected({
   // is unscoped — it may contain permissions from ALL organizations the user belongs
   // to, not just the active one. Returning an empty set is the fail-safe choice:
   // gated content is hidden rather than shown with potentially wrong permissions.
-  const effectivePerms =
-    loadedPerms.length > 0
-      ? loadedPerms
-      : [];
+  const effectivePerms = loadedPerms;
 
   const checkAccess = (): boolean => {
+    // Personal scope bypass — no org checks, just permissions
+    if (orgId === 'self') {
+      if (!perm) return true;
+      const requiredPerms = Array.isArray(perm) ? perm : [perm];
+      const hasPerms = requireAll
+        ? requiredPerms.every((p) => loadedPerms.includes(p))
+        : requiredPerms.some((p) => loadedPerms.includes(p));
+      debugLog('[Protected] Personal scope check:', { requiredPerms, loadedPerms, hasPerms });
+      return hasPerms;
+    }
+
     if (!userData?.organizations) {
       debugLog('[Protected] No user organizations found');
       return false;

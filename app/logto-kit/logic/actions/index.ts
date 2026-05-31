@@ -67,8 +67,13 @@ export { deleteUserAccount } from './account';
 // Avatar Upload
 export { uploadAvatar } from './avatar';
 
-// Organization Permissions
-export { getOrganizationUserPermissions } from './organizations';
+// Organization Permissions + M2M Access Verification
+export { getOrganizationUserPermissions, verifyOrgAccess, getOrgPermissionsWithDescriptions } from './organizations';
+export type { OrgAccessResult } from './organizations';
+
+// Personal RBAC Verification
+export { verifyPersonalAccess } from './roles';
+export type { PersonalAccessResult } from '../types';
 
 // User Roles & Personal Permissions
 export { getUserRoles, getUserScopes, getRoleDetails, getOrganizationUserRoles } from './roles';

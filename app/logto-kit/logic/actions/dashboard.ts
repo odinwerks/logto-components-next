@@ -149,9 +149,9 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
         // Organization data from userInfo — use organization_data if available, otherwise fall back to IDs
         organizations: (() => {
-          const orgData = userInfo?.organization_data as Array<{ id: string; name: string }> | undefined;
+          const orgData = userInfo?.organization_data as Array<{ id: string; name: string; description?: string }> | undefined;
           return orgData
-            ? orgData.map(org => ({ id: org.id, name: org.name }))
+            ? orgData.map(org => ({ id: org.id, name: org.name, description: org.description }))
             : (userInfo?.organizations as string[] || []).map(orgId => ({ id: orgId, name: orgId }));
         })(),
 

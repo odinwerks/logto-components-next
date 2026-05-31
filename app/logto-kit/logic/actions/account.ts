@@ -1,5 +1,6 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { assertSafeUserId, assertSafeLogtoId } from '../guards';
@@ -100,6 +101,14 @@ export async function deleteUserAccount(
     // Audit the deletion — this is the last thing we do before returning.
     const { audit } = await import('../audit');
     await audit({ actor: userId, action: 'account.delete', resource: userId });
+
+    // Clear all local logto_ and logto-active-org cookies on path / (BUG-003)
+    const cookieStore = await cookies();
+    for (const cookie of cookieStore.getAll()) {
+      if (cookie.name.startsWith('logto_') || cookie.name === 'logto-active-org') {
+        cookieStore.set(cookie.name, '', { maxAge: 0, path: '/' });
+      }
+    }
 
     // Client navigates away after this resolves (window.location.href).
   });

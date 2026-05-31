@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLogtoContext } from '@logto/next/server-actions';
 import { getAction } from '../../logto-kit/action-registry';
-import { validateOrgMembership } from '../../logto-kit/action-registry/validation';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
-import { getLogtoConfig } from '../../logto-kit/config';
 
-function apiError(error: string, message: string, status: number) {
+function apiError(error: string, status: number) {
   return NextResponse.json(
-    { ok: false, error, message },
+    { error, data: null },
     { status }
   );
 }
@@ -32,15 +29,21 @@ export async function POST(request: NextRequest) {
     const { action, payload } = body;
 
     if (!action) {
-      return apiError('MISSING_FIELDS', 'action is required', 400);
+      return apiError('MISSING_FIELDS', 400);
     }
 
-    // Derive token and user ID server-side from session cookie
+    // ── Step 0: verify session token ─────────────────────────────────────────
     let token: string;
     try {
       token = await getTokenForServerAction();
     } catch {
-      return apiError('UNAUTHORIZED', 'No valid session', 401);
+      // Fallback: check Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      } else {
+        return apiError('UNAUTHORIZED', 401);
+      }
     }
 
     let introspection;
@@ -49,82 +52,123 @@ export async function POST(request: NextRequest) {
       introspection = await introspectToken(token);
     } catch (error) {
       debugError('[Protected API] Introspection error:', error instanceof Error ? error.message : String(error));
-      return apiError('INTROSPECTION_ERROR', 'Failed to validate token', 401);
+      return apiError('INTROSPECTION_ERROR', 401);
     }
 
     if (!introspection.active) {
       debugLog('[Protected API] Token not active');
-      return apiError('TOKEN_INVALID', 'Token is not active or has been revoked', 401);
+      return apiError('TOKEN_INVALID', 401);
     }
 
     const id = introspection.sub;
     if (!id) {
-      return apiError('TOKEN_INVALID', 'Token has no subject', 401);
+      return apiError('TOKEN_INVALID', 401);
     }
 
     try {
       assertSafeUserId(id);
     } catch {
-      return apiError('TOKEN_INVALID', 'Invalid userId format', 400);
+      return apiError('TOKEN_INVALID', 400);
     }
 
-    // Fetch user info via Logto context (includes live org membership and preferences)
-    let userOrgs: string[] = [];
-    let asOrg: string | null = null;
-    try {
-      const { userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
-      userOrgs = (userInfo?.organizations as string[]) || [];
-      const customData = (userInfo?.custom_data as Record<string, unknown>) || {};
-      const prefs = (customData?.Preferences as { asOrg?: string | null }) || {};
-      asOrg = prefs.asOrg ?? null;
-    } catch (error) {
-      debugError('[Protected API] User data fetch error:', error instanceof Error ? error.message : String(error));
-      return apiError('USER_DATA_ERROR', 'Failed to fetch user data', 500);
-    }
-
+    // ── Resolve action ────────────────────────────────────────────────────────
     const actionConfig = await getAction(action);
 
     if (!actionConfig) {
-      return apiError('ACTION_NOT_FOUND', `Action "${action}" not found`, 404);
+      return apiError('ACTION_NOT_FOUND', 404);
     }
 
-    const orgValidation = await validateOrgMembership(userOrgs, asOrg);
-    if (!orgValidation.ok) {
-      return apiError(orgValidation.error!, orgValidation.detail ?? 'Org validation failed', 403);
+    // ── Validate action configuration ─────────────────────────────────────────
+    // Every protected action MUST define all three check categories.
+    const missingFields: string[] = [];
+    if (!actionConfig.requiredOrgId || typeof actionConfig.requiredOrgId !== 'string' || actionConfig.requiredOrgId.length === 0) {
+      missingFields.push('requiredOrgId');
+    }
+    const hasRole = Array.isArray(actionConfig.requiredRoleId)
+      ? actionConfig.requiredRoleId.length > 0
+      : typeof actionConfig.requiredRoleId === 'string' && actionConfig.requiredRoleId.length > 0;
+    if (!hasRole) {
+      missingFields.push('requiredRoleId');
+    }
+    const hasPerm = Array.isArray(actionConfig.requiredPermId)
+      ? actionConfig.requiredPermId.length > 0
+      : typeof actionConfig.requiredPermId === 'string' && actionConfig.requiredPermId.length > 0;
+    if (!hasPerm) {
+      missingFields.push('requiredPermId');
+    }
+    if (missingFields.length > 0) {
+      debugError(`[Protected API] IMPROPER_SETUP_ERROR for action "${action}": missing ${missingFields.join(', ')}`);
+      return apiError('IMPROPER_SETUP_ERROR', 500);
     }
 
-    // Defensive guard: ensure asOrg is a non-empty string even if validation passes
-    if (!asOrg) {
-      return apiError('PERMISSION_DENIED', 'Active organization is required', 403);
+    // ── Step 1: RBAC verification ─────────────────────────────────────────────
+    // Branch: "self" bypass checks personal roles/permissions.
+    // Otherwise, verify against the organization declared in the action config.
+    const { verifyOrgAccess, verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+
+    let roles: { id: string; name: string }[];
+    let permissions: string[];
+
+    if (actionConfig.requiredOrgId === 'self') {
+      const result = await verifyPersonalAccess();
+      if (!result.ok) {
+        debugLog('[Protected API] Personal access verification failed:', result.error);
+        return apiError('UNAUTHORIZED', 401);
+      }
+      roles = result.data.roles;
+      permissions = result.data.permissions;
+    } else {
+      const orgId = actionConfig.requiredOrgId;
+      const result = await verifyOrgAccess(orgId);
+      if (!result.ok) {
+        debugLog('[Protected API] Org access verification failed:', result.error);
+        return apiError('ORG_NOT_MEMBER', 403);
+      }
+      roles = result.data.roles;
+      permissions = result.data.permissions;
     }
 
-    const { getOrganizationUserPermissions } = await import('../../logto-kit/logic/actions');
-    const permResult = await getOrganizationUserPermissions(asOrg);
-    const userPermissions = permResult.ok ? permResult.data : [];
+    // ── Step 2: Role check ────────────────────────────────────────────────────
+    const requiredRoles = Array.isArray(actionConfig.requiredRoleId)
+      ? actionConfig.requiredRoleId
+      : [actionConfig.requiredRoleId];
 
-    const requiredPerms = Array.isArray(actionConfig.requiredPerm)
-      ? actionConfig.requiredPerm
-      : [actionConfig.requiredPerm];
+    const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
+    if (!hasRequiredRole) {
+      debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
+      return apiError('ROLE_DENIED', 403);
+    }
 
-    const hasPermission = requiredPerms.every(perm => userPermissions.includes(perm));
+    // ── Step 3: Permission check ──────────────────────────────────────────────
+    const requiredPerms = Array.isArray(actionConfig.requiredPermId)
+      ? actionConfig.requiredPermId
+      : [actionConfig.requiredPermId];
+
+    const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
 
     if (!hasPermission) {
-      return apiError('PERMISSION_DENIED', 'Insufficient permissions for this action', 403);
+      debugLog('[Protected API] Required permissions not present. Required:', requiredPerms, 'Has:', permissions);
+      return apiError('PERMISSION_DENIED', 403);
     }
 
+    // ── Invoke handler ────────────────────────────────────────────────────────
     try {
       const result = await actionConfig.handler({
         userId: id,
-        orgId: asOrg,
+        orgId: actionConfig.requiredOrgId === 'self' ? null : actionConfig.requiredOrgId,
         payload: payload ?? {},
       });
 
-      return NextResponse.json({ ok: true, data: result });
+      return NextResponse.json({ error: null, data: result });
     } catch (handlerError) {
-      return apiError('VALIDATION_ERROR', handlerError instanceof Error ? handlerError.message : 'Invalid input', 400);
+      const msg = handlerError instanceof Error ? handlerError.message : 'Invalid input';
+      if (msg.includes('INVALID_PAYLOAD')) {
+        return apiError('INVALID_PAYLOAD', 400);
+      }
+      return apiError('INTERNAL_ERROR', 500);
     }
   } catch (error) {
     debugError('[Protected API] Unexpected error:', error instanceof Error ? error.message : String(error));
-    return apiError('INTERNAL_ERROR', 'Internal server error', 500);
+    return apiError('INTERNAL_ERROR', 500);
   }
 }

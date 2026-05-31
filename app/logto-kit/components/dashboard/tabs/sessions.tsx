@@ -37,7 +37,7 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
 
   const src = os === 'Linux' ? '/os-icons/Tux.jpg'
     : os === 'Windows' ? '/os-icons/MacroSlop.svg'
-    : os === 'macOS' ? '/os-icons/MacOS.svg'
+    : (os === 'macOS' || os === 'Mac OS') ? '/os-icons/MacOS.svg'
     : os === 'iOS' ? '/os-icons/ios.svg'
     : os === 'Android' ? '/os-icons/Android.svg'
     : null;

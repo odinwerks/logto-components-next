@@ -8,6 +8,21 @@ vi.mock('../../config', () => ({
   getManagementApiToken: vi.fn().mockResolvedValue('mock-m2m-token'),
 }));
 
+const mockCookiesSet = vi.fn();
+const mockCookiesGetAll = vi.fn().mockReturnValue([
+  { name: 'logto_session', value: 'xxx' },
+  { name: 'logto_active', value: 'yyy' },
+  { name: 'logto-active-org', value: 'zzz' },
+  { name: 'other_cookie', value: 'abc' },
+]);
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    getAll: () => mockCookiesGetAll(),
+    set: mockCookiesSet,
+  }),
+}));
+
 vi.mock('../utils', () => ({
   getCleanEndpoint: vi.fn().mockReturnValue('https://auth.example.org'),
   introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', active: true }),
@@ -141,5 +156,26 @@ describe('deleteUserAccount', () => {
     const result = await deleteUserAccount('verif_record_1', futureTs);
 
     expect(result.ok).toBe(true);
+  });
+
+  it('clears all local logto_ and logto-active-org cookies on path / (BUG-003)', async () => {
+    mockCookiesSet.mockClear();
+    mockCookiesGetAll.mockClear().mockReturnValue([
+      { name: 'logto_session', value: 'xxx' },
+      { name: 'logto_active', value: 'yyy' },
+      { name: 'logto-active-org', value: 'zzz' },
+      { name: 'other_cookie', value: 'abc' },
+    ]);
+
+    const { deleteUserAccount } = await import('./account');
+    const result = await deleteUserAccount('verif_record_1');
+
+    expect(result.ok).toBe(true);
+    
+    expect(mockCookiesSet).toHaveBeenCalledTimes(3);
+    expect(mockCookiesSet).toHaveBeenCalledWith('logto_session', '', { maxAge: 0, path: '/' });
+    expect(mockCookiesSet).toHaveBeenCalledWith('logto_active', '', { maxAge: 0, path: '/' });
+    expect(mockCookiesSet).toHaveBeenCalledWith('logto-active-org', '', { maxAge: 0, path: '/' });
+    expect(mockCookiesSet).not.toHaveBeenCalledWith('other_cookie', expect.anything(), expect.anything());
   });
 });

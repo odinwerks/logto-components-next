@@ -16,17 +16,19 @@ function OverviewSection() {
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
           A permission-gated calculator demonstrating the <strong>Protected Actions API</strong>.
-          Shows how to wrap UI with <code style={styles.codeStyle}>&lt;Protected&gt;</code> and
-          call <code style={styles.codeStyle}>POST /api/protected</code> from a client component.
+          Shows how to wrap UI with <code style={styles.codeStyle}>&lt;Protected&gt;</code>, gate via
+          org-scoped RBAC, and call the API
+          for every mathematical operation.
         </p>
 
         <p style={styles.textStyle}>
           <strong>Key Features:</strong>
         </p>
         <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
-          <li>UI gated by <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> component</li>
-          <li>Permission detection based on expression content</li>
-          <li>Calls Protected Actions API on <code style={styles.codeSmStyle}>=</code> press</li>
+          <li>UI gated by <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> component with org-scoped RBAC</li>
+          <li>Each math operation is a protected server action (add, subtract, sin, cos, etc.)</li>
+          <li>Calculator parses expressions into an AST and evaluates via sequential API calls</li>
+          <li>No local evaluation -- the calculator cannot compute without the API</li>
           <li>Session state persistence via sessionStorage</li>
           <li>Two-tier permissions: basic vs scientific</li>
         </ul>
@@ -53,20 +55,16 @@ function FilesSection() {
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>demo/logic/CalculatorPanel.tsx</code></td>
-              <td style={styles.tdStyle}>Thin wrapper with <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> gate</td>
+              <td style={styles.tdStyle}><code style={styles.codeStyle}>demo/components/calculator/CalculatorPanel.tsx</code></td>
+              <td style={styles.tdStyle}>Thin wrapper with <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> gate (org-scoped RBAC)</td>
             </tr>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>demo/logic/CalculatorClient.tsx</code></td>
-              <td style={styles.tdStyle}>Calculator UI, parser, API calls (753 lines)</td>
+              <td style={styles.tdStyle}><code style={styles.codeStyle}>demo/components/calculator/CalculatorClient.tsx</code></td>
+              <td style={styles.tdStyle}>Calculator UI, AST parser, sequential API evaluator</td>
             </tr>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>custom-actions/calc-actions/basic.ts</code></td>
-              <td style={styles.tdStyle}>Handler for basic operations</td>
-            </tr>
-            <tr>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>custom-actions/calc-actions/scientific.ts</code></td>
-              <td style={styles.tdStyle}>Handler for scientific functions</td>
+              <td style={styles.tdStyle}><code style={styles.codeStyle}>logto-kit/action-registry/calc-actions.ts</code></td>
+              <td style={styles.tdStyle}>Atomic calc action handlers (add, subtract, sin, cos, etc.)</td>
             </tr>
           </tbody>
         </table>
@@ -85,12 +83,12 @@ function ProtectedGateSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          <code style={styles.codeStyle}>CalculatorPanel.tsx</code> is a thin Server Component
-          that gates the calculator behind org membership + permission:
+          <code style={styles.codeStyle}>CalculatorPanel.tsx</code> is a thin wrapper
+          that gates the calculator behind org-scoped RBAC:
         </p>
         <CodeBlock title="CalculatorPanel.tsx" code={`'use client';
 
-import { Protected } from '../../logto-kit/custom-logic';
+import { Protected } from '../../../logto-kit/custom-logic';
 import { CalculatorClient } from './CalculatorClient';
 
 export default function CalculatorPanel() {
@@ -105,8 +103,9 @@ export default function CalculatorPanel() {
   );
 }`} />
         <p style={styles.textStyle}>
-          If the user isn't a member of the organization or lacks <code style={styles.codeSmStyle}>calc:basic</code>,
-          the calculator doesn't render at all (fallback is null).
+          If the user lacks the <code style={styles.codeSmStyle}>calc:basic</code> permission,
+          the calculator does not render at all (fallback is null). The org ID identifies which
+          organization's roles and permissions to check.
         </p>
       </div>
     </div>
@@ -123,8 +122,8 @@ function PermissionMatrixSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          The calculator requires membership in the <strong>Mathinators</strong> organization.
-          Different permissions unlock different features:
+          The calculator is scoped to an organization. The user must have the
+          appropriate org role and permissions:
         </p>
         <table style={styles.tableStyle}>
           <thead>
@@ -137,14 +136,14 @@ function PermissionMatrixSection() {
             <tr>
               <td style={styles.tdPropStyle}>calc:basic</td>
               <td style={styles.tdStyle}>
-                Basic calculator operations (+, −, ×, ÷, %, =).{' '}
+                Arithmetic operations: add, subtract, multiply, divide, modulo, power.{' '}
                 <strong>Required for calculator to appear.</strong>
               </td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>calc:scientific</td>
               <td style={styles.tdStyle}>
-                Scientific functions: sin, cos, tan, asin, acos, atan, log, ln, log₂, √x, xʸ, n!, 1/x, |x|, 10ˣ, eˣ, π, e.
+                Scientific functions: sin, cos, tan, asin, acos, atan, log, ln, log₂, √x, xʸ, n!, 1/x, |x|, 10ˣ, eˣ.
               </td>
             </tr>
           </tbody>
@@ -152,10 +151,12 @@ function PermissionMatrixSection() {
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>How it works:</strong>{' '}
           <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
-            <li>Numbers, parentheses, and clear work locally (no API call)</li>
-            <li>Pressing <code style={styles.codeSmStyle}>=</code> triggers an API call to validate <code style={styles.codeSmStyle}>calc:basic</code> permission</li>
-            <li>If expression contains scientific functions, validates <code style={styles.codeSmStyle}>calc:scientific</code> permission</li>
-            <li>Results display after successful permission validation</li>
+            <li>Numbers and parentheses are typed into the expression string locally</li>
+            <li>Pressing <code style={styles.codeSmStyle}>=</code> triggers expression parsing into an AST</li>
+            <li>Each AST node (e.g. <code style={styles.codeSmStyle}>Multiply(3, 4)</code>) is sent to the API as a separate protected action</li>
+            <li>The API evaluates the operation server-side and returns the answer</li>
+            <li>Results are assembled back into the expression until a final answer is reached</li>
+            <li>The calculator cannot compute without the Protected Actions API</li>
           </ul>
         </div>
       </div>
@@ -173,28 +174,54 @@ function PermissionFlowSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          The calculator detects which permission to check based on expression content:
+          The calculator parses the user's expression into an abstract syntax tree (AST),
+          then evaluates each node by calling the Protected Actions API:
         </p>
-        <CodeBlock title="Permission detection in CalculatorClient.tsx" code={`const hasScientific = /\\b(sin|cos|tan|log|ln|sqrt|asin|acos|atan|log2|fact|abs|inv_x|exp10|exp)\\b/.test(state.expr);
-const action = hasScientific ? 'calc-scientific' : 'calc-basic';`} />
+        <CodeBlock title="Expression tree and API call flow" code={`// Expression: 2 + 3 * 4
+// AST: Add(Number(2), Multiply(Number(3), Number(4)))
+
+// Evaluation order (respects precedence):
+// 1. API: calc/multiply { a: 3, b: 4 }  -> 12
+// 2. API: calc/add      { a: 2, b: 12 } -> 14
+
+// Expression: sin(45) in DEG mode
+// AST: Function('sin', Number(45))
+
+// Evaluation:
+// 1. API: calc/sin { n: 45, mode: 'deg' } -> 0.7071...`} />
         <table style={styles.tableStyle}>
           <thead>
             <tr>
               <th style={styles.thStyle}>Action</th>
               <th style={styles.thStyle}>Required Permission</th>
-              <th style={styles.thStyle}>Triggers On</th>
+              <th style={styles.thStyle}>Payload</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc-basic</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc/add</code></td>
               <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc:basic</code></td>
-              <td style={styles.tdStyle}>+, −, ×, ÷, %, ^, parentheses, numbers</td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>{'{ a: number, b: number }'}</code></td>
             </tr>
             <tr>
-              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc-scientific</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc/multiply</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc:basic</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>{'{ a: number, b: number }'}</code></td>
+            </tr>
+            <tr>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc/power</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc:basic</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>{'{ a: number, b: number }'}</code></td>
+            </tr>
+            <tr>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc/sin</code></td>
               <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc:scientific</code></td>
-              <td style={styles.tdStyle}>sin, cos, tan, log, ln, sqrt, asin, acos, atan, log2, n!, |x|, 1/x, 10ˣ, eˣ</td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>{"{ n: number, mode: 'deg' | 'rad' }"}</code></td>
+            </tr>
+            <tr>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc/log</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>calc:scientific</code></td>
+              <td style={styles.tdStyle}><code style={styles.codeSmStyle}>{'{ n: number }'}</code></td>
             </tr>
           </tbody>
         </table>
@@ -216,39 +243,54 @@ function ApiCallSection() {
           When the user presses <code style={styles.codeSmStyle}>=</code>, the calculator:
         </p>
         <ol style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
-          <li>Evaluates the expression locally (parser in <code style={styles.codeSmStyle}>evaluate()</code>)</li>
-          <li>Calls <code style={styles.codeSmStyle}>POST /api/protected</code> with the action and payload</li>
-          <li>The API derives the access token and user ID server-side from the session cookie</li>
+          <li>Parses the expression string into an AST using a recursive-descent parser</li>
+          <li>Evaluates the AST recursively, sending each operation to the API as a protected action</li>
+          <li>The Protected Actions API validates the user's session, role, and permission before executing</li>
+          <li>Each action returns an answer which feeds into the next operation</li>
         </ol>
-        <CodeBlock title="handleCalculate in CalculatorClient.tsx" code={`const handleCalculate = useCallback(async (result: number) => {
-  if (!userData?.id) {
-    alert('Not authenticated');
-    return;
-  }
+        <CodeBlock title="handleEquals in CalculatorClient.tsx" code={`const handleEquals = useCallback(async () => {
+  let exprToEval = '';
+  let radMode = false;
 
-  const hasScientific = /\\b(sin|cos|tan|log|ln|...)\\b/.test(state.expr);
-  const action = hasScientific ? 'calc-scientific' : 'calc-basic';
-
-  const response = await fetch('/api/protected', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action,
-      payload: { expression: state.expr, result },
-    }),
+  // Build expression string from state
+  setState(prev => {
+    exprToEval = prev.expr + (prev.curToken || '');
+    radMode = prev.isRad;
+    // close open parens...
+    return { ...prev, expr: exprToEval, isCalculating: true };
   });
 
-  const res = await response.json();
-  if (res.ok && res.data) {
-    console.log(\`✅ Calculation succeeded: \${res.data.message}\`);
-  } else {
-    alert(\`Permission denied: \${res.message}\`);
+  // Parse into AST
+  const tokens = tokenize(exprToEval);
+  const tree = parseExpr(tokens);
+
+  // Evaluate by calling the API for each node
+  const result = await evalNode(tree, radMode);
+  setState(prev => ({ ...prev, expr: fmtNum(result), isCalculating: false }));
+}, []);`} />
+        <CodeBlock title="evalNode sends each operation to the API" code={`async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {
+  switch (node.type) {
+    case 'num': return node.value;
+    case 'unary': return -(await evalNode(node.arg, isRad));
+    case 'binop': {
+      const left  = await evalNode(node.left, isRad);
+      const right = await evalNode(node.right, isRad);
+      return await callApi('calc/' + node.op, { a: left, b: right });
+    }
+    case 'func': {
+      const arg = await evalNode(node.arg, isRad);
+      const payload = isTrig(node.name)
+        ? { n: arg, mode: isRad ? 'rad' : 'deg' }
+        : { n: arg };
+      return await callApi('calc/' + node.name, payload);
+    }
   }
-}, [userData, state.expr]);`} />
+}`} />
         <p style={styles.textStyle}>
           <strong>Note:</strong> The API route derives authentication server-side via{' '}
-          <code style={styles.codeSmStyle}>getTokenForServerAction()</code> which reads the session cookie.
-          No token or user ID needs to be sent in the request body — the server handles auth automatically.
+          <code style={styles.codeSmStyle}>getTokenForServerAction()</code>. The client sends
+          only <code style={styles.codeSmStyle}>{'{ action, payload }'}</code> -- no token or user ID
+          in the request body.
         </p>
       </div>
     </div>
@@ -265,26 +307,40 @@ function ActionHandlersSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          Both handlers are simple - they receive the expression and result, return success:
+          Every math operation is registered as its own protected action with all three required fields:
         </p>
-        <CodeBlock title="calc-actions/basic.ts" code={`'use server';
+        <CodeBlock title="calc-actions.ts (atomic actions)" code={`'use server';
 
-export async function getBasicCalc() {
+export async function getCalcAdd() {
   return {
-    requiredPerm: 'calc:basic',
+    requiredOrgId: CALC_ORG_ID,          // '5b6sw6p5uzti'
+    requiredRoleId: 'calc-user-role-id', // actual Logto role UUID
+    requiredPermId: 'calc:basic',
     handler: async ({ payload }) => {
-      const { expression, result } = payload as { expression: string; result: number };
-      return {
-        success: true,
-        message: \`\${expression} = \${result}\`,
-        data: { expression, result }
-      };
+      const { a, b } = payload as { a: number; b: number };
+      return { answer: a + b };
+    },
+  };
+}
+
+export async function getCalcSin() {
+  return {
+    requiredOrgId: CALC_ORG_ID,
+    requiredRoleId: 'calc-user-role-id',
+    requiredPermId: 'calc:scientific',
+    handler: async ({ payload }) => {
+      const { n, mode } = payload as { n: number; mode: 'deg' | 'rad' };
+      const radians = mode === 'deg' ? n * (Math.PI / 180) : n;
+      return { answer: Math.sin(radians) };
     },
   };
 }`} />
         <p style={styles.textStyle}>
-          The real security is the <strong>Protected Actions API</strong> - it validates the token,
-          checks org membership, and verifies the permission before calling the handler.
+          The real security is the <strong>Protected Actions API</strong>  it validates the session,
+          checks the user's membership in the specified organization, their org roles,
+          and their org permissions via the Management API (M2M), and only then
+          calls the handler. Actions that are missing any of the three required fields throw{' '}
+          <code style={styles.codeSmStyle}>IMPROPER_SETUP_ERROR</code> at startup.
         </p>
       </div>
     </div>
@@ -301,9 +357,8 @@ function LiveDemoSection() {
       </div>
       <div style={styles.sectionBodyStyle}>
         <p style={styles.textStyle}>
-          The calculator below requires membership in the <strong>Mathinators</strong> organization
-          with the <code style={styles.codeSmStyle}>calc:basic</code> permission. If you're not a member,
-          it won't appear.
+          The calculator below requires the <code style={styles.codeSmStyle}>calc:basic</code> permission
+          in the Mathinators organization. If you are not a member or lack the permission, it will not appear.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
           <CalculatorPanel />

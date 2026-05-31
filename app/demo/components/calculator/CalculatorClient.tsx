@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLogto } from '../../../logto-kit/components/providers/logto-provider';
-import { getFreshAccessToken } from '../../../logto-kit/logic/actions';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 interface CalcState {
   expr: string;
@@ -13,6 +11,7 @@ interface CalcState {
   openParens: number;
   lastWasOp: boolean;
   lastWasClose: boolean;
+  isCalculating: boolean;
 }
 
 const STORAGE_KEY = 'calc-state';
@@ -26,6 +25,7 @@ const DEFAULT_STATE: CalcState = {
   openParens: 0,
   lastWasOp: true,
   lastWasClose: false,
+  isCalculating: false,
 };
 
 function loadState(): CalcState {
@@ -54,6 +54,10 @@ function fmtNum(n: number): string {
   if (abs >= 1e13 || abs < 1e-9) return n.toPrecision(9).replace(/\.?0+$/, '');
   return parseFloat(n.toPrecision(12)).toString();
 }
+
+// ============================================================================
+// Tokenizer
+// ============================================================================
 
 function tokenize(str: string): (string | number)[] | null {
   const toks: (string | number)[] = [];
@@ -84,7 +88,7 @@ function tokenize(str: string): (string | number)[] | null {
     }
     if (c >= 'a' && c <= 'z') {
       let name = '';
-      while (i < str.length && str[i] >= 'a' && str[i] <= 'z' && str[i] !== '(') {
+      while (i < str.length && ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= '0' && str[i] <= '9') || str[i] === '_') && str[i] !== '(') {
         name += str[i++];
       }
       const last = toks[toks.length - 1];
@@ -99,133 +103,170 @@ function tokenize(str: string): (string | number)[] | null {
   return toks;
 }
 
-function applyFunc(name: string, x: number, isRad: boolean): number {
-  const toR = (v: number) => isRad ? v : v * (Math.PI / 180);
-  const frR = (v: number) => isRad ? v : v * (180 / Math.PI);
-  switch (name) {
-    case 'sin': return Math.sin(toR(x));
-    case 'cos': return Math.cos(toR(x));
-    case 'tan': return Math.tan(toR(x));
-    case 'asin': return frR(Math.asin(x));
-    case 'acos': return frR(Math.acos(x));
-    case 'atan': return frR(Math.atan(x));
-    case 'ln': return Math.log(x);
-    case 'log': return Math.log10(x);
-    case 'log2': return Math.log2(x);
-    case 'sqrt': return Math.sqrt(x);
-    case 'fact': {
-      const n = Math.round(x);
-      if (n < 0 || n > 170) return NaN;
-      let r = 1;
-      for (let j = 2; j <= n; j++) r *= j;
-      return r;
-    }
-    case 'abs': return Math.abs(x);
-    case 'inv_x': return 1 / x;
-    case 'exp10': return Math.pow(10, x);
-    case 'exp': return Math.exp(x);
-    default: return x;
-  }
+// ============================================================================
+// Expression Tree
+// ============================================================================
+
+type ExprNode =
+  | { type: 'num'; value: number }
+  | { type: 'binop'; op: string; left: ExprNode; right: ExprNode }
+  | { type: 'unary'; op: string; arg: ExprNode }
+  | { type: 'func'; name: string; arg: ExprNode };
+
+function parseExpr(tokens: (string | number)[]): ExprNode {
+  return parseAddSub(tokens);
 }
 
-function evaluate(str: string, isRad: boolean): number {
-  str = str.trim();
-  if (str === '') return 0;
-  const tokens = tokenize(str);
-  if (!tokens) return NaN;
-  let pos = 0;
+function parseAddSub(tokens: (string | number)[]): ExprNode {
+  let left = parseMulDiv(tokens);
+  while (peek(tokens) === '+' || peek(tokens) === '-') {
+    const op = consume(tokens) as string;
+    const right = parseMulDiv(tokens);
+    left = { type: 'binop', op, left, right };
+  }
+  return left;
+}
 
-  const peek = () => tokens[pos];
-  const consume = () => tokens[pos++];
+function parseMulDiv(tokens: (string | number)[]): ExprNode {
+  let left = parsePow(tokens);
+  while (peek(tokens) === '*' || peek(tokens) === '/' || peek(tokens) === '%') {
+    const op = consume(tokens) as string;
+    const right = parsePow(tokens);
+    left = { type: 'binop', op, left, right };
+  }
+  return left;
+}
 
-  function parseExpr(): number {
-    return parseAddSub();
+function parsePow(tokens: (string | number)[]): ExprNode {
+  const base = parseUnary(tokens);
+  if (peek(tokens) === '^') {
+    consume(tokens);
+    const exp = parsePow(tokens);
+    return { type: 'binop', op: '^', left: base, right: exp };
+  }
+  return base;
+}
+
+function parseUnary(tokens: (string | number)[]): ExprNode {
+  if (peek(tokens) === '-') {
+    consume(tokens);
+    return { type: 'unary', op: '-', arg: parseUnary(tokens) };
+  }
+  if (peek(tokens) === '+') {
+    consume(tokens);
+    return parseUnary(tokens);
+  }
+  return parsePrimary(tokens);
+}
+
+function parsePrimary(tokens: (string | number)[]): ExprNode {
+  const t = peek(tokens);
+  if (t === undefined) return { type: 'num', value: 0 };
+
+  if (typeof t === 'number') {
+    consume(tokens);
+    return { type: 'num', value: t };
   }
 
-  function parseAddSub(): number {
-    let left = parseMulDiv();
-    while (peek() === '+' || peek() === '-') {
-      const op = consume() as string;
-      const right = parseMulDiv();
-      left = op === '+' ? left + right : left - right;
-    }
-    return left;
+  if (t === '(') {
+    consume(tokens);
+    const v = parseExpr(tokens);
+    if (peek(tokens) === ')') consume(tokens);
+    return v;
   }
 
-  function parseMulDiv(): number {
-    let left = parsePow();
-    while (peek() === '*' || peek() === '/' || peek() === '%') {
-      const op = consume() as string;
-      const right = parsePow();
-      if (op === '*') left *= right;
-      else if (op === '/') left /= right;
-      else left = left - Math.floor(left / right) * right;
+  if (typeof t === 'string' && t.match(/^[a-z_]+$/)) {
+    consume(tokens);
+    if (peek(tokens) === '(') {
+      consume(tokens);
+      const arg = parseExpr(tokens);
+      if (peek(tokens) === ')') consume(tokens);
+      return { type: 'func', name: t, arg };
     }
-    return left;
+    return { type: 'func', name: t, arg: { type: 'num', value: 0 } };
   }
 
-  function parsePow(): number {
-    const base = parseUnary();
-    if (peek() === '^') {
-      consume();
-      const exp = parsePow();
-      return Math.pow(base, exp);
-    }
-    return base;
-  }
+  consume(tokens);
+  return { type: 'num', value: NaN };
+}
 
-  function parseUnary(): number {
-    if (peek() === '-') {
-      consume();
-      return -parseUnary();
-    }
-    if (peek() === '+') {
-      consume();
-      return parseUnary();
-    }
-    return parsePrimary();
-  }
+let _pos = 0;
+function peek(tokens: (string | number)[]) {
+  return tokens[_pos];
+}
+function consume(tokens: (string | number)[]) {
+  return tokens[_pos++];
+}
 
-  function parsePrimary(): number {
-    const t = peek();
-    if (t === undefined) return 0;
+// ============================================================================
+// API-calling evaluator
+// ============================================================================
 
-    if (typeof t === 'number') {
-      consume();
-      return t;
+const OP_TO_ACTION: Record<string, string> = {
+  '+': 'calc/add',
+  '-': 'calc/subtract',
+  '*': 'calc/multiply',
+  '/': 'calc/divide',
+  '%': 'calc/modulo',
+  '^': 'calc/power',
+};
+
+const FUNC_TO_ACTION: Record<string, string> = {
+  sin: 'calc/sin',
+  cos: 'calc/cos',
+  tan: 'calc/tan',
+  asin: 'calc/asin',
+  acos: 'calc/acos',
+  atan: 'calc/atan',
+  ln: 'calc/ln',
+  log: 'calc/log',
+  log2: 'calc/log2',
+  sqrt: 'calc/sqrt',
+  fact: 'calc/fact',
+  abs: 'calc/abs',
+  inv_x: 'calc/inv',
+  exp10: 'calc/exp10',
+  exp: 'calc/exp',
+};
+
+async function callProtectedAction(action: string, payload: unknown): Promise<number> {
+  const res = await fetch('/api/protected', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload }),
+  });
+  const json = await res.json();
+  if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
+  return json.data.answer;
+}
+
+async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {
+  switch (node.type) {
+    case 'num':
+      return node.value;
+    case 'unary':
+      return -(await evalNode(node.arg, isRad));
+    case 'binop': {
+      const left = await evalNode(node.left, isRad);
+      const right = await evalNode(node.right, isRad);
+      return await callProtectedAction(OP_TO_ACTION[node.op], { a: left, b: right });
     }
-
-    if (t === '(') {
-      consume();
-      const v = parseExpr();
-      if (peek() === ')') consume();
-      return v;
-    }
-
-    if (typeof t === 'string' && t.match(/^[a-z_]+$/)) {
-      consume();
-      if (peek() === '(') {
-        consume();
-        const arg = parseExpr();
-        if (peek() === ')') consume();
-        return applyFunc(t, arg, isRad);
+    case 'func': {
+      const arg = await evalNode(node.arg, isRad);
+      const isTrig = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan'].includes(node.name);
+      if (isTrig) {
+        return await callProtectedAction(FUNC_TO_ACTION[node.name], { n: arg, mode: isRad ? 'rad' : 'deg' });
       }
-      return applyFunc(t, 0, isRad);
+      return await callProtectedAction(FUNC_TO_ACTION[node.name], { n: arg });
     }
-
-    consume();
-    return NaN;
-  }
-
-  try {
-    return parseExpr();
-  } catch {
-    return NaN;
   }
 }
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export function CalculatorClient() {
-  const { userData } = useLogto();
   const [state, setState] = useState<CalcState>(loadState);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const backspaceRef = useRef<HTMLButtonElement>(null);
@@ -273,45 +314,58 @@ export function CalculatorClient() {
     });
   }, [flush]);
 
-  const handleCalculate = useCallback(async (result: number) => {
-    if (!userData?.id) {
-      alert('Not authenticated');
+  const handleEquals = useCallback(async () => {
+    let exprToEval = state.expr + (state.curToken || '');
+    const radMode = state.isRad;
+    let parens = state.openParens;
+    while (parens > 0) {
+      exprToEval += ')';
+      parens--;
+    }
+
+    if (!exprToEval) {
       return;
     }
 
+    setState(prev => ({
+      ...prev,
+      expr: exprToEval,
+      curToken: '',
+      openParens: 0,
+      isCalculating: true,
+    }));
+
     try {
-      const freshToken = await getFreshAccessToken();
+      _pos = 0;
+      const tokens = tokenize(exprToEval);
+      if (!tokens) throw new Error('Invalid expression');
+      const tree = parseExpr(tokens);
+      const result = await evalNode(tree, radMode);
+      const rs = fmtNum(result);
 
-      const hasScientific = /\b(sin|cos|tan|log|ln|sqrt|asin|acos|atan|log2|fact|abs|inv_x|exp10|exp)\b/.test(state.expr);
-      const action = hasScientific ? 'calc-scientific' : 'calc-basic';
-
-      const response = await fetch('/api/protected', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: freshToken,
-          id: userData.id,
-          action,
-          payload: { expression: state.expr, result },
-        }),
-      });
-
-      const res = await response.json();
-
-      if (res.ok && res.data) {
-        console.log(`✅ Calculation succeeded: ${res.data.message}`);
-      } else {
-        console.error(`❌ Calculation failed: ${res.message}`);
-        alert(`Permission denied: ${res.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to calculate:', error);
-      alert('Failed to execute calculation');
+      setState(prev => ({
+        ...prev,
+        expr: rs,
+        isCalculating: false,
+        justEvaled: true,
+        lastWasOp: false,
+        lastWasClose: false,
+      }));
+    } catch (err) {
+      console.error('Calculation failed:', err);
+      setState(prev => ({
+        ...prev,
+        expr: 'Error',
+        isCalculating: false,
+        justEvaled: true,
+      }));
     }
-  }, [userData, state.expr]);
+  }, [state.expr, state.curToken, state.isRad, state.openParens]);
 
   const act = useCallback((a: string, data: string | null) => {
     setState(prev => {
+      if (prev.isCalculating) return prev;
+
       let newState = { ...prev };
 
       if (newState.justEvaled && a === 'digit') {
@@ -384,26 +438,7 @@ export function CalculatorClient() {
           break;
         }
         case 'equals': {
-          if (newState.curToken) {
-            newState.expr += newState.curToken;
-            newState.curToken = '';
-          }
-          while (newState.openParens > 0) {
-            newState.expr += ')';
-            newState.openParens--;
-          }
-          if (newState.expr === '') break;
-          const result = evaluate(newState.expr, newState.isRad);
-          const rs = fmtNum(result);
-          const finalExpr = newState.expr;
-          newState.expr = rs;
-          newState.openParens = 0;
-          newState.lastWasOp = false;
-          newState.lastWasClose = false;
-          newState.justEvaled = true;
-          // Call API after state update completes
-          setTimeout(() => handleCalculate(result), 0);
-          break;
+          return prev; // handled by handleEquals
         }
         case 'fn': {
           const f = data;
@@ -454,19 +489,20 @@ export function CalculatorClient() {
       }
       return newState;
     });
-  }, [handleCalculate]);
+  }, []);
 
-  const getDisplayStr = useCallback(() => {
+  const mainDisplay = useMemo(() => {
+    if (state.isCalculating) return '...';
     if (state.curToken !== '') return state.curToken;
     if (state.expr === '') return '0';
     return state.expr;
-  }, [state]);
+  }, [state.isCalculating, state.curToken, state.expr]);
 
-  const mainDisplay = getDisplayStr();
   const exprDisplay = state.justEvaled ? '' : (state.expr + (state.curToken ? ' ' + state.curToken : ''));
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (state.isCalculating) return;
       if (e.key >= '0' && e.key <= '9') { act('digit', e.key); return; }
       if (e.key === '.') { act('dot', null); return; }
       if (e.key === '+') { act('op', '+'); return; }
@@ -475,13 +511,14 @@ export function CalculatorClient() {
       if (e.key === '/') { e.preventDefault(); act('op', '/'); return; }
       if (e.key === '%') { act('op', '%'); return; }
       if (e.key === '^') { act('fn', 'pow'); return; }
-      if (e.key === 'Enter' || e.key === '=') { act('equals', null); return; }
+      if (e.key === 'Enter' || e.key === '=') { handleEquals(); return; }
       if (e.key === 'Backspace') { act('del', null); return; }
       if (e.key === 'Escape') { act('clear', null); return; }
       if (e.key === '(') { smartParen(); return; }
       if (e.key === ')') {
         flush();
         setState(prev => {
+          if (prev.isCalculating) return prev;
           if (prev.openParens > 0) {
             return {
               ...prev,
@@ -498,7 +535,7 @@ export function CalculatorClient() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [act, smartParen, flush]);
+  }, [act, smartParen, flush, handleEquals, state.isCalculating]);
 
   const handleBackspaceMouseDown = () => {
     isLongPressRef.current = false;
@@ -740,7 +777,7 @@ export function CalculatorClient() {
           <div style={row4Style}>
             <button style={{ ...btnStyle, gridColumn: 'span 2' }} onClick={() => act('digit', '0')}>0</button>
             <button style={btnStyle} onClick={() => act('dot', null)}>.</button>
-            <button style={eqBtnStyle} onClick={() => act('equals', null)}>=</button>
+            <button style={eqBtnStyle} onClick={() => { if (!state.isCalculating) handleEquals(); }}>=</button>
           </div>
         </div>
       </div>

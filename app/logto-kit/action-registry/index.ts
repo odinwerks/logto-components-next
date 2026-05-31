@@ -1,17 +1,30 @@
 'use server';
 
-export interface ProtectedActionHandler {
-  (data: { userId: string; orgId: string; payload: unknown }): Promise<unknown>;
-}
+import type { ActionConfig, ActionRegistry } from '../logic/types';
 
-export interface ActionConfig {
-  requiredPerm: string | string[];
-  handler: ProtectedActionHandler;
-}
-
-export type ActionRegistry = Record<string, ActionConfig>;
-
-import { getBasicCalc, getScientificCalc } from './calc-actions';
+import {
+  getCalcAdd,
+  getCalcSubtract,
+  getCalcMultiply,
+  getCalcDivide,
+  getCalcModulo,
+  getCalcPower,
+  getCalcSin,
+  getCalcCos,
+  getCalcTan,
+  getCalcAsin,
+  getCalcAcos,
+  getCalcAtan,
+  getCalcLn,
+  getCalcLog,
+  getCalcLog2,
+  getCalcSqrt,
+  getCalcFact,
+  getCalcAbs,
+  getCalcInv,
+  getCalcExp10,
+  getCalcExp,
+} from './calc-actions';
 
 // Lazy-loaded action cache
 let _actionsCache: ActionRegistry | null = null;
@@ -19,24 +32,100 @@ let _actionsCache: ActionRegistry | null = null;
 async function loadActions(): Promise<ActionRegistry> {
   if (_actionsCache) return _actionsCache;
 
-  const [basic, scientific] = await Promise.all([
-    getBasicCalc(),
-    getScientificCalc(),
+  const [
+    add,
+    subtract,
+    multiply,
+    divide,
+    modulo,
+    power,
+    sin,
+    cos,
+    tan,
+    asin,
+    acos,
+    atan,
+    ln,
+    log,
+    log2,
+    sqrt,
+    fact,
+    abs,
+    inv,
+    exp10,
+    exp,
+  ] = await Promise.all([
+    getCalcAdd(),
+    getCalcSubtract(),
+    getCalcMultiply(),
+    getCalcDivide(),
+    getCalcModulo(),
+    getCalcPower(),
+    getCalcSin(),
+    getCalcCos(),
+    getCalcTan(),
+    getCalcAsin(),
+    getCalcAcos(),
+    getCalcAtan(),
+    getCalcLn(),
+    getCalcLog(),
+    getCalcLog2(),
+    getCalcSqrt(),
+    getCalcFact(),
+    getCalcAbs(),
+    getCalcInv(),
+    getCalcExp10(),
+    getCalcExp(),
   ]);
 
   _actionsCache = {
-    'calc-basic': basic,
-    'calc-scientific': scientific,
+    'calc/add': add,
+    'calc/subtract': subtract,
+    'calc/multiply': multiply,
+    'calc/divide': divide,
+    'calc/modulo': modulo,
+    'calc/power': power,
+    'calc/sin': sin,
+    'calc/cos': cos,
+    'calc/tan': tan,
+    'calc/asin': asin,
+    'calc/acos': acos,
+    'calc/atan': atan,
+    'calc/ln': ln,
+    'calc/log': log,
+    'calc/log2': log2,
+    'calc/sqrt': sqrt,
+    'calc/fact': fact,
+    'calc/abs': abs,
+    'calc/inv': inv,
+    'calc/exp10': exp10,
+    'calc/exp': exp,
   };
 
-  // Validate that every registered action has a valid requiredPerm
+  // Strict validation: every action MUST define all three check categories.
+  // Missing any field is a fatal setup error — the registry is unusable.
   for (const [name, config] of Object.entries(_actionsCache)) {
-    const { requiredPerm } = config;
-    const isValidString = typeof requiredPerm === 'string' && requiredPerm.length > 0;
-    const isValidArray = Array.isArray(requiredPerm) && requiredPerm.length > 0 && requiredPerm.every((p) => typeof p === 'string' && p.length > 0);
-    if (!isValidString && !isValidArray) {
-      console.warn(`[loadActions] Action "${name}" has invalid requiredPerm: ${JSON.stringify(requiredPerm)}. Removing from registry.`);
-      delete _actionsCache[name];
+    const missing: string[] = [];
+    if (!config.requiredOrgId || typeof config.requiredOrgId !== 'string' || config.requiredOrgId.length === 0) {
+      missing.push('requiredOrgId');
+    }
+    const hasRole = Array.isArray(config.requiredRoleId)
+      ? config.requiredRoleId.length > 0
+      : typeof config.requiredRoleId === 'string' && config.requiredRoleId.length > 0;
+    if (!hasRole) {
+      missing.push('requiredRoleId');
+    }
+    const hasPerm = Array.isArray(config.requiredPermId)
+      ? config.requiredPermId.length > 0
+      : typeof config.requiredPermId === 'string' && config.requiredPermId.length > 0;
+    if (!hasPerm) {
+      missing.push('requiredPermId');
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `IMPROPER_SETUP_ERROR: Action "${name}" is missing required fields: ${missing.join(', ')}. ` +
+        'Every protected action MUST define requiredOrgId, requiredRoleId, and requiredPermId.'
+      );
     }
   }
 

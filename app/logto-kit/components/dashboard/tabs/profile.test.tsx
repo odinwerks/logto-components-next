@@ -10,9 +10,19 @@ vi.mock('@logto/next/server-actions', () => ({
 
 // ── Mocks (use vi.hoisted for values vi.mock factories need) ──
 
-const { mockReadEnv, MockUserBadge } = vi.hoisted(() => ({
+const { mockReadEnv, MockUserBadge, mockLoadPersonalPermissions, mockLoadPersonalRoles } = vi.hoisted(() => ({
   mockReadEnv: vi.fn(),
   MockUserBadge: () => null,
+  mockLoadPersonalPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+  mockLoadPersonalRoles: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+}));
+
+vi.mock('../../../server-actions/load-personal-permissions', () => ({
+  loadPersonalPermissions: () => mockLoadPersonalPermissions(),
+}));
+
+vi.mock('../../../server-actions/load-personal-roles', () => ({
+  loadPersonalRoles: () => mockLoadPersonalRoles(),
 }));
 
 vi.mock('../../../logic/env', () => ({
@@ -43,7 +53,7 @@ vi.mock('../../UserButton', () => ({
   UserBadge: MockUserBadge,
 }));
 
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ProfileTab } from './profile';
 import type { UserData } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
@@ -339,5 +349,36 @@ describe('ProfileTab — behavioral', () => {
     // onError must be called, but refreshData must NOT be — edits are preserved for retry.
     expect(onError).toHaveBeenCalled();
     expect(refreshData).not.toHaveBeenCalled();
+  });
+
+  it('PersonalPermissionsBlock — re-fetches permissions on refresh (BUG-002)', async () => {
+    mockLoadPersonalPermissions.mockClear();
+    mockLoadPersonalPermissions.mockResolvedValue({
+      ok: true,
+      data: [{ scope: 'read:profile', resourceName: 'Profile', resourceIndicator: 'https://api' }],
+    });
+
+    renderProfile(undefined);
+
+    // Initial fetch should occur on mount
+    expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(1);
+
+    // Wait for the permissions to be loaded and rendered, so loading becomes false and the refresh button is enabled
+    await screen.findByText('read:profile');
+
+    const textNode = screen.getByText('Granted permissions');
+    const parent = textNode.parentElement;
+    const refreshButton = parent?.querySelector('button');
+    expect(refreshButton).toBeInTheDocument();
+    expect(refreshButton).not.toBeDisabled();
+
+    await act(async () => {
+      fireEvent.click(refreshButton!);
+    });
+
+    // useRefreshable has a 35ms timeout before making visible true again. Wait for it to be called.
+    await waitFor(() => {
+      expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(2);
+    });
   });
 });

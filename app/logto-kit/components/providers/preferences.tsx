@@ -132,13 +132,18 @@ export function PreferencesProvider({
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
 
-  const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
+  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme);
   const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
   const [asOrg, setAsOrgState] = useState<string | null>(() => {
     const stored = getStoredOrg();
     if (stored) return stored;
     return initialOrgId ?? null;
   });
+
+  // Client-only mount effect to write initialTheme to sessionStorage
+  useEffect(() => {
+    setStoredTheme(initialTheme);
+  }, []);
 
   // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);
@@ -265,12 +270,7 @@ export function useThemeMode(): ThemeModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedTheme = getStoredTheme();
-    return {
-      ...context.theme,
-      mode: storedTheme ?? context.theme.mode,
-    };
+    return context.theme;
   }
 
   if (process.env.NODE_ENV === 'development') {

@@ -12,11 +12,16 @@ vi.mock('../config', () => ({
   getLogtoConfig: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock('../logic/actions', () => ({
+  updateUserCustomData: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
 // ============================================================================
 // Imports of mocked modules (for vi.mocked usage)
 // ============================================================================
 
 import { getLogtoContext } from '@logto/next/server-actions';
+import { updateUserCustomData } from '../logic/actions';
 
 // ============================================================================
 // setActiveOrg tests
@@ -34,6 +39,7 @@ describe('setActiveOrg', () => {
     // Should short-circuit — no Logto call needed
     expect(result).toBe(true);
     expect(getLogtoContext).not.toHaveBeenCalled();
+    expect(updateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: null } });
   });
 
   it('returns false when the user is not authenticated', async () => {

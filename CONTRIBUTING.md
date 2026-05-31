@@ -33,7 +33,7 @@ Thank you for your interest in contributing to Logto Dash! This document provide
 
 ### Environment Configuration
 
-See the README.md for detailed environment variable configuration. Copy `.env.example` to `.env` and fill in your values — the example file is the authoritative reference for all required and optional variables.
+See the README.md for detailed environment variable configuration. Copy `.env.example` to `.env` and fill in your values  the example file is the authoritative reference for all required and optional variables.
 
 ## Pull Request Process
 
@@ -131,10 +131,10 @@ npm run test:run
 ```
 
 Tests live in the following files:
-- `app/logto-kit/logic/guards.test.ts` — input validators for all trust boundaries
-- `app/logto-kit/logic/origin-guard.test.ts` — CSRF/origin validation
-- `app/logto-kit/logic/errors.test.ts` — error utilities
-- `app/logto-kit/logic/dev-mode.test.ts` — NODE_ENV gate for dev-only features
+- `app/logto-kit/logic/guards.test.ts`  input validators for all trust boundaries
+- `app/logto-kit/logic/origin-guard.test.ts`  CSRF/origin validation
+- `app/logto-kit/logic/errors.test.ts`  error utilities
+- `app/logto-kit/logic/dev-mode.test.ts`  NODE_ENV gate for dev-only features
 
 Run `npm run test:run` and `npm run type-check` locally before pushing. There is currently no automated CI pipeline.
 
@@ -173,7 +173,7 @@ Thank you for contributing to Logto Dash!
 
 ## Security Checklist for New Server Actions
 
-Every `'use server'` function is a trust boundary — the browser can call it with arbitrary arguments. Follow this checklist before merging:
+Every `'use server'` function is a trust boundary  the browser can call it with arbitrary arguments. Follow this checklist before merging:
 
 **1. Validate every client-supplied parameter at the entry point**
 
@@ -226,7 +226,7 @@ if (!res.ok) {
 }
 ```
 
-For new server actions, import `throwOnApiError` directly from `../logic/errors` — it accepts a typed `ErrorCode` fallback and an optional operation string:
+For new server actions, import `throwOnApiError` directly from `../logic/errors`  it accepts a typed `ErrorCode` fallback and an optional operation string:
 
 ```ts
 import { throwOnApiError } from '../logic/errors';

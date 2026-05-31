@@ -214,9 +214,14 @@ export function validatePassword(password: string, t: Translations['validation']
   if (password.length > 256)
     throw new ValidationError(t.passwordTooLong, field);
 }`} />
-      <CodeBlock title="validateVerificationCode / validateUsername / validateUrl" code={`export function validateVerificationCode(code: string, t: Translations['validation']): void {
+      <CodeBlock title="validateVerificationCode / validateVerificationId / validateUsername / validateUrl" code={`export function validateVerificationCode(code: string, t: Translations['validation']): void {
   if (!/^\\d{6}$/.test(code))
     throw new ValidationError(t.codeMustBeSixDigits, 'code');
+}
+
+export function validateVerificationId(id: string, t: Translations['validation'], field = 'verificationId'): void {
+  if (!id || typeof id !== 'string' || id.trim().length === 0)
+    throw new ValidationError(t.verificationIdRequired, field);
 }
 
 export function validateUsername(username: string, t: Translations['validation']): void {
@@ -366,7 +371,11 @@ function OriginGuardSection() {
         handlers do NOT - they need an explicit check.
       </p>
       <CodeBlock title="checkSameOrigin()" code={`export function checkSameOrigin(request: NextRequest): NextResponse | null {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.BASE_URL || process.env.APP_URL;
+  if (!baseUrl) {
+    warn('[origin-guard] BASE_URL is not configured, rejecting request');
+    return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
+  }
 
   let expectedOrigin: string;
   try { expectedOrigin = new URL(baseUrl).origin; }
@@ -375,7 +384,7 @@ function OriginGuardSection() {
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
 
-  const origin = request.headers.get('origin') ?? request.headers.get('referer');
+  const origin = request.headers.get('origin');
   if (!origin)
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
 
@@ -390,7 +399,7 @@ function OriginGuardSection() {
 }`} />
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Fail-closed:</strong>{' '}
-        Returns 403 if Origin/Referer is absent or doesn't match BASE_URL.
+        Returns 403 if Origin header is absent or doesn't match BASE_URL.
         Cross-origin POST requests from browsers always include an Origin header.
       </div>
     </SectionWrap>

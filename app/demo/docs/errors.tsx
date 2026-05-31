@@ -108,7 +108,7 @@ function ErrorCodesSection() {
   return (
     <SectionWrap label="Error codes">
       <p style={styles.textStyle}>
-        All 23 error codes. These are the only strings clients receive in production
+        All 22 error codes. These are the only strings clients receive in production
         (unless <code style={styles.codeStyle}>PLAIN_ERRORS=true</code>).
       </p>
       <table style={styles.tableStyle}>
@@ -174,10 +174,6 @@ function ErrorCodesSection() {
           <tr>
             <td style={styles.tdPropStyle}>BACKUP_CODES_FAILED</td>
             <td style={styles.tdStyle}>Backup code generation or fetch failed</td>
-          </tr>
-          <tr>
-            <td style={styles.tdPropStyle}>BACKUP_CODES_NO_MFA_FACTOR</td>
-            <td style={styles.tdStyle}>MFA factor not found for backup code operation</td>
           </tr>
           <tr>
             <td style={styles.tdPropStyle}>PASSWORD_UPDATE_FAILED</td>
@@ -303,6 +299,18 @@ export async function throwOnApiError(
 
   // Always log server-side
   warn(\`[\${operation}] HTTP \${res.status}: \${detail}\`);
+
+  // If Logto sent a message in the response body, proxy it directly
+  try {
+    const parsed = JSON.parse(detail);
+    if (typeof parsed?.message === 'string' && parsed.message.trim()) {
+      const err = new Error(parsed.message.trim());
+      err.name = 'SanitizedError';
+      throw err;
+    }
+  } catch (parseErr) {
+    if (parseErr instanceof Error && parseErr.name === 'SanitizedError') throw parseErr;
+  }
 
   if (plainErrors) {
     throw new Error(\`\${fallback} \${res.status}: \${detail}\`);

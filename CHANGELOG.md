@@ -1,21 +1,21 @@
-## [0.3.1] — 2026-05-04
+## [0.3.1]  2026-05-04
 
 ### Added
 
-- **WebAuthn passkey management** in Security tab — register, rename, and delete passkeys via Logto Account API
+- **WebAuthn passkey management** in Security tab  register, rename, and delete passkeys via Logto Account API
   - New server actions: `requestWebAuthnRegistration`, `verifyAndLinkWebAuthn`, `renamePasskey` (`logic/actions/webauthn.ts`)
-  - `assertPasskeyName` guard in `guards.ts` — validates non-empty, ≤64 chars, no control chars
+  - `assertPasskeyName` guard in `guards.ts`  validates non-empty, ≤64 chars, no control chars
   - FlowModal extended with `rename-passkey` step type
   - Browser support detection with `browserSupportsWebAuthn()` from `@simplewebauthn/browser`
-  - User cancel (NotAllowedError) handled gracefully — modal closes silently
+  - User cancel (NotAllowedError) handled gracefully  modal closes silently
   - 25 new tests (19 action + 6 guard)
   - 18 new i18n keys with Georgian translations
-- **Session management server actions** — `getUserSessions`, `getSessionsWithDeviceMeta`, `revokeUserSession`, `revokeAllOtherSessions`, `getUserGrants`, `revokeUserGrant` in `logic/actions/sessions.ts`
-- **`replaceTotpVerification` server action** — TOTP replacement support in `logic/actions/mfa.ts`
-- **`fetchUserBadgeData` server action** — lightweight user data fetch for badge/button-only contexts
-- **`NAME_TYPE` env var** — controls name display mode (`given_family`, `username`, or `full`)
-- **`DEBUG` env var** — verbose server-side debug logging gate
-- **`formatPhone` utility** — country-code-aware phone number formatter in `logic/formatting.ts`
+- **Session management server actions**  `getUserSessions`, `getSessionsWithDeviceMeta`, `revokeUserSession`, `revokeAllOtherSessions`, `getUserGrants`, `revokeUserGrant` in `logic/actions/sessions.ts`
+- **`replaceTotpVerification` server action**  TOTP replacement support in `logic/actions/mfa.ts`
+- **`fetchUserBadgeData` server action**  lightweight user data fetch for badge/button-only contexts
+- **`NAME_TYPE` env var**  controls name display mode (`given_family`, `username`, or `full`)
+- **`DEBUG` env var**  verbose server-side debug logging gate
+- **`formatPhone` utility**  country-code-aware phone number formatter in `logic/formatting.ts`
 
 ### Changed
 
@@ -23,13 +23,13 @@
 
 ### Fixed
 
-- **SessionMapModal tests** — 3 pre-existing test failures fixed:
+- **SessionMapModal tests**  3 pre-existing test failures fixed:
   - Location label test updated for intentional Set-based deduplication (test both dedup and non-dedup cases)
   - Zoom level test corrected from 13 to 14 (original typo)
   - Light theme tile assertion updated from `light_all` to `voyager` (intentional design choice)
   - Mock translations object completed (added missing `viewOnGoogleMaps`)
 
-## [0.3.0] — 2026-04-29
+## [0.3.0]  2026-04-29
 
 ### BREAKING CHANGES
 
@@ -54,24 +54,24 @@
 
 ### New Files
 
-- `app/logto-kit/logic/guards.ts` — Input validators for all server-action trust boundaries
-- `app/logto-kit/logic/dev-mode.ts` — Single source of truth for `NODE_ENV` checks
-- `app/logto-kit/logic/origin-guard.ts` — Same-origin guard for route handlers
-- `app/logto-kit/logic/audit.ts` — Audit log primitive (dev console + extensible transport)
-- `app/logto-kit/logic/actions/debug-token.ts` — Dev-only server action for accessing the token
-- `public/robots.txt` — Disables search engine indexing (recommended for auth dashboards)
+- `app/logto-kit/logic/guards.ts`  Input validators for all server-action trust boundaries
+- `app/logto-kit/logic/dev-mode.ts`  Single source of truth for `NODE_ENV` checks
+- `app/logto-kit/logic/origin-guard.ts`  Same-origin guard for route handlers
+- `app/logto-kit/logic/audit.ts`  Audit log primitive (dev console + extensible transport)
+- `app/logto-kit/logic/actions/debug-token.ts`  Dev-only server action for accessing the token
+- `public/robots.txt`  Disables search engine indexing (recommended for auth dashboards)
 
 ### Security Regression Tests (new)
 
-- `guards.test.ts` — 46 tests covering all input validators, injection paths, and the base64url regression
-- `origin-guard.test.ts` — 5 tests for the CSRF same-origin check
-- `errors.test.ts` — 5 tests for the sanitise/throwOnApiError behaviours
-- `dev-mode.test.ts` — Documents expected `isDev` behaviour per environment
+- `guards.test.ts`  46 tests covering all input validators, injection paths, and the base64url regression
+- `origin-guard.test.ts`  5 tests for the CSRF same-origin check
+- `errors.test.ts`  5 tests for the sanitise/throwOnApiError behaviours
+- `dev-mode.test.ts`  Documents expected `isDev` behaviour per environment
 
 ### Production Hardening
 
 - Security headers added to all responses via `next.config.ts`: CSP, HSTS, X-Frame-Options, X-Content-Type-Options, XSS-Protection, Referrer-Policy, Permissions-Policy
-- CI pipeline was removed — local testing recommended: `npm run type-check && npm run test:run && npm run build`
+- CI pipeline was removed  local testing recommended: `npm run type-check && npm run test:run && npm run build`
 
 
 ---

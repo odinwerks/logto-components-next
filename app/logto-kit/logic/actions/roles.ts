@@ -5,7 +5,7 @@ import { getCleanEndpoint, introspectToken } from '../utils';
 import { debugLog } from '../debug';
 import { assertSafeUserId, assertSafeLogtoId } from '../guards';
 import { safeAction, type DataResult } from './safe';
-import type { UserRole, PersonalPermission, RoleScope } from '../types';
+import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult } from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize } from '../errors';
@@ -119,13 +119,99 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
 }
 
 /**
- * Gets the user's personal (global RBAC) permissions by fetching their roles
- * and the scopes assigned to each role via the Management API.
+ * Verifies the authenticated user's personal (global) roles and permissions
+ * via the Logto Management API (M2M credentials).
  *
- * Uses the M2M client-credentials token, so it is NOT constrained by the
- * OAuth Scope Subset Rule — new permissions granted server-side appear
- * immediately without re-authentication.
+ * This is the personal-RBAC equivalent of verifyOrgAccess. When an action
+ * config sets requiredOrgId to "self", the route calls this instead of
+ * verifyOrgAccess.
+ *
+ * Flow:
+ *   1. Introspect session → userId
+ *   2. GET /api/users/{userId}/roles → personal roles
+ *   3. For each role: GET /api/roles/{roleId}/scopes → scope names
+ *   4. Union scope names → effective personal permissions
  */
+export async function verifyPersonalAccess(): Promise<DataResult<PersonalAccessResult>> {
+  return safeAction(async () => {
+    // Derive userId server-side from session
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    const userId = introspection.sub;
+    if (!userId) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    assertSafeUserId(userId);
+
+    const m2mToken = await getManagementApiToken();
+    const endpoint = getCleanEndpoint();
+
+    // Step 1: fetch user's personal roles
+    const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
+    debugLog(`[verifyPersonalAccess] Fetching personal roles: ${rolesUrl}`);
+
+    const rolesRes = await fetch(rolesUrl, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${m2mToken}` },
+    });
+
+    if (!rolesRes.ok) {
+      const text = await rolesRes.text().catch(() => '');
+      warn(`[verifyPersonalAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
+      throw new Error('UNAUTHORIZED');
+    }
+
+    const roles = (await rolesRes.json()) as UserRole[];
+    debugLog(`[verifyPersonalAccess] User ${userId} has ${roles.length} personal roles`);
+
+    if (roles.length === 0) {
+      return { roles: [], permissions: [] };
+    }
+
+    // Step 2: fetch scopes for every role in parallel
+    const scopeResults = await Promise.allSettled(
+      roles.map(async (role) => {
+        const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
+        const scopesRes = await fetch(scopesUrl, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${m2mToken}` },
+        });
+
+        if (!scopesRes.ok) {
+          const text = await scopesRes.text().catch(() => '');
+          warn(`[verifyPersonalAccess] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
+          throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
+        }
+
+        return (await scopesRes.json()) as RoleScope[];
+      })
+    );
+
+    // Union scope names from all successful fetches
+    const seen = new Set<string>();
+    const permissions: string[] = [];
+
+    for (const result of scopeResults) {
+      if (result.status === 'fulfilled') {
+        for (const scope of result.value) {
+          if (scope.name && !seen.has(scope.name)) {
+            seen.add(scope.name);
+            permissions.push(scope.name);
+          }
+        }
+      } else {
+        warn(`[verifyPersonalAccess] Scope fetch failed for a role: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+      }
+    }
+
+    debugLog(`[verifyPersonalAccess] Effective personal permissions for user ${userId}:`, permissions);
+    return { roles, permissions };
+  });
+}
+
 export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>> {
   return safeAction(async () => {
     const sessionToken = await getTokenForServerAction();
@@ -219,6 +305,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
           scope: scope.name,
           resourceName: resource.name,
           resourceIndicator: resource.indicator,
+          description: scope.description,
         });
       }
     }

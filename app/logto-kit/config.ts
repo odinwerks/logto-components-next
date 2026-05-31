@@ -33,8 +33,10 @@ function getEnvVar(name: string, required = true): string {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
   }
 
-  // AGGRESSIVE trim: remove ALL whitespace, newlines, tabs
-  const value = valueRaw?.toString().replace(/\s+/g, '').trim() || '';
+  // AGGRESSIVE trim: remove ALL whitespace, newlines, tabs (unless name is 'SCOPES')
+  const value = name === 'SCOPES'
+    ? (valueRaw?.toString().trim() || '')
+    : (valueRaw?.toString().replace(/\s+/g, '').trim() || '');
 
   if (required && !value && !isBuildTime) {
     throw new Error(`Environment variable ${name} is empty after aggressive trimming`);

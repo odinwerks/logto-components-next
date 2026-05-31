@@ -305,16 +305,12 @@ function DesktopMobilePropSection() {
 <LogtoProvider
   dashboard={{
     desktop: <Dashboard />,
-    mobile:  <Dashboard mobile />
+    mobile:  <MobileDashboard />
   }}
 >`} />
-      <p style={styles.textStyle}>
+      <p style={{ ...styles.textStyle, marginBottom: 0 }}>
         Both variants are pre-rendered Server Components. The router selects which to show.
       </p>
-      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-        <strong style={styles.strongNoteStyle}>Alternative:</strong>{' '}
-        Pass a single <code style={styles.codeSmStyle}>dashboard</code> prop for desktop-only rendering.
-      </div>
     </SectionWrap>
   );
 }

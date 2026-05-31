@@ -21,7 +21,7 @@ function ProviderTreeSection() {
       </p>
       <CodeBlock title="All-in-one entry point" code={`<LogtoProvider
   userData={userData}       // from fetchDashboardData()
-  dashboard={<Dashboard />} // Server Component JSX
+  dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }} // Server Component JSX
   initialTheme="dark"       // optional - falls back to storage or ENV
   initialLang="en-US"       // optional - falls back to storage or default
   onUpdateCustomData={updateUserCustomData} // optional - persists to Logto API
@@ -109,7 +109,7 @@ export default async function HomePage() {
   return (
     <LogtoProvider
       userData={result.userData}
-      dashboard={<Dashboard />}
+      dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
       initialTheme="dark"
       onUpdateCustomData={updateUserCustomData}
     >

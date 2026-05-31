@@ -20,6 +20,10 @@ vi.mock('./tokens', () => ({
   getTokenForServerAction: vi.fn().mockResolvedValue('mock-access-token'),
 }));
 
+vi.mock('@logto/next/server-actions', () => ({
+  getLogtoContext: vi.fn(),
+}));
+
 vi.mock('../guards', () => {
   // Define ValidationError inline to avoid module resolution issues in mock
   class ValidationError extends Error {
@@ -67,6 +71,9 @@ vi.mock('../guards', () => {
 
 vi.mock('../../config', () => ({
   getManagementApiToken: vi.fn().mockResolvedValue('mock-mgmt-token'),
+  getLogtoConfig: vi.fn().mockReturnValue({
+    endpoint: 'https://logto.example.com',
+  }),
 }));
 
 vi.mock('../utils', () => ({
@@ -80,8 +87,9 @@ vi.mock('../utils', () => ({
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
+import { getLogtoContext } from '@logto/next/server-actions';
 import { decodeLogtoAccessToken, pickPreferences } from '../guards';
-import { getManagementApiToken } from '../../config';
+import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 
 // ============================================================================
@@ -124,7 +132,10 @@ describe('updateUserCustomData', () => {
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
-    vi.mocked(decodeLogtoAccessToken).mockReturnValue({ sub: 'user-test-123' } as any);
+    vi.mocked(getLogtoContext).mockResolvedValue({
+      claims: { sub: 'user-test-123' },
+      isAuthenticated: true,
+    } as any);
   });
 
   it('issues a GET then a PATCH to the Management API custom-data endpoint', async () => {
@@ -382,6 +393,42 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
+  it('returns { ok: false } when the user is unauthenticated', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    vi.mocked(getLogtoContext).mockResolvedValueOnce({
+      claims: { sub: 'user-test-123' },
+      isAuthenticated: false,
+    } as any);
+
+    vi.stubGlobal('fetch', vi.fn());
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result.ok).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('returns { ok: false } when the user ID is missing', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    vi.mocked(getLogtoContext).mockResolvedValueOnce({
+      claims: {},
+      isAuthenticated: true,
+    } as any);
+
+    vi.stubGlobal('fetch', vi.fn());
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result.ok).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
   it('GET request carries correct Authorization header with management token', async () => {
     const { updateUserCustomData } = await import('./profile');
 
@@ -428,7 +475,6 @@ describe('updateUserCustomData', () => {
     // Reset modules to get fresh lock map
     vi.resetModules();
 
-    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
 
@@ -441,9 +487,10 @@ describe('updateUserCustomData', () => {
     let secondCallStarted = false;
 
     // First user's GET — will block
-    vi.mocked(decodeLogtoAccessToken).mockReturnValueOnce({ sub: 'user-A' } as any);
     // Second user's GET — should NOT wait for first user
-    vi.mocked(decodeLogtoAccessToken).mockReturnValueOnce({ sub: 'user-B' } as any);
+    vi.mocked(getLogtoContext)
+      .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as any)
+      .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as any);
 
     vi.stubGlobal('fetch', vi.fn()
       // user-A GET — blocks
@@ -483,8 +530,7 @@ describe('updateUserCustomData', () => {
   it('still serializes concurrent updates from the same user', async () => {
     vi.resetModules();
 
-    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
-    vi.mocked(decodeLogtoAccessToken).mockReturnValue({ sub: 'same-user-123' } as any);
+    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as any);
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
 
@@ -523,6 +569,43 @@ describe('updateUserCustomData', () => {
 
     await promise2;
     expect(secondCallStarted).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('correctly serializes and chains concurrent updates from the same user without overlap', async () => {
+    vi.resetModules();
+
+    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as any);
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
+
+    const { updateUserCustomData } = await import('./profile');
+
+    const timeline: string[] = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url, init) => {
+      const isPatch = init?.method === 'PATCH';
+      const type = isPatch ? 'PATCH' : 'GET';
+      timeline.push(`start-${type}`);
+      await new Promise(r => setTimeout(r, 20));
+      timeline.push(`end-${type}`);
+      return mockOkResponse({});
+    }));
+
+    // Start three updates concurrently
+    const p1 = updateUserCustomData({ Preferences: { theme: 'dark' } });
+    const p2 = updateUserCustomData({ Preferences: { lang: 'en' } });
+    const p3 = updateUserCustomData({ Preferences: { theme: 'light' } });
+
+    await Promise.all([p1, p2, p3]);
+
+    // Expected timeline should be strictly sequential:
+    // start-GET, end-GET, start-PATCH, end-PATCH, start-GET, end-GET, start-PATCH, end-PATCH, ...
+    expect(timeline).toEqual([
+      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
+      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
+      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH'
+    ]);
 
     vi.unstubAllGlobals();
   });
