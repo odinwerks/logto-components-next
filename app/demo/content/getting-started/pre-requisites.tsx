@@ -14,7 +14,7 @@ export default function PreRequisites() {
           Before setting up this Next.js starter kit, you need a running, accessible instance of <strong>Logto</strong>.
         </p>
         <p style={styles.textStyle}>
-          You have three deployment paths depending on your needs. We highly recommend <strong>self-hosting</strong> as it is straightforward, extremely rewarding, and gives you full control over your customer authentication stack.
+          You have three deployment paths depending on your needs. We recommend <strong>self-hosting</strong> as it is straightforward and gives you full control over your customer authentication stack.
         </p>
 
         <table style={styles.tableStyle}>
@@ -29,14 +29,14 @@ export default function PreRequisites() {
             <tr>
               <td style={styles.tdPropStyle}>Logto Blacktop</td>
               <td style={styles.tdStyle}>
-                Our highly-recommended, actively maintained fork. It unlocks premium enterprise features (branding control, custom UI) on the OSS tier, optimizes storage handlers, and provides advanced APIs. Learn more on <a href="https://github.com/odinwerks/logto/tree/master" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Blacktop Fork)</a>.
+                An actively maintained fork. It provides premium enterprise features (branding control, custom UI) on the OSS tier, optimizes storage handlers, and provides advanced APIs. Learn more on <a href="https://github.com/odinwerks/logto/tree/master" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Blacktop Fork)</a>.
               </td>
               <td style={styles.tdStyle}>Self-hosted</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>Logto OSS</td>
               <td style={styles.tdStyle}>
-                The official upstream open-source release. Fully compatible, stable, supports robust RBAC and custom social/enterprise connectors, but locks branding hiding and custom UI gates. Check it out on <a href="https://github.com/logto-io/logto" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Upstream)</a>.
+                The official upstream open-source release. Fully compatible, stable, supports role-based access control (RBAC) and custom social/enterprise connectors, but locks branding hiding and custom UI gates. Check it out on <a href="https://github.com/logto-io/logto" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Upstream)</a>.
               </td>
               <td style={styles.tdStyle}>Self-hosted</td>
             </tr>
@@ -57,10 +57,10 @@ export default function PreRequisites() {
         </p>
         <ul style={{ ...styles.textStyle, marginLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <li>
-            <strong>Logto Blacktop (The Fork):</strong> Built to give developers full power without forced paywalls. It includes features that upstream OSS crippled, such as:
+            <strong>Logto Blacktop (The Fork):</strong> Built without licensing restrictions on branding and custom UI. It includes features that upstream OSS does not include, such as:
             <ul style={{ marginLeft: '1rem', marginTop: '4px', listStyleType: 'circle' }}>
-              <li><strong>Disable Logto Branding:</strong> Easily remove watermarks and footers from sign-in interfaces.</li>
-              <li><strong>Custom Sign-In/Up UI:</strong> Ground-up ability to serve and inject completely custom HTML/CSS and assets directly within Logto.</li>
+              <li><strong>Disable Logto Branding:</strong> Remove watermarks and footers from sign-in interfaces.</li>
+              <li><strong>Custom Sign-In/Up UI:</strong> Ability to serve and inject custom HTML/CSS and assets directly within Logto.</li>
               <li><strong>Rich Sessions:</strong> Leverages a custom "Last active at" session tracker to record active audit trails.</li>
               <li><strong>Refactored S3 Backend:</strong> Overhauled S3/RustFS architecture.</li>
               <li><strong>One-Shot Avatar API:</strong> Direct API to post an image and instantly apply/bind it to a user profile picture inside Logto.</li>
@@ -74,7 +74,7 @@ export default function PreRequisites() {
           </li>
         </ul>
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>Unbiased Pick:</strong> <strong>Logto Blacktop</strong> is our top pick. It receives active updates, implements crucial user audits, provides custom file-serving APIs, and saves you money.
+          <strong style={styles.strongNoteStyle}>Recommendation:</strong> <strong>Logto Blacktop</strong> is recommended. It receives active updates, implements user audits, and provides custom file-serving APIs.
         </div>
       </SectionWrap>
 
@@ -97,10 +97,10 @@ export default function PreRequisites() {
 
       <SectionWrap label="Deploying Blacktop via Cloudflare Tunnel">
         <p style={styles.textStyle}>
-          To run Logto Blacktop with a PostgreSQL DB, Redis cache, and <strong>RustFS</strong> Object Storage (highly recommended over Minio for file assets and user avatars), use the following docker-compose configuration.
+          To run Logto Blacktop with a PostgreSQL DB, Redis cache, and <strong>RustFS</strong> Object Storage (configured for file assets and user avatars), use the following docker-compose configuration.
         </p>
         <p style={styles.textStyle}>
-          <strong>Directory Structure Rule:</strong> Git clone the Logto Blacktop repository into a directory named <code>logto-server</code>. Place this <code>docker-compose.yml</code> and its corresponding <code>.env</code> file <strong>on the same level (as siblings)</strong> as the <code>logto-server</code> directory—NOT inside of it.
+          <strong>Directory Structure Rule:</strong> Git clone the Logto Blacktop repository into a directory named <code>logto-server</code>. Place this <code>docker-compose.yml</code> and its corresponding <code>.env</code> file <strong>on the same level (as siblings)</strong> as the <code>logto-server</code> directory (NOT inside of it).
         </p>
         <CodeBlock title="docker-compose.yml" code={`version: "3.8"
 
@@ -165,7 +165,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # RustFS bucket init — only creates the bucket if it does not already exist
+  # RustFS bucket init - only creates the bucket if it does not already exist
   rustfs-init:
     image: minio/mc:latest
     depends_on:

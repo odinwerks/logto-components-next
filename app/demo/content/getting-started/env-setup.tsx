@@ -83,7 +83,7 @@ SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations
 
       <SectionWrap label="Feature-Specific Adjustments">
         <p style={styles.textStyle}>
-          Use these variables to unlock or configure advanced features of the Logto Kit.
+          Use these variables to enable or configure advanced features of the Logto Kit.
         </p>
         <CodeBlock title="Feature & Debug variables" code={`# - M2M Integration (Required for account deletion and RBAC querying) -
 LOGTO_M2M_APP_ID=         # Machine-to-Machine app ID from Logto Console
