@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { UserCard } from '../logto-kit/components/UserButton';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import type { NavItem } from './types';
+import { slugify } from './components/SectionComponents';
 
 interface SidebarProps {
   items: NavItem[];
-  activeId: string;
-  onSelect: (id: string) => void;
+  activeId?: string;
+  onSelect?: (id: string) => void;
 }
 
 const BrandIcon = () => (
@@ -144,6 +147,28 @@ const navTypeStyle: React.CSSProperties = {
   transition: 'color 0.12s ease',
 };
 
+const dropdownStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  paddingLeft: '16px',
+  borderLeft: '1px solid rgba(255,255,255,0.06)',
+  marginLeft: '32px',
+  marginTop: '4px',
+  marginBottom: '8px',
+  gap: '6px',
+};
+
+const dropdownLinkStyle: React.CSSProperties = {
+  fontSize: '11px',
+  background: 'none',
+  border: 'none',
+  padding: '2px 0',
+  textAlign: 'left',
+  cursor: 'pointer',
+  outline: 'none',
+  transition: 'color 0.12s ease',
+};
+
 const footerStyle: React.CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -154,9 +179,13 @@ const footerStyle: React.CSSProperties = {
   alignItems: 'center',
 };
 
-export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
+export default function Sidebar({ items, activeId: propActiveId, onSelect }: SidebarProps) {
   const { mode } = useThemeMode();
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname() || '';
+  const segments = pathname.split('/').filter(Boolean);
+  const activeId = propActiveId || segments[0] || 'getting-started';
+  const activeSection = segments[1] || '';
 
   useEffect(() => {
     setMounted(true);
@@ -247,58 +276,90 @@ export default function Sidebar({ items, activeId, onSelect }: SidebarProps) {
         {items.map((item) => {
           const isActive = item.id === activeId;
           return (
-            <div
-              key={item.id}
-              style={{
-                ...navItemStyle,
-                background: isActive ? colors.navActive : 'transparent',
-              }}
-              onClick={() => onSelect(item.id)}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = colors.navHover;
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <div
-                style={{
-                  ...themedNavBarStyle,
-                  opacity: isActive ? 1 : 0,
-                }}
-              />
-              <div
-                style={{
-                  ...navIconStyle,
-                  color: isActive ? colors.iconActive : colors.icon,
-                }}
+            <div key={item.id}>
+              <Link
+                href={`/${item.id}/${slugify(item.sections[0])}`}
+                style={{ textDecoration: 'none', display: 'block' }}
+                onClick={() => onSelect?.(item.id)}
               >
-                {item.icon}
-              </div>
-              <span
-                style={{
-                  ...navLabelStyle,
-                  fontSize: item.code ? '11.5px' : '12px',
-                  color: isActive
-                    ? item.code
-                      ? colors.codeActive
-                      : colors.labelActive
-                    : item.code
-                      ? colors.code
-                      : colors.label,
-                  fontWeight: isActive ? 500 : 400,
-                }}
-              >
-                {item.label}
-              </span>
-              <span
-                style={{
-                  ...navTypeStyle,
-                  color: isActive ? colors.typeActive : colors.typeText,
-                }}
-              >
-                {item.type}
-              </span>
+                <div
+                  style={{
+                    ...navItemStyle,
+                    background: isActive ? colors.navActive : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = colors.navHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div
+                    style={{
+                      ...themedNavBarStyle,
+                      opacity: isActive ? 1 : 0,
+                    }}
+                  />
+                  <div
+                    style={{
+                      ...navIconStyle,
+                      color: isActive ? colors.iconActive : colors.icon,
+                    }}
+                  >
+                    {item.icon}
+                  </div>
+                  <span
+                    style={{
+                      ...navLabelStyle,
+                      fontSize: item.code ? '11.5px' : '12px',
+                      color: isActive
+                        ? item.code
+                          ? colors.codeActive
+                          : colors.labelActive
+                        : item.code
+                          ? colors.code
+                          : colors.label,
+                      fontWeight: isActive ? 500 : 400,
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  <span
+                    style={{
+                      ...navTypeStyle,
+                      color: isActive ? colors.typeActive : colors.typeText,
+                    }}
+                  >
+                    {item.type}
+                  </span>
+                </div>
+              </Link>
+              {isActive && item.sections && item.sections.length > 0 && (
+                <div style={{ ...dropdownStyle, borderLeftColor: colors.borderLight }}>
+                  {item.sections.map((section) => {
+                    const sectionId = slugify(section);
+                    const isSectionActive = activeSection === sectionId;
+                    return (
+                      <Link
+                        key={section}
+                        href={`/${item.id}/${sectionId}`}
+                        style={{
+                          ...dropdownLinkStyle,
+                          textDecoration: 'none',
+                          display: 'block',
+                          color: isSectionActive ? colors.labelActive : colors.textMuted,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = colors.labelActive)}
+                        onMouseLeave={(e) => {
+                          if (!isSectionActive) e.currentTarget.style.color = colors.textMuted;
+                        }}
+                      >
+                        {section}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

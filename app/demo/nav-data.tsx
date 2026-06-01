@@ -107,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'guide',
     icon: <RocketIcon />,
     desc: 'Clone, configure ENV, replace the demo with your app. All other docs assume this environment.',
-    sections: ['What is this?', 'Clone & install', 'ENV setup', 'Avatar upload', 'Logto Console', 'Replace the demo'],
+    sections: ['Pre-requisites', 'Clone & install', 'ENV setup', 'Avatar upload', 'Logto Console', 'Replace the demo'],
   },
   {
     id: 'user-button',
