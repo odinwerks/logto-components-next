@@ -26,6 +26,10 @@ export default function CalculatorApiAuthorizationDoc() {
         <CodeBlock 
           title="app/api/protected/route.ts" 
           code={`export async function POST(request: NextRequest) {
+  // Block cross-origin requests (CSRF protection)
+  const originError = checkSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const body: ProtectedRequestBody = await request.json();
     const { action, payload } = body;
@@ -46,7 +50,13 @@ export default function CalculatorApiAuthorizationDoc() {
     }
 
     // Step 2: Introspect token
-    const introspection = await introspectToken(token);
+    let introspection;
+    try {
+      introspection = await introspectToken(token);
+    } catch (error) {
+      return apiError('INTROSPECTION_ERROR', 401);
+    }
+
     if (!introspection.active || !introspection.sub) {
       return apiError('TOKEN_INVALID', 401);
     }
@@ -59,9 +69,17 @@ export default function CalculatorApiAuthorizationDoc() {
       return apiError('IMPROPER_SETUP_ERROR', 500);
     }
 
-    // Step 4: Verify organization access
+    // Step 4: Verify organization access & active org matching
+    const orgId = actionConfig.requiredOrgId;
+    if (orgId !== 'self') {
+      const asOrg = await fetchUserAsOrg(introspection.sub);
+      if (asOrg !== orgId) {
+        return apiError('ORG_NOT_MEMBER', 403);
+      }
+    }
+
     const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    const result = await verifyOrgAccess(actionConfig.requiredOrgId);
+    const result = await verifyOrgAccess(orgId === 'self' ? 'self' : orgId);
     if (!result.ok) {
       return apiError('ORG_NOT_MEMBER', 403);
     }
@@ -83,13 +101,21 @@ export default function CalculatorApiAuthorizationDoc() {
     if (!hasPermission) return apiError('PERMISSION_DENIED', 403);
 
     // Step 7: Execute registered handler
-    const handlerResult = await actionConfig.handler({
-      userId: introspection.sub,
-      orgId: actionConfig.requiredOrgId,
-      payload: payload ?? {},
-    });
+    try {
+      const handlerResult = await actionConfig.handler({
+        userId: introspection.sub,
+        orgId: actionConfig.requiredOrgId === 'self' ? null : actionConfig.requiredOrgId,
+        payload: payload ?? {},
+      });
 
-    return NextResponse.json({ error: null, data: handlerResult });
+      return NextResponse.json({ error: null, data: handlerResult });
+    } catch (handlerError) {
+      const msg = handlerError instanceof Error ? handlerError.message : '';
+      if (msg.includes('INVALID_PAYLOAD')) {
+        return apiError('INVALID_PAYLOAD', 400);
+      }
+      return apiError('INTERNAL_ERROR', 500);
+    }
   } catch (error) {
     return apiError('INTERNAL_ERROR', 500);
   }
@@ -125,10 +151,24 @@ export default function CalculatorApiAuthorizationDoc() {
               </td>
             </tr>
             <tr>
+              <td style={styles.tdPropStyle}>400</td>
+              <td style={styles.tdPropStyle}>INVALID_PAYLOAD</td>
+              <td style={styles.tdStyle}>
+                The request parameters failed validation inside the mathematical handler (e.g. division by zero or invalid numbers).
+              </td>
+            </tr>
+            <tr>
               <td style={styles.tdPropStyle}>401</td>
               <td style={styles.tdPropStyle}>UNAUTHORIZED</td>
               <td style={styles.tdStyle}>
                 No valid session cookie or bearer token was found, or token signature validation failed.
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>401</td>
+              <td style={styles.tdPropStyle}>INTROSPECTION_ERROR</td>
+              <td style={styles.tdStyle}>
+                An error occurred during token introspection (e.g. invalid signature, connection issues, or missing issuer).
               </td>
             </tr>
             <tr>

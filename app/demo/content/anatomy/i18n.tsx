@@ -56,7 +56,7 @@ const locales: Record<LocaleCode, Translations> = {
                 Uses <code>useLangMode()</code> and <code>getAllTranslations()</code>.
               </td>
               <td style={styles.tdStyle}>
-                Re-evaluates dynamically as the language state updates. Changes to the language in one tab propagate instantly to other tabs using custom DOM events.
+                Re-evaluates dynamically as the language state updates. Changes to the language within the active window/tab propagate instantly to other components in the same tab using custom DOM events (note that cross-tab synchronization would require storage synchronization, as standard window events do not cross tab boundaries).
               </td>
             </tr>
           </tbody>
@@ -117,14 +117,14 @@ export const ruRU: Translations = {
         </p>
         <CodeBlock
           title="app/logto-kit/locales/index.ts"
-          code={`export type LocaleCode = 'en-US' | 'ka-GE' | 'ru-RU';
+          code={`export type LocaleCode = 'en-US' | 'ka-GE' | 'uk-UA';
 
-import { ruRU } from './ru-RU';
+import { ukUA } from './uk-UA';
 
 const locales: Record<LocaleCode, Translations> = {
   'en-US': enUS,
   'ka-GE': kaGE,
-  'ru-RU': ruRU,
+  'uk-UA': ukUA,
 };`}
         />
 
@@ -134,7 +134,7 @@ const locales: Record<LocaleCode, Translations> = {
         </p>
         <CodeBlock
           title="app/logto-kit/logic/i18n.ts"
-          code={`export const AVAILABLE_LOCALES = ['en-US', 'ka-GE', 'ru-RU'] as const;`}
+          code={`export const AVAILABLE_LOCALES = ['en-US', 'ka-GE', 'uk-UA'] as const;`}
         />
 
         <p style={styles.textStyle}>
@@ -143,7 +143,7 @@ const locales: Record<LocaleCode, Translations> = {
         </p>
         <CodeBlock
           title=".env"
-          code={`LANG_AVAILABLE=en-US,ka-GE,ru-RU`}
+          code={`LANG_AVAILABLE=en-US,ka-GE,uk-UA`}
         />
       </SectionWrap>
     </div>

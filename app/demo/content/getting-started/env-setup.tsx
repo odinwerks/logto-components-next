@@ -127,6 +127,51 @@ LOG_BACKEND=both          # Logging output destinations: console | pino | both
 # - Pino Telemetry & Logging -
 LOG_LEVEL=info            # Minimum severity log filter: debug | info | warn | error
 LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log telemetry`} />
+
+        <p style={{ ...styles.textStyle, marginTop: '24px' }}>
+          <strong>Feature-Specific Variables Reference:</strong>
+        </p>
+        <table style={styles.tableStyle}>
+          <thead>
+            <tr>
+              <th style={{ ...styles.thStyle, width: '30%' }}>Variable</th>
+              <th style={{ ...styles.thStyle, width: '70%' }}>Description & Supported Values</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={styles.tdPathStyle}>THEME</td>
+              <td style={styles.tdStyle}>
+                The directory name of the active custom theme layout folder (defaults to <code style={styles.codeSmStyle}>Default</code>).
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>USER_SHAPE</td>
+              <td style={styles.tdStyle}>
+                The visual shape profiles applied to user avatars. Supported values: <code style={styles.codeSmStyle}>circle</code>, <code style={styles.codeSmStyle}>sq</code> (square), <code style={styles.codeSmStyle}>rsq</code> (rounded square), or any valid CSS border-radius value (e.g. <code style={styles.codeSmStyle}>4px</code> or <code style={styles.codeSmStyle}>0.5rem</code>).
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>LANG_MAIN</td>
+              <td style={styles.tdStyle}>
+                The primary baseline locale used as the default fallback for translation resolution (e.g., <code style={styles.codeSmStyle}>en-US</code>).
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>LANG_AVAILABLE</td>
+              <td style={styles.tdStyle}>
+                A comma-separated array list of all registered locale codes permitted for active user-switching selection (e.g. <code style={styles.codeSmStyle}>en-US,ka-GE</code>).
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>LOAD_TABS</td>
+              <td style={styles.tdStyle}>
+                A comma-separated, ordered sequence list of dashboard tabs to actively load and render. Supported tokens: <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>security</code>, <code style={styles.codeSmStyle}>sessions</code>, <code style={styles.codeSmStyle}>organizations</code>, <code style={styles.codeSmStyle}>identities</code>, <code style={styles.codeSmStyle}>dev</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
         <div style={{ ...styles.noteStyle, marginTop: '16px', marginBottom: 0 }}>
           S3 or Supabase variables (e.g. <code style={styles.codeSmStyle}>S3_ENDPOINT</code>, <code style={styles.codeSmStyle}>SUPABASE_SERVICE_ROLE_KEY</code>) are used to configure Profile Picture Uploads. See the Avatar Upload section for full details.
         </div>

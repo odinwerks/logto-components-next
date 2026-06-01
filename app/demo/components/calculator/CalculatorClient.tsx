@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useOrgMode, useLogto } from '../../../logto-kit';
+import { loadOrganizationPermissions } from '../../../logto-kit/server-actions/load-org-permissions';
 
 interface CalcState {
   expr: string;
@@ -273,6 +275,39 @@ export function CalculatorClient() {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
 
+  const { asOrg } = useOrgMode();
+  const { userData } = useLogto();
+  const [hasScientific, setHasScientific] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!userData) {
+      setHasScientific(false);
+      return;
+    }
+    const targetOrgId = asOrg || '5b6sw6p5uzti';
+    let cancelled = false;
+    loadOrganizationPermissions(targetOrgId)
+      .then((r) => {
+        if (!cancelled) {
+          if (r.ok && r.data.includes('calc:scientific')) {
+            setHasScientific(true);
+          } else {
+            setHasScientific(false);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasScientific(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userData, asOrg]);
+
+  const isScientificDisabled = hasScientific === false;
+
   useEffect(() => {
     saveState(state);
   }, [state]);
@@ -510,7 +545,10 @@ export function CalculatorClient() {
       if (e.key === '*') { act('op', '*'); return; }
       if (e.key === '/') { e.preventDefault(); act('op', '/'); return; }
       if (e.key === '%') { act('op', '%'); return; }
-      if (e.key === '^') { act('fn', 'pow'); return; }
+      if (e.key === '^') {
+        if (!isScientificDisabled) act('fn', 'pow');
+        return;
+      }
       if (e.key === 'Enter' || e.key === '=') { handleEquals(); return; }
       if (e.key === 'Backspace') { act('del', null); return; }
       if (e.key === 'Escape') { act('clear', null); return; }
@@ -535,7 +573,7 @@ export function CalculatorClient() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [act, smartParen, flush, handleEquals, state.isCalculating]);
+  }, [act, smartParen, flush, handleEquals, state.isCalculating, isScientificDisabled]);
 
   const handleBackspaceMouseDown = () => {
     isLongPressRef.current = false;
@@ -693,6 +731,11 @@ export function CalculatorClient() {
   };
 
   const fnBtnStyle: React.CSSProperties = { ...btnStyle, fontSize: '12.5px', background: '#16161a' };
+  const sciBtnStyle: React.CSSProperties = {
+    ...fnBtnStyle,
+    opacity: isScientificDisabled ? 0.4 : 1,
+    cursor: isScientificDisabled ? 'not-allowed' : 'pointer',
+  };
   const eqBtnStyle: React.CSSProperties = { ...btnStyle, fontSize: '18px' };
 
   return (
@@ -714,30 +757,30 @@ export function CalculatorClient() {
             <div style={row5Style}>
               <button style={fnBtnStyle} onClick={() => act('toggleMode', null)}>{state.isRad ? 'RAD' : 'DEG'}</button>
               <button style={fnBtnStyle} onClick={() => act('inv', null)}>INV</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'pi')}>π</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'e_const')}>e</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'abs')}>|x|</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'pi')}>π</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'e_const')}>e</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'abs')}>|x|</button>
             </div>
             <div style={row5Style}>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('sin'))}>{getFuncLabel('sin')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('cos'))}>{getFuncLabel('cos')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('tan'))}>{getFuncLabel('tan')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'ln')}>ln</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'log')}>log</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('sin'))}>{getFuncLabel('sin')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('cos'))}>{getFuncLabel('cos')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('tan'))}>{getFuncLabel('tan')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'ln')}>ln</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'log')}>log</button>
             </div>
             <div style={row5Style}>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('asin'))}>{getFuncLabel('asin')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('acos'))}>{getFuncLabel('acos')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('atan'))}>{getFuncLabel('atan')}</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'log2')}>log₂</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'sqrt')}>√x</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('asin'))}>{getFuncLabel('asin')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('acos'))}>{getFuncLabel('acos')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', getFuncLabel('atan'))}>{getFuncLabel('atan')}</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'log2')}>log₂</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'sqrt')}>√x</button>
             </div>
             <div style={row5Style}>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'pow')}>xʸ</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'fact')}>n!</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'inv_x')}>1/x</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'exp10')}>10ˣ</button>
-              <button style={{ ...fnBtnStyle, height: '40px' }} onClick={() => act('fn', 'exp')}>eˣ</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'pow')}>xʸ</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'fact')}>n!</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'inv_x')}>1/x</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'exp10')}>10ˣ</button>
+              <button disabled={isScientificDisabled} style={{ ...sciBtnStyle, height: '40px' }} onClick={() => act('fn', 'exp')}>eˣ</button>
             </div>
           </div>
         </div>

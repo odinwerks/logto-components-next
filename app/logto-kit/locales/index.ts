@@ -10,10 +10,11 @@
 
 import { enUS } from './en-US';
 import { kaGE } from './ka-GE';
+import { ukUA } from './uk-UA';
 import { getDefaultLang } from '../logic/i18n';
 import { readEnv } from '../logic/env';
 
-export type LocaleCode = 'en-US' | 'ka-GE';
+export type LocaleCode = 'en-US' | 'ka-GE' | 'uk-UA';
 
 export interface Translations {
   // Dashboard
@@ -448,6 +449,7 @@ export type KitTranslations = Translations;
 const locales: Record<LocaleCode, Translations> = {
   'en-US': enUS,
   'ka-GE': kaGE,
+  'uk-UA': ukUA,
 };
 
 /**
@@ -496,6 +498,7 @@ export function isLocaleAvailable(locale: string): boolean {
 // Export individual locales
 export { enUS } from './en-US';
 export { kaGE } from './ka-GE';
+export { ukUA } from './uk-UA';
 
 // Default export
 export default locales;

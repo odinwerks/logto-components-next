@@ -134,7 +134,7 @@ function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string;
 interface AvatarCoreProps {
   Canvas?: 'Avatar' | 'Initials';
   Size: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData: UserData;
   imageFailed: boolean;
   onImageError: () => void;
@@ -183,7 +183,7 @@ function AvatarCore({
 export interface UserButtonProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;
@@ -192,7 +192,7 @@ export interface UserButtonProps {
 export interface UserBadgeProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
 }
@@ -200,7 +200,7 @@ export interface UserBadgeProps {
 export interface UserCardProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;
@@ -258,7 +258,7 @@ export function UserButton({
         transition: 'opacity 0.15s, transform 0.1s',
       }}
       onClick={handleClick}
-      aria-label={t.common.loggedInAs}
+      aria-label={`${t.common.loggedInAs} ${userData ? getDisplayName(userData) : ""}. Open user dashboard`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}

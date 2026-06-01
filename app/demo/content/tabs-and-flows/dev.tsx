@@ -67,6 +67,10 @@ export default function DevSection() {
           <span style={styles.strongNoteStyle}>3. Server-Action Verification:</span>
           The server-side action <code style={styles.codeSmStyle}>getCurrentAccessToken()</code> contains a strict development-only guard. It refuses to return any active access tokens when executed under production environments.
         </div>
+        <div style={styles.noteStyle}>
+          <span style={styles.strongNoteStyle}>4. Access Token Exposure Guard (LOGTO_DANGER_EXPOSE_TOKEN):</span>
+          Even in development mode, access tokens are not exposed by default. The environment variable <code style={styles.codeSmStyle}>LOGTO_DANGER_EXPOSE_TOKEN</code> must be set explicitly to <code style={styles.codeSmStyle}>true</code> in the environment config to enable token retrieval. If set to false or left undefined, server-side actions will refuse to return the token to the client.
+        </div>
       </SectionWrap>
 
       <SectionWrap label="Dev - token inspector & lazy loading">

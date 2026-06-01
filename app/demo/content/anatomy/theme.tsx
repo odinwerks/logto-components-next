@@ -198,7 +198,7 @@ const elementStyle: React.CSSProperties = {
         </table>
 
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>Cross-Tab Coordination:</strong> When <code>setMode()</code> is executed, the new state is stored in <code>sessionStorage</code> and a custom <code>theme-changed</code> DOM event is dispatched to the window object. This signals other client components in parallel tabs to re-read from storage and update their interfaces.
+          <strong style={styles.strongNoteStyle}>Component-Level Coordination:</strong> When <code>setMode()</code> is executed, the new state is stored in <code>sessionStorage</code> and a custom <code>theme-changed</code> DOM event is dispatched to the window object. This signals other client components in the same window/tab to re-read from storage and update their interfaces in parallel. (Note: Because sessionStorage and custom window events are isolated per tab, instant cross-tab propagation does not occur natively via window events).
         </div>
       </SectionWrap>
     </div>

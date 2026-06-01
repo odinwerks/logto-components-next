@@ -129,6 +129,56 @@ function getPinoLogger(): TypedLogger {
           When writing messages in "both" mode, unstructured calls are routed to console, formatted into structured models, and subsequently fed into Pino, whereas structured <code style={styles.codeStyle}>logEvent</code> calls print formatted prefixes to the console and pass raw objects directly to Pino.
         </p>
       </SectionWrap>
+
+      <SectionWrap label="Production Webhook Transport">
+        <p style={styles.textStyle}>
+          In production environments, the framework supports forwarding structured JSON logs to an external telemetry aggregator or chat platform (e.g., Slack, Discord, Datadog) via the highly sensitive <code style={styles.codeStyle}>LOGGING_WEBHOOK_URL</code> environment variable.
+        </p>
+        <p style={styles.textStyle}>
+          When <code style={styles.codeStyle}>LOGGING_WEBHOOK_URL</code> is defined and the application is running in production, the logging system automatically sets up a Pino multi-stream. Logs are written to <code style={styles.codeStyle}>stdout</code> for container log captures and concurrently batched and sent via an asynchronous HTTP POST webhook request.
+        </p>
+        <CodeBlock
+          title="Telemetry Webhook Transport Behavior"
+          code={`// Production-only webhook destination mapping
+if (webhookUrl && !isDev) {
+  const webhookStream = createWebhookDestination(webhookUrl);
+  logger = pino(
+    options,
+    pino.multistream([
+      { stream: process.stdout, level },
+      { stream: webhookStream, level },
+    ])
+  );
+}`}
+        />
+        <p style={styles.textStyle}>
+          <strong>Key Characteristics of the Webhook Transport:</strong>
+        </p>
+        <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
+          <li style={{ paddingBottom: '8px' }}>
+            <strong>Asynchronous Batching:</strong> To prevent blocking request-handling threads, log writes are collected on the next event-loop tick and dispatched asynchronously using the <code style={styles.codeStyle}>setImmediate</code> API.
+          </li>
+          <li style={{ paddingBottom: '8px' }}>
+            <strong>JSON Payload Structure:</strong> Logs are posted as a JSON array of structured log entries, retaining all typed metadata, event names, and context details:
+            <CodeBlock
+              title="Example Webhook POST Payload"
+              code={`[
+  {
+    "level": "info",
+    "time": "2026-06-02T03:25:54.000Z",
+    "event": "AUTH_SIGN_IN",
+    "msg": "User signed in",
+    "userId": "usr_abc123",
+    "method": "passkey"
+  }
+]`}
+            />
+          </li>
+          <li style={{ paddingBottom: '8px' }}>
+            <strong>Fail-Safe Design:</strong> If the remote webhook endpoint is unreachable, timed out (5-second hard limit via <code style={styles.codeStyle}>AbortSignal.timeout</code>), or responds with an error, the logger catches the exception gracefully, prints a warning to <code style={styles.codeStyle}>stdout</code>, and continues execution to avoid crashing the server.
+          </li>
+        </ul>
+      </SectionWrap>
     </div>
   );
 }

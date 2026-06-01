@@ -132,18 +132,13 @@ export function PreferencesProvider({
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
 
-  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme);
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
   const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
   const [asOrg, setAsOrgState] = useState<string | null>(() => {
     const stored = getStoredOrg();
     if (stored) return stored;
     return initialOrgId ?? null;
   });
-
-  // Client-only mount effect to write initialTheme to sessionStorage
-  useEffect(() => {
-    setStoredTheme(initialTheme);
-  }, []);
 
   // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);
@@ -171,7 +166,29 @@ export function PreferencesProvider({
     };
 
     mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+
+    const handlePreferencesChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ lang?: string; asOrg?: string | null }>;
+      const detail = customEvent.detail || {};
+      const newLang = detail.lang || getStoredLang();
+      const newAsOrg = detail.asOrg !== undefined ? detail.asOrg : getStoredOrg();
+
+      if (newLang && newLang !== langRef.current) {
+        setStoredLang(newLang);
+        setLangState(newLang);
+      }
+      if (newAsOrg !== undefined && newAsOrg !== asOrgRef.current) {
+        setStoredOrg(newAsOrg);
+        setAsOrgState(newAsOrg);
+      }
+    };
+
+    window.addEventListener('preferences-changed', handlePreferencesChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+      window.removeEventListener('preferences-changed', handlePreferencesChange);
+    };
   }, []);
 
   useEffect(() => {

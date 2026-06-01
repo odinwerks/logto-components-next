@@ -302,7 +302,25 @@ describe('assertUsername', () => {
   });
 
   it('rejects usernames that are too short', () => {
-    expect(() => assertUsername('ab')).toThrow(ValidationError);
+    try {
+      assertUsername('ab');
+      expect.fail('Should have thrown ValidationError');
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(ValidationError);
+      expect(e.message).toBe('FIELD_TOO_SHORT');
+      expect(e.field).toBe('username');
+    }
+  });
+
+  it('rejects usernames that are too long', () => {
+    try {
+      assertUsername('a'.repeat(33));
+      expect.fail('Should have thrown ValidationError');
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(ValidationError);
+      expect(e.message).toBe('FIELD_TOO_LONG');
+      expect(e.field).toBe('username');
+    }
   });
 
   it('rejects usernames with spaces', () => {

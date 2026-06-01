@@ -107,7 +107,7 @@ export default function SecuritySection() {
             <strong>totp-scan:</strong> Displays a high-density QR code canvas and standard base32 text credentials for manually setting up authenticator apps.
           </li>
           <li>
-            <strong>new-password:</strong> Shows an input field to configure a new password, validating the entries against general format requirements.
+            <strong>new-password:</strong> Shows an input field to configure a new password. The client only performs a basic presence check, while password complexity validation rules are strictly managed server-side inside <code style={styles.codeSmStyle}>password.ts</code>.
           </li>
           <li>
             <strong>rename-passkey:</strong> Displays a single text input (enforcing a maximum of 64 characters) to rename registered WebAuthn credentials.
@@ -140,7 +140,7 @@ export default function SecuritySection() {
             <tr>
               <td style={styles.tdPropStyle}>Password</td>
               <td style={styles.tdStyle}>Presence check; max length 256 characters</td>
-              <td style={styles.tdStyle}>Ensures value is provided; blocks buffer exploitation and denial-of-service overflows.</td>
+              <td style={styles.tdStyle}>Ensures value is provided on the client. Actual password complexity validation and policy checks are managed securely server-side inside <code style={styles.codeSmStyle}>password.ts</code> to protect the verification flow.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>Email</td>

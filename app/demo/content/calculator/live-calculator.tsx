@@ -132,23 +132,22 @@ export default function CalculatorPanel() {
 // 2. Dispatch Server Action: calc/add      { a: 2, b: 12 } => Returns 14`} />
         <CodeBlock title="AST Evaluator Loop (CalculatorClient.tsx)" code={`async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {
   switch (node.type) {
-    case 'num': 
+    case 'num':
       return node.value;
-    case 'unary': 
+    case 'unary':
       return -(await evalNode(node.arg, isRad));
     case 'binop': {
-      const left  = await evalNode(node.left, isRad);
+      const left = await evalNode(node.left, isRad);
       const right = await evalNode(node.right, isRad);
-      // Calls Server Action securely
-      return await callApi('calc/' + node.op, { a: left, b: right });
+      return await callProtectedAction(OP_TO_ACTION[node.op], { a: left, b: right });
     }
     case 'func': {
       const arg = await evalNode(node.arg, isRad);
-      const payload = isTrig(node.name)
-        ? { n: arg, mode: isRad ? 'rad' : 'deg' }
-        : { n: arg };
-      // Calls Server Action securely
-      return await callApi('calc/' + node.name, payload);
+      const isTrig = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan'].includes(node.name);
+      if (isTrig) {
+        return await callProtectedAction(FUNC_TO_ACTION[node.name], { n: arg, mode: isRad ? 'rad' : 'deg' });
+      }
+      return await callProtectedAction(FUNC_TO_ACTION[node.name], { n: arg });
     }
   }
 }`} />

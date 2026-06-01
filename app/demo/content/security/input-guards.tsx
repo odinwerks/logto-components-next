@@ -64,12 +64,12 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
             <tr>
               <td style={styles.tdPropStyle}>assertPasskeyName</td>
               <td style={styles.tdStyle}>64 characters</td>
-              <td style={styles.tdStyle}>Requires string type, strips ASCII control characters, forbids empty inputs.</td>
+              <td style={styles.tdStyle}>Requires string type, rejects ASCII control characters (throwing a ValidationError), forbids empty inputs.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>assertNameField</td>
               <td style={styles.tdStyle}>128 characters</td>
-              <td style={styles.tdStyle}>Strips ASCII control characters, allows null or undefined, validates string type.</td>
+              <td style={styles.tdStyle}>Rejects ASCII control characters (throwing a ValidationError), allows null or undefined, validates string type.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>assertUsername</td>
@@ -89,7 +89,7 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
           </tbody>
         </table>
         <p style={styles.textStyle}>
-          Control character stripping removes ASCII control characters from strings to prevent terminal injection and formatting manipulation:
+          To prevent terminal injection and formatting manipulation, inputs are validated against ASCII control characters. If any control characters are present, the input is rejected by throwing a <code style={styles.codeStyle}>ValidationError</code>, rather than being sanitized or stripped in-place:
         </p>
         <CodeBlock
           title="Control Character Stripping"
@@ -199,7 +199,17 @@ export function pickPreferences(input: unknown): PreferencesShape {
           The guard compares the request origin header against the configured BASE_URL or APP_URL. If the origin header is missing, malformed, or fails to match the expected host, the handler halts execution immediately and returns a 403 Forbidden response.
         </p>
         <div style={styles.warningBannerStyle}>
-          <strong style={styles.warningBannerStrongStyle}>Exceptions and Exclusions:</strong> Origin Guard is excluded from OAuth redirect callback flows (including sign-in and sign-out endpoints). This is because the OIDC state parameter natively protects these redirect flows against CSRF, and browser origin mismatches are common during local development when navigating between different hostnames or port bindings.
+          <p style={{ ...styles.textStyle, margin: 0, paddingBottom: '10px' }}>
+            <strong style={styles.warningBannerStrongStyle}>Exceptions and Exclusions:</strong>
+          </p>
+          <ul style={{ ...styles.textStyle, margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+            <li style={{ paddingBottom: '8px' }}>
+              <strong>OAuth callback endpoints:</strong> Sign-in and sign-out endpoints are exempt from origin guards because the standard OIDC <code style={styles.codeStyle}>state</code> parameter natively provides full CSRF protection, and local development environments often trigger spurious origin mismatches during OAuth redirect round-trips.
+            </li>
+            <li>
+              <strong>Standard <code style={styles.codeStyle}>GET</code> requests to <code style={styles.codeStyle}>/api/wipe</code>:</strong> Plain cookie-clearing via GET is exempt from origin guards to support standard browser navigations and redirects. However, destructive force-signout requests via <code style={styles.codeStyle}>GET /api/wipe?force=true</code> or any <code style={styles.codeStyle}>POST</code> requests to <code style={styles.codeStyle}>/api/wipe</code> strictly enforce <code style={styles.codeStyle}>checkSameOrigin</code>.
+            </li>
+          </ul>
         </div>
       </SectionWrap>
     </div>

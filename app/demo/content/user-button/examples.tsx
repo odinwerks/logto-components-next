@@ -64,9 +64,9 @@ export default function UserButtonExamples() {
       <ExampleCard
         label="Shapes"
         subLabel="circle / square / rounded-sq"
-        code={`<UserBadge Size="56px" shape="circle" />
-<UserBadge Size="56px" shape="sq" />
-<UserBadge Size="56px" shape="rsq" />`}
+        code={`<UserButton Size="56px" shape="circle" />
+<UserButton Size="56px" shape="sq" />
+<UserButton Size="56px" shape="rsq" />`}
         note="All three shapes for both components"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

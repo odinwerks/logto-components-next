@@ -311,7 +311,10 @@ export function assertUsername(value: unknown): asserts value is string | null |
   if (typeof value !== 'string') {
     throw new ValidationError('INVALID_FIELD_TYPE', 'username');
   }
-  if (value.length < 3 || value.length > MAX_USERNAME_LEN) {
+  if (value.length < 3) {
+    throw new ValidationError('FIELD_TOO_SHORT', 'username');
+  }
+  if (value.length > MAX_USERNAME_LEN) {
     throw new ValidationError('FIELD_TOO_LONG', 'username');
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(value)) {

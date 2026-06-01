@@ -51,7 +51,7 @@ export default function LogtoConsole() {
             <br />
             • <code style={styles.codeSmStyle}>User data → Write</code>
             <br />
-            • <code style={styles.codeSmStyle}>Organization → Read/Write</code>
+            • <code style={styles.codeSmStyle}>Organization → Read</code> (only Read permission is required; Write is not needed)
           </div>
           <div style={styles.noteStyle}>
             <strong style={styles.strongNoteStyle}>Target ENV Parameters</strong>

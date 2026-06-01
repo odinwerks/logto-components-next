@@ -9,7 +9,7 @@ import { warn } from './log';
 
 // The canonical set of locale codes the app ships with.
 // When you add a new locale file (e.g. ru-RU.ts), add it here.
-export const AVAILABLE_LOCALES = ['en-US', 'ka-GE'] as const;
+export const AVAILABLE_LOCALES = ['en-US', 'ka-GE', 'uk-UA'] as const;
 export type LocaleCode = (typeof AVAILABLE_LOCALES)[number];
 
 /**

@@ -55,7 +55,7 @@ export default async function HomePage() {
 
       <SectionWrap label="Run in Development & Production">
         <p style={styles.textStyle}>
-          To run the project locally, verify you are using <strong>Node.js v18+ (LTS) or v20+ (LTS)</strong> (due to modern APIs like <code style={styles.codeSmStyle}>globalThis.structuredClone</code> which are fully supported natively since Node v17).
+          To run the project locally, verify you are using <strong>Node.js v25+</strong> (note that while the container-engine version aligns with the standard of Node v20/v22, the local standard of Node v25+ is recommended due to modern APIs like <code style={styles.codeSmStyle}>globalThis.structuredClone</code> which are fully supported natively since Node v17).
         </p>
         <CodeBlock title="Development Mode" code={`npm run dev`} />
         <p style={styles.textStyle}>
@@ -70,7 +70,7 @@ npm start`} />
           The repository is pre-configured with a multi-stage production <code style={styles.codeSmStyle}>Dockerfile</code> and a <code style={styles.codeSmStyle}>docker-compose.yml</code> file orchestrating both the application and a secure <code style={styles.codeSmStyle}>cloudflared</code> tunnel sidecar. 
           Application port <code style={styles.codeSmStyle}>2999</code> is isolated internally so only Cloudflare can access it.
         </p>
-        <CodeBlock title="Step 1 - Configure Tunnel and Public Base URL in .env" code={`# PUBLIC_BASE_URL is baked into Next.js at build-time. Must match your final public domain name.
+        <CodeBlock title="Step 1 - Configure Tunnel and Public Base URL in .env" code={`# PUBLIC_BASE_URL is mapped to the runtime container variable BASE_URL, so it does not require rebuilding. Must match your final public domain name.
 PUBLIC_BASE_URL=https://dash.yourdomain.org
 
 # Paste your Cloudflare Zero Trust Tunnel Token

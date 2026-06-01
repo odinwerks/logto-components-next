@@ -49,11 +49,59 @@ export default function SecurityErrorHandlingDoc() {
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>UPLOAD_FAILED</td>
-              <td style={styles.tdStyle}>The file upload was rejected (e.g., due to invalid magic bytes or size limits).</td>
+              <td style={styles.tdStyle}>General error code for file uploads that failed on the server.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>UPLOAD_TOO_LARGE</td>
+              <td style={styles.tdStyle}>The uploaded file size exceeds the configured maximum upload limit.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>UPLOAD_INVALID_TYPE</td>
+              <td style={styles.tdStyle}>The uploaded file's MIME type or magic bytes did not match the allowed profile.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>UPLOAD_RATE_LIMITED</td>
+              <td style={styles.tdStyle}>The file upload frequency exceeded safety thresholds.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>DELETE_FAILED</td>
+              <td style={styles.tdStyle}>Deletion of a resource (e.g., user profile, session, or MFA factor) was rejected or failed.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>FETCH_FAILED</td>
               <td style={styles.tdStyle}>An internal call to retrieve upstream resources could not be completed.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>SESSION_REVOKE_FAILED</td>
+              <td style={styles.tdStyle}>A session revocation request failed or was rejected.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>GRANT_REVOKE_FAILED</td>
+              <td style={styles.tdStyle}>Revoking an application grant failed or was rejected.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>MFA_ENROLL_FAILED</td>
+              <td style={styles.tdStyle}>Enrolling a new Multi-Factor Authentication factor (e.g., Totp, WebAuthn) failed.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>MFA_REMOVE_FAILED</td>
+              <td style={styles.tdStyle}>Removing a Multi-Factor Authentication factor failed.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>BACKUP_CODES_FAILED</td>
+              <td style={styles.tdStyle}>Generating, retrieving, or verifying MFA backup codes failed.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>PASSWORD_UPDATE_FAILED</td>
+              <td style={styles.tdStyle}>Updating the user's password failed validation or upstream checks.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>EMAIL_UPDATE_FAILED</td>
+              <td style={styles.tdStyle}>Updating the user's email address failed validation or upstream checks.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>PHONE_UPDATE_FAILED</td>
+              <td style={styles.tdStyle}>Updating the user's phone number failed validation or upstream checks.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>INVALID_INPUT</td>
@@ -66,6 +114,10 @@ export default function SecurityErrorHandlingDoc() {
             <tr>
               <td style={styles.tdPropStyle}>UNAUTHORIZED</td>
               <td style={styles.tdStyle}>The request lacks valid authentication credentials or session tokens.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>MISSING_VERIFICATION</td>
+              <td style={styles.tdStyle}>The action requires a verification step that has not been completed.</td>
             </tr>
             <tr>
               <td style={styles.tdPropStyle}>INTERNAL_ERROR</td>

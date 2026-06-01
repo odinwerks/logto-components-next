@@ -14,6 +14,10 @@ export default function DashboardProviderSync() {
           The Dashboard creates <strong>isolated</strong> provider instances. External consumers (such as <code style={styles.codeStyle}>LogtoProvider</code>) run separate instances.
         </p>
 
+        <p style={styles.textStyle}>
+          While the kit is engineered to support isolated/multiple provider synchronization via custom window events and storage, the default starter-kit layout configuration simplifies this by mapping all components inside a single, unified root-level provider tree.
+        </p>
+
         <CodeBlock
           title="Two separate provider trees"
           code={`// Dashboard (Server Component)

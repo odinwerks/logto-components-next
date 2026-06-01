@@ -1,10 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+const mockUseOrgMode = vi.fn().mockReturnValue({ asOrg: '5b6sw6p5uzti' });
+const mockUseLogto = vi.fn().mockReturnValue({
+  userData: { id: 'user_123', organizations: [] },
+});
+const mockLoadOrganizationPermissions = vi.fn().mockResolvedValue({
+  ok: true,
+  data: ['calc:basic', 'calc:scientific'],
+});
+
+vi.mock('../../../logto-kit', () => ({
+  useOrgMode: () => mockUseOrgMode(),
+  useLogto: () => mockUseLogto(),
+}));
+
+vi.mock('../../../logto-kit/server-actions/load-org-permissions', () => ({
+  loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
+}));
+
 import { CalculatorClient } from './CalculatorClient';
 
 describe('CalculatorClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockUseOrgMode.mockReturnValue({ asOrg: '5b6sw6p5uzti' });
+    mockUseLogto.mockReturnValue({
+      userData: { id: 'user_123', organizations: [] },
+    });
+    mockLoadOrganizationPermissions.mockResolvedValue({
+      ok: true,
+      data: ['calc:basic', 'calc:scientific'],
+    });
     if (typeof window !== 'undefined') {
       window.sessionStorage.clear();
     }
@@ -60,6 +87,42 @@ describe('CalculatorClient', () => {
         action: 'calc/add',
         payload: { a: 66, b: 5555 },
       }),
+    });
+  });
+
+  it('disables scientific keypad buttons if calc:scientific permission is lacking', async () => {
+    mockLoadOrganizationPermissions.mockResolvedValueOnce({
+      ok: true,
+      data: ['calc:basic'], // lacks calc:scientific
+    });
+
+    render(<CalculatorClient />);
+
+    // Since drawer is closed by default, click f(x) to open the drawer
+    const btnFx = screen.getByText('f(x)');
+    fireEvent.click(btnFx);
+
+    // Now look for scientific buttons like "sin" inside waitFor to get the fresh DOM state
+    await waitFor(() => {
+      const btnSin = screen.getByRole('button', { name: 'sin' });
+      expect(btnSin).toBeDisabled();
+    });
+  });
+
+  it('enables scientific keypad buttons if calc:scientific permission is present', async () => {
+    mockLoadOrganizationPermissions.mockResolvedValueOnce({
+      ok: true,
+      data: ['calc:basic', 'calc:scientific'],
+    });
+
+    render(<CalculatorClient />);
+
+    const btnFx = screen.getByText('f(x)');
+    fireEvent.click(btnFx);
+
+    await waitFor(() => {
+      const btnSin = screen.getByRole('button', { name: 'sin' });
+      expect(btnSin).not.toBeDisabled();
     });
   });
 });
