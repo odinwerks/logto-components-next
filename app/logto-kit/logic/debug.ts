@@ -1,5 +1,5 @@
 /**
- * Debug logging utility — only outputs when DEBUG=true.
+ * Debug logging utility - only outputs when DEBUG=true.
  * Use instead of console.log/console.warn for development traces
  * that should not appear in production logs.
  */

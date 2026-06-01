@@ -1,5 +1,5 @@
 // =============================================================================
-// Theme System — themes/index.ts (slim)
+// Theme System - themes/index.ts (slim)
 //
 // Color tokens only. All other design values (typography, radii, shadows,
 // transitions, component styles) are inlined directly in components.

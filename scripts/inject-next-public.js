@@ -4,7 +4,7 @@
  * to .env.local for local development with `npm run dev`.
  *
  * Only exposes vars that are explicitly in the NEXT_PUBLIC_ENV map
- * in app/logto-kit/logic/env.ts — never secrets, M2M keys, or tokens.
+ * in app/logto-kit/logic/env.ts - never secrets, M2M keys, or tokens.
  *
  * Docker Compose handles this automatically via build.args;
  * this script is only for `npm run dev`.

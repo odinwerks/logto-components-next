@@ -56,7 +56,7 @@ export const LOG_EVENTS = {
   // Configuration
   CONFIG_ERROR: 'CONFIG_ERROR',
 
-  // Generic — catchall for unstructured console-style logs
+  // Generic - catchall for unstructured console-style logs
   GENERIC_LOG: 'GENERIC_LOG',
 } as const;
 

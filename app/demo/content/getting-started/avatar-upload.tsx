@@ -59,6 +59,21 @@ PFP_BACKEND=logto`} />
           When using <code style={styles.codeSmStyle}>PFP_BACKEND=logto</code>, the system updates the avatar URL in Logto directly. No external storage bucket is required, which is excellent for quick and simple deployments.
         </p>
       </SectionWrap>
+
+      <SectionWrap label="Architecture & Security">
+        <p style={styles.textStyle}>
+          The avatar upload flow <strong>does not utilize traditional REST route handlers</strong> (such as <code style={styles.codeSmStyle}>/api/avatar</code>). Instead, it is natively powered by <strong>Next.js Server Actions</strong> (<code style={styles.codeSmStyle}>uploadAvatar</code> in <code style={styles.codeSmStyle}>app/logto-kit/logic/actions/avatar.ts</code>).
+        </p>
+        <div style={styles.noteStyle}>
+          <strong style={styles.strongNoteStyle}>Session Integrity:</strong> Derives user ID and OIDC access token entirely server-side from session cookies, blocking parameter tampering or user spoofing.
+        </div>
+        <div style={styles.noteStyle}>
+          <strong style={styles.strongNoteStyle}>CSRF Protection:</strong> Enforces same-origin validation natively at the Next.js framework level to protect against CSRF.
+        </div>
+        <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+          <strong style={styles.strongNoteStyle}>Rate Limiting:</strong> Implements an automated in-memory rate limiter (5 uploads per minute, with background garbage-collection sweeping stale entries every 5 minutes to prevent memory leaks).
+        </div>
+      </SectionWrap>
     </div>
   );
 }

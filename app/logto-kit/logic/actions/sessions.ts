@@ -71,7 +71,7 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
     }
     const sessions = sessionsResult.data;
 
-    // Introspection is optional — userId is only used for display metadata.
+    // Introspection is optional - userId is only used for display metadata.
     // If introspection fails (e.g., LOGTO_INTROSPECTION_URL not configured),
     // use empty string as fallback. This prevents the sessions tab from breaking.
     let userId = '';
@@ -174,7 +174,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     const sessions = sessionsResult.data;
 
     // Identify current session via token introspection.
-    // The introspection `sid` claim is the OIDC session UID — matches payload.uid.
+    // The introspection `sid` claim is the OIDC session UID - matches payload.uid.
     // Fall back to isCurrent flag if sid is absent.
     const token = await getTokenForServerAction();
     const introspection = await introspectToken(token);
@@ -185,7 +185,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
       : sessions.find(s => s.isCurrent === true);
 
     if (!currentSession) {
-      throw new Error('Cannot identify current session — session UID mismatch.');
+      throw new Error('Cannot identify current session - session UID mismatch.');
     }
 
     // Filter by uid (the session identifier, not the JWT id)

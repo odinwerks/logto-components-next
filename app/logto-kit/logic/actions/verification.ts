@@ -36,7 +36,7 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     // Store Logto's expiresAt directly (server-authoritative).
     // Previously this computed issued-at ≈ expiresAt - 10min, which hardcoded
     // Logto's TTL. Storing expiresAt itself means the staleness check in
-    // account.ts just compares Date.now() > verificationTimestamp — no TTL
+    // account.ts just compares Date.now() > verificationTimestamp - no TTL
     // assumption needed. Fallback: now + 10min if Logto omits expiresAt.
     const verificationTimestamp = parsed.expiresAt
       ? new Date(parsed.expiresAt).getTime()
@@ -108,7 +108,7 @@ export async function verifyVerificationCode(
     assertVerificationCode(code);
     assertSafeLogtoId(verificationId, 'verificationId');
 
-    // Validate value format — mirrors the checks in send*VerificationCode.
+    // Validate value format - mirrors the checks in send*VerificationCode.
     // The value is forwarded verbatim to Logto, so reject bad-shaped input here
     // rather than letting an arbitrary string reach the upstream API.
     if (type === 'email') {

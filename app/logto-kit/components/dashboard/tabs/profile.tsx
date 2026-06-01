@@ -48,7 +48,7 @@ const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
 );
 
 
-// ─── PersonalPermissionsBlock — refreshable wrapper for personal (global RBAC)
+// ─── PersonalPermissionsBlock - refreshable wrapper for personal (global RBAC)
 //     permissions. Uses the same pattern as OrganizationsTab's PermissionsBlock. ───
 interface PersonalPermissionsBlockProps {
   mode: 'dark' | 'light';
@@ -321,7 +321,7 @@ export function ProfileTab({
         }
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
-          // Don't refreshData() here — Step 1 (name) already succeeded server-side,
+          // Don't refreshData() here - Step 1 (name) already succeeded server-side,
           // but Step 2 (givenName/familyName) failed. Resetting local state would
           // discard the user's edits with no way to retry. Show the error and let
           // them correct and try again.
@@ -344,7 +344,7 @@ export function ProfileTab({
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) {
             // Same rationale as given_family branch: Step 1 succeeded, don't
-            // wipe local state on Step 2 failure — preserve edits for retry.
+            // wipe local state on Step 2 failure - preserve edits for retry.
             onError(profileResult.error);
             return;
           }
@@ -527,7 +527,7 @@ export function ProfileTab({
             flexDirection: 'column',
             transition: 'max-width 0.25s ease',
           }}>
-            {/* Header — title + delete text + X */}
+            {/* Header - title + delete text + X */}
             <div style={{
               padding: '1rem 1.25rem',
               borderBottom: `1px solid ${c.borderColor}`,
@@ -787,7 +787,7 @@ export function ProfileTab({
           <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.75rem' }}>
             {!isMobile ? (
               <>
-                {/* Username row — shown in username and full modes */}
+                {/* Username row - shown in username and full modes */}
                 {(nameType === 'username' || nameType === 'full') && (
                   <div style={{ width: '100%' }}>
                     <label style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
@@ -813,7 +813,7 @@ export function ProfileTab({
                   </div>
                 )}
 
-                {/* Given/Family grid — shown in given_family and full modes */}
+                {/* Given/Family grid - shown in given_family and full modes */}
                 {(nameType === 'given_family' || nameType === 'full') && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
                     <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>

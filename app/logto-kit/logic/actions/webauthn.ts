@@ -75,7 +75,7 @@ export async function verifyAndLinkWebAuthn(
 
     await throwOnApiError(linkRes, 'MFA_ENROLL_FAILED', 'webauthn-link');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const _token = await getTokenForServerAction();
@@ -89,7 +89,7 @@ export async function verifyAndLinkWebAuthn(
  * Renames a passkey.
  *
  * @param verificationId - The MFA verification ID of the passkey to rename.
- * @param name - The new display name (1–64 chars, no control characters).
+ * @param name - The new display name (1-64 chars, no control characters).
  * @param identityVerificationRecordId - From verifyPasswordForIdentity().
  */
 export async function renamePasskey(
@@ -114,7 +114,7 @@ export async function renamePasskey(
 
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'webauthn-rename');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const _token = await getTokenForServerAction();

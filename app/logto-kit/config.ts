@@ -121,8 +121,8 @@ export const getLogtoConfig = () => logtoConfig;
  * grant using a dedicated M2M application.
  *
  * Required env vars (add to your .env):
- *   LOGTO_M2M_APP_ID     — App ID of the M2M application in Logto Console
- *   LOGTO_M2M_APP_SECRET — App Secret of the M2M application
+ *   LOGTO_M2M_APP_ID - App ID of the M2M application in Logto Console
+ *   LOGTO_M2M_APP_SECRET - App Secret of the M2M application
  *
  * The M2M app must have the "User data" → Write permission assigned under
  * Management API access in the Logto Console.

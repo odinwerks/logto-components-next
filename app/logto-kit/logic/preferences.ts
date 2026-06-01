@@ -39,7 +39,7 @@ export function getPreferencesFromUserData(userData: UserData): Partial<UserPref
   const lang: string | undefined =
     typeof prefs.lang === 'string' && prefs.lang.length > 0 ? prefs.lang : undefined;
 
-  // Validate asOrg — null is a valid value meaning "be yourself"
+  // Validate asOrg - null is a valid value meaning "be yourself"
   const hasAsOrg = 'asOrg' in prefs;
   const asOrg: string | null =
     typeof prefs.asOrg === 'string' ? prefs.asOrg : null;
@@ -62,7 +62,7 @@ export function getPreferencesFromUserData(userData: UserData): Partial<UserPref
  * Merges new preferences into the existing customData object.
  * Returns the full updated customData (safe to pass directly to the Management API).
  *
- * This is a shallow merge — all other keys in customData are preserved.
+ * This is a shallow merge - all other keys in customData are preserved.
  * Inside Preferences, the provided fields are merged (theme and lang independently).
  */
 export function buildUpdatedCustomData(

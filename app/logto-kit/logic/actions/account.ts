@@ -43,7 +43,7 @@ import { safeAction, type ActionResult } from './safe';
  *   minted this record.
  * @param verificationRecordTimestamp - Timestamp (ms) derived server-side
  *   from Logto's `expiresAt` field (returned by verifyPasswordForIdentity).
- *   Never trust a client-supplied value here — always pass the timestamp
+ *   Never trust a client-supplied value here - always pass the timestamp
  *   from the verification action's DataResult.
  */
 export async function deleteUserAccount(
@@ -56,7 +56,7 @@ export async function deleteUserAccount(
 
     // ── Staleness check (defense in depth) ────────────────────────────────
     // verificationTimestamp is now Logto's expiresAt (server-derived, changed
-    // in verification.ts). We just check Date.now() > expiresAt — no hardcoded
+    // in verification.ts). We just check Date.now() > expiresAt - no hardcoded
     // TTL. If Logto changes its TTL this check automatically adapts.
     if (verificationRecordTimestamp !== undefined) {
       if (Date.now() > verificationRecordTimestamp) {
@@ -98,7 +98,7 @@ export async function deleteUserAccount(
 
     await throwOnApiError(deleteRes, 'DELETE_FAILED', 'account-delete');
 
-    // Audit the deletion — this is the last thing we do before returning.
+    // Audit the deletion - this is the last thing we do before returning.
     const { audit } = await import('../audit');
     await audit({ actor: userId, action: 'account.delete', resource: userId });
 

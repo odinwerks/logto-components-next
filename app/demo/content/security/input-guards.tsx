@@ -76,6 +76,16 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
               <td style={styles.tdStyle}>3 to 32 characters</td>
               <td style={styles.tdStyle}>Restricts characters to alphanumeric, underscores, and hyphens (/^[a-zA-Z0-9_-]+$/).</td>
             </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>assertHttpUrl</td>
+              <td style={styles.tdStyle}>2048 characters</td>
+              <td style={styles.tdStyle}>Requires string type, validates HTTP/HTTPS protocol structure, handles S3 or CDN origins.</td>
+            </tr>
+            <tr>
+              <td style={styles.tdPropStyle}>assertVerificationCode</td>
+              <td style={styles.tdStyle}>6 characters</td>
+              <td style={styles.tdStyle}>Requires a numeric string conforming to a strict 6-digit match expression (/^\d{6}$/).</td>
+            </tr>
           </tbody>
         </table>
         <p style={styles.textStyle}>

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('next/navigation', () => ({}));
@@ -145,7 +145,7 @@ describe('getOrgPermissionsWithDescriptions', () => {
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin'), makeRole('r2', 'Editor')]))
       // Admin role scopes
       .mockResolvedValueOnce(mockJsonResponse([readScope, writeScope]))
-      // Editor role scopes (same scopes, different IDs — dedup by name)
+      // Editor role scopes (same scopes, different IDs - dedup by name)
       .mockResolvedValueOnce(mockJsonResponse([
         makeScope('s3', 'read:orders', 'Can read orders'),
         makeScope('s4', 'write:orders', 'Can write orders'),
@@ -169,9 +169,9 @@ describe('getOrgPermissionsWithDescriptions', () => {
     fetchSpy
       // Roles endpoint: user has two roles
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin'), makeRole('r2', 'Editor')]))
-      // Admin role scopes — succeeds
+      // Admin role scopes - succeeds
       .mockResolvedValueOnce(mockJsonResponse([readScope]))
-      // Editor role scopes — fails
+      // Editor role scopes - fails
       .mockResolvedValueOnce(mockJsonResponse(null, 500));
 
     const { getOrgPermissionsWithDescriptions } = await import('./organizations');

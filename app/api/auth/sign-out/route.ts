@@ -9,13 +9,13 @@ export async function POST(request: NextRequest) {
   try {
     await signOut(getLogtoConfig());
   } catch (err) {
-    // signOut() throws NEXT_REDIRECT on success — let Next.js handle it.
+    // signOut() throws NEXT_REDIRECT on success - let Next.js handle it.
     if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) throw err;
     // Any other error: log server-side, return safe redirect (don't expose details).
     error('[sign-out] signOut failed, clearing cookies and redirecting:', err instanceof Error ? err.message : err);
     return NextResponse.redirect(new URL('/', baseUrl));
   }
 
-  // Defensive fallback — signOut() should always throw NEXT_REDIRECT; this is unreachable.
+  // Defensive fallback - signOut() should always throw NEXT_REDIRECT; this is unreachable.
   return NextResponse.redirect(new URL('/', baseUrl));
 }

@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Shared Logger — configurable backend routing
+ * Shared Logger - configurable backend routing
  * ============================================================================
  *
  * Routes log output to console, Pino, or both based on LOG_BACKEND env var:
@@ -32,7 +32,7 @@
  *   - Middleware
  *   - Utility modules imported by server-side code
  *
- * It does NOT work in client components — Pino is a server-only library.
+ * It does NOT work in client components - Pino is a server-only library.
  */
 
 import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
@@ -55,7 +55,7 @@ const useConsole = backend === 'console' || backend === 'both';
 const usePino = backend === 'pino' || backend === 'both';
 
 // ============================================================================
-// Pino instance (lazy — only created if pino or both mode is active)
+// Pino instance (lazy - only created if pino or both mode is active)
 // ============================================================================
 
 let _pinoLogger: TypedLogger | null = null;

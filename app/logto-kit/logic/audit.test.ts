@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ============================================================================
-// Module mocks — hoisted
+// Module mocks - hoisted
 // ============================================================================
 
 vi.mock('./dev-mode', () => ({
@@ -92,11 +92,11 @@ describe('audit', () => {
     // Override the isDev mock for this test
     vi.mocked(isDev as unknown as { getMockImplementation?: () => unknown })
       // Can't change const, so we use a different approach
-    // We'll verify the dev-mode path separately — the mock is false here
+    // We'll verify the dev-mode path separately - the mock is false here
     // but the real module would use console.info when isDev=true
     // This is a known limitation of mocking const exports
     // Instead, verify the branch exists by checking the module source
-    expect(true).toBe(true); // placeholder — dev-mode path tested implicitly
+    expect(true).toBe(true); // placeholder - dev-mode path tested implicitly
   });
 
   it('passes the entire entry as structured JSON', async () => {

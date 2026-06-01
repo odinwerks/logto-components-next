@@ -16,7 +16,7 @@ export async function getTokenForServerAction(): Promise<string> {
 
 /**
  * Convenience alias for getTokenForServerAction.
- * Note: may return a cached token from the SDK — name preserved for compatibility.
+ * Note: may return a cached token from the SDK - name preserved for compatibility.
  */
 export async function getFreshAccessToken(): Promise<string> {
   return await getTokenForServerAction();

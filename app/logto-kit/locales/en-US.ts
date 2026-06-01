@@ -221,7 +221,7 @@ export const enUS: Translations = {
     linkedAccounts: 'Linked accounts',
     connected: 'Connected',
     idWithUserId: 'ID · {userId}',
-    unknownDetail: '—',
+    unknownDetail: ' - ',
     providerGoogle: 'Google',
     providerGithub: 'GitHub',
     providerDiscord: 'Discord',

@@ -67,6 +67,18 @@ export default function EnvSetup() {
                 The OpenID Connect scopes to request during authentication (see scopes configuration below).
               </td>
             </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>APP_URL</td>
+              <td style={styles.tdStyle}>
+                Alternative fallback for BASE_URL (primarily used for origin-guard validation and development environment compatibility check).
+              </td>
+            </tr>
+            <tr>
+              <td style={styles.tdPathStyle}>LOGTO_M2M_RESOURCE</td>
+              <td style={styles.tdStyle}>
+                Audience resource indicator for the Machine-to-Machine client credentials grant. Defaults to 'https://default.logto.app/api' for Logto OSS.
+              </td>
+            </tr>
           </tbody>
         </table>
       </SectionWrap>
@@ -110,7 +122,14 @@ DELETE_REDIRECT_DELAY=3000 # Delay (ms) before redirecting client after deleting
 DEBUG=                    # Set to 'true' to enable verbose terminal server logging
 PLAIN_ERRORS=false        # Set to 'true' to receive unmasked error messages on the client
 LOGTO_DANGER_EXPOSE_TOKEN=false  # ⚠️ Set to 'true' to expose access token in the Dev tab (NEVER enable in production)
-LOG_BACKEND=both          # Logging output destinations: console | pino | both`} />
+LOG_BACKEND=both          # Logging output destinations: console | pino | both
+
+# - Pino Telemetry & Logging -
+LOG_LEVEL=info            # Minimum severity log filter: debug | info | warn | error
+LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log telemetry`} />
+        <div style={{ ...styles.noteStyle, marginTop: '16px', marginBottom: 0 }}>
+          S3 or Supabase variables (e.g. <code style={styles.codeSmStyle}>S3_ENDPOINT</code>, <code style={styles.codeSmStyle}>SUPABASE_SERVICE_ROLE_KEY</code>) are used to configure Profile Picture Uploads. See the Avatar Upload section for full details.
+        </div>
       </SectionWrap>
     </div>
   );

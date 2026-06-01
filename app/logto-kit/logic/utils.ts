@@ -43,7 +43,7 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
 
   if (!url || !clientId || !clientSecret) {
     throw new Error(
-      'Logto introspection not configured — set LOGTO_INTROSPECTION_URL, ' +
+      'Logto introspection not configured - set LOGTO_INTROSPECTION_URL, ' +
         'APP_ID and APP_SECRET.'
     );
   }
@@ -56,7 +56,7 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     }
   } catch {
     throw new Error(
-      'LOGTO_INTROSPECTION_URL must use HTTPS in production — secrets must not be ' +
+      'LOGTO_INTROSPECTION_URL must use HTTPS in production - secrets must not be ' +
       'transmitted over unencrypted connections.'
     );
   }
@@ -84,7 +84,7 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     }
     // Log full detail server-side
     warn(`[introspectToken] HTTP ${res.status}: ${detail}`);
-    // Throw sanitized error — never leak upstream API details to clients
+    // Throw sanitized error - never leak upstream API details to clients
     throw sanitize(new Error(`Introspection failed: HTTP ${res.status}`), { fallback: 'UNAUTHORIZED' });
   }
 

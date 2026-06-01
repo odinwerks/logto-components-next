@@ -192,7 +192,7 @@ export function SessionsTab({
   }, [loadSessions, isVerificationValid]);
 
   const handleRevokeAll = useCallback(async () => {
-    // Always require password confirmation for revoke all — the password modal
+    // Always require password confirmation for revoke all - the password modal
     // serves as both confirmation and verification.
     setRevokingId('__all__');
     revokeTargetRef.current = { kind: 'all' };

@@ -3,7 +3,7 @@
 /**
  * logto-kit/components/providers/session-heartbeat.tsx
  *
- * <SessionHeartbeat /> — zero-UI heartbeat engine.
+ * <SessionHeartbeat /> - zero-UI heartbeat engine.
  *
  * Fires recordHeartbeat() (Server Action) every 30 seconds while the tab is
  * visible, and immediately when the tab becomes visible again after being hidden.
@@ -13,7 +13,7 @@
  * Uses a Server Action directly instead of a fetch → API route, so the
  * correct Next.js auth/cookie context is always available.
  *
- * Errors are always swallowed — the heartbeat is best-effort.
+ * Errors are always swallowed - the heartbeat is best-effort.
  */
 
 import { useEffect, useRef } from 'react';
@@ -40,7 +40,7 @@ export default function SessionHeartbeat() {
 
       lastPingRef.current = now;
       recordHeartbeat().catch(() => {
-        // Best-effort — errors are silently swallowed.
+        // Best-effort - errors are silently swallowed.
       });
     };
 

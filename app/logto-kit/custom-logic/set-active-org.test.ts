@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('@logto/next/server-actions', () => ({
@@ -36,7 +36,7 @@ describe('setActiveOrg', () => {
   it('returns true immediately when orgId is null (clear-org shortcut)', async () => {
     const { setActiveOrg } = await import('./set-active-org');
     const result = await setActiveOrg(null);
-    // Should short-circuit — no Logto call needed
+    // Should short-circuit - no Logto call needed
     expect(result).toBe(true);
     expect(getLogtoContext).not.toHaveBeenCalled();
     expect(updateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: null } });
@@ -117,8 +117,8 @@ describe('setActiveOrg', () => {
     // but userInfo.organizations has the new org (post-login assignment)
     vi.mocked(getLogtoContext).mockResolvedValue({
       isAuthenticated: true,
-      claims: { organizations: [] },          // stale — empty
-      userInfo: { organizations: ['org_new'] }, // live — has it
+      claims: { organizations: [] },          // stale - empty
+      userInfo: { organizations: ['org_new'] }, // live - has it
     } as never);
 
     const { setActiveOrg } = await import('./set-active-org');

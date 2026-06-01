@@ -5,8 +5,8 @@ import { getLogtoConfig } from './app/logto-kit/config';
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 
 // These paths are public (no session needed). They are either:
-//   - Cookie/session management (wipe, sign-out) — GET for convenience, POST for CSRF safety
-//   - Auth-initiation routes (sign-in, callback) — must be reachable pre-auth
+//   - Cookie/session management (wipe, sign-out) - GET for convenience, POST for CSRF safety
+//   - Auth-initiation routes (sign-in, callback) - must be reachable pre-auth
 // These paths bypass the auth middleware. They are either:
 //   - Auth-initiation routes that must be reachable before a session exists.
 //   - Cookie/session endpoints that don't need session authentication, but

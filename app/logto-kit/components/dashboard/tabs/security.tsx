@@ -275,9 +275,9 @@ export function SecurityTab({
     if (!registrationResult.ok) { onError(registrationResult.error); setPasskeyRegStep(null); return; }
     const { registrationOptions, verificationRecordId } = registrationResult.data;
     try {
-      // Dynamic import — if chunk fails to load, error is caught below
+      // Dynamic import - if chunk fails to load, error is caught below
       const { startRegistration } = await import('@simplewebauthn/browser');
-      // browser ceremony — native prompt appears here
+      // browser ceremony - native prompt appears here
       const registrationResponse = await startRegistration({ optionsJSON: registrationOptions as Parameters<typeof startRegistration>[0]['optionsJSON'] });
       if (passkeyRegAbortRef.current) return;
       setPasskeyRegStep({ kind: 'loading', message: t.mfa.linkingPasskey });
@@ -288,7 +288,7 @@ export function SecurityTab({
       setPasskeyRegStep(null);
       await refreshMfa();
     } catch (err) {
-      // User cancelled the browser's WebAuthn prompt — close silently
+      // User cancelled the browser's WebAuthn prompt - close silently
       if (err instanceof Error && (err.name === 'NotAllowedError' || err.message.includes('not allowed'))) {
         setPasskeyRegStep(null);
         return;
@@ -405,7 +405,7 @@ export function SecurityTab({
         />
       )}
 
-      {/* Backup codes — password modal */}
+      {/* Backup codes - password modal */}
       {backupStep && (
         <FlowModal
           title={t.security.generateBackupCodesTitle}
@@ -420,7 +420,7 @@ export function SecurityTab({
         />
       )}
 
-      {/* Backup codes — display modal */}
+      {/* Backup codes - display modal */}
       {backupCodes && (
         <BackupCodesModal
           codes={backupCodes}

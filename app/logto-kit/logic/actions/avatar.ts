@@ -252,7 +252,7 @@ function detectMimeFromBytes(bytes: Buffer): string | null {
  * Security model (Phase 1, Finding 1 + Phase 3, Finding 3):
  *
  *   - FormData carries ONLY the file. The access token and user ID are
- *     derived server-side from the session cookie — never accepted from
+ *     derived server-side from the session cookie - never accepted from
  *     the client.
  *   - Next.js Server Actions enforce same-origin at the framework level,
  *     eliminating CSRF from cross-site origins.

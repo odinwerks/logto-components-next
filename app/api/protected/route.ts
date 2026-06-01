@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/action-registry';
-import { introspectToken } from '../../logto-kit/logic/utils';
+import { introspectToken, getCleanEndpoint } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
+import { getManagementApiToken } from '../../logto-kit/config';
+import { getUserRoles, verifyOrgAccess } from '../../logto-kit/logic/actions';
+
+async function fetchUserAsOrg(userId: string): Promise<string | null> {
+  try {
+    const mgmtToken = await getManagementApiToken();
+    const endpoint = getCleanEndpoint();
+    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}`;
+
+    debugLog(`[Protected API] Fetching user ${userId} details from Management API`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${mgmtToken}` },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      debugError(`[Protected API] Failed to fetch user details for ${userId}: status ${res.status}`);
+      return null;
+    }
+
+    const user = (await res.json()) as {
+      custom_data?: { Preferences?: { asOrg?: string } };
+      customData?: { Preferences?: { asOrg?: string } };
+    };
+
+    return user.custom_data?.Preferences?.asOrg || user.customData?.Preferences?.asOrg || null;
+  } catch (error) {
+    debugError(
+      '[Protected API] Error in fetchUserAsOrg:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
+}
 
 function apiError(error: string, status: number) {
   return NextResponse.json(
@@ -102,53 +136,66 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Step 1: RBAC verification ─────────────────────────────────────────────
-    // Branch: "self" bypass checks personal roles/permissions.
-    // Otherwise, verify against the organization declared in the action config.
-    const { verifyOrgAccess, verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-
-    let roles: { id: string; name: string }[];
-    let permissions: string[];
-
+    // Branch: "self" bypass checks personal roles.
+    // Otherwise, check custom data asOrg first, then load org roles/permissions and verify both.
     if (actionConfig.requiredOrgId === 'self') {
-      const result = await verifyPersonalAccess();
-      if (!result.ok) {
-        debugLog('[Protected API] Personal access verification failed:', result.error);
+      const rolesResult = await getUserRoles();
+      if (!rolesResult.ok) {
+        debugLog('[Protected API] Personal roles verification failed:', rolesResult.error);
         return apiError('UNAUTHORIZED', 401);
       }
-      roles = result.data.roles;
-      permissions = result.data.permissions;
+      const roles = rolesResult.data;
+
+      // ── Step 2: Role check ────────────────────────────────────────────────────
+      const requiredRoles = Array.isArray(actionConfig.requiredRoleId)
+        ? actionConfig.requiredRoleId
+        : [actionConfig.requiredRoleId];
+
+      const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
+      if (!hasRequiredRole) {
+        debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
+        return apiError('ROLE_DENIED', 403);
+      }
+      // No permission check for self bypass
     } else {
       const orgId = actionConfig.requiredOrgId;
+      const asOrg = await fetchUserAsOrg(id);
+
+      if (asOrg !== orgId) {
+        debugLog(`[Protected API] active org (${asOrg}) does not match required org (${orgId})`);
+        return apiError('ORG_NOT_MEMBER', 403);
+      }
+
       const result = await verifyOrgAccess(orgId);
       if (!result.ok) {
         debugLog('[Protected API] Org access verification failed:', result.error);
         return apiError('ORG_NOT_MEMBER', 403);
       }
-      roles = result.data.roles;
-      permissions = result.data.permissions;
-    }
+      const roles = result.data.roles;
+      const permissions = result.data.permissions;
 
-    // ── Step 2: Role check ────────────────────────────────────────────────────
-    const requiredRoles = Array.isArray(actionConfig.requiredRoleId)
-      ? actionConfig.requiredRoleId
-      : [actionConfig.requiredRoleId];
+      // ── Step 2: Role check ────────────────────────────────────────────────────
+      const requiredRoles = Array.isArray(actionConfig.requiredRoleId)
+        ? actionConfig.requiredRoleId
+        : [actionConfig.requiredRoleId];
 
-    const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
-    if (!hasRequiredRole) {
-      debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
-      return apiError('ROLE_DENIED', 403);
-    }
+      const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
+      if (!hasRequiredRole) {
+        debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
+        return apiError('ROLE_DENIED', 403);
+      }
 
-    // ── Step 3: Permission check ──────────────────────────────────────────────
-    const requiredPerms = Array.isArray(actionConfig.requiredPermId)
-      ? actionConfig.requiredPermId
-      : [actionConfig.requiredPermId];
+      // ── Step 3: Permission check ──────────────────────────────────────────────
+      const requiredPerms = Array.isArray(actionConfig.requiredPermId)
+        ? actionConfig.requiredPermId
+        : [actionConfig.requiredPermId];
 
-    const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
+      const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
 
-    if (!hasPermission) {
-      debugLog('[Protected API] Required permissions not present. Required:', requiredPerms, 'Has:', permissions);
-      return apiError('PERMISSION_DENIED', 403);
+      if (!hasPermission) {
+        debugLog('[Protected API] Required permissions not present. Required:', requiredPerms, 'Has:', permissions);
+        return apiError('PERMISSION_DENIED', 403);
+      }
     }
 
     // ── Invoke handler ────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 /**
  * logto-kit/components/providers/auth-watcher.tsx
  *
- * <AuthWatcher /> — the "live update by force" engine.
+ * <AuthWatcher /> - the "live update by force" engine.
  *
  * Zero-UI client component. Sits in your root layout and calls router.refresh()
  * whenever the auth state might have gone stale. router.refresh() re-runs all
@@ -11,7 +11,7 @@
  * page reload, and without losing client state (useState, scroll position, etc).
  *
  * Triggers:
- *   1. visibilitychange → visible  Tab regains focus (most important — catches
+ *   1. visibilitychange → visible  Tab regains focus (most important - catches
  *                                   "logged out in another tab" instantly)
  *   2. online                       Network reconnects (catches expired sessions
  *                                   that built up while offline)
@@ -26,7 +26,7 @@ interface AuthWatcherProps {
   /** How often (in ms) to proactively refresh auth state. Default: 300000 (5 min).
    *  Set to 0 to disable interval polling and rely only on tab-focus + online triggers. */
   refreshIntervalMs?: number;
-  /** Minimum ms between refreshes — prevents a flood of calls if triggers fire
+  /** Minimum ms between refreshes - prevents a flood of calls if triggers fire
    *  in rapid succession (e.g., tab focus + online at the same time). Default: 1000. */
   debounceMs?: number;
 }
@@ -38,7 +38,7 @@ export default function AuthWatcher({
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  // useRef to hold debounce state — avoids adding to effect deps
+  // useRef to hold debounce state - avoids adding to effect deps
   const lastRefreshRef = useRef<number>(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

@@ -20,7 +20,7 @@ export async function getMfaVerifications(): Promise<DataResult<MfaVerification[
     await throwOnApiError(res, 'FETCH_FAILED', 'get-mfa');
 
     const data = await res.json();
-    // Handle possible response shapes — API may return bare array or wrapped object
+    // Handle possible response shapes - API may return bare array or wrapped object
     const verifications: MfaVerification[] = Array.isArray(data)
       ? data
       : Array.isArray(data?.verifications)
@@ -73,7 +73,7 @@ export async function addMfaVerification(
         throw new ValidationError('INVALID_INPUT', 'verification.secret');
       }
     } else {
-      // WebAuthn / BackupCode — both have [key: string]: unknown index signatures
+      // WebAuthn / BackupCode - both have [key: string]: unknown index signatures
       const genericPayload = payload as Record<string, unknown>;
       if (typeof genericPayload.code === 'string' && genericPayload.code.length > 16) {
         throw new ValidationError('INVALID_INPUT', 'verification.code');
@@ -97,7 +97,7 @@ export async function addMfaVerification(
     
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'mfa-add');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const _token = await getTokenForServerAction();
@@ -127,7 +127,7 @@ export async function deleteMfaVerification(
     
     await throwOnApiError(res, 'MFA_REMOVE_FAILED', 'mfa-remove');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const _token = await getTokenForServerAction();
@@ -164,7 +164,7 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
 
     await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const _token = await getTokenForServerAction();

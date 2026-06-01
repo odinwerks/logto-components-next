@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('../utils', () => ({
@@ -60,7 +60,7 @@ const mockOkResponse = (data?: unknown): Response =>
   } as unknown as Response);
 
 // ============================================================================
-// addMfaVerification — payload validation
+// addMfaVerification - payload validation
 // ============================================================================
 
 describe('addMfaVerification', () => {

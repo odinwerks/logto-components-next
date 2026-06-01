@@ -20,7 +20,7 @@ import type { UserRole, OrgRoleScope } from '../types';
  * survives page refreshes.
  *
  * Used only by the loadOrganizationPermissions server action which feeds
- * the Protected UI component (client-side display gate only — not the
+ * the Protected UI component (client-side display gate only - not the
  * security boundary). The security boundary uses verifyOrgAccess() below.
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
@@ -91,7 +91,7 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
 }
 
 // ============================================================================
-// M2M org verification — used by the Protected Actions API security boundary
+// M2M org verification - used by the Protected Actions API security boundary
 // ============================================================================
 
 export interface OrgAccessResult {
@@ -101,14 +101,14 @@ export interface OrgAccessResult {
 
 /**
  * Verifies the authenticated user's access to an organization via the
- * Logto Management API (M2M credentials — never the user's own session token).
+ * Logto Management API (M2M credentials - never the user's own session token).
  *
  * Performs the full verification chain in a single function:
  *   1. GET /api/organizations/{orgId}/users/{userId}/roles
- *      — confirms org membership (non-200 → ORG_NOT_MEMBER)
- *      — returns user's org roles
+ * - confirms org membership (non-200 → ORG_NOT_MEMBER)
+ * - returns user's org roles
  *   2. For each role: GET /api/organization-roles/{roleId}/scopes
- *      — derives the user's effective permission set for this org
+ * - derives the user's effective permission set for this org
  *
  * Returns { roles, permissions } for the route to check against
  * ActionConfig.requiredRole and ActionConfig.requiredPerm.
@@ -135,7 +135,7 @@ export async function verifyOrgAccess(orgId: string): Promise<DataResult<OrgAcce
     const m2mToken = await getManagementApiToken();
     const endpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
 
-    // Step 1: fetch user's org roles — also acts as membership verification
+    // Step 1: fetch user's org roles - also acts as membership verification
     const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[verifyOrgAccess] Fetching org roles: ${rolesUrl}`);
 
@@ -156,7 +156,7 @@ export async function verifyOrgAccess(orgId: string): Promise<DataResult<OrgAcce
     debugLog(`[verifyOrgAccess] User ${userId} has ${roles.length} roles in org ${orgId}`);
 
     if (roles.length === 0) {
-      // Member with zero roles — no permissions possible
+      // Member with zero roles - no permissions possible
       return { roles: [], permissions: [] };
     }
 

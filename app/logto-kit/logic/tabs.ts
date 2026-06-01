@@ -4,7 +4,7 @@
 // ============================================================================
 
 // TabId is defined here (logic layer) so that components/dashboard/types.ts
-// can import it from logic — not the other way around.
+// can import it from logic - not the other way around.
 export type TabId = 'profile' | 'preferences' | 'security' | 'sessions' | 'identities' | 'organizations' | 'dev';
 
 // All valid tab IDs and their display labels (used as fallback)
@@ -18,7 +18,7 @@ export const ALL_TABS: TabId[] = [
   'dev',
 ];
 
-// ENV value aliases — lets operators use friendly names
+// ENV value aliases - lets operators use friendly names
 import { readEnv } from './env';
 import { isDev } from './dev-mode';
 import { warn } from './log';
@@ -94,7 +94,7 @@ export function getLoadedTabs(): TabId[] {
 
     const tabId = TAB_ALIASES[key];
     if (!tabId) {
-      warn(`[tabs] Unknown tab identifier "${token.trim()}" in LOAD_TABS — skipping.`);
+      warn(`[tabs] Unknown tab identifier "${token.trim()}" in LOAD_TABS - skipping.`);
       continue;
     }
 

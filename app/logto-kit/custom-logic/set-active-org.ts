@@ -6,7 +6,7 @@ import { assertSafeLogtoId } from '../logic/guards';
 import { updateUserCustomData } from '../logic/actions';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
-  // null is valid — user wants to be themselves (no org context).
+  // null is valid - user wants to be themselves (no org context).
   if (orgId === null) {
     await updateUserCustomData({ Preferences: { asOrg: null } });
     return true;

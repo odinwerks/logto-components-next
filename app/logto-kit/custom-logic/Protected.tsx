@@ -59,7 +59,8 @@ import { ReactNode, useState, useEffect } from 'react';
 import { useOrgMode } from '../components/providers/preferences';
 import { useLogto } from '../components/providers/logto-provider';
 import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
-import { loadPersonalPermissions } from '../server-actions/load-personal-permissions';
+import { loadPersonalRoles } from '../server-actions/load-personal-roles';
+import { loadOrganizationUserRoles } from '../server-actions/load-org-roles';
 import { debugLog } from '../logic/debug';
 
 /**
@@ -79,6 +80,7 @@ import { debugLog } from '../logic/debug';
 interface ProtectedProps {
   children: ReactNode;
   perm?: string | string[];
+  roleId?: string | string[];
   orgId?: string | null;
   orgName?: string | null;
   requireAll?: boolean;
@@ -88,6 +90,7 @@ interface ProtectedProps {
 export function Protected({
   children,
   perm,
+  roleId,
   orgId,
   orgName,
   requireAll = true,
@@ -96,6 +99,7 @@ export function Protected({
   const { asOrg } = useOrgMode();
   const { userData } = useLogto();
   const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
+  const [loadedRoles, setLoadedRoles] = useState<string[]>([]);
   const [isLoadingPerms, setIsLoadingPerms] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
@@ -104,6 +108,7 @@ export function Protected({
     // Guard: need userData to proceed
     if (!userData) {
       setLoadedPerms([]);
+      setLoadedRoles([]);
       setIsLoadingPerms(false);
       return;
     }
@@ -114,39 +119,50 @@ export function Protected({
       setIsLoadingPerms(true);
       setLoadError(false);
 
-      loadPersonalPermissions()
-        .then((result) => {
+      loadPersonalRoles()
+        .then((rolesRes) => {
           if (!cancelled) {
-            if (!result.ok) { console.error(result.error); setLoadedPerms([]); }
-            else { setLoadedPerms(result.data.map((p) => p.scope)); }
+            setLoadedPerms([]); // Clear loadedPerms state to []
+            if (!rolesRes.ok) {
+              console.error(rolesRes.error);
+              setLoadedRoles([]);
+            } else {
+              setLoadedRoles(rolesRes.data.map((r) => r.id));
+            }
             setIsLoadingPerms(false);
           }
         })
         .catch(() => {
           if (!cancelled) {
             setLoadedPerms([]);
+            setLoadedRoles([]);
             setLoadError(true);
             setIsLoadingPerms(false);
           }
         });
 
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
 
     // Organization scope
-    if (!orgId || !asOrg) {
-      setLoadedPerms([]);
-      setIsLoadingPerms(false);
-      return;
+    if (orgId && orgId !== 'self') {
+      if (asOrg !== orgId) {
+        setLoadedPerms([]);
+        setLoadedRoles([]);
+        setIsLoadingPerms(false);
+        return;
+      }
     }
 
-    // Check if org matches
     const targetOrgId = orgName
       ? userData.organizations?.find((org) => org.name === orgName)?.id
       : orgId;
 
     if (!targetOrgId || asOrg !== targetOrgId) {
       setLoadedPerms([]);
+      setLoadedRoles([]);
       setIsLoadingPerms(false);
       return;
     }
@@ -156,17 +172,25 @@ export function Protected({
     setIsLoadingPerms(true);
     setLoadError(false);
 
-    loadOrganizationPermissions(targetOrgId)
-      .then((result) => {
+    Promise.all([
+      loadOrganizationPermissions(targetOrgId),
+      loadOrganizationUserRoles(targetOrgId),
+    ])
+      .then(([permsRes, rolesRes]) => {
         if (!cancelled) {
-          if (!result.ok) { console.error(result.error); setLoadedPerms([]); }
-          else { setLoadedPerms(result.data); }
+          if (!permsRes.ok) { console.error(permsRes.error); setLoadedPerms([]); }
+          else { setLoadedPerms(permsRes.data); }
+
+          if (!rolesRes.ok) { console.error(rolesRes.error); setLoadedRoles([]); }
+          else { setLoadedRoles(rolesRes.data.map((r) => r.id)); }
+
           setIsLoadingPerms(false);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setLoadedPerms([]);
+          setLoadedRoles([]);
           setLoadError(true);
           setIsLoadingPerms(false);
         }
@@ -191,21 +215,25 @@ export function Protected({
 
   // When loadedPerms is empty (load failed, not yet triggered, or org mismatch),
   // we must NOT fall back to userData.organizationPermissions because that array
-  // is unscoped — it may contain permissions from ALL organizations the user belongs
+  // is unscoped - it may contain permissions from ALL organizations the user belongs
   // to, not just the active one. Returning an empty set is the fail-safe choice:
   // gated content is hidden rather than shown with potentially wrong permissions.
   const effectivePerms = loadedPerms;
 
   const checkAccess = (): boolean => {
-    // Personal scope bypass — no org checks, just permissions
+    // Personal scope bypass - check roles only, ignore perm check
     if (orgId === 'self') {
-      if (!perm) return true;
-      const requiredPerms = Array.isArray(perm) ? perm : [perm];
-      const hasPerms = requireAll
-        ? requiredPerms.every((p) => loadedPerms.includes(p))
-        : requiredPerms.some((p) => loadedPerms.includes(p));
-      debugLog('[Protected] Personal scope check:', { requiredPerms, loadedPerms, hasPerms });
-      return hasPerms;
+      if (roleId) {
+        const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
+        const hasRoles = requireAll
+          ? requiredRoles.every((r) => loadedRoles.includes(r))
+          : requiredRoles.some((r) => loadedRoles.includes(r));
+        if (!hasRoles) {
+          debugLog('[Protected] User lacks required personal roles');
+          return false;
+        }
+      }
+      return true;
     }
 
     if (!userData?.organizations) {
@@ -214,10 +242,10 @@ export function Protected({
     }
 
     if (!orgId && !orgName) {
-      // No org context — if a permission is required, deny by default.
+      // No org context - if a permission is required, deny by default.
       // If no permission is required, the component is just checking membership, so allow.
-      if (perm) {
-        debugLog('[Protected] Permission specified but no orgId/orgName provided — default-deny');
+      if (perm || roleId) {
+        debugLog('[Protected] Permission or role specified but no orgId/orgName provided - default-deny');
         return false;
       }
       return true;
@@ -238,24 +266,35 @@ export function Protected({
       return true;
     }
 
+    // Verify that asOrg === targetOrgId / orgId (strict asOrg check)
+    if (asOrg !== targetOrgId) {
+      debugLog('[Protected] Organization not selected as active:', {
+        required: targetOrgId,
+        current: asOrg,
+      });
+      return false;
+    }
+
     const hasOrg = userData.organizations.some((org) => org.id === targetOrgId);
     if (!hasOrg) {
       debugLog('[Protected] User does not have required organization:', targetOrgId);
       return false;
     }
 
+    if (roleId) {
+      const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
+      const hasRoles = requireAll
+        ? requiredRoles.every((r) => loadedRoles.includes(r))
+        : requiredRoles.some((r) => loadedRoles.includes(r));
+      if (!hasRoles) {
+        debugLog('[Protected] User lacks required roles in organization:', targetOrgId);
+        return false;
+      }
+    }
+
     const hasRequiredPerms = checkPermissions(targetOrgId, effectivePerms);
     if (!hasRequiredPerms) {
       debugLog('[Protected] User lacks required permissions in organization:', targetOrgId);
-      return false;
-    }
-
-    const activeOrgMatches = asOrg === targetOrgId;
-    if (!activeOrgMatches) {
-      debugLog('[Protected] Organization not selected as active:', {
-        required: targetOrgId,
-        current: asOrg,
-      });
       return false;
     }
 

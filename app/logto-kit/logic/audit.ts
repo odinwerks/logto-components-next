@@ -32,7 +32,7 @@ export interface AuditEntry {
   actor: string;
   /** Dot-separated action identifier, e.g. 'password.change', 'mfa.totp.enroll'. */
   action: string;
-  /** Resource being acted on — usually a user ID or org ID. */
+  /** Resource being acted on - usually a user ID or org ID. */
   resource?: string;
   /** Optional bag of additional structured metadata. */
   metadata?: Record<string, unknown>;

@@ -44,7 +44,7 @@ vi.mock('../providers/user-data-context', () => ({
   useUserDataContext: () => null,
 }));
 
-// Mock env — after the fix, readEnv should NOT be called during render
+// Mock env - after the fix, readEnv should NOT be called during render
 vi.mock('../../logic/env', () => ({
   readEnv: vi.fn(() => undefined),
 }));
@@ -140,7 +140,7 @@ const requiredProps = {
   onSignOut: async () => {},
 };
 
-describe('DashboardClient — userShape prop', () => {
+describe('DashboardClient - userShape prop', () => {
   beforeEach(() => {
     mockUserBadge.mockClear();
     vi.mocked(readEnv).mockClear();

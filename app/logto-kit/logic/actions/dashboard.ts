@@ -107,12 +107,12 @@ function handleAuthFetchError(err: unknown, label: string): never {
 /**
  * Fetches dashboard data for the authenticated user.
  * Used in RSC (React Server Components).
- * @returns DashboardResult containing user data (no access token — kept server-side).
+ * @returns DashboardResult containing user data (no access token - kept server-side).
  */
 export async function fetchDashboardData(): Promise<DashboardResult> {
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardResult> => {
-      // Removed redundant getTokenForServerAction() — getLogtoContext handles refresh internally
+      // Removed redundant getTokenForServerAction() - getLogtoContext handles refresh internally
       const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {
@@ -147,7 +147,7 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
         updatedAt: (userInfo.updated_at as string | number) || undefined,
         lastSignInAt: (userInfo.last_sign_in_at as string | number) || undefined,
 
-        // Organization data from userInfo — use organization_data if available, otherwise fall back to IDs
+        // Organization data from userInfo - use organization_data if available, otherwise fall back to IDs
         organizations: (() => {
           const orgData = userInfo?.organization_data as Array<{ id: string; name: string; description?: string }> | undefined;
           return orgData
@@ -194,7 +194,7 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
 
 /**
  * Fetches lightweight user data for UserBadge component.
- * @returns DashboardResult containing user data (no access token — kept server-side).
+ * @returns DashboardResult containing user data (no access token - kept server-side).
  */
 export async function fetchUserBadgeData(): Promise<DashboardResult> {
   try {

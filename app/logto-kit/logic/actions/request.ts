@@ -15,7 +15,7 @@ export async function makeRequest(
     method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     body?: unknown;
     extraHeaders?: Record<string, string>;
-    /** Query parameters appended safely via URLSearchParams — never put these in `path`. */
+    /** Query parameters appended safely via URLSearchParams - never put these in `path`. */
     query?: Record<string, string>;
   } = {}
 ): Promise<Response> {

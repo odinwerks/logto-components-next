@@ -10,7 +10,7 @@ export default function ReplaceTheDemo() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <SectionWrap label="Replacing the Demo App">
         <p style={styles.textStyle}>
-          Once you understand how the kit functions, replace the demonstration showcase with your own application shell in <code style={styles.codeSmStyle}>app/page.tsx</code>. Keep the underlying provider structure intact to maintain context, themes, and self-service settings dashboard.
+          Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, the global layout and server-side OIDC hydration live under the layout route group at <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code>, and <code style={styles.codeSmStyle}>app/page.tsx</code> is a simple redirect to guide users to the docs. When replacing the demo, you can lift the provider structure into your root layout (<code style={styles.codeSmStyle}>app/layout.tsx</code>) or keep the route group setup.
         </p>
         <CodeBlock title="app/page.tsx (Structure)" code={`import { LogtoProvider } from './logto-kit';
 import { Dashboard } from './logto-kit/components/dashboard';
@@ -55,7 +55,7 @@ export default async function HomePage() {
 
       <SectionWrap label="Run in Development & Production">
         <p style={styles.textStyle}>
-          To run the project locally, verify you are using <strong>Node.js v25+</strong> (due to modern APIs like <code style={styles.codeSmStyle}>globalThis.structuredClone</code>).
+          To run the project locally, verify you are using <strong>Node.js v18+ (LTS) or v20+ (LTS)</strong> (due to modern APIs like <code style={styles.codeSmStyle}>globalThis.structuredClone</code> which are fully supported natively since Node v17).
         </p>
         <CodeBlock title="Development Mode" code={`npm run dev`} />
         <p style={styles.textStyle}>
@@ -96,7 +96,7 @@ docker compose up -d`} />
           Here is a step-by-step description of how the authorization layers secure your application:
         </p>
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>1. Middleware Guard:</strong> <code style={styles.codeSmStyle}>proxy.ts</code> intercepts incoming server-side requests. Unauthenticated requests are redirected straight to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
+          <strong style={styles.strongNoteStyle}>1. Proxy Guard (Next.js 16):</strong> <code style={styles.codeSmStyle}>proxy.ts</code> (the official Next.js 16 proxy convention replacing deprecated middleware) intercepts incoming server-side requests. Unauthenticated requests are redirected straight to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
         </div>
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>2. OIDC Authorize:</strong> Sign-in endpoint redirects to Logto. After successful login, Logto routes back to the <code style={styles.codeSmStyle}>/callback</code> route.
@@ -105,7 +105,7 @@ docker compose up -d`} />
           <strong style={styles.strongNoteStyle}>3. Token Exchange:</strong> The callback endpoint securely exchanges the authorization code for tokens, writes session cookies, and redirects back to <code style={styles.codeSmStyle}>/</code>.
         </div>
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>page.tsx</code> loads user profile credentials server-side and hydrates the client's <code style={styles.codeSmStyle}>LogtoProvider</code> context.
+          <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client's <code style={styles.codeSmStyle}>LogtoProvider</code> context.
         </div>
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 5-minute intervals to silently refresh authentication states.

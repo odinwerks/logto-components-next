@@ -127,7 +127,7 @@ function renderProfile(
   return { ...result, basicInfoFn, profileFn };
 }
 
-describe('ProfileTab — NAME_TYPE gating', () => {
+describe('ProfileTab - NAME_TYPE gating', () => {
   beforeEach(() => {
     mockReadEnv.mockClear();
   });
@@ -167,12 +167,12 @@ describe('ProfileTab — NAME_TYPE gating', () => {
   });
 });
 
-describe('ProfileTab — behavioral', () => {
+describe('ProfileTab - behavioral', () => {
   beforeEach(() => {
     mockReadEnv.mockClear();
   });
 
-  it('username mode — save calls onUpdateBasicInfo with username only, not onUpdateProfile', async () => {
+  it('username mode - save calls onUpdateBasicInfo with username only, not onUpdateProfile', async () => {
     const userData: UserData = {
       ...defaultUserData,
       username: 'olduser',
@@ -193,7 +193,7 @@ describe('ProfileTab — behavioral', () => {
     expect(onUpdateProfile).not.toHaveBeenCalled();
   });
 
-  it('full mode — save calls both APIs when both changed', async () => {
+  it('full mode - save calls both APIs when both changed', async () => {
     const userData: UserData = {
       ...defaultUserData,
       username: 'olduser',
@@ -221,7 +221,7 @@ describe('ProfileTab — behavioral', () => {
     expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: 'Alice', familyName: 'Smith' });
   });
 
-  it('full mode — username saved even when name fields are empty (Fix 1/3)', async () => {
+  it('full mode - username saved even when name fields are empty (Fix 1/3)', async () => {
     const userData: UserData = {
       ...defaultUserData,
       username: 'olduser',
@@ -302,9 +302,9 @@ describe('ProfileTab — behavioral', () => {
   });
 
   // BUG-008 FIX: when Step 2 (profile update) fails after Step 1 (basic info) succeeds,
-  // onError fires but refreshData must NOT be called — preserving the user's in-progress
+  // onError fires but refreshData must NOT be called - preserving the user's in-progress
   // edits so they can correct and retry without losing their changes.
-  it('given_family mode — calls onError but NOT refreshData when profile update fails after basic info succeeds', async () => {
+  it('given_family mode - calls onError but NOT refreshData when profile update fails after basic info succeeds', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
     const refreshData = vi.fn();
@@ -346,12 +346,12 @@ describe('ProfileTab — behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /save changes/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    // onError must be called, but refreshData must NOT be — edits are preserved for retry.
+    // onError must be called, but refreshData must NOT be - edits are preserved for retry.
     expect(onError).toHaveBeenCalled();
     expect(refreshData).not.toHaveBeenCalled();
   });
 
-  it('PersonalPermissionsBlock — re-fetches permissions on refresh (BUG-002)', async () => {
+  it('PersonalPermissionsBlock - re-fetches permissions on refresh (BUG-002)', async () => {
     mockLoadPersonalPermissions.mockClear();
     mockLoadPersonalPermissions.mockResolvedValue({
       ok: true,

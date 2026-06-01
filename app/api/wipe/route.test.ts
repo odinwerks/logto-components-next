@@ -64,7 +64,7 @@ vi.mock('../../logto-kit/logic/log', () => ({
   debug: vi.fn(),
 }));
 
-// Mock @logto/next/server-actions — the route dynamically imports this,
+// Mock @logto/next/server-actions - the route dynamically imports this,
 // so we use a factory that returns an object whose signOut we can mutate.
 const signOutMockFn = vi.fn();
 

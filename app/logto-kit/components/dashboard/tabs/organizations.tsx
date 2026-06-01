@@ -145,7 +145,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgC
   );
 };
 
-// ─── PermissionsBlock — refreshable wrapper so the Refresh button
+// ─── PermissionsBlock - refreshable wrapper so the Refresh button
 //     unmounts / remounts the entire block, running effects fresh. ───
 interface PermissionsBlockProps {
   activeOrgId: string;
@@ -547,7 +547,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
           </div>
         </div>
 
-        {/* Permissions — refreshable block remounts on refresh */}
+        {/* Permissions - refreshable block remounts on refresh */}
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
           {activeOrgId ? (
             <PermissionsBlock activeOrgId={activeOrgId} colors={colors} t={t} userData={userData} scrollWell />

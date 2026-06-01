@@ -7,7 +7,7 @@ import { makeRequest } from './request';
  * Records a session heartbeat by calling Logto's Account API.
  *
  * Updates `lastActiveAt` on the current session so other devices can see
- * this session is actively open.  Errors are swallowed — the heartbeat is
+ * this session is actively open.  Errors are swallowed - the heartbeat is
  * best-effort and must never surface failures to the user.
  *
  * Called directly from the SessionHeartbeat client component every 30 s.
@@ -20,6 +20,6 @@ export async function recordHeartbeat(): Promise<void> {
     if (!token) return; // Not authenticated - silently skip
     await makeRequest('/api/my-account/sessions/heartbeat', { method: 'POST' });
   } catch {
-    // Best-effort — silently absorb all errors.
+    // Best-effort - silently absorb all errors.
   }
 }

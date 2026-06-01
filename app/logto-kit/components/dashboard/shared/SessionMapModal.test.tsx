@@ -5,7 +5,7 @@ import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { SessionMapModal } from './SessionMapModal';
 
-// Duplicate city/region — deduplication should collapse these
+// Duplicate city/region - deduplication should collapse these
 const mockGeo: GeoLocation = {
   lat: 41.7151,
   lon: 44.8271,
@@ -14,7 +14,7 @@ const mockGeo: GeoLocation = {
   country: 'Georgia',
 };
 
-// All-distinct values — nothing should be deduplicated
+// All-distinct values - nothing should be deduplicated
 const mockGeoUnique: GeoLocation = {
   lat: 39.7447,
   lon: -75.5484,
@@ -144,7 +144,7 @@ describe('SessionMapModal', () => {
       />
     );
 
-    // city === region ('Tbilisi'), so Set deduplicates — country survives
+    // city === region ('Tbilisi'), so Set deduplicates - country survives
     expect(screen.getByText('Tbilisi, Georgia')).toBeDefined();
   });
 
@@ -160,7 +160,7 @@ describe('SessionMapModal', () => {
       />
     );
 
-    // All distinct — nothing deduplicated
+    // All distinct - nothing deduplicated
     expect(screen.getByText('Wilmington, Delaware, US')).toBeDefined();
   });
 

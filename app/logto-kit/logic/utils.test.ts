@@ -40,7 +40,7 @@ describe('introspectToken', () => {
       vi.stubEnv('APP_SECRET', 'super-secret-value');
 
       const { introspectToken } = await import('./utils');
-      // Must NOT throw URL validation error — passes through to fetch
+      // Must NOT throw URL validation error - passes through to fetch
       await expect(introspectToken('some-token')).rejects.not.toThrow(
         'LOGTO_INTROSPECTION_URL must use HTTPS'
       );
@@ -52,7 +52,7 @@ describe('introspectToken', () => {
       vi.stubEnv('APP_SECRET', 'super-secret-value');
 
       const { introspectToken } = await import('./utils');
-      // Must NOT throw URL validation error — passes through to fetch
+      // Must NOT throw URL validation error - passes through to fetch
       await expect(introspectToken('some-token')).rejects.not.toThrow(
         'LOGTO_INTROSPECTION_URL must use HTTPS'
       );

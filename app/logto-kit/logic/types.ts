@@ -86,7 +86,7 @@ export interface PersonalPermission {
 /**
  * Scope (permission) assigned to an organization role.
  * Returned by GET /api/organization-roles/{id}/scopes.
- * Note: flat structure — no resource field (unlike API resource scopes).
+ * Note: flat structure - no resource field (unlike API resource scopes).
  */
 export interface OrgRoleScope {
   id: string;
@@ -257,8 +257,8 @@ export interface SessionMeta {
   /**
    * Enriched UI-facing value derived from `LogtoSession.isCurrent ?? false`.
    * Always `false` until Logto ships the `isCurrent` field in the Account API
-   * sessions response (PRs #8728–#8731). After enrichment, this is the
-   * authoritative value for UI components — read `session.meta.isCurrent`,
+   * sessions response (PRs #8728-#8731). After enrichment, this is the
+   * authoritative value for UI components - read `session.meta.isCurrent`,
    * not the raw `session.isCurrent`.
    */
   isCurrent: boolean;
@@ -273,7 +273,7 @@ export interface LogtoSession {
   /**
    * Raw value from the Logto Account API (`GET /api/my-account/sessions`).
    * `true` for the session backing the caller's access token, `false` for
-   * the others. `undefined` until Logto ships PRs #8728–#8731 — the
+   * the others. `undefined` until Logto ships PRs #8728-#8731 - the
    * `getSessionsWithDeviceMeta` action uses `?? false` when populating
    * `SessionMeta.isCurrent`. UI components should read `session.meta.isCurrent`,
    * not this field directly.

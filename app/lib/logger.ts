@@ -70,7 +70,7 @@ function createWebhookDestination(webhookUrl: string) {
         signal: AbortSignal.timeout(5000),
       });
     } catch {
-      // Webhook unreachable — log a warning to stdout and continue.
+      // Webhook unreachable - log a warning to stdout and continue.
       // Don't crash the app.
     } finally {
       pending = false;

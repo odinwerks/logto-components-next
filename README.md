@@ -23,95 +23,178 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 
 ```
 ./
+├── .dockerignore
+├── .env.example
+├── .env.local
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/
+├── .gitignore
+├── .kilo/
+│   ├── .gitignore
+│   ├── bun.lock
+│   ├── package-lock.json
+│   ├── package.json
+│   └── plans/
+├── .opencode/
+│   ├── .gitignore
+│   ├── bun.lock
+│   ├── package-lock.json
+│   ├── package.json
+│   └── plans/
+├── .vscode/
+│   └── settings.json
+├── AGENTS.md
 ├── app/
+│   ├── (docs)/
+│   │   ├── [topic]/
+│   │   │   └── [section]/
+│   │   │       ├── page.tsx
+│   │   │       └── scroll-to-section.tsx
+│   │   └── layout.tsx
 │   ├── api/
 │   │   ├── auth/
-│   │   │   ├── sign-in/route.ts
-│   │   │   └── sign-out/route.ts
-│   │   ├── protected/route.ts
-│   │   └── wipe/route.ts
-│   ├── callback/route.ts
+│   │   │   ├── sign-in/
+│   │   │   │   └── route.ts
+│   │   │   └── sign-out/
+│   │   │       └── route.ts
+│   │   ├── protected/
+│   │   │   ├── route.test.ts
+│   │   │   └── route.ts
+│   │   └── wipe/
+│   │       ├── route.test.ts
+│   │       └── route.ts
+│   ├── callback/
+│   │   └── route.ts
 │   ├── demo/                              # Self-documenting showcase for logto-kit
 │   │   ├── components/                    # Shared UI and utilities for doc pages
 │   │   │   ├── calculator/
+│   │   │   │   ├── CalculatorClient.test.tsx
 │   │   │   │   ├── CalculatorClient.tsx   # Calculator UI + expression parser
 │   │   │   │   └── CalculatorPanel.tsx    # Protected wrapper for the calculator
-│   │   │   ├── SyntaxBlock.tsx            # Syntax-highlighted code block (VSCode Dark+)
 │   │   │   ├── Section.tsx                # Multi-page section layout with keyboard nav
 │   │   │   ├── SectionComponents.tsx      # Pre-built section header/wrap components
+│   │   │   ├── SyntaxBlock.tsx            # Syntax-highlighted code block (VSCode Dark+)
 │   │   │   └── useDocStyles.ts            # Shared CSS-in-JS styles for doc pages
-│   │   ├── docs/                          # Per-tab documentation files
-│   │   │   ├── getting-started.tsx
-│   │   │   ├── user-button.tsx
-│   │   │   ├── dashboard.tsx
-│   │   │   ├── tabs-and-flows.tsx
-│   │   │   ├── protected.tsx
-│   │   │   ├── org-switcher.tsx
-│   │   │   ├── providers.tsx
-│   │   │   ├── themes.tsx
-│   │   │   ├── i18n.tsx
-│   │   │   ├── errors.tsx
-│   │   │   ├── guards.tsx
-│   │   │   ├── logging.tsx
-│   │   │   ├── primitives.tsx
-│   │   │   └── components/
-│   │   │       ├── calculator.tsx         # Calculator demo doc page
-│   │   │       └── sessions.tsx           # Sessions tab doc page
+│   │   ├── content/                       # Content components for the docs
+│   │   │   ├── anatomy/
+│   │   │   │   ├── i18n.tsx
+│   │   │   │   ├── primitives.tsx
+│   │   │   │   ├── providers.tsx
+│   │   │   │   └── theme.tsx
+│   │   │   ├── calculator/
+│   │   │   │   ├── api-authorization.tsx
+│   │   │   │   ├── live-calculator.tsx
+│   │   │   │   ├── live-demo.tsx
+│   │   │   │   ├── overview.tsx
+│   │   │   │   └── rbac-design.tsx
+│   │   │   ├── dashboard/
+│   │   │   │   ├── internals.tsx
+│   │   │   │   ├── mobile.tsx
+│   │   │   │   ├── provider-sync.tsx
+│   │   │   │   ├── rendering.tsx
+│   │   │   │   └── tab-structure.tsx
+│   │   │   ├── getting-started/
+│   │   │   │   ├── avatar-upload.tsx
+│   │   │   │   ├── clone-and-install.tsx
+│   │   │   │   ├── env-setup.tsx
+│   │   │   │   ├── logto-console.tsx
+│   │   │   │   ├── pre-requisites.tsx
+│   │   │   │   └── replace-the-demo.tsx
+│   │   │   ├── rbac/
+│   │   │   │   ├── api.tsx
+│   │   │   │   └── ui-protected.tsx
+│   │   │   ├── security/
+│   │   │   │   ├── error-handling.tsx
+│   │   │   │   ├── input-guards.tsx
+│   │   │   │   └── logging.tsx
+│   │   │   ├── tabs-and-flows/
+│   │   │   │   ├── dev.tsx
+│   │   │   │   ├── identities.tsx
+│   │   │   │   ├── organizations.tsx
+│   │   │   │   ├── overview.tsx
+│   │   │   │   ├── preferences.tsx
+│   │   │   │   ├── profile.tsx
+│   │   │   │   ├── security.tsx
+│   │   │   │   └── sessions.tsx
+│   │   │   └── user-button/
+│   │   │       ├── examples.tsx
+│   │   │       └── specs.tsx
 │   │   ├── ContentArea.tsx
+│   │   ├── docs/                          # Legacy doc components location
+│   │   │   └── components/
 │   │   ├── index.tsx
 │   │   ├── nav-data.tsx
 │   │   ├── Sidebar.tsx
 │   │   └── types.ts
+│   ├── error.tsx
 │   ├── globals.css
 │   ├── layout.tsx
+│   ├── lib/
+│   │   ├── log-events.test.ts
+│   │   ├── log-events.ts
+│   │   ├── logger.test.ts
+│   │   ├── logger.ts
+│   │   ├── with-logger.test.ts
+│   │   └── with-logger.ts
 │   ├── logto-kit/
 │   │   ├── config.ts                      # Logto SDK config + M2M token helper
 │   │   ├── action-registry/               # Protected action registry for /api/protected
-│   │   │   ├── index.ts                   # Registry types and getAction() loader
-│   │   │   ├── validation.ts              # Org membership validation
-│   │   │   └── calc-actions.ts            # Calculator action handlers (basic + scientific)
+│   │   │   ├── calc-actions.ts            # Calculator action handlers (basic + scientific)
+│   │   │   └── index.ts                   # Registry types and getAction() loader
 │   │   ├── components/
-│   │   │   ├── providers/                 # Context providers and behavior components
-│   │   │   │   ├── auth-watcher.tsx       # Zero-UI component: refreshes on tab focus / reconnect
-│   │   │   │   ├── logto-provider.tsx     # Root provider composing theme + lang + org + dashboard
-│   │   │   │   ├── preferences.tsx        # Theme / lang / org context + useThemeMode etc.
-│   │   │   │   ├── session-heartbeat.tsx  # Zero-UI component: pings heartbeat every 30s
-│   │   │   │   └── user-data-context.tsx  # UserData context + useUserDataContext hook
 │   │   │   ├── dashboard/
+│   │   │   │   ├── client.test.tsx
 │   │   │   │   ├── client.tsx             # Desktop dashboard UI
 │   │   │   │   ├── dashboard-router.tsx   # Responsive desktop/mobile router
 │   │   │   │   ├── index.tsx              # Server component: fetches data, wires actions
 │   │   │   │   ├── mobile-client.tsx      # Mobile dashboard UI
 │   │   │   │   ├── mobile-page.tsx        # Server component: mobile counterpart
-│   │   │   │   ├── tab-utils.ts           # getTabLabel (shared by desktop + mobile)
-│   │   │   │   ├── types.ts
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx      # Themed JSON/data display block
+│   │   │   │   │   ├── ContactRow.test.tsx
 │   │   │   │   │   ├── ContactRow.tsx     # Email/phone row with verification flow
+│   │   │   │   │   ├── FlowModal.test.tsx
 │   │   │   │   │   ├── FlowModal.tsx      # Multi-step modal for security flows
 │   │   │   │   │   ├── ImageCropper.tsx   # Canvas-based drag/zoom image cropper
 │   │   │   │   │   ├── primitives.tsx     # Shared UI atoms: Card, HR, IconBox, SL, Lbl
 │   │   │   │   │   ├── RefreshButton.tsx
 │   │   │   │   │   ├── RoleCard.tsx       # Role badge with lazy-loaded tooltip
+│   │   │   │   │   ├── SessionMapModal.test.tsx
 │   │   │   │   │   ├── SessionMapModal.tsx
 │   │   │   │   │   └── Toast.tsx
-│   │   │   │   └── tabs/
-│   │   │   │       ├── dev.tsx
-│   │   │   │       ├── identities.tsx
-│   │   │   │       ├── organizations.tsx
-│   │   │   │       ├── preferences.tsx
-│   │   │   │       ├── profile.tsx
-│   │   │   │       ├── security.tsx
-│   │   │   │       └── sessions.tsx
+│   │   │   │   ├── tab-utils.ts           # getTabLabel (shared by desktop + mobile)
+│   │   │   │   ├── tabs/
+│   │   │   │   │   ├── dev.tsx
+│   │   │   │   │   ├── identities.tsx
+│   │   │   │   │   ├── organizations.tsx
+│   │   │   │   │   ├── preferences.tsx
+│   │   │   │   │   ├── profile.test.tsx
+│   │   │   │   │   ├── profile.tsx
+│   │   │   │   │   ├── security.tsx
+│   │   │   │   │   ├── sessions.test.tsx
+│   │   │   │   │   └── sessions.tsx
+│   │   │   │   └── types.ts
+│   │   │   ├── providers/                 # Context providers and behavior components
+│   │   │   │   ├── auth-watcher.tsx       # Zero-UI component: refreshes on tab focus / reconnect
+│   │   │   │   ├── logto-provider.tsx     # Root provider composing theme + lang + org + dashboard
+│   │   │   │   ├── preferences.test.tsx
+│   │   │   │   ├── preferences.tsx        # Theme / lang / org context + useThemeMode etc.
+│   │   │   │   ├── session-heartbeat.tsx  # Zero-UI component: pings heartbeat every 30s
+│   │   │   │   └── user-data-context.tsx  # UserData context + useUserDataContext hook
 │   │   │   ├── shared/
 │   │   │   │   ├── Button.tsx             # Themed button (5 variants)
 │   │   │   │   └── Input.tsx              # Themed text input
 │   │   │   └── UserButton.tsx             # UserButton, UserBadge, UserCard components
 │   │   ├── custom-logic/                  # App-level feature implementations
 │   │   │   ├── index.ts
-│   │   │   ├── OrgSwitcher.tsx            # Org selector dropdown (client)
 │   │   │   ├── org-switcher-wrapper.tsx   # Server wrapper: fetches org list automatically
+│   │   │   ├── OrgSwitcher.tsx            # Org selector dropdown (client)
 │   │   │   ├── Protected.tsx              # Client-side UI permission gate
+│   │   │   ├── set-active-org.test.ts
 │   │   │   └── set-active-org.ts          # Server action: validates org membership
 │   │   ├── hooks/                         # React hooks
 │   │   │   ├── use-avatar-upload.ts       # Hook wrapping the uploadAvatar server action
@@ -123,45 +206,62 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   └── ka-GE.ts
 │   │   ├── logic/
 │   │   │   ├── actions/                   # Internal server actions
+│   │   │   │   ├── account.test.ts
 │   │   │   │   ├── account.ts
 │   │   │   │   ├── auth.ts
-│   │   │   │   ├── avatar.ts              # Avatar upload (S3/Supabase)
+│   │   │   │   ├── avatar.ts              # Avatar upload (S3/Logto Native)
 │   │   │   │   ├── dashboard.ts
+│   │   │   │   ├── debug-token.test.ts
 │   │   │   │   ├── debug-token.ts         # Dev-only token access (refused in production)
 │   │   │   │   ├── heartbeat.ts
+│   │   │   │   ├── index.ts               # Barrel (re-exports all actions)
 │   │   │   │   ├── introspection.ts
+│   │   │   │   ├── mfa.test.ts
 │   │   │   │   ├── mfa.ts
+│   │   │   │   ├── organizations.test.ts
 │   │   │   │   ├── organizations.ts
 │   │   │   │   ├── password.ts
+│   │   │   │   ├── profile.test.ts
 │   │   │   │   ├── profile.ts
+│   │   │   │   ├── request.test.ts
 │   │   │   │   ├── request.ts             # Authenticated Account API HTTP client
 │   │   │   │   ├── roles.ts
 │   │   │   │   ├── safe.ts                # safeAction wrapper + ActionResult/DataResult types
+│   │   │   │   ├── sessions.test.ts
 │   │   │   │   ├── sessions.ts
 │   │   │   │   ├── shared.ts              # patchMyAccount helper
 │   │   │   │   ├── tokens.ts
+│   │   │   │   ├── verification.test.ts
 │   │   │   │   ├── verification.ts
-│   │   │   │   ├── webauthn.ts
-│   │   │   │   └── index.ts               # Barrel (re-exports all actions)
+│   │   │   │   ├── webauthn.test.ts
+│   │   │   │   └── webauthn.ts
+│   │   │   ├── audit.test.ts
 │   │   │   ├── audit.ts
 │   │   │   ├── capture-message.ts
 │   │   │   ├── debug.ts
+│   │   │   ├── dev-mode.test.ts
 │   │   │   ├── dev-mode.ts
 │   │   │   ├── env.ts
+│   │   │   ├── errors.test.ts
 │   │   │   ├── errors.ts
 │   │   │   ├── formatting.ts              # formatPhone (E.164 display)
 │   │   │   ├── geo-cache.ts               # IP geolocation TTL cache (no React dependency)
+│   │   │   ├── guards.test.ts
 │   │   │   ├── guards.ts                  # Assert-style input guards for trust boundaries
 │   │   │   ├── i18n.ts
 │   │   │   ├── index.ts
 │   │   │   ├── log.ts
+│   │   │   ├── origin-guard.test.ts
 │   │   │   ├── origin-guard.ts            # CSRF origin check for plain route handlers
 │   │   │   ├── preferences.ts
 │   │   │   ├── tabs.ts
 │   │   │   ├── types.ts                   # All domain types (UserData, MfaType, etc.)
+│   │   │   ├── utils.test.ts
 │   │   │   ├── utils.ts
+│   │   │   ├── validation.test.ts
 │   │   │   └── validation.ts
 │   │   ├── server-actions/                # Public server action adapters (client-callable)
+│   │   │   ├── load-org-permission-descriptions.ts
 │   │   │   ├── load-org-permissions.ts
 │   │   │   ├── load-org-roles.ts
 │   │   │   ├── load-personal-permissions.ts
@@ -173,17 +273,37 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │       └── index.ts                   # ThemeColors, DARK_COLORS, LIGHT_COLORS, FONT_SANS/MONO
 │   └── page.tsx
 ├── proxy.ts
-├── .env.example
+├── docker-compose.yml
 ├── docker-entrypoint.sh
-├── next.config.ts
+├── Dockerfile
+├── docs/
+│   └── superpowers/
+│       └── plans/
+│           ├── 2026-06-01-dashboard-documentation.md
+│           ├── 2026-06-01-identities-documentation.md
+│           ├── 2026-06-01-user-button-docs-rebuild.md
+│           └── 2026-06-02-documentation-updates.md
+├── LICENSE
 ├── next-env.d.ts
+├── next.config.ts
+├── opencode.json
+├── package-lock.json
+├── package.json
 ├── public/
 │   ├── os-icons/                          # OS icons for session cards
+│   │   ├── Android.svg
+│   │   ├── ios.svg
+│   │   ├── MacOS.svg
+│   │   ├── MacroSlop.svg
+│   │   └── Tux.jpg
 │   └── robots.txt
-├── package.json
-├── README.md
+├── scripts/
+│   └── inject-next-public.js
+├── SECURITY.md
+├── tree.py
 ├── tsconfig.json
 ├── vitest.config.ts
+├── vitest.server-only.mock.ts
 └── vitest.setup.ts
 ```
 
@@ -532,10 +652,11 @@ Typical layout:
 - **Two-column grid** - Left and right sections side by side (matching `user-button.tsx` pattern)
 - **Single column** - For detailed content like the Security tab's FlowModal architecture
 
-To add documentation for a new tab:
-1. Create `app/demo/docs/{tab-id}.tsx`
-2. Add the loader to `DOC_REGISTRY` in `ContentArea.tsx`
-3. Use `SectionContainer` / `Section` for pages, `SyntaxBlock` for code, and `ExampleCard` for live demos
+To add documentation for a new tab/section:
+1. Create a TSX file inside `app/demo/content/{topic}/{section}.tsx`
+2. Add the loader to `CONTENT_REGISTRY` in `app/(docs)/[topic]/[section]/page.tsx`
+3. Update `NAV_ITEMS` and `SECTION_HINTS` in `app/demo/nav-data.tsx` to include the new topic, its sections, and their section descriptions/hints
+4. Use `SectionWrap` for section-bordered layout, `CodeBlock` for code, and inline layouts for live demos
 
 ### Using the Demo App
 
@@ -981,8 +1102,8 @@ import type {
 
 A **client component** that conditionally renders children based on permissions. Must be used within `LogtoProvider` context.
 **Key behavior:**
-- `orgId="self"` checks personal (global) roles and permissions
-- `orgId=<real>` checks organization-specific roles and permissions (requires `asOrg` match)
+- **Self Mode (`orgId="self"`)**: Shifts to user RBAC. It only fetches personal roles and gates strictly on roles (`roleId`), completely bypassing permission checks.
+- **Organization Mode (`orgId=<real>`)**: Enforces organization-scoped RBAC. It strictly matches the target `orgId` against the active organization (`asOrg`). If there is a mismatch, the component breaks immediately. If it matches, it checks BOTH roles (`roleId`) and permissions (`perm`).
 - Permissions are loaded asynchronously on mount or context change
 - Shows `fallback` (or nothing) while loading
 - This is a UI convenience component, not a security boundary

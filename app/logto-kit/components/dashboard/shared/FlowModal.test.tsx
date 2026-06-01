@@ -4,7 +4,7 @@ import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
 import { FlowModal, PasswordVerifyModal, BackupCodesModal } from './FlowModal';
 
-describe('FlowModal — localization', () => {
+describe('FlowModal - localization', () => {
   const noop = () => {};
 
   it('renders code step with translation keys instead of hardcoded English', () => {
@@ -83,7 +83,7 @@ describe('FlowModal — localization', () => {
   });
 });
 
-describe('FlowModal — TOTP auto-submit behavior', () => {
+describe('FlowModal - TOTP auto-submit behavior', () => {
   const noop = () => {};
 
   it('calls onTotpSubmit when 6th digit is typed', () => {
@@ -137,7 +137,7 @@ describe('FlowModal — TOTP auto-submit behavior', () => {
     fireEvent.change(input, { target: { value: '123456' } });
     expect(onTotpSubmit).toHaveBeenCalledTimes(1);
 
-    // User clears and types a different code — should submit again immediately
+    // User clears and types a different code - should submit again immediately
     // (simulating retry after failed verification)
     fireEvent.change(input, { target: { value: '654321' } });
     expect(onTotpSubmit).toHaveBeenCalledTimes(2);
@@ -145,7 +145,7 @@ describe('FlowModal — TOTP auto-submit behavior', () => {
   });
 });
 
-describe('BackupCodesModal — theming', () => {
+describe('BackupCodesModal - theming', () => {
   it('renders with theme colors for border, not hardcoded hex', () => {
     render(
       <BackupCodesModal
@@ -188,7 +188,7 @@ describe('BackupCodesModal — theming', () => {
   });
 });
 
-describe('FlowModal — Escape key dismissal', () => {
+describe('FlowModal - Escape key dismissal', () => {
   const noop = () => {};
 
   it('calls onClose when Escape is pressed', () => {
@@ -250,7 +250,7 @@ describe('FlowModal — Escape key dismissal', () => {
   });
 });
 
-describe('PasswordVerifyModal — Escape key dismissal', () => {
+describe('PasswordVerifyModal - Escape key dismissal', () => {
   const noop = () => {};
 
   it('calls onClose when Escape is pressed', () => {

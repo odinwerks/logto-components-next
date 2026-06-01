@@ -30,7 +30,7 @@ export async function updateUserPassword(
 
     await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED', 'Update password');
 
-    // Audit (best-effort — failure must not break the main action)
+    // Audit (best-effort - failure must not break the main action)
     try {
       const { audit } = await import('../audit');
       const sessionToken = await getTokenForServerAction();

@@ -215,7 +215,7 @@ export function DashboardClient({
   // router.refresh() re-fetches the RSC payload for the current route,
   // bypassing the Data Cache. This re-runs Dashboard (which calls fetchDashboardData)
   // and all server components, giving the client fresh user data.
-  // No server action needed — onRefresh/revalidatePath was redundant here.
+  // No server action needed - onRefresh/revalidatePath was redundant here.
   const router = useRouter();
 
   const refreshData = useCallback(() => {
@@ -467,7 +467,7 @@ export function DashboardClient({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NavButton — isolated to avoid hooks-in-loops
+// NavButton - isolated to avoid hooks-in-loops
 // ─────────────────────────────────────────────────────────────────────────────
 
 function NavButton({
@@ -518,7 +518,7 @@ function NavButton({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SignOutButton — faint-red destructive style with hover
+// SignOutButton - faint-red destructive style with hover
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SignOutButton({

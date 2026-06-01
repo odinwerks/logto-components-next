@@ -4,7 +4,7 @@ import type { NextConfig } from 'next';
  * Builds the connect-src CSP directive using the configured Logto endpoint.
  *
  * Reads ENDPOINT (or NEXT_PUBLIC_ENDPOINT) and extracts the origin so only
- * the actual Logto host is allowed — not a hardcoded domain from a fork's
+ * the actual Logto host is allowed - not a hardcoded domain from a fork's
  * original developer.
  *
  * Falls back to `https://*.logto.app` if neither env var is set (safe default
@@ -19,7 +19,7 @@ function buildConnectSrc(): string {
       const url = new URL(raw);
       logtoOrigin = url.origin; // e.g. "https://auth.example.com"
     } catch {
-      // Malformed ENDPOINT — log and use fallback
+      // Malformed ENDPOINT - log and use fallback
       console.warn('[CSP] ENDPOINT env var is not a valid URL; using fallback connect-src');
     }
   }
@@ -42,8 +42,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   // Suppress Next.js 16 dev-mode Server Action argument tracing.
-  // The default traces every SA call with its first argument serialised —
-  // this leaks sensitive values (passwords, tokens) to stdout in development.
+  // The default traces every SA call with its first argument serialised - // this leaks sensitive values (passwords, tokens) to stdout in development.
   // In production, no arguments are ever logged regardless of this setting.
   logging: {
     serverFunctions: false,
@@ -87,18 +86,18 @@ const nextConfig: NextConfig = {
             // 'unsafe-inline' for scripts is required by Next.js inline scripts
             // (e.g., the theme-flash-prevention script in layout.tsx). This is
             // a known trade-off; Next.js 15+ supports nonce-based CSP which
-            // eliminates this — migrate when ready.
+            // eliminates this - migrate when ready.
             //
             // 'unsafe-eval' is only needed for Next.js hot-reload in development.
-            // Production builds do not use eval() — gate this strictly.
+            // Production builds do not use eval() - gate this strictly.
             //
-            // frame-ancestors 'none' — equivalent to X-Frame-Options: DENY but
+            // frame-ancestors 'none' - equivalent to X-Frame-Options: DENY but
             // for CSP2-compliant browsers.
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
               // 'unsafe-eval' is only needed for Next.js hot-reload in development.
-              // Production builds do not use eval() — gate this strictly.
+              // Production builds do not use eval() - gate this strictly.
               process.env.NODE_ENV === 'development'
                 ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
                 : "script-src 'self' 'unsafe-inline'",
@@ -108,7 +107,7 @@ const nextConfig: NextConfig = {
               // + any HTTPS source (avatar URLs from S3/Supabase can vary)
               "img-src 'self' data: blob: https:",
               // connect-src: Next.js HMR in dev, Logto OIDC endpoint (derived from ENDPOINT
-              // env var — no hardcoded domains), ipapi.co for geo, CartoCD for map tiles,
+              // env var - no hardcoded domains), ipapi.co for geo, CartoCD for map tiles,
               // Supabase for storage.
               buildConnectSrc(),
               "frame-ancestors 'none'",

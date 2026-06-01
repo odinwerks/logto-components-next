@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LogtoSession } from '../types';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('../utils', () => ({
@@ -81,7 +81,7 @@ const mockJsonResponse = (data: unknown, status = 200): Response =>
   }) as unknown as Response;
 
 // ============================================================================
-// getSessionsWithDeviceMeta — isCurrent propagation
+// getSessionsWithDeviceMeta - isCurrent propagation
 // ============================================================================
 
 describe('getSessionsWithDeviceMeta', () => {
@@ -109,7 +109,7 @@ describe('getSessionsWithDeviceMeta', () => {
   });
 
   it('sets meta.isCurrent = false when the API omits the isCurrent field (pre-ship Logto)', async () => {
-    // No `isCurrent` property at all — simulates old Logto API
+    // No `isCurrent` property at all - simulates old Logto API
     const session = mockSession('session-b', undefined);
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ sessions: [session] })
@@ -162,7 +162,7 @@ describe('getSessionsWithDeviceMeta', () => {
 });
 
 // ============================================================================
-// revokeAllOtherSessions — safety guard + selective revocation
+// revokeAllOtherSessions - safety guard + selective revocation
 // ============================================================================
 
 describe('revokeAllOtherSessions', () => {
@@ -175,7 +175,7 @@ describe('revokeAllOtherSessions', () => {
   });
 
   it('returns error when no session has isCurrent === true', async () => {
-    // All sessions missing `isCurrent` — pre-ship Logto, or all are false
+    // All sessions missing `isCurrent` - pre-ship Logto, or all are false
     const sessions = [
       mockSession('session-1', undefined),
       mockSession('session-2', undefined),
@@ -277,7 +277,7 @@ describe('revokeAllOtherSessions', () => {
     );
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    // Should complete successfully — nothing to revoke
+    // Should complete successfully - nothing to revoke
     const result = await revokeAllOtherSessions('verification-record-id');
     expect(result).toEqual({ ok: true });
   });

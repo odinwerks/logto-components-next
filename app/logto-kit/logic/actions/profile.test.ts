@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('./request', () => ({
@@ -122,7 +122,7 @@ function mockErrorResponse(status = 400): Response {
 }
 
 // ============================================================================
-// updateUserCustomData — GET→merge→PATCH via Management API
+// updateUserCustomData - GET→merge→PATCH via Management API
 // ============================================================================
 
 describe('updateUserCustomData', () => {
@@ -198,7 +198,7 @@ describe('updateUserCustomData', () => {
     const patchCall = fetchMock.mock.calls[1];
     const patchBody = JSON.parse(patchCall[1]!.body as string) as { customData: Record<string, unknown> };
 
-    // PATCH body should only contain Preferences — NOT SomeOtherApp
+    // PATCH body should only contain Preferences - NOT SomeOtherApp
     // The Management API will shallow-merge on its end, keeping SomeOtherApp intact
     expect(patchBody.customData).not.toHaveProperty('SomeOtherApp');
     expect(patchBody.customData).toEqual({
@@ -239,7 +239,7 @@ describe('updateUserCustomData', () => {
 
     const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
 
-    // Should still succeed — falls back to empty existingPrefs
+    // Should still succeed - falls back to empty existingPrefs
     expect(result).toEqual({ ok: true });
 
     const fetchMock = vi.mocked(fetch);
@@ -486,14 +486,14 @@ describe('updateUserCustomData', () => {
     let firstCallStarted = false;
     let secondCallStarted = false;
 
-    // First user's GET — will block
-    // Second user's GET — should NOT wait for first user
+    // First user's GET - will block
+    // Second user's GET - should NOT wait for first user
     vi.mocked(getLogtoContext)
       .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as any)
       .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as any);
 
     vi.stubGlobal('fetch', vi.fn()
-      // user-A GET — blocks
+      // user-A GET - blocks
       .mockImplementationOnce(async () => {
         firstCallStarted = true;
         await firstCall;
@@ -501,7 +501,7 @@ describe('updateUserCustomData', () => {
       })
       // user-A PATCH
       .mockImplementationOnce(async () => mockOkResponse({}))
-      // user-B GET — starts immediately
+      // user-B GET - starts immediately
       .mockImplementationOnce(async () => {
         secondCallStarted = true;
         return mockOkResponse({});
@@ -540,7 +540,7 @@ describe('updateUserCustomData', () => {
     let secondCallStarted = false;
 
     vi.stubGlobal('fetch', vi.fn()
-      // First call GET — slow
+      // First call GET - slow
       .mockImplementationOnce(async () => {
         await new Promise(r => setTimeout(r, 50));
         return mockOkResponse({});
@@ -550,7 +550,7 @@ describe('updateUserCustomData', () => {
         firstCallFinished = true;
         return mockOkResponse({});
       })
-      // Second call GET — starts after first finishes
+      // Second call GET - starts after first finishes
       .mockImplementationOnce(async () => {
         secondCallStarted = true;
         return mockOkResponse({});
@@ -612,7 +612,7 @@ describe('updateUserCustomData', () => {
 });
 
 // ============================================================================
-// updateAvatarUrl — must reject non-HTTP URLs to prevent stored XSS
+// updateAvatarUrl - must reject non-HTTP URLs to prevent stored XSS
 // ============================================================================
 
 describe('updateAvatarUrl', () => {

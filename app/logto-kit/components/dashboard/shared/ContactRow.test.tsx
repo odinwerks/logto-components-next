@@ -67,7 +67,7 @@ function openRemoveModal() {
   fireEvent.click(screen.getByText(enUS.profile.deleteHint));
 }
 
-describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
+describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     flowModalHandlers = {};
@@ -75,7 +75,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
   });
 
   // ══════════════════════════════════════════════════════════
-  // EDIT Flow — data-result callbacks
+  // EDIT Flow - data-result callbacks
   // ══════════════════════════════════════════════════════════
 
   it('handles edit-flow: onVerifyPassword success → onSendVerification success → shows code step', async () => {
@@ -119,7 +119,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       // Password errors are shown via pwErr state (FlowModal passwordError prop),
-      // NOT via onError callback — onError is only for send/verify/remove errors.
+      // NOT via onError callback - onError is only for send/verify/remove errors.
       expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onSendVerification).not.toHaveBeenCalled();
     });
@@ -146,7 +146,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
   });
 
   // ══════════════════════════════════════════════════════════
-  // EDIT Flow — code verification (ActionResult — void)
+  // EDIT Flow - code verification (ActionResult - void)
   // ══════════════════════════════════════════════════════════
 
   it('handles code verification: success calls onSuccess and closes', async () => {
@@ -244,7 +244,7 @@ describe('ContactRow — result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       // Password errors are shown via pwErr state (FlowModal passwordError prop),
-      // NOT via onError callback — onError is only for send/verify/remove errors.
+      // NOT via onError callback - onError is only for send/verify/remove errors.
       expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onRemove).not.toHaveBeenCalled();
     });

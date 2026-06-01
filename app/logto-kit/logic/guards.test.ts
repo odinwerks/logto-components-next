@@ -172,8 +172,8 @@ describe('pickPreferences', () => {
   it('silently drops unknown keys', () => {
     const result = pickPreferences({
       asOrg: 'org-456',
-      isAdmin: true,             // unknown key — dropped
-      __proto__: { evil: true }, // prototype pollution attempt — dropped
+      isAdmin: true,             // unknown key - dropped
+      __proto__: { evil: true }, // prototype pollution attempt - dropped
       constructor: 'overwrite',  // dropped
     });
     expect(result).not.toHaveProperty('isAdmin');

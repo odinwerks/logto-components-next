@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('../../config', () => ({
@@ -60,7 +60,7 @@ import { introspectToken } from '../utils';
 import { getManagementApiToken } from '../../config';
 
 // ============================================================================
-// deleteUserAccount — freshness check + account deletion
+// deleteUserAccount - freshness check + account deletion
 // ============================================================================
 
 describe('deleteUserAccount', () => {
@@ -147,7 +147,7 @@ describe('deleteUserAccount', () => {
     expect(result.ok).toBe(true);
   });
 
-  // ── Negative timestamp (future) — should always be within window ────────
+  // ── Negative timestamp (future) - should always be within window ────────
 
   it('allows a verification record with a future timestamp', async () => {
     const { deleteUserAccount } = await import('./account');

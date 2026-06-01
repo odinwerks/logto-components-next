@@ -230,7 +230,7 @@ const currentSession = currentSid
   : sessions.find(s => s.isCurrent === true);
 
 if (!currentSession) {
-  throw new Error('Cannot identify current session — session UID mismatch.');
+  throw new Error('Cannot identify current session - session UID mismatch.');
 }
 
 // Filter out current active session to isolate targets to revoke

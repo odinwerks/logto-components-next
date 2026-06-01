@@ -65,7 +65,7 @@ const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
  *
  * Uses PATCH /api/users/{userId}/custom-data (Management API) rather than
  * PATCH /api/my-account (Account API). The Management API performs a
- * top-level shallow merge, so only the `Preferences` key is updated — other
+ * top-level shallow merge, so only the `Preferences` key is updated - other
  * top-level customData keys set by other applications are not touched.
  *
  * A GET is still required to read the current inner Preferences sub-object
@@ -75,7 +75,7 @@ const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
  * prevent the GET-PATCH inner-key race for a single user. Cross-process races
  * on individual Preferences keys (theme, lang, asOrg) are possible in
  * horizontally-scaled deployments but result only in the last write winning on
- * that specific key — other applications' customData is always safe.
+ * that specific key - other applications' customData is always safe.
  */
 export async function updateUserCustomData(customData: Record<string, unknown>): Promise<ActionResult> {
   return safeAction(async () => {
@@ -135,7 +135,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
       // Merge only the inner Preferences sub-object keys.
       const mergedPrefs = { ...existingPrefs, ...safePrefs };
 
-      // PATCH via Management API — top-level shallow merge.
+      // PATCH via Management API - top-level shallow merge.
       // Logto merges { Preferences: mergedPrefs } into the stored customData at the
       // top level, leaving all other top-level keys (other apps, Logto Console, etc.)
       // untouched. The inner Preferences object is fully replaced, hence the GET above.

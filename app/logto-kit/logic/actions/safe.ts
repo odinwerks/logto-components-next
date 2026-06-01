@@ -15,7 +15,7 @@ export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>
     if (!isDev && err instanceof Error && err.name === 'SanitizedError') {
       return { ok: false, error: captureMessage(err) };
     }
-    // Sanitize before extracting message — prevents upstream API detail leakage
+    // Sanitize before extracting message - prevents upstream API detail leakage
     const safe = isDev ? err : sanitize(err, { fallback: 'INTERNAL_ERROR' });
     return { ok: false, error: captureMessage(safe) };
   }

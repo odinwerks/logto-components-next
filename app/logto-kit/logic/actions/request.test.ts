@@ -11,7 +11,7 @@ vi.mock('../utils', () => ({
 
 import { makeRequest } from './request';
 
-describe('makeRequest — path guard', () => {
+describe('makeRequest - path guard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

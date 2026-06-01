@@ -265,7 +265,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ThemeOption — extracted to avoid hooks-in-loop
+// ThemeOption - extracted to avoid hooks-in-loop
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ThemeOption({

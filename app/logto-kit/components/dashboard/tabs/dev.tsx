@@ -236,7 +236,7 @@ export function DevTab({ userData, mode, colors, t, mobmode }: DevTabProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
 
-      {/* Access Token — dev only, lazy-fetched */}
+      {/* Access Token - dev only, lazy-fetched */}
       <Section icon={<KeyRound size={12} strokeWidth={2} />} label={t.raw.tokenType}>
         {accessToken ? (
           <TruncatedToken

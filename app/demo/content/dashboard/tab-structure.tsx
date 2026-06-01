@@ -22,14 +22,49 @@ export default function DashboardTabStructure() {
 
         <CodeBlock
           title="Resolving tabs"
-          code={`export function getLoadedTabs(): TabId[] {
-  const raw = process.env.LOAD_TABS || '';
+          code={`const TAB_ALIASES: Record<string, TabId> = {
+  profile: 'profile', personal: 'profile', user: 'profile',
+  preferences: 'preferences', prefs: 'preferences', 'custom-data': 'preferences',
+  security: 'security', mfa: 'security', '2fa': 'security',
+  // ...other aliases mapped to TabId
+};
+
+export function getLoadedTabs(): TabId[] {
+  const raw = readEnv('LOAD_TABS') || '';
+
   if (!raw.trim()) {
-    return ALL_TABS;
+    // ENV not set → show all tabs in default order (minus 'dev' in prod).
+    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
   }
-  return raw.split(',').map(s => s.trim()).filter(Boolean) as TabId[];
+
+  const seen = new Set<TabId>();
+  const result: TabId[] = [];
+
+  for (const token of raw.split(',')) {
+    const key = token.trim().toLowerCase();
+    if (!key) continue;
+
+    const tabId = TAB_ALIASES[key];
+    if (!tabId) continue;
+
+    if (!seen.has(tabId)) {
+      seen.add(tabId);
+      result.push(tabId);
+    }
+  }
+
+  // Security: strip 'dev' tab in production regardless of LOAD_TABS setting.
+  return isDev ? result : result.filter(id => id !== 'dev');
 }`}
         />
+
+        <div style={styles.noteStyle}>
+          <strong style={styles.strongNoteStyle}>Alias Resolution:</strong> Operators can use user-friendly values in <code style={styles.codeSmStyle}>LOAD_TABS</code> (e.g. <code style={styles.codeSmStyle}>personal</code> or <code style={styles.codeSmStyle}>user</code> for <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>prefs</code> or <code style={styles.codeSmStyle}>custom-data</code> for <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>2fa</code> or <code style={styles.codeSmStyle}>mfa</code> for <code style={styles.codeSmStyle}>security</code>, etc.).
+        </div>
+
+        <div style={styles.noteStyle}>
+          <strong style={styles.strongNoteStyle}>Production Dev-Tab Safety Gate:</strong> In production environments, the sensitive <code style={styles.codeSmStyle}>dev</code> tab is automatically and strictly filtered out of the loaded tabs to prevent OIDC user access token leakage.
+        </div>
 
         <table style={styles.tableStyle}>
           <thead>

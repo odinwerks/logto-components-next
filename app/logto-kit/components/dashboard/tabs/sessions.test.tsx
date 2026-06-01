@@ -272,7 +272,7 @@ describe('SessionsTab', () => {
       await act(async () => { fireEvent.click(refreshBtn); });
 
       // After the refresh fails with a transient error, the component should STAY in loaded state
-      // Do NOT reset to unverified — the sessions list should still be visible
+      // Do NOT reset to unverified - the sessions list should still be visible
       await waitFor(() => {
         expect(screen.queryByText('Verify your identity')).toBeNull();
       });

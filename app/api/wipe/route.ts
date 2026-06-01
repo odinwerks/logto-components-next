@@ -17,7 +17,7 @@ function clearLogtoCookies(request: NextRequest, response: NextResponse): NextRe
 
 /**
  * GET clears Logto cookies and redirects home.
- * Convenience handler for browser navigation — plain cookie-clear needs no
+ * Convenience handler for browser navigation - plain cookie-clear needs no
  * CSRF protection (not a privileged operation, must remain browser-navigable).
  * The ?force=true path triggers a server-side signOut and IS protected.
  */
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       const mod = await import('@logto/next/server-actions');
       signOutFn = mod.signOut;
     } catch {
-      // signOut module unavailable — still clears cookies, which is the main goal
+      // signOut module unavailable - still clears cookies, which is the main goal
     }
     if (signOutFn) {
       try {
@@ -88,8 +88,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
           // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
-          // our cookie-cleared response is lost. Return our response instead —
-          // the server-side signOut has already completed.
+          // our cookie-cleared response is lost. Return our response instead - // the server-side signOut has already completed.
           return response;
         }
         error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);

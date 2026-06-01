@@ -103,7 +103,7 @@ async function loadActions(): Promise<ActionRegistry> {
   };
 
   // Strict validation: every action MUST define all three check categories.
-  // Missing any field is a fatal setup error — the registry is unusable.
+  // Missing any field is a fatal setup error - the registry is unusable.
   for (const [name, config] of Object.entries(_actionsCache)) {
     const missing: string[] = [];
     if (!config.requiredOrgId || typeof config.requiredOrgId !== 'string' || config.requiredOrgId.length === 0) {

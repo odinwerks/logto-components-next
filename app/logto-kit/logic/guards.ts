@@ -10,7 +10,7 @@
  *
  * Design goals:
  *
- *   1. Every guard `throws` on bad input — callers never have to check a
+ *   1. Every guard `throws` on bad input - callers never have to check a
  *      return value. Throws a `ValidationError` so the sanitisation layer
  *      can produce a fixed error code in production.
  *
@@ -28,7 +28,7 @@
  *   - Malformed or truncated JWT payloads that decode to empty-permission
  *     sets (fail-closed but noisy).
  *   - Bad MIME type claims from client in avatar uploads (handled elsewhere
- *     — see actions/avatar.ts magic-byte detection).
+ * - see actions/avatar.ts magic-byte detection).
  */
 
 import { decodeAccessToken, type AccessTokenClaims } from '@logto/js';
@@ -107,7 +107,7 @@ export function assertVerificationType(
 }
 
 // ============================================================================
-// JWT decode (uses @logto/js — correct base64url handling)
+// JWT decode (uses @logto/js - correct base64url handling)
 // ============================================================================
 
 /**
@@ -166,7 +166,7 @@ type PreferencesShape = {
  *   - lang: alphanumeric + hyphen, ≤16 chars (BCP 47 shape)
  *
  * Throws `ValidationError` if any present key has a bad value.
- * Silently drops unknown keys (no throw — downstream must not be able to
+ * Silently drops unknown keys (no throw - downstream must not be able to
  * cause errors by sending garbage they wouldn't otherwise send).
  */
 export function pickPreferences(input: unknown): PreferencesShape {
@@ -229,8 +229,8 @@ export function pickPreferences(input: unknown): PreferencesShape {
  * Paths passed here must be `/`-separated. Segments MUST NOT be pre-encoded;
  * this function calls `encodeURIComponent` on each one.
  *
- * @param base   Base URL or origin — e.g. `https://auth.example.com`.
- * @param path   Path template — e.g. `/api/my-account/sessions/:id`.
+ * @param base   Base URL or origin - e.g. `https://auth.example.com`.
+ * @param path   Path template - e.g. `/api/my-account/sessions/:id`.
  * @param params Replacement values for `:name` placeholders.
  * @param query  Optional query parameters.
  * @returns A fully-qualified URL string.

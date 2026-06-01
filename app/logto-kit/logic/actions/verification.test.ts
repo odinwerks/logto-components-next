@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ============================================================================
-// Module Mocks — hoisted above all imports
+// Module Mocks - hoisted above all imports
 // ============================================================================
 
 vi.mock('./request', () => ({
@@ -32,7 +32,7 @@ const mockJsonResponse = (data: unknown, status = 200): Response =>
   }) as unknown as Response;
 
 // ============================================================================
-// verifyPasswordForIdentity — Input Validation
+// verifyPasswordForIdentity - Input Validation
 // ============================================================================
 
 describe('verifyPasswordForIdentity', () => {

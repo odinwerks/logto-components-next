@@ -25,7 +25,7 @@ export interface UseAvatarUploadReturn {
  * Upload an avatar image for the currently signed-in user.
  *
  * Security model (Phase 1): the access token and userId are NOT sent from
- * the client. `uploadAvatar` is a Server Action — Next.js enforces
+ * the client. `uploadAvatar` is a Server Action - Next.js enforces
  * same-origin automatically, and the server derives the authenticated user
  * from its own session cookie.
  */

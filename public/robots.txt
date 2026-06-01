@@ -1,4 +1,4 @@
-# logto-dash — authentication dashboard
+# logto-dash - authentication dashboard
 # This application contains sensitive user account management functionality.
 # Indexing is disabled by default. Override this file if you embed this
 # dashboard in a public-facing context where indexing is desired.

@@ -3,7 +3,7 @@
  * Error types & PLAIN_ERRORS-aware sanitisation
  * ============================================================================
  *
- * By default, errors returned to the client are fixed codes — never raw
+ * By default, errors returned to the client are fixed codes - never raw
  * upstream text, never user-controlled values. This prevents:
  *
  *   - User enumeration via differentiated error messages ("unknown email"
@@ -45,7 +45,7 @@ export class LogtoApiError extends Error {
 }
 
 // ============================================================================
-// Error codes — fixed strings clients are allowed to see in production
+// Error codes - fixed strings clients are allowed to see in production
 // ============================================================================
 
 export type ErrorCode =
@@ -83,7 +83,7 @@ export type ErrorCode =
  * Otherwise: replaces the message with a fixed error code.
  *
  * The `operation`/`status` properties of LogtoApiError are always stripped
- * from the thrown error's message — they live in server logs only.
+ * from the thrown error's message - they live in server logs only.
  *
  * @param err       The caught error.
  * @param fallback  The error code to use in production.
@@ -135,7 +135,7 @@ export async function throwOnApiError(
     detail = res.statusText;
   }
 
-  // Always log server-side regardless of env — full detail, no truncation.
+  // Always log server-side regardless of env - full detail, no truncation.
   if (typeof console !== 'undefined') {
     warn(
       `[${operation}] HTTP ${res.status}: ${detail.replace(/[\r\n]/g, ' ').substring(0, 1000)}`,
@@ -144,7 +144,7 @@ export async function throwOnApiError(
 
   // Always try to extract Logto's user-facing message first.
   // Logto returns {"code": "...", "message": "..."} for known errors.
-  // This takes priority over PLAIN_ERRORS mode — the message is the answer.
+  // This takes priority over PLAIN_ERRORS mode - the message is the answer.
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
@@ -156,7 +156,7 @@ export async function throwOnApiError(
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
       throw parseErr;
     }
-    // Not JSON or no message field — fall through
+    // Not JSON or no message field - fall through
   }
 
   // No message field: PLAIN_ERRORS dumps full detail for debugging
@@ -171,7 +171,7 @@ export async function throwOnApiError(
 }
 
 // ============================================================================
-// Plain code helper — for callers that throw hardcoded codes directly
+// Plain code helper - for callers that throw hardcoded codes directly
 // (e.g. avatar.ts) rather than going through throwOnApiError().
 // ============================================================================
 

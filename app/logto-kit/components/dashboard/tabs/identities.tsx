@@ -10,7 +10,7 @@ import { CodeBlock } from '../shared/CodeBlock';
 // ─── Hardcoded design tokens ───
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provider icon map (inline SVGs — no network, no external dep)
+// Provider icon map (inline SVGs - no network, no external dep)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
@@ -226,7 +226,7 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode }: Identities
                 padding: '0.875rem 1.25rem',
                 gap: '1rem',
               }}>
-                {/* Left — icon + name + detail */}
+                {/* Left - icon + name + detail */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                   <div style={{
                     width: '2.25rem',
@@ -255,7 +255,7 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode }: Identities
                   </div>
                 </div>
 
-                {/* Right — external user ID chip */}
+                {/* Right - external user ID chip */}
                 {identity.userId && (
                   <div style={chipStyle} aria-label={`${t.identities.userIdLabel}: ${identity.userId}`}>{identity.userId}</div>
                 )}

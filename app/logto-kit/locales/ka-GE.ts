@@ -221,7 +221,7 @@ export const kaGE: Translations = {
     linkedAccounts: 'დაკავშირებული ანგარიშები',
     connected: 'დაკავშირებული',
     idWithUserId: 'ID · {userId}',
-    unknownDetail: '—',
+    unknownDetail: ' - ',
     providerGoogle: 'Google',
     providerGithub: 'GitHub',
     providerDiscord: 'Discord',

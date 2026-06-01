@@ -2,7 +2,7 @@
  * Global Styles - Logto Debug Dashboard
  * ============================================================================ */
 
-/* IBM Plex Mono is loaded via next/font/google in layout.tsx — removed redundant @import */
+/* IBM Plex Mono is loaded via next/font/google in layout.tsx - removed redundant @import */
 
 /* Import theme CSS */
 @import './logto-kit/themes/default/dark.css';

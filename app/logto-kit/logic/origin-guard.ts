@@ -2,7 +2,7 @@
  * Same-origin request guard for plain route handlers.
  *
  * Next.js Server Actions enforce same-origin automatically (framework-level).
- * Plain `route.ts` handlers do NOT — they need an explicit check.
+ * Plain `route.ts` handlers do NOT - they need an explicit check.
  *
  * Fail-closed: returns a 403 response if the Origin header is absent OR
  * does not match BASE_URL. Cross-origin POST requests from browsers always
@@ -23,7 +23,7 @@ export function checkSameOrigin(request: NextRequest): NextResponse | null {
   try {
     expectedOrigin = new URL(baseUrl).origin;
   } catch {
-    // BASE_URL is malformed — fail closed to avoid silently allowing anything.
+    // BASE_URL is malformed - fail closed to avoid silently allowing anything.
     warn('[origin-guard] BASE_URL is malformed, rejecting request');
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
@@ -44,5 +44,5 @@ export function checkSameOrigin(request: NextRequest): NextResponse | null {
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
 
-  return null; // same-origin — allow
+  return null; // same-origin - allow
 }
