@@ -36,32 +36,38 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
     'specs': () => import('../../../demo/content/user-button/specs'),
     'examples': () => import('../../../demo/content/user-button/examples'),
   },
-  'calculator': {
-    'live-calculator': () => import('../../../demo/content/calculator/live-calculator'),
-  },
   'dashboard': {
     'internals': () => import('../../../demo/content/dashboard/internals'),
     'provider-sync': () => import('../../../demo/content/dashboard/provider-sync'),
     'tab-structure': () => import('../../../demo/content/dashboard/tab-structure'),
     'rendering': () => import('../../../demo/content/dashboard/rendering'),
     'mobile': () => import('../../../demo/content/dashboard/mobile'),
-  }
+  },
+  'rbac': {
+    'ui-protected': () => import('../../../demo/content/rbac/ui-protected'),
+    'api': () => import('../../../demo/content/rbac/api'),
+  },
+  'calculator': {
+    'overview': () => import('../../../demo/content/calculator/overview'),
+    'rbac-design': () => import('../../../demo/content/calculator/rbac-design'),
+    'api-authorization': () => import('../../../demo/content/calculator/api-authorization'),
+    'live-demo': () => import('../../../demo/content/calculator/live-demo'),
+  },
+  'anatomy': {
+    'providers': () => import('../../../demo/content/anatomy/providers'),
+    'theme': () => import('../../../demo/content/anatomy/theme'),
+    'i18n': () => import('../../../demo/content/anatomy/i18n'),
+    'primitives': () => import('../../../demo/content/anatomy/primitives'),
+  },
+  'security': {
+    'error-handling': () => import('../../../demo/content/security/error-handling'),
+    'input-guards': () => import('../../../demo/content/security/input-guards'),
+    'logging': () => import('../../../demo/content/security/logging'),
+  },
 };
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  'getting-started': () => import('../../../demo/docs/getting-started'),
   'tabs-and-flows': () => import('../../../demo/docs/tabs-and-flows'),
-  'protected': () => import('../../../demo/docs/protected'),
-  'org-switcher': () => import('../../../demo/docs/org-switcher'),
-  'providers': () => import('../../../demo/docs/providers'),
-  'theme': () => import('../../../demo/docs/themes'),
-  'i18n': () => import('../../../demo/docs/i18n'),
-  'sessions': () => import('../../../demo/docs/components/sessions'),
-  'calculator': () => import('../../../demo/docs/components/calculator'),
-  'errors': () => import('../../../demo/docs/errors'),
-  'guards': () => import('../../../demo/docs/guards'),
-  'logging': () => import('../../../demo/docs/logging'),
-  'primitives': () => import('../../../demo/docs/primitives'),
 };
 
 interface PageProps {

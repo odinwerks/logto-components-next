@@ -6,19 +6,7 @@ import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  'getting-started': () => import('./docs/getting-started'),
   'tabs-and-flows': () => import('./docs/tabs-and-flows'),
-  'protected': () => import('./docs/protected'),
-  'org-switcher': () => import('./docs/org-switcher'),
-  'providers': () => import('./docs/providers'),
-  'theme': () => import('./docs/themes'),
-  'i18n': () => import('./docs/i18n'),
-  'sessions': () => import('./docs/components/sessions'),
-  'calculator': () => import('./docs/components/calculator'),
-  'errors': () => import('./docs/errors'),
-  'guards': () => import('./docs/guards'),
-  'logging': () => import('./docs/logging'),
-  'primitives': () => import('./docs/primitives'),
 };
 
 interface ContentAreaProps {

@@ -32,7 +32,7 @@ export default function LiveCalculator() {
           <li>Declarative UI gating via the <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> wrapper with organization-scoped RBAC.</li>
           <li>Server-side validation of active user sessions, organization memberships, and role-scoped permissions.</li>
           <li>AST parsing in the client with sequential API evaluation of expression tree nodes.</li>
-          <li>No local javascript math evaluation fallback — completely secure and tamper-proof.</li>
+          <li>No local javascript math evaluation fallback (completely secure and tamper-proof).</li>
         </ul>
       </SectionWrap>
 
