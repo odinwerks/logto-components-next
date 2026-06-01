@@ -22,20 +22,6 @@ export const metadata: Metadata = {
   description: 'Debug dashboard for Logto authentication',
 };
 
-const themeScript = `
-(function() {
-  try {
-    var stored = sessionStorage.getItem('theme-mode');
-    if (stored === 'light' || stored === 'dark') {
-      document.documentElement.setAttribute('data-theme', stored);
-    } else {
-      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
-  } catch (e) {}
-})();
-`;
-
 export default function RootLayout({
   children,
 }: {
@@ -43,11 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <head>
-        {typeof window === 'undefined' && (
-          <script dangerouslySetInnerHTML={{ __html: themeScript }} suppressHydrationWarning />
-        )}
-      </head>
+      <head />
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable}`}>
         <AuthWatcher />
         <SessionHeartbeat />

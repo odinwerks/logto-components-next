@@ -26,7 +26,7 @@ export async function generateStaticParams() {
 const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: React.ComponentType }>>> = {
   'getting-started': {
     'pre-requisites': () => import('../../../demo/content/getting-started/pre-requisites'),
-    'clone-and-install': () => import('../../../demo/content/getting-started/clone-and-install'),
+    'clone-install': () => import('../../../demo/content/getting-started/clone-and-install'),
     'env-setup': () => import('../../../demo/content/getting-started/env-setup'),
     'avatar-upload': () => import('../../../demo/content/getting-started/avatar-upload'),
     'logto-console': () => import('../../../demo/content/getting-started/logto-console'),
