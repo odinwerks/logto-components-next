@@ -11,21 +11,31 @@ export default function DashboardInternals() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <SectionWrap label="How the Dashboard works">
         <p style={styles.textStyle}>
-          The <code style={styles.codeStyle}>Dashboard</code> is a <strong>Server Component</strong> that fetches user data server-side, then wraps itself with internal providers.
+          The <code style={styles.codeStyle}>Dashboard</code> is an asynchronous <strong>Server Component</strong> that fetches user data server-side and renders <code style={styles.codeStyle}>DashboardClient</code> directly with props. The provider tree wrapping (which hydrates the context) is handled at the root layout level (<code style={styles.codeStyle}>app/(docs)/layout.tsx</code>) by the client-side <code style={styles.codeStyle}>LogtoProvider</code>.
         </p>
 
         <CodeBlock
           title="Rendering pipeline"
-          code={`// 1. Server Component - fetches data
+          code={`// 1. Layout level (app/(docs)/layout.tsx)
 const result = await fetchDashboardData();
 
-// 2. Self-wrap with internal providers
 return (
-  <UserDataProvider userData={result.userData}>
-    <PreferencesProvider ...>
-      <DashboardClient ... />
-    </PreferencesProvider>
-  </UserDataProvider>
+  <LogtoProvider
+    userData={result.userData}
+    dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
+    ...
+  >
+    {children}
+  </LogtoProvider>
+);
+
+// 2. Dashboard Server Component (app/logto-kit/components/dashboard/index.tsx)
+const result = await fetchDashboardData();
+return (
+  <DashboardClient
+    initialData={{ userData: result.userData }}
+    ...
+  />
 );`}
         />
 

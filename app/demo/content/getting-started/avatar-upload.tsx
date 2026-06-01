@@ -25,10 +25,11 @@ export default function AvatarUpload() {
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # Storage Parameters
+S3_ENDPOINT=https://your-project-id.supabase.co/storage/v1/s3
 S3_BUCKET_NAME=avatars
 S3_PUBLIC_URL=https://your-project-id.supabase.co/storage/v1/object/public/avatars`} />
         <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-          <strong style={styles.strongNoteStyle}>Why Supabase?</strong> Setting <code style={styles.codeSmStyle}>SUPABASE_SERVICE_ROLE_KEY</code> bypasses the S3 SDK client and posts files directly to the storage bucket via REST APIs, which is faster and highly reliable.
+          <strong style={styles.strongNoteStyle}>Why Supabase?</strong> Setting <code style={styles.codeSmStyle}>SUPABASE_SERVICE_ROLE_KEY</code> bypasses the S3 SDK client and posts files directly to the storage bucket via REST APIs, which is faster and highly reliable. Note that <code style={styles.codeSmStyle}>S3_ENDPOINT</code> is still required because the direct REST base URL is derived from it.
         </div>
       </SectionWrap>
 

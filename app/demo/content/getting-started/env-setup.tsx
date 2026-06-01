@@ -16,6 +16,9 @@ export default function EnvSetup() {
         <p style={styles.textStyle}>
           Fill in the core variables required for fundamental OIDC client operations.
         </p>
+        <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+          <strong style={styles.strongNoteStyle}>Pre-Dev Hook behavior:</strong> The <code style={styles.codeSmStyle}>scripts/inject-next-public.js</code> script automatically runs during the pre-dev hook. It parses the <code style={styles.codeSmStyle}>.env</code> file, extracts variables, and writes their public equivalents (prefixed with <code style={styles.codeSmStyle}>NEXT_PUBLIC_</code>) to <code style={styles.codeSmStyle}>.env.local</code>. This eliminates the need to manually duplicate environment variables for client-side usage.
+        </div>
       </SectionWrap>
 
       <SectionWrap label="Core Variables Reference">
@@ -76,7 +79,7 @@ export default function EnvSetup() {
 SCOPES=openid,profile,custom_data,email,phone,identities,sessions
 
 # Extended Scopes (Enables Multi-tenant / Organizations features)
-SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations
+SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,organization_roles
 
 # Note: The custom environment parser accepts both comma and newline delimiters.`} />
       </SectionWrap>
