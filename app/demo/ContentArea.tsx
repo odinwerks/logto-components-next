@@ -7,8 +7,6 @@ import { SECTION_HINTS } from './nav-data';
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
   'getting-started': () => import('./docs/getting-started'),
-  'user-button': () => import('./docs/user-button'),
-  'dashboard': () => import('./docs/dashboard'),
   'tabs-and-flows': () => import('./docs/tabs-and-flows'),
   'protected': () => import('./docs/protected'),
   'org-switcher': () => import('./docs/org-switcher'),

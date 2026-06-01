@@ -116,7 +116,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'component',
     icon: <UserButtonIcon />,
     desc: 'Standalone avatar component. Renders as UserButton (clickable, opens Dashboard modal), UserBadge (display only), or UserCard (inline with name/email). Priority: prop → context → auto-fetch. Falls back to a user icon after 1.5 s.',
-    sections: ['Quick start', 'Props', 'Examples', 'Notes'],
+    sections: ['Specs', 'Examples'],
   },
   {
     id: 'dashboard',

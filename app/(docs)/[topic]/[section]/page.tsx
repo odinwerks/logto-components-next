@@ -32,15 +32,24 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
     'logto-console': () => import('../../../demo/content/getting-started/logto-console'),
     'replace-the-demo': () => import('../../../demo/content/getting-started/replace-the-demo'),
   },
+  'user-button': {
+    'specs': () => import('../../../demo/content/user-button/specs'),
+    'examples': () => import('../../../demo/content/user-button/examples'),
+  },
   'calculator': {
     'live-calculator': () => import('../../../demo/content/calculator/live-calculator'),
+  },
+  'dashboard': {
+    'internals': () => import('../../../demo/content/dashboard/internals'),
+    'provider-sync': () => import('../../../demo/content/dashboard/provider-sync'),
+    'tab-structure': () => import('../../../demo/content/dashboard/tab-structure'),
+    'rendering': () => import('../../../demo/content/dashboard/rendering'),
+    'mobile': () => import('../../../demo/content/dashboard/mobile'),
   }
 };
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
   'getting-started': () => import('../../../demo/docs/getting-started'),
-  'user-button': () => import('../../../demo/docs/user-button'),
-  'dashboard': () => import('../../../demo/docs/dashboard'),
   'tabs-and-flows': () => import('../../../demo/docs/tabs-and-flows'),
   'protected': () => import('../../../demo/docs/protected'),
   'org-switcher': () => import('../../../demo/docs/org-switcher'),
