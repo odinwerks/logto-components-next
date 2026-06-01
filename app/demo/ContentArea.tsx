@@ -6,7 +6,6 @@ import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  'tabs-and-flows': () => import('./docs/tabs-and-flows'),
 };
 
 interface ContentAreaProps {
