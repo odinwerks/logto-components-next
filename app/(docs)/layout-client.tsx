@@ -23,6 +23,12 @@ export default function DocsLayoutClient({ children }: { children: React.ReactNo
           .docs-content-container > div {
             padding: 1.25rem 1rem 5rem !important;
           }
+          .docs-content-container table {
+            display: block !important;
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
         }
       `}} />
 
