@@ -152,7 +152,7 @@ function AvatarCore({
     width: Size,
     height: Size,
     borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
-    border: `2px solid ${colors.borderColor}`,
+    border: isShowingAvatar ? 'none' : `2px solid ${colors.borderColor}`,
     background: isShowingAvatar ? 'transparent' : colors.bgTertiary,
     display: 'flex',
     alignItems: 'center',
@@ -171,7 +171,15 @@ function AvatarCore({
       <img
         src={userData.avatar!}
         alt="Avatar"
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          minWidth: 0,
+          minHeight: 0,
+          objectFit: 'cover',
+          borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
+        }}
         onError={onImageError}
       />
     </div>
