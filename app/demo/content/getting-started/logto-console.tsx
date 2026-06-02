@@ -1,21 +1,46 @@
 'use client';
 
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+import { slugify } from '../../components/SectionComponents';
 
 export default function LogtoConsole() {
   const styles = useDocStyles();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Logto Console Application Setup">
-        <p style={styles.textStyle}>
-          To connect your Next.js application to your Logto tenant, you must provision two distinct applications in the <strong>Logto Console</strong>. 
-          Each serves a specific security context within the OAuth 2.0 / OIDC architecture.
-        </p>
-      </SectionWrap>
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <SectionWrap label="1. Traditional Web Application">
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const h3Style: React.CSSProperties = {
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: isDark ? '#e5e7eb' : '#1f2937',
+    marginTop: '20px',
+    marginBottom: '12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'}`,
+    paddingBottom: '4px',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <h2 id={slugify("Logto Console Application Setup")} style={{ ...h2Style, marginTop: 0 }}>Logto Console Application Setup</h2>
+      
+      <p style={styles.textStyle}>
+        To connect your Next.js application to your Logto tenant, you must provision two distinct applications in the <strong>Logto Console</strong>. 
+        Each serves a specific security context within the OAuth 2.0 / OIDC architecture.
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
+        <div>
+          <h3 id={slugify("1. Traditional Web Application")} style={{ ...h3Style, marginTop: 0 }}>1. Traditional Web Application</h3>
           <p style={styles.textStyle}>
             This client application manages user interactive authentication (sign-in, sign-out, session establishment) via OIDC Authorization Code Flow.
           </p>
@@ -38,9 +63,10 @@ export default function LogtoConsole() {
             <br />
             Enable <strong>"Account API"</strong> in the application settings. This is crucial for enabling the user dashboard to modify user profiles or password credentials directly.
           </div>
-        </SectionWrap>
+        </div>
 
-        <SectionWrap label="2. Machine-to-Machine (M2M) Application">
+        <div>
+          <h3 id={slugify("2. Machine-to-Machine (M2M) Application")} style={{ ...h3Style, marginTop: 0 }}>2. Machine-to-Machine (M2M) Application</h3>
           <p style={styles.textStyle}>
             This server-to-server client authenticates silently using Client Credentials Grant to perform administrator queries via the Logto Management API.
           </p>
@@ -67,7 +93,7 @@ export default function LogtoConsole() {
             <br />
             Used for elevated server actions like completely purging a user's record on deletion, checking user memberships, or mutating organization attributes.
           </div>
-        </SectionWrap>
+        </div>
       </div>
     </div>
   );

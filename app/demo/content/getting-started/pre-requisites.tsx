@@ -2,107 +2,195 @@
 
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+import { slugify } from '../../components/SectionComponents';
 
 export default function PreRequisites() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Pre-requisites">
-        <p style={styles.textStyle}>
-          Before setting up this Next.js starter kit, you need a running, accessible instance of <strong>Logto</strong>.
-        </p>
-        <p style={styles.textStyle}>
-          You have three deployment paths depending on your needs. We recommend <strong>self-hosting</strong> as it is straightforward and gives you full control over your customer authentication stack.
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <h2 id={slugify("Pre-requisites")} style={{ ...h2Style, marginTop: 0 }}>Pre-requisites</h2>
+      
+      <p style={styles.textStyle}>
+        Before setting up any Logto secured app, you will need a functional instance of the IAM platform.
+      </p>
+      <p style={styles.textStyle}>
+        You can use the managed SaaS, or self-host. We advise self-hosting due to more control and features.
+      </p>
 
-        <table style={styles.tableStyle}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Option</th>
-              <th style={{ ...styles.thStyle, width: '55%' }}>Description & Links</th>
-              <th style={{ ...styles.thStyle, width: '20%' }}>Hosted</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={styles.tdPropStyle}>Logto Blacktop</td>
-              <td style={styles.tdStyle}>
-                An actively maintained fork. It provides premium enterprise features (branding control, custom UI) on the OSS tier, optimizes storage handlers, and provides advanced APIs. Learn more on <a href="https://github.com/odinwerks/logto/tree/master" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Blacktop Fork)</a>.
-              </td>
-              <td style={styles.tdStyle}>Self-hosted</td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>Logto OSS</td>
-              <td style={styles.tdStyle}>
-                The official upstream open-source release. Fully compatible, stable, supports role-based access control (RBAC) and custom social/enterprise connectors, but locks branding hiding and custom UI gates. Check it out on <a href="https://github.com/logto-io/logto" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>GitHub (Upstream)</a>.
-              </td>
-              <td style={styles.tdStyle}>Self-hosted</td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>Logto Cloud</td>
-              <td style={styles.tdStyle}>
-                The official hosted SaaS edition. Rapid configuration, but crucial developer features like organizations, custom branding, and RBAC permissions are gated behind monthly premium subscriptions. Get started at <a href="https://cloud.logto.io" target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline' }}>Logto Cloud Console</a>.
-              </td>
-              <td style={styles.tdStyle}>SaaS (Hosted)</td>
-            </tr>
-          </tbody>
-        </table>
-      </SectionWrap>
+      <table style={customTableStyle}>
+        <thead>
+          <tr>
+            <th style={{ ...customThStyle, width: '25%' }}>Instance</th>
+            <th style={{ ...customThStyle, width: '60%' }}>Differentiator</th>
+            <th style={{ ...customThStyle, width: '15%' }}>Deployment</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={customTdPropStyle}>Logto Blacktop</td>
+            <td style={customTdStyle}>
+              Has a new S3 backend, updated pfp api, and unlocked features previously limited to premium tiers of the cloud instance. This gives you the most features and was tested most extensively on this project.
+            </td>
+            <td style={customTdStyle}>Self-hosted</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Logto IO (OSS)</td>
+            <td style={customTdStyle}>
+              The base instance of Logto. More feature-rich compared to the free tier of Logto Cloud, but lacks the premium features of Logto Cloud out of the box.
+            </td>
+            <td style={customTdStyle}>Self-hosted</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Logto Cloud</td>
+            <td style={customTdStyle}>
+              The official hosted SaaS edition. You pay for it to function at scale.
+            </td>
+            <td style={customTdStyle}>SaaS (Hosted)</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <SectionWrap label="Deep-Dive: How They Differ">
-        <p style={styles.textStyle}>
-          Here is how the editions compare in technical capability and licensing restrictions:
-        </p>
-        <ul style={{ ...styles.textStyle, marginLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <li>
-            <strong>Logto Blacktop (The Fork):</strong> Built without licensing restrictions on branding and custom UI. It includes features that upstream OSS does not include, such as:
-            <ul style={{ marginLeft: '1rem', marginTop: '4px', listStyleType: 'circle' }}>
-              <li><strong>Disable Logto Branding:</strong> Remove watermarks and footers from sign-in interfaces.</li>
-              <li><strong>Custom Sign-In/Up UI:</strong> Ability to serve and inject custom HTML/CSS and assets directly within Logto.</li>
-              <li><strong>Rich Sessions:</strong> Leverages a custom "Last active at" session tracker to record active audit trails.</li>
-              <li><strong>Refactored S3 Backend:</strong> Overhauled S3/RustFS architecture.</li>
-              <li><strong>One-Shot Avatar API:</strong> Direct API to post an image and instantly apply/bind it to a user profile picture inside Logto.</li>
-            </ul>
-          </li>
-          <li>
-            <strong>Logto OSS (Upstream):</strong> The standard baseline. Full-fat RBAC and connectors are included out of the box, but premium customization experiences (custom UI, brand removal) are blocked, and it lacks the one-shot avatar API or rich sessions.
-          </li>
-          <li>
-            <strong>Logto Cloud:</strong> SaaS-managed convenience. Paywalled RBAC/Organization controls on standard subscriptions. While premium features are technically available, they are locked behind costly monthly plans.
-          </li>
-        </ul>
-        <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>Recommendation:</strong> <strong>Logto Blacktop</strong> is recommended. It receives active updates, implements user audits, and provides custom file-serving APIs.
-        </div>
-      </SectionWrap>
+      <h2 id={slugify("Feature Comparison Matrix")} style={h2Style}>Feature Comparison Matrix</h2>
 
-      <SectionWrap label="What This Means For Setup">
-        <p style={styles.textStyle}>
-          The components in this dashboard have been designed to leverage Blacktop's premium enhancements when present, with graceful degradation fallbacks:
-        </p>
-        <ol style={{ ...styles.textStyle, marginLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <li>
-            <strong>Profile Picture Backend:</strong> The integrated <code>logto</code> upload option is exclusive to Blacktop. For Upstream OSS setups, you must configure the external <code>S3</code> or <code>Supabase</code> bucket backends.
-          </li>
-          <li>
-            <strong>Rich Sessions Audit:</strong> Session audit lists will degrade gracefully (without the "Last active at" timestamp) on Upstream OSS or Cloud deployments.
-          </li>
-          <li>
-            <strong>Logto Cloud SaaS:</strong> This dashboard was <strong>NOT</strong> tested on Logto Cloud. Use at your own risk or expect minor OIDC claim discrepancies.
-          </li>
-        </ol>
-      </SectionWrap>
+      <table style={customTableStyle}>
+        <thead>
+          <tr>
+            <th style={{ ...customThStyle, width: '25%' }}>Feature</th>
+            <th style={{ ...customThStyle, width: '25%' }}>Logto IO (OSS)</th>
+            <th style={{ ...customThStyle, width: '25%' }}>Logto Cloud (Pro)</th>
+            <th style={{ ...customThStyle, width: '25%' }}>Logto Blacktop (Fork)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={customTdPropStyle}>Licensing & Cost</td>
+            <td style={customTdStyle}>MPL-2.0 (Free)</td>
+            <td style={customTdStyle}>SaaS ($24/mo base + high add-on fees)</td>
+            <td style={customTdStyle}>MPL-2.0 (Free)</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>"Bring Your UI" ZIP Upload</td>
+            <td style={customTdStyle}>❌ Stripped from Console</td>
+            <td style={customTdStyle}>Available (Cloud Managed)</td>
+            <td style={customTdStyle}><strong>Available (In-Process AdmZip)</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>SAML Outbound Apps</td>
+            <td style={customTdStyle}>⚠️ Hard-capped at 3</td>
+            <td style={customTdStyle}>Unlimited ($96/mo add-on)</td>
+            <td style={customTdStyle}><strong>Unlimited (Gating Removed)</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Hide Branding Toggle</td>
+            <td style={customTdStyle}>❌ Stripped from Console</td>
+            <td style={customTdStyle}>Available (Premium Add-on)</td>
+            <td style={customTdStyle}><strong>Available (Gating Removed)</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>SaaS Upsell / Ads</td>
+            <td style={customTdStyle}>Present</td>
+            <td style={customTdStyle}>Present</td>
+            <td style={customTdStyle}>❌ <strong>Completely Purged</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>S3 Storage Scope</td>
+            <td style={customTdStyle}>Write-Only (PutObject)</td>
+            <td style={customTdStyle}>Managed Platform</td>
+            <td style={customTdStyle}><strong>Full CRUD with Cleanup</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Asset Delivery</td>
+            <td style={customTdStyle}>Requires public bucket URI</td>
+            <td style={customTdStyle}>Cloud CDN</td>
+            <td style={customTdStyle}><strong>Secure Local Proxy Routes</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Session Tracking</td>
+            <td style={customTdStyle}>OIDC Session Lifetime</td>
+            <td style={customTdStyle}>OIDC Session Lifetime</td>
+            <td style={customTdStyle}><strong>Real-Time Heartbeats</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Password Expiration</td>
+            <td style={customTdStyle}>❌ Absent</td>
+            <td style={customTdStyle}>❌ Absent</td>
+            <td style={customTdStyle}><strong>Full Custom Policies</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Organization Webhooks</td>
+            <td style={customTdStyle}>Standard Payload</td>
+            <td style={customTdStyle}>Standard Payload</td>
+            <td style={customTdStyle}><strong>Enriched Payload (includes userIds)</strong></td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Visual Aesthetic</td>
+            <td style={customTdStyle}>Stock Purple</td>
+            <td style={customTdStyle}>Stock Purple</td>
+            <td style={customTdStyle}><strong>Custom Deep Blue Theme</strong></td>
+          </tr>
+        </tbody>
+      </table>
 
-      <SectionWrap label="Deploying Blacktop via Cloudflare Tunnel">
-        <p style={styles.textStyle}>
-          To run Logto Blacktop with a PostgreSQL DB, Redis cache, and <strong>RustFS</strong> Object Storage (configured for file assets and user avatars), use the following docker-compose configuration.
-        </p>
-        <p style={styles.textStyle}>
-          <strong>Directory Structure Rule:</strong> Git clone the Logto Blacktop repository into a directory named <code>logto-server</code>. Place this <code>docker-compose.yml</code> and its corresponding <code>.env</code> file <strong>on the same level (as siblings)</strong> as the <code>logto-server</code> directory (NOT inside of it).
-        </p>
-        <CodeBlock title="docker-compose.yml" code={`version: "3.8"
+      <h2 id={slugify("Deploying Blacktop via Cloudflare Tunnel")} style={h2Style}>Deploying Blacktop via Cloudflare Tunnel</h2>
+      
+      <p style={styles.textStyle}>
+        To run Logto Blacktop with a PostgreSQL DB, Redis cache, and <strong>RustFS</strong> Object Storage (configured for file assets and user avatars), use the following docker-compose configuration.
+      </p>
+      <p style={styles.textStyle}>
+        <strong>Directory Structure Rule:</strong> Git clone the Logto Blacktop repository into a directory named <code>logto-server</code>. Place this <code>docker-compose.yml</code> and its corresponding <code>.env</code> file <strong>on the same level (as siblings)</strong> as the <code>logto-server</code> directory (NOT inside of it).
+      </p>
+      
+      <CodeBlock title="docker-compose.yml" code={`version: "3.8"
 
 services:
   # Logto Core Service (built from local source)
@@ -233,16 +321,18 @@ volumes: {}
 networks:
   logto-net:
     driver: bridge`} />
-        <p style={styles.textStyle}>
-          An external S3-compatible Object Storage service is only required if you intend to host custom asset files, themes, and user profile pictures. (Upstream OSS disables custom asset storage configurations, so hooking it up is irrelevant there).
-        </p>
-      </SectionWrap>
 
-      <SectionWrap label="Branding Hiding Hack (OSS Upstream & Cloud)">
-        <p style={styles.textStyle}>
-          If you are utilizing standard Logto OSS Upstream or a free tier of Logto Cloud, you can hide the default paywalled branding signature by pasting the following CSS snippet directly into your Logto Console custom CSS customization input:
-        </p>
-        <CodeBlock title="Logto Custom CSS Hack" code={`/* Hide Logto signature */
+      <p style={styles.textStyle}>
+        An external S3-compatible Object Storage service is only required if you intend to host custom asset files, themes, and user profile pictures. (Upstream OSS disables custom asset storage configurations, so hooking it up is irrelevant there).
+      </p>
+
+      <h2 id={slugify("Branding Hiding Hack (OSS Upstream & Cloud)")} style={h2Style}>Branding Hiding Hack (OSS Upstream & Cloud)</h2>
+      
+      <p style={styles.textStyle}>
+        If you are utilizing standard Logto OSS Upstream or a free tier of Logto Cloud, you can hide the default paywalled branding signature by pasting the following CSS snippet directly into your Logto Console custom CSS customization input:
+      </p>
+      
+      <CodeBlock title="Logto Custom CSS Hack" code={`/* Hide Logto signature */
 .VPHIq_signature,
 .logto_signature,
 [data-logto-signature-container="secured"] {
@@ -255,10 +345,10 @@ networks:
     position: absolute !important;
     pointer-events: none !important;
 }`} />
-        <p style={styles.textStyle}>
-          Applying this custom stylesheet is functionally identical to toggling the paid "Remove branding" feature inside Logto.
-        </p>
-      </SectionWrap>
+      
+      <p style={styles.textStyle}>
+        Applying this custom stylesheet is functionally identical to toggling the paid "Remove branding" feature inside Logto.
+      </p>
     </div>
   );
 }
