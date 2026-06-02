@@ -35,14 +35,14 @@ export interface ThemeColors {
 
 /** Dark mode color tokens (keep in sync with default/dark.css) */
 export const DARK_COLORS: ThemeColors = {
-  bgPage: '#050506',
-  bgPrimary: '#08090a',
-  bgSecondary: '#0c0c0e',
-  bgTertiary: '#121315',
+  bgPage: '#050608',
+  bgPrimary: '#111620',
+  bgSecondary: '#08090a',
+  bgTertiary: '#171c2a',
   textPrimary: '#f3f4f6',
   textSecondary: '#9ca3af',
   textTertiary: '#656a73',
-  borderColor: '#141517',
+  borderColor: '#181c2b',
   accentGreen: '#10b981',
   accentRed: '#ef4444',
   accentYellow: '#f59e0b',
