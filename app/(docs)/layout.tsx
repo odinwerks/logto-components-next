@@ -9,14 +9,7 @@ import { LogtoProvider } from '../logto-kit/components/providers/logto-provider'
 import { getDefaultThemeMode } from '../logto-kit/themes';
 import { getPreferencesFromUserData } from '../logto-kit/logic/preferences';
 import { getMainLocale } from '../logto-kit/locales';
-import Sidebar from '../demo/Sidebar';
-import { NAV_ITEMS } from '../demo/nav-data';
-
-const appStyle: React.CSSProperties = {
-  display: 'flex',
-  height: '100vh',
-  overflow: 'hidden',
-};
+import DocsLayoutClient from './layout-client';
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
   const result = await fetchDashboardData();
@@ -43,12 +36,9 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
       initialLang={resolvedLang}
       initialOrgId={resolvedOrg}
     >
-      <div style={appStyle}>
-        <Sidebar items={NAV_ITEMS} />
-        <div className="docs-content-container" style={{ flex: 1, overflowY: 'auto', background: 'var(--ldd-bg-page)' }}>
-          {children}
-        </div>
-      </div>
+      <DocsLayoutClient>
+        {children}
+      </DocsLayoutClient>
     </LogtoProvider>
   );
 }

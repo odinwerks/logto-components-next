@@ -67,119 +67,123 @@ export default function PreRequisites() {
         You can use the managed SaaS, or self-host. We advise self-hosting due to more control and features.
       </p>
 
-      <table style={customTableStyle}>
-        <thead>
-          <tr>
-            <th style={{ ...customThStyle, width: '25%' }}>Instance</th>
-            <th style={{ ...customThStyle, width: '60%' }}>Differentiator</th>
-            <th style={{ ...customThStyle, width: '15%' }}>Deployment</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={customTdPropStyle}>Logto Blacktop</td>
-            <td style={customTdStyle}>
-              Has a new S3 backend, updated pfp api, and unlocked features previously limited to premium tiers of the cloud instance. This gives you the most features and was tested most extensively on this project.
-            </td>
-            <td style={customTdStyle}>Self-hosted</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Logto IO (OSS)</td>
-            <td style={customTdStyle}>
-              The base instance of Logto. More feature-rich compared to the free tier of Logto Cloud, but lacks the premium features of Logto Cloud out of the box.
-            </td>
-            <td style={customTdStyle}>Self-hosted</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Logto Cloud</td>
-            <td style={customTdStyle}>
-              The official hosted SaaS edition. You pay for it to function at scale.
-            </td>
-            <td style={customTdStyle}>SaaS (Hosted)</td>
-          </tr>
-        </tbody>
-      </table>
+      <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={customTableStyle}>
+          <thead>
+            <tr>
+              <th style={{ ...customThStyle, width: '25%' }}>Instance</th>
+              <th style={{ ...customThStyle, width: '60%' }}>Differentiator</th>
+              <th style={{ ...customThStyle, width: '15%' }}>Deployment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={customTdPropStyle}>Logto Blacktop</td>
+              <td style={customTdStyle}>
+                Has a new S3 backend, updated pfp api, and unlocked features previously limited to premium tiers of the cloud instance. This gives you the most features and was tested most extensively on this project.
+              </td>
+              <td style={customTdStyle}>Self-hosted</td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Logto IO (OSS)</td>
+              <td style={customTdStyle}>
+                The base instance of Logto. More feature-rich compared to the free tier of Logto Cloud, but lacks the premium features of Logto Cloud out of the box.
+              </td>
+              <td style={customTdStyle}>Self-hosted</td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Logto Cloud</td>
+              <td style={customTdStyle}>
+                The official hosted SaaS edition. You pay for it to function at scale.
+              </td>
+              <td style={customTdStyle}>SaaS (Hosted)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <h2 id={slugify("Feature Comparison Matrix")} style={h2Style}>Feature Comparison Matrix</h2>
 
-      <table style={customTableStyle}>
-        <thead>
-          <tr>
-            <th style={{ ...customThStyle, width: '25%' }}>Feature</th>
-            <th style={{ ...customThStyle, width: '25%' }}>Logto IO (OSS)</th>
-            <th style={{ ...customThStyle, width: '25%' }}>Logto Cloud (Pro)</th>
-            <th style={{ ...customThStyle, width: '25%' }}>Logto Blacktop (Fork)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={customTdPropStyle}>Licensing & Cost</td>
-            <td style={customTdStyle}>MPL-2.0 (Free)</td>
-            <td style={customTdStyle}>SaaS ($24/mo base + high add-on fees)</td>
-            <td style={customTdStyle}>MPL-2.0 (Free)</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>"Bring Your UI" ZIP Upload</td>
-            <td style={customTdStyle}>❌ Stripped from Console</td>
-            <td style={customTdStyle}>Available (Cloud Managed)</td>
-            <td style={customTdStyle}><strong>Available (In-Process AdmZip)</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>SAML Outbound Apps</td>
-            <td style={customTdStyle}>⚠️ Hard-capped at 3</td>
-            <td style={customTdStyle}>Unlimited ($96/mo add-on)</td>
-            <td style={customTdStyle}><strong>Unlimited (Gating Removed)</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Hide Branding Toggle</td>
-            <td style={customTdStyle}>❌ Stripped from Console</td>
-            <td style={customTdStyle}>Available (Premium Add-on)</td>
-            <td style={customTdStyle}><strong>Available (Gating Removed)</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>SaaS Upsell / Ads</td>
-            <td style={customTdStyle}>Present</td>
-            <td style={customTdStyle}>Present</td>
-            <td style={customTdStyle}>❌ <strong>Completely Purged</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>S3 Storage Scope</td>
-            <td style={customTdStyle}>Write-Only (PutObject)</td>
-            <td style={customTdStyle}>Managed Platform</td>
-            <td style={customTdStyle}><strong>Full CRUD with Cleanup</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Asset Delivery</td>
-            <td style={customTdStyle}>Requires public bucket URI</td>
-            <td style={customTdStyle}>Cloud CDN</td>
-            <td style={customTdStyle}><strong>Secure Local Proxy Routes</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Session Tracking</td>
-            <td style={customTdStyle}>OIDC Session Lifetime</td>
-            <td style={customTdStyle}>OIDC Session Lifetime</td>
-            <td style={customTdStyle}><strong>Real-Time Heartbeats</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Password Expiration</td>
-            <td style={customTdStyle}>❌ Absent</td>
-            <td style={customTdStyle}>❌ Absent</td>
-            <td style={customTdStyle}><strong>Full Custom Policies</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Organization Webhooks</td>
-            <td style={customTdStyle}>Standard Payload</td>
-            <td style={customTdStyle}>Standard Payload</td>
-            <td style={customTdStyle}><strong>Enriched Payload (includes userIds)</strong></td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Visual Aesthetic</td>
-            <td style={customTdStyle}>Stock Purple</td>
-            <td style={customTdStyle}>Stock Purple</td>
-            <td style={customTdStyle}><strong>Custom Deep Blue Theme</strong></td>
-          </tr>
-        </tbody>
-      </table>
+      <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={customTableStyle}>
+          <thead>
+            <tr>
+              <th style={{ ...customThStyle, width: '25%' }}>Feature</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Logto IO (OSS)</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Logto Cloud (Pro)</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Logto Blacktop (Fork)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={customTdPropStyle}>Licensing & Cost</td>
+              <td style={customTdStyle}>MPL-2.0 (Free)</td>
+              <td style={customTdStyle}>SaaS ($24/mo base + high add-on fees)</td>
+              <td style={customTdStyle}>MPL-2.0 (Free)</td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>"Bring Your UI" ZIP Upload</td>
+              <td style={customTdStyle}>❌ Stripped from Console</td>
+              <td style={customTdStyle}>Available (Cloud Managed)</td>
+              <td style={customTdStyle}><strong>Available (In-Process AdmZip)</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>SAML Outbound Apps</td>
+              <td style={customTdStyle}>⚠️ Hard-capped at 3</td>
+              <td style={customTdStyle}>Unlimited ($96/mo add-on)</td>
+              <td style={customTdStyle}><strong>Unlimited (Gating Removed)</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Hide Branding Toggle</td>
+              <td style={customTdStyle}>❌ Stripped from Console</td>
+              <td style={customTdStyle}>Available (Premium Add-on)</td>
+              <td style={customTdStyle}><strong>Available (Gating Removed)</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>SaaS Upsell / Ads</td>
+              <td style={customTdStyle}>Present</td>
+              <td style={customTdStyle}>Present</td>
+              <td style={customTdStyle}>❌ <strong>Completely Purged</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>S3 Storage Scope</td>
+              <td style={customTdStyle}>Write-Only (PutObject)</td>
+              <td style={customTdStyle}>Managed Platform</td>
+              <td style={customTdStyle}><strong>Full CRUD with Cleanup</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Asset Delivery</td>
+              <td style={customTdStyle}>Requires public bucket URI</td>
+              <td style={customTdStyle}>Cloud CDN</td>
+              <td style={customTdStyle}><strong>Secure Local Proxy Routes</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Session Tracking</td>
+              <td style={customTdStyle}>OIDC Session Lifetime</td>
+              <td style={customTdStyle}>OIDC Session Lifetime</td>
+              <td style={customTdStyle}><strong>Real-Time Heartbeats</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Password Expiration</td>
+              <td style={customTdStyle}>❌ Absent</td>
+              <td style={customTdStyle}>❌ Absent</td>
+              <td style={customTdStyle}><strong>Full Custom Policies</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Organization Webhooks</td>
+              <td style={customTdStyle}>Standard Payload</td>
+              <td style={customTdStyle}>Standard Payload</td>
+              <td style={customTdStyle}><strong>Enriched Payload (includes userIds)</strong></td>
+            </tr>
+            <tr>
+              <td style={customTdPropStyle}>Visual Aesthetic</td>
+              <td style={customTdStyle}>Stock Purple</td>
+              <td style={customTdStyle}>Stock Purple</td>
+              <td style={customTdStyle}><strong>Custom Deep Blue Theme</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <h2 id={slugify("Deploying Blacktop via Cloudflare Tunnel")} style={h2Style}>Deploying Blacktop via Cloudflare Tunnel</h2>
       

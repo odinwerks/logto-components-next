@@ -1,5 +1,6 @@
 
 export { Dashboard } from './components/dashboard';
+export { useIsPortrait, DashboardRouter } from './components/dashboard/dashboard-router';
 
 export { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './components/providers/preferences';
 export type { ThemeColors } from './components/providers/preferences';

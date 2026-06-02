@@ -219,9 +219,9 @@ export function MobileClient({
             position: 'fixed',
             bottom: '1.5rem',
             right: '1.35rem',
-            width: '2.5rem',
-            height: '2.5rem',
-            borderRadius: '0.5rem',
+            width: '3rem',
+            height: '3rem',
+            borderRadius: '0.75rem',
             border: `1px solid ${colors.borderColor}`,
             background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
             backdropFilter: 'blur(0.5rem)',
@@ -243,7 +243,7 @@ export function MobileClient({
             e.currentTarget.style.color = colors.textTertiary;
           }}
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={22} />
         </button>
 
         <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
@@ -377,9 +377,9 @@ export function MobileClient({
           position: 'fixed',
           bottom: '1.5rem',
           right: '1.35rem',
-          width: '2.5rem',
-          height: '2.5rem',
-          borderRadius: '0.5rem',
+          width: '3rem',
+          height: '3rem',
+          borderRadius: '0.75rem',
           border: `1px solid ${colors.borderColor}`,
           background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
           backdropFilter: 'blur(0.5rem)',
@@ -401,7 +401,7 @@ export function MobileClient({
           e.currentTarget.style.color = colors.textTertiary;
         }}
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={22} />
       </button>
 
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
