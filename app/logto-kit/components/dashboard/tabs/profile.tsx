@@ -115,18 +115,16 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
             <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} />
           </div>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
+            <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
               <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loadingPermissions}
             </div>
           ) : error ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.accentRed }}>
-              <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
-              <p>{t.profile.permissionsError}</p>
+            <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.accentRed }}>
+              {t.profile.permissionsError}
             </div>
           ) : permissions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
-              <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
-              <p>{t.profile.noPersonalPermissions}</p>
+            <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
+              {t.profile.noPersonalPermissions}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -954,7 +952,7 @@ export function ProfileTab({
         />
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
         <Card mode={mode} colors={colors} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
@@ -964,18 +962,16 @@ export function ProfileTab({
               <RefreshButton onClick={() => setRolesRefreshKey(k => k + 1)} loading={rolesLoading} colors={colors} />
             </div>
             {rolesLoading ? (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
                 <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loading}
               </div>
             ) : rolesError ? (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
-                <Shield size={24} strokeWidth={1.5} style={{ marginBottom: '0.5rem', opacity: 0.6 }} />
-                <p>{t.profile.rolesError}</p>
+              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
+                {t.profile.rolesError}
               </div>
             ) : userRoles.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
-                <Shield size={24} strokeWidth={1} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
-                <p>{t.profile.noRoles}</p>
+              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+                {t.profile.noRoles}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

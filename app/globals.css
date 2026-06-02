@@ -46,7 +46,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 0.125rem solid var(--ldd-accent-blue);
+  outline: 0.125rem solid var(--ldd-text-tertiary);
   outline-offset: 0.125rem;
 }
 

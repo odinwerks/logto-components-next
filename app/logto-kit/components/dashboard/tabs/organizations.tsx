@@ -190,7 +190,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
   };
 
   const emptyStateStyle: React.CSSProperties = {
-    padding: '1.5rem 1rem',
+    padding: '2rem 1rem',
     textAlign: 'center' as const,
     color: c.textTertiary,
   };
@@ -338,6 +338,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
 
 export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobmode }: OrganizationsTabProps) {
   const c = colors;
+  const isMobile = mobmode === 1;
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -448,7 +449,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
   };
 
   const emptyStateStyle: React.CSSProperties = {
-    padding: '1.5rem 1rem',
+    padding: '2rem 1rem',
     textAlign: 'center' as const,
     color: c.textTertiary,
   };
@@ -506,7 +507,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
         {/* Roles */}
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
