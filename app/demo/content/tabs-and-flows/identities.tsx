@@ -2,59 +2,115 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function IdentitiesSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Identities Tab - props & elements">
+      <div>
+        <h2 id={slugify("Identities Tab - props & elements")} style={h2Style}>Identities Tab - props & elements</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>IdentitiesTab</code> component renders OIDC social provider connection states and account mapping details. It parses the identity objects stored in user credentials to display connected statuses and associated user handles.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Prop</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Purpose</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Prop</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '50%' }}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>userData</td>
-              <td style={styles.tdTypeStyle}>UserData</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={customTdStyle}>UserData</td>
+              <td style={customTdStyle}>
                 The primary authenticated user object, containing the <code style={styles.codeSmStyle}>identities</code> record map.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={styles.tdTypeStyle}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 Theme rendering mode used to style the container cards and code display block.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={styles.tdTypeStyle}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}>ThemeColors</td>
+              <td style={customTdStyle}>
                 The active style theme color mapping object containing hex color strings.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={styles.tdTypeStyle}>Translations</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}>Translations</td>
+              <td style={customTdStyle}>
                 Static key-value translations mapped to the active language locale.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mobmode</td>
-              <td style={styles.tdTypeStyle}>number?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}>number?</td>
+              <td style={customTdStyle}>
                 Optional responsive design indicator where 1 signals mobile screen dimensions to shrink font and spacing scales.
               </td>
             </tr>
@@ -96,9 +152,10 @@ export default function IdentitiesSection() {
             <strong>User Identifier Chip:</strong> If an external user ID (<code style={styles.codeSmStyle}>userId</code>) is supplied by the social connection, it renders a monospace badge showing the raw string.
           </li>
         </ul>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="OIDC Social Connection Mapping">
+      <div>
+        <h2 id={slugify("OIDC Social Connection Mapping")} style={h2Style}>OIDC Social Connection Mapping</h2>
         <p style={styles.textStyle}>
           Logto integrates with social identity providers (IDPs) utilizing the OpenID Connect (OIDC) or OAuth 2.0 standards. Connected account attributes are parsed and formatted into consistent profile structures.
         </p>
@@ -163,9 +220,10 @@ export default function IdentitiesSection() {
   };
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Technical Rationale: Read-Only client operations">
+      <div>
+        <h2 id={slugify("Technical Rationale: Read-Only client operations")} style={h2Style}>Technical Rationale: Read-Only client operations</h2>
         <p style={styles.textStyle}>
           Unlike profile fields or contact records which can be edited or modified directly from the dashboard via Server Actions, the social identities list is strictly read-only within the client interface.
         </p>
@@ -187,7 +245,7 @@ export default function IdentitiesSection() {
             <strong>Scope and Claim Safeguards:</strong> A client-side application cannot unilaterally alter the account mappings in the database. Social connections map directly to standard and custom OIDC scopes granted by the issuer. Modifying these records requires administrative or high-privilege access keys, which are restricted to the Logto server backend and cannot be exposed to the client.
           </li>
         </ul>
-      </SectionWrap>
+      </div>
     </div>
   );
 }

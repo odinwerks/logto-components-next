@@ -2,56 +2,114 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function DevSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Dev - props">
+      <div>
+        <h2 id={slugify("Dev - props")} style={h2Style}>Dev - props</h2>
         <p style={styles.textStyle}>
           The Dev tab acts as a real-time debugging console and token inspector for developers.
           It accepts standard rendering props while fetching highly sensitive tokens internally via secure server-side actions.
         </p>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Prop</th>
-              <th style={styles.thStyle}>Type</th>
-              <th style={styles.thStyle}>Purpose</th>
+              <th style={customThStyle}>Prop</th>
+              <th style={customThStyle}>Type</th>
+              <th style={customThStyle}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>userData</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-              <td style={styles.tdStyle}>User profile data object representing standard OIDC claims and custom fields</td>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>UserData</code></td>
+              <td style={customTdStyle}>User profile data object representing standard OIDC claims and custom fields</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>mode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
-              <td style={styles.tdStyle}>Theme rendering mode (dark or light theme)</td>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>&apos;dark&apos; | &apos;light&apos;</code></td>
+              <td style={customTdStyle}>Theme rendering mode (dark or light theme)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>colors</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
-              <td style={styles.tdStyle}>Object containing defined hex color configurations for the active theme</td>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
+              <td style={customTdStyle}>Object containing defined hex color configurations for the active theme</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>t</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-              <td style={styles.tdStyle}>Language translations map loaded from the locale provider</td>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Translations</code></td>
+              <td style={customTdStyle}>Language translations map loaded from the locale provider</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>mobmode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
-              <td style={styles.tdStyle}>Mobile responsive layout toggle (1 for mobile layout, other values for desktop)</td>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>number</code></td>
+              <td style={customTdStyle}>Mobile responsive layout toggle (1 for mobile layout, other values for desktop)</td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Dev - hard gate and security-in-depth">
+      <div>
+        <h2 id={slugify("Dev - hard gate and security-in-depth")} style={h2Style}>Dev - hard gate and security-in-depth</h2>
         <p style={styles.textStyle}>
           To prevent accidental leakage of sensitive session tokens, permissions, or user metadata in production deployments, the system implements a strict multi-layer defense-in-depth gate.
         </p>
@@ -71,9 +129,10 @@ export default function DevSection() {
           <span style={styles.strongNoteStyle}>4. Access Token Exposure Guard (LOGTO_DANGER_EXPOSE_TOKEN):</span>
           Even in development mode, access tokens are not exposed by default. The environment variable <code style={styles.codeSmStyle}>LOGTO_DANGER_EXPOSE_TOKEN</code> must be set explicitly to <code style={styles.codeSmStyle}>true</code> in the environment config to enable token retrieval. If set to false or left undefined, server-side actions will refuse to return the token to the client.
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Dev - token inspector & lazy loading">
+      <div>
+        <h2 id={slugify("Dev - token inspector & lazy loading")} style={h2Style}>Dev - token inspector & lazy loading</h2>
         <p style={styles.textStyle}>
           The access token is fetched dynamically on the client side using a React effect hook that communicates with the server-side action. This keeps the initial dashboard page load lightweight.
         </p>
@@ -91,9 +150,10 @@ useEffect(() => {
         <div style={styles.noteStyle}>
           To protect active session tokens from shoulder-surfing or recording, the <code style={styles.codeSmStyle}>TruncatedToken</code> helper component masks the core content by default. It displays only the first 8 and last 8 characters of the JWT string, separated by a sequence of mask characters. A client-side state toggle allows developers to temporarily unmask and review the raw full access token.
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Dev - raw metadata and OIDC claims definition map">
+      <div>
+        <h2 id={slugify("Dev - raw metadata and OIDC claims definition map")} style={h2Style}>Dev - raw metadata and OIDC claims definition map</h2>
         <p style={styles.textStyle}>
           The metadata inspector renders an expandable, styled JSON block representing the authenticated user session details (<code style={styles.codeStyle}>enhancedUserData</code>).
         </p>
@@ -107,105 +167,106 @@ useEffect(() => {
         <p style={styles.textStyle}>
           <strong>JSON Claims Definition Map:</strong>
         </p>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Claim Key</th>
-              <th style={styles.thStyle}>OIDC / Logto Definition</th>
-              <th style={styles.thStyle}>Description</th>
+              <th style={customThStyle}>Claim Key</th>
+              <th style={customThStyle}>OIDC / Logto Definition</th>
+              <th style={customThStyle}>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>id (sub)</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
-              <td style={styles.tdStyle}>Subject identifier. A unique string mapping to the authenticated user inside the Logto tenant.</td>
+              <td style={customTdPropStyle}>id (sub)</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string</code></td>
+              <td style={customTdStyle}>Subject identifier. A unique string mapping to the authenticated user inside the Logto tenant.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>username</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
-              <td style={styles.tdStyle}>Optional unique username identifier for sign-in or identification.</td>
+              <td style={customTdPropStyle}>username</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
+              <td style={customTdStyle}>Optional unique username identifier for sign-in or identification.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>name</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
-              <td style={styles.tdStyle}>The display name configured for the user profile.</td>
+              <td style={customTdPropStyle}>name</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
+              <td style={customTdStyle}>The display name configured for the user profile.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>avatar</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
-              <td style={styles.tdStyle}>Absolute URL linking to the user profile image.</td>
+              <td style={customTdPropStyle}>avatar</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
+              <td style={customTdStyle}>Absolute URL linking to the user profile image.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>primaryEmail</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
-              <td style={styles.tdStyle}>Primary email address bound and verified for authentication.</td>
+              <td style={customTdPropStyle}>primaryEmail</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
+              <td style={customTdStyle}>Primary email address bound and verified for authentication.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>primaryPhone</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
-              <td style={styles.tdStyle}>Primary phone number bound and verified for authentication.</td>
+              <td style={customTdPropStyle}>primaryPhone</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | undefined</code></td>
+              <td style={customTdStyle}>Primary phone number bound and verified for authentication.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>profile</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>UserProfile</code></td>
-              <td style={styles.tdStyle}>Object containing supplementary profile details (such as givenName and familyName).</td>
+              <td style={customTdPropStyle}>profile</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>UserProfile</code></td>
+              <td style={customTdStyle}>Object containing supplementary profile details (such as givenName and familyName).</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>customData</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Record&lt;string, unknown&gt;</code></td>
-              <td style={styles.tdStyle}>User custom metadata dictionary. Arbitrary key-value pairs stored securely within Logto.</td>
+              <td style={customTdPropStyle}>customData</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Record&lt;string, unknown&gt;</code></td>
+              <td style={customTdStyle}>User custom metadata dictionary. Arbitrary key-value pairs stored securely within Logto.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>customData.Preferences.asOrg</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | null</code></td>
-              <td style={styles.tdStyle}>The active organization identifier context currently selected by the user.</td>
+              <td style={customTdPropStyle}>customData.Preferences.asOrg</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | null</code></td>
+              <td style={customTdStyle}>The active organization identifier context currently selected by the user.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>identities</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Record&lt;string, Identity&gt;</code></td>
-              <td style={styles.tdStyle}>Dictionary of social, enterprise, or external identities connected to this user account.</td>
+              <td style={customTdPropStyle}>identities</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Record&lt;string, Identity&gt;</code></td>
+              <td style={customTdStyle}>Dictionary of social, enterprise, or external identities connected to this user account.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>lastSignInAt</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | number</code></td>
-              <td style={styles.tdStyle}>Unix epoch timestamp or ISO string representing the last recorded user login session.</td>
+              <td style={customTdPropStyle}>lastSignInAt</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | number</code></td>
+              <td style={customTdStyle}>Unix epoch timestamp or ISO string representing the last recorded user login session.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>createdAt</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | number</code></td>
-              <td style={styles.tdStyle}>Unix epoch timestamp or ISO string representing the user account registration time.</td>
+              <td style={customTdPropStyle}>createdAt</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | number</code></td>
+              <td style={customTdStyle}>Unix epoch timestamp or ISO string representing the user account registration time.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>updatedAt</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | number</code></td>
-              <td style={styles.tdStyle}>Unix epoch timestamp or ISO string representing the last update to the user profile metadata.</td>
+              <td style={customTdPropStyle}>updatedAt</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | number</code></td>
+              <td style={customTdStyle}>Unix epoch timestamp or ISO string representing the last update to the user profile metadata.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>organizations</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Array&lt;{`{id, name}`}&gt;</code></td>
-              <td style={styles.tdStyle}>List of organization nodes the user is currently associated with.</td>
+              <td style={customTdPropStyle}>organizations</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Array&lt;{`{id, name}`}&gt;</code></td>
+              <td style={customTdStyle}>List of organization nodes the user is currently associated with.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>organizationRoles</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Array&lt;{`{id, name, organizationId}`}&gt;</code></td>
-              <td style={styles.tdStyle}>Collection of organization roles assigned to the user within their active organizations.</td>
+              <td style={customTdPropStyle}>organizationRoles</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Array&lt;{`{id, name, organizationId}`}&gt;</code></td>
+              <td style={customTdStyle}>Collection of organization roles assigned to the user within their active organizations.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>organizationPermissions</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string[]</code></td>
-              <td style={styles.tdStyle}>The lazy-loaded list of permission scopes active for the user within the selected organization.</td>
+              <td style={customTdPropStyle}>organizationPermissions</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string[]</code></td>
+              <td style={customTdStyle}>The lazy-loaded list of permission scopes active for the user within the selected organization.</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>roles</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>UserRole[]</code></td>
-              <td style={styles.tdStyle}>Array of global user roles assigned to this account (independent of organization contexts).</td>
+              <td style={customTdPropStyle}>roles</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>UserRole[]</code></td>
+              <td style={customTdStyle}>Array of global user roles assigned to this account (independent of organization contexts).</td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Dev - cookie and session management">
+      <div>
+        <h2 id={slugify("Dev - cookie and session management")} style={h2Style}>Dev - cookie and session management</h2>
         <p style={styles.textStyle}>
           The cookie management section provides interactive controls to test stale cookie recovery and complete session termination. Both client-side triggers perform same-origin authenticated requests.
         </p>
@@ -232,7 +293,7 @@ const handleInvalidateSession = async () => {
           <span style={styles.strongNoteStyle}>2. State Synchronization and Navigation:</span>
           Using standard client-side SPA routing (such as <code style={styles.codeSmStyle}>router.push</code> or <code style={styles.codeSmStyle}>router.refresh</code>) is insufficient when session cookies are purged or invalidated. The client-side trigger sets <code style={styles.codeSmStyle}>window.location.href = &apos;/&apos;</code> to force a hard page reload. This completely flushes the client-side JavaScript memory space, clears old layout cache segments, and enforces a fresh round of server-side middleware and authentication checks.
         </div>
-      </SectionWrap>
+      </div>
     </div>
   );
 }

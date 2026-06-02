@@ -2,30 +2,81 @@
 
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+import { slugify } from '../../components/SectionComponents';
 
 export default function CalculatorApiAuthorizationDoc() {
   const styles = useDocStyles();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Server-Side Endpoint Verification">
-        <p style={styles.textStyle}>
-          All computation requests are sent as POST requests to the <code style={styles.codeSmStyle}>/api/protected</code> endpoint. 
-          The endpoint acts as a secure proxy gateway, performing strict authentication and authorization checks before executing any registered actions.
-        </p>
-        <p style={styles.textStyle}>
-          Authorization depends on OIDC customData token claims. The endpoint resolves the action from the registry, 
-          retrieves the active user session or bearer token, performs token introspection, and verifies organization-scoped access, roles, and permission scopes.
-        </p>
-      </SectionWrap>
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
-      <SectionWrap label="Authentication and Verification Flow">
-        <p style={styles.textStyle}>
-          The simplified logic below highlights how incoming requests are authenticated, introspected, and verified against the action configuration:
-        </p>
-        <CodeBlock 
-          title="app/api/protected/route.ts" 
-          code={`export async function POST(request: NextRequest) {
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <h2 id={slugify("Server-Side Endpoint Verification")} style={{ ...h2Style, marginTop: 0 }}>Server-Side Endpoint Verification</h2>
+      
+      <p style={styles.textStyle}>
+        All computation requests are sent as POST requests to the <code style={styles.codeSmStyle}>/api/protected</code> endpoint. 
+        The endpoint acts as a secure proxy gateway, performing strict authentication and authorization checks before executing any registered actions.
+      </p>
+      <p style={styles.textStyle}>
+        Authorization depends on OIDC customData token claims. The endpoint resolves the action from the registry, 
+        retrieves the active user session or bearer token, performs token introspection, and verifies organization-scoped access, roles, and permission scopes.
+      </p>
+
+      <h2 id={slugify("Authentication and Verification Flow")} style={h2Style}>Authentication and Verification Flow</h2>
+      
+      <p style={styles.textStyle}>
+        The simplified logic below highlights how incoming requests are authenticated, introspected, and verified against the action configuration:
+      </p>
+      <CodeBlock 
+        title="app/api/protected/route.ts" 
+        code={`export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection)
   const originError = checkSameOrigin(request);
   if (originError) return originError;
@@ -120,95 +171,94 @@ export default function CalculatorApiAuthorizationDoc() {
     return apiError('INTERNAL_ERROR', 500);
   }
 }`} 
-        />
-      </SectionWrap>
+      />
 
-      <SectionWrap label="API Error Codes Mapping">
-        <p style={styles.textStyle}>
-          The endpoint responds with specific HTTP status codes and standard, plain error strings when validation or verification checks fail:
-        </p>
-        <table style={styles.tableStyle}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.thStyle, width: '15%' }}>Status</th>
-              <th style={{ ...styles.thStyle, width: '35%' }}>Error Code</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Description and Triggers</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={styles.tdPropStyle}>400</td>
-              <td style={styles.tdPropStyle}>MISSING_FIELDS</td>
-              <td style={styles.tdStyle}>
-                The request body is missing mandatory fields such as the action parameter.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>400</td>
-              <td style={styles.tdPropStyle}>TOKEN_INVALID</td>
-              <td style={styles.tdStyle}>
-                The token is improperly formatted or failed basic user ID safety assertions.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>400</td>
-              <td style={styles.tdPropStyle}>INVALID_PAYLOAD</td>
-              <td style={styles.tdStyle}>
-                The request parameters failed validation inside the mathematical handler (e.g. division by zero or invalid numbers).
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>401</td>
-              <td style={styles.tdPropStyle}>UNAUTHORIZED</td>
-              <td style={styles.tdStyle}>
-                No valid session cookie or bearer token was found, or token signature validation failed.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>401</td>
-              <td style={styles.tdPropStyle}>INTROSPECTION_ERROR</td>
-              <td style={styles.tdStyle}>
-                An error occurred during token introspection (e.g. invalid signature, connection issues, or missing issuer).
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>403</td>
-              <td style={styles.tdPropStyle}>ORG_NOT_MEMBER</td>
-              <td style={styles.tdStyle}>
-                The active user is not a member of the organization declared in the action configuration.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>403</td>
-              <td style={styles.tdPropStyle}>ROLE_DENIED</td>
-              <td style={styles.tdStyle}>
-                The user does not possess the specific role required by the requested action config.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>403</td>
-              <td style={styles.tdPropStyle}>PERMISSION_DENIED</td>
-              <td style={styles.tdStyle}>
-                The active token does not contain the required permission scope.
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>500</td>
-              <td style={styles.tdPropStyle}>IMPROPER_SETUP_ERROR</td>
-              <td style={styles.tdStyle}>
-                The requested action configuration is missing mandatory check fields (org ID, role ID, or permissions).
-              </td>
-            </tr>
-            <tr>
-              <td style={styles.tdPropStyle}>500</td>
-              <td style={styles.tdPropStyle}>INTERNAL_ERROR</td>
-              <td style={styles.tdStyle}>
-                An unexpected server or handler exception occurred during execution.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </SectionWrap>
+      <h2 id={slugify("API Error Codes Mapping")} style={h2Style}>API Error Codes Mapping</h2>
+      
+      <p style={styles.textStyle}>
+        The endpoint responds with specific HTTP status codes and standard, plain error strings when validation or verification checks fail:
+      </p>
+      <table style={customTableStyle}>
+        <thead>
+          <tr>
+            <th style={{ ...customThStyle, width: '15%' }}>Status</th>
+            <th style={{ ...customThStyle, width: '35%' }}>Error Code</th>
+            <th style={{ ...customThStyle, width: '50%' }}>Description and Triggers</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={customTdPropStyle}>400</td>
+            <td style={customTdPropStyle}>MISSING_FIELDS</td>
+            <td style={customTdStyle}>
+              The request body is missing mandatory fields such as the action parameter.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>400</td>
+            <td style={customTdPropStyle}>TOKEN_INVALID</td>
+            <td style={customTdStyle}>
+              The token is improperly formatted or failed basic user ID safety assertions.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>400</td>
+            <td style={customTdPropStyle}>INVALID_PAYLOAD</td>
+            <td style={customTdStyle}>
+              The request parameters failed validation inside the mathematical handler (e.g. division by zero or invalid numbers).
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>401</td>
+            <td style={customTdPropStyle}>UNAUTHORIZED</td>
+            <td style={customTdStyle}>
+              No valid session cookie or bearer token was found, or token signature validation failed.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>401</td>
+            <td style={customTdPropStyle}>INTROSPECTION_ERROR</td>
+            <td style={customTdStyle}>
+              An error occurred during token introspection (e.g. invalid signature, connection issues, or missing issuer).
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>403</td>
+            <td style={customTdPropStyle}>ORG_NOT_MEMBER</td>
+            <td style={customTdStyle}>
+              The active user is not a member of the organization declared in the action configuration.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>403</td>
+            <td style={customTdPropStyle}>ROLE_DENIED</td>
+            <td style={customTdStyle}>
+              The user does not possess the specific role required by the requested action config.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>403</td>
+            <td style={customTdPropStyle}>PERMISSION_DENIED</td>
+            <td style={customTdStyle}>
+              The active token does not contain the required permission scope.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>500</td>
+            <td style={customTdPropStyle}>IMPROPER_SETUP_ERROR</td>
+            <td style={customTdStyle}>
+              The requested action configuration is missing mandatory check fields (org ID, role ID, or permissions).
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>500</td>
+            <td style={customTdPropStyle}>INTERNAL_ERROR</td>
+            <td style={customTdStyle}>
+              An unexpected server or handler exception occurred during execution.
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -2,66 +2,122 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function OrganizationsSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Organizations - Props & Context Switches">
+      <div>
+        <h2 id={slugify("Organizations - Props & Context Switches")} style={h2Style}>Organizations - Props & Context Switches</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>OrganizationsTab</code> component manages organization-level user context switches, role verification, and permission audits.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Prop</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Purpose</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Prop</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '50%' }}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>userData</td>
-              <td style={styles.tdTypeStyle}>UserData</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={customTdStyle}>UserData</td>
+              <td style={customTdStyle}>
                 The complete user profile object containing identities, memberships, and custom preferences.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>currentOrgId</td>
-              <td style={styles.tdTypeStyle}>string?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>currentOrgId</td>
+              <td style={customTdStyle}>string?</td>
+              <td style={customTdStyle}>
                 The server-resolved active organization ID retrieved from custom data preferences.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={styles.tdTypeStyle}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 The active visual theme mode used to render the tab elements.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={styles.tdTypeStyle}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}>ThemeColors</td>
+              <td style={customTdStyle}>
                 The active theme color token definitions containing hexadecimal color strings.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={styles.tdTypeStyle}>Translations</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}>Translations</td>
+              <td style={customTdStyle}>
                 Static key-value translations mapped to the active language locale.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mobmode</td>
-              <td style={styles.tdTypeStyle}>number?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}>number?</td>
+              <td style={customTdStyle}>
                 Optional flag where 1 signals mobile screen dimensions to reduce visual spacing.
               </td>
             </tr>
@@ -115,54 +171,55 @@ startTransition(() => {
           <strong style={styles.strongNoteStyle}>setActiveOrg logic:</strong>{' '}
           Imported from <code style={styles.codeSmStyle}>custom-logic/set-active-org</code>. This function runs on the server. It verifies membership via OIDC UserInfo fetch before writing preferences to Logto custom data profiles.
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="OrgSwitcher Dropdown - Technical Breakdown">
+      <div>
+        <h2 id={slugify("OrgSwitcher Dropdown - Technical Breakdown")} style={h2Style}>OrgSwitcher Dropdown - Technical Breakdown</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>OrgSwitcher</code> component renders a dynamic, self-configuring selector that provides organization switching capability.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Prop</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Purpose</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Prop</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '50%' }}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>organizations</td>
-              <td style={styles.tdTypeStyle}>OrganizationData[]</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>organizations</td>
+              <td style={customTdStyle}>OrganizationData[]</td>
+              <td style={customTdStyle}>
                 Collection of user-associated organizations resolved on the server from the OIDC payload.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>currentOrgId</td>
-              <td style={styles.tdTypeStyle}>string?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>currentOrgId</td>
+              <td style={customTdStyle}>string?</td>
+              <td style={customTdStyle}>
                 The server-resolved active organization ID.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={styles.tdTypeStyle}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 The active layout color theme.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={styles.tdTypeStyle}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}>ThemeColors</td>
+              <td style={customTdStyle}>
                 The visual style token definitions.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={styles.tdTypeStyle}>Translations?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}>Translations?</td>
+              <td style={customTdStyle}>
                 Static key-value translations mapped to the active language locale.
               </td>
             </tr>
@@ -196,9 +253,10 @@ useEffect(() => {
     });
   }
 }, [organizations, asOrg, currentOrgId]);`} />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Role Mappings, Scope Audits & Permissions Block">
+      <div>
+        <h2 id={slugify("Role Mappings, Scope Audits & Permissions Block")} style={h2Style}>Role Mappings, Scope Audits & Permissions Block</h2>
         <p style={styles.textStyle}>
           The Organizations Tab divides user context display into distinct roles and permissions columns, backed by parallel server action loaders and M2M resolution APIs.
         </p>
@@ -281,7 +339,7 @@ const res = await fetch(tokenEndpoint, {
   },
   body: body.toString(),
 });`} />
-      </SectionWrap>
+      </div>
     </div>
   );
 }

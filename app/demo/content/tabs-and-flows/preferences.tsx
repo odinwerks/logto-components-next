@@ -2,59 +2,115 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function PreferencesSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Preferences Tab Component & Props">
+      <div>
+        <h2 id={slugify("Preferences Tab Component & Props")} style={h2Style}>Preferences Tab Component & Props</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>PreferencesTab</code> component handles client-side preference configurations, including color theme and display language settings.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Prop</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Purpose</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Prop</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '50%' }}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={styles.tdTypeStyle}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 The active color theme mode used to determine the initial layout styling.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={styles.tdTypeStyle}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}>ThemeColors</td>
+              <td style={customTdStyle}>
                 The primary style token mapping object containing color hexadecimal strings.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={styles.tdTypeStyle}>Translations</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}>Translations</td>
+              <td style={customTdStyle}>
                 Static key-value translations mapped to the active language locale.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>supportedLangs</td>
-              <td style={styles.tdTypeStyle}>string[]?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>supportedLangs</td>
+              <td style={customTdStyle}>string[]?</td>
+              <td style={customTdStyle}>
                 Optional collection of active locale strings used to populate the selection dropdown.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mobmode</td>
-              <td style={styles.tdTypeStyle}>number?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}>number?</td>
+              <td style={customTdStyle}>
                 Optional indicator flag where 1 signals mobile screen dimensions to reduce visual spacing.
               </td>
             </tr>
@@ -86,9 +142,10 @@ export default function PreferencesSection() {
   mobmode?: number;
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Layout Context Initialization & Lifecycle">
+      <div>
+        <h2 id={slugify("Layout Context Initialization & Lifecycle")} style={h2Style}>Layout Context Initialization & Lifecycle</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>PreferencesProvider</code> is placed at the outermost root of the provider tree (wrapping <code style={styles.codeStyle}>LogtoProvider</code>, which wraps <code style={styles.codeStyle}>UserDataProvider</code>). This nesting ensures that display preferences remain mounted and fully active during session transitions, logins, and logouts.
         </p>
@@ -144,9 +201,10 @@ export default function PreferencesSection() {
   {children}
 </PreferencesProvider>`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Storage & API Syncing Pipelines">
+      <div>
+        <h2 id={slugify("Storage & API Syncing Pipelines")} style={h2Style}>Storage & API Syncing Pipelines</h2>
         <p style={styles.textStyle}>
           User configurations utilize a dual-tier persistence strategy: local caching for immediate response, and remote API synchronization with Logto custom data profiles for cross-device consistency.
         </p>
@@ -154,29 +212,29 @@ export default function PreferencesSection() {
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Client-Side Storage Keys
         </h4>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '30%' }}>Storage Key</th>
-              <th style={{ ...styles.thStyle, width: '30%' }}>Scope</th>
-              <th style={{ ...styles.thStyle, width: '40%' }}>Saved Value</th>
+              <th style={{ ...customThStyle, width: '30%' }}>Storage Key</th>
+              <th style={{ ...customThStyle, width: '30%' }}>Scope</th>
+              <th style={{ ...customThStyle, width: '40%' }}>Saved Value</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>theme-mode</td>
-              <td style={styles.tdStyle}>sessionStorage</td>
-              <td style={styles.tdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdPropStyle}>theme-mode</td>
+              <td style={customTdStyle}>sessionStorage</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>lang-mode</td>
-              <td style={styles.tdStyle}>sessionStorage</td>
-              <td style={styles.tdStyle}>locale tag string (e.g., &apos;ka-GE&apos;)</td>
+              <td style={customTdPropStyle}>lang-mode</td>
+              <td style={customTdStyle}>sessionStorage</td>
+              <td style={customTdStyle}>locale tag string (e.g., &apos;ka-GE&apos;)</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>org-mode</td>
-              <td style={styles.tdStyle}>sessionStorage</td>
-              <td style={styles.tdStyle}>organization identifier string or null</td>
+              <td style={customTdPropStyle}>org-mode</td>
+              <td style={customTdStyle}>sessionStorage</td>
+              <td style={customTdStyle}>organization identifier string or null</td>
             </tr>
           </tbody>
         </table>
@@ -213,9 +271,10 @@ export default function PreferencesSection() {
             If organization API write fails, the provider triggers a revert sequence: it restores sessionStorage to the pre-updated organization ID, resets local state to the pre-updated ID, and logs warning details to the console (<code style={styles.codeSmStyle}>[PreferencesProvider] Org persistence failed, reverting</code>). This prevents invalid organization configurations.
           </li>
         </ul>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Cross-Component State Propagation">
+      <div>
+        <h2 id={slugify("Cross-Component State Propagation")} style={h2Style}>Cross-Component State Propagation</h2>
         <p style={styles.textStyle}>
           Separate user-interface sections (such as the main dashboard wrapper and isolated modal layers) operate in distinct React provider trees. Synchronization is managed through custom DOM events and state references.
         </p>
@@ -257,9 +316,10 @@ export default function PreferencesSection() {
   return { lang: getDefaultLang(), setLang: () => {} };
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Reactive Client-Side Hot-Switching">
+      <div>
+        <h2 id={slugify("Reactive Client-Side Hot-Switching")} style={h2Style}>Reactive Client-Side Hot-Switching</h2>
         <p style={styles.textStyle}>
           Display language configurations are hot-switched dynamically on the client, eliminating full page refreshes or route re-fetching.
         </p>
@@ -271,7 +331,7 @@ export default function PreferencesSection() {
             <strong>Callback Execution:</strong> On language changes, the provider triggers the <code style={styles.codeSmStyle}>onLangChange</code> callback. This allows root layout controllers to update custom configurations or initiate localized server transitions.
           </li>
         </ul>
-      </SectionWrap>
+      </div>
     </div>
   );
 }

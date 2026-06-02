@@ -4,6 +4,7 @@ import React from 'react';
 import { UserButton, UserBadge, UserCard } from '../../../logto-kit/components/UserButton';
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
 
 interface ExampleCardProps {
   label: string;
@@ -43,6 +44,8 @@ function ExampleCard({ label, subLabel, code, note, children }: ExampleCardProps
 
 export default function UserButtonExamples() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

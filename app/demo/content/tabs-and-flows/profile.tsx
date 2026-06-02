@@ -2,127 +2,185 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function ProfileSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Profile - props">
+      <div>
+        <h2 id={slugify("Profile - props")} style={h2Style}>Profile - props</h2>
         <p style={styles.textStyle}>
           The Profile tab handles identity verification and contact management in addition to
           basic profile fields. Contact verification props are shared between Profile and Security tabs.
           All state updates are coordinated via callbacks that interact with the server.
         </p>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Prop</th>
-              <th style={styles.thStyle}>Type</th>
-              <th style={styles.thStyle}>Purpose</th>
+              <th style={customThStyle}>Prop</th>
+              <th style={customThStyle}>Type</th>
+              <th style={customThStyle}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>userData</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>UserData</code></td>
-              <td style={styles.tdStyle}>User profile data object containing current profile, email, phone, and avatar fields</td>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>UserData</code></td>
+              <td style={customTdStyle}>User profile data object containing current profile, email, phone, and avatar fields</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>mode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>'dark' | 'light'</code></td>
-              <td style={styles.tdStyle}>Theme rendering mode (dark or light theme)</td>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>'dark' | 'light'</code></td>
+              <td style={customTdStyle}>Theme rendering mode (dark or light theme)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>colors</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
-              <td style={styles.tdStyle}>Object containing defined hex color configurations for the active theme</td>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
+              <td style={customTdStyle}>Object containing defined hex color configurations for the active theme</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>t</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>Translations</code></td>
-              <td style={styles.tdStyle}>Language translations map loaded from the locale provider</td>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>Translations</code></td>
+              <td style={customTdStyle}>Language translations map loaded from the locale provider</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>mobmode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
-              <td style={styles.tdStyle}>Mobile responsive layout toggle (1 for mobile layout, other values for desktop)</td>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>number</code></td>
+              <td style={customTdStyle}>Mobile responsive layout toggle (1 for mobile layout, other values for desktop)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onUpdateBasicInfo</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{name?,username?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Updates basic display name and username fields on the server</td>
+              <td style={customTdPropStyle}>onUpdateBasicInfo</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>({`{name?,username?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Updates basic display name and username fields on the server</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onUpdateAvatarUrl</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Updates or clears the user avatar URL link on the server</td>
+              <td style={customTdPropStyle}>onUpdateAvatarUrl</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(url){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Updates or clears the user avatar URL link on the server</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onUpdateProfile</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Updates detailed user profile given name and family name fields</td>
+              <td style={customTdPropStyle}>onUpdateProfile</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>({`{givenName?,familyName?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Updates detailed user profile given name and family name fields</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onVerifyPassword</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId}>`}</code></td>
-              <td style={styles.tdStyle}>Verifies password and returns a one-time verification record ID to authorize changes</td>
+              <td style={customTdPropStyle}>onVerifyPassword</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId}>`}</code></td>
+              <td style={customTdStyle}>Verifies password and returns a one-time verification record ID to authorize changes</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onSendEmailVerification</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(email){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
-              <td style={styles.tdStyle}>Instructs the server to dispatch a verification code to the target email</td>
+              <td style={customTdPropStyle}>onSendEmailVerification</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(email){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
+              <td style={customTdStyle}>Instructs the server to dispatch a verification code to the target email</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onSendPhoneVerification</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(phone){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
-              <td style={styles.tdStyle}>Instructs the server to dispatch a verification code to the target phone number</td>
+              <td style={customTdPropStyle}>onSendPhoneVerification</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(phone){`=>`}Promise{`<DataResult<{verificationId}>`}</code></td>
+              <td style={customTdStyle}>Instructs the server to dispatch a verification code to the target phone number</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onVerifyCode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(type, value, verificationId, code){`=>`}Promise{`<DataResult<{verificationRecordId}>>`}</code></td>
-              <td style={styles.tdStyle}>Verifies the user input code and returns a new identifier verification record ID</td>
+              <td style={customTdPropStyle}>onVerifyCode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(type, value, verificationId, code){`=>`}Promise{`<DataResult<{verificationRecordId}>>`}</code></td>
+              <td style={customTdStyle}>Verifies the user input code and returns a new identifier verification record ID</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onUpdateEmail</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Binds the verified email to the user using the identity and new identifier records</td>
+              <td style={customTdPropStyle}>onUpdateEmail</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified email to the user using the identity and new identifier records</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onUpdatePhone</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Binds the verified phone to the user using the identity and new identifier records</td>
+              <td style={customTdPropStyle}>onUpdatePhone</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified phone to the user using the identity and new identifier records</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onRemoveEmail</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Removes the current primary email address utilizing the identity verification record</td>
+              <td style={customTdPropStyle}>onRemoveEmail</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary email address utilizing the identity verification record</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onRemovePhone</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={styles.tdStyle}>Removes the current primary phone number utilizing the identity verification record</td>
+              <td style={customTdPropStyle}>onRemovePhone</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary phone number utilizing the identity verification record</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onSuccess</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
-              <td style={styles.tdStyle}>Callback to display a success toast message</td>
+              <td style={customTdPropStyle}>onSuccess</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
+              <td style={customTdStyle}>Callback to display a success toast message</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>onError</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
-              <td style={styles.tdStyle}>Callback to display an error toast message</td>
+              <td style={customTdPropStyle}>onError</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(msg){`=>`}void</code></td>
+              <td style={customTdStyle}>Callback to display an error toast message</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>refreshData</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>{`() => void`}</code></td>
-              <td style={styles.tdStyle}>Triggers a router-level refresh to update cached server data shown in the UI</td>
+              <td style={customTdPropStyle}>refreshData</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>{`() => void`}</code></td>
+              <td style={customTdStyle}>Triggers a router-level refresh to update cached server data shown in the UI</td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Profile - hooks & actions">
+      <div>
+        <h2 id={slugify("Profile - hooks & actions")} style={h2Style}>Profile - hooks & actions</h2>
         <p style={styles.textStyle}>
           The client-side profile UI leverages a specialized hook to handle avatar file preparation and transfer.
           This delegates authorization to the server to prevent exposure of storage bucket credentials or access tokens.
@@ -144,34 +202,34 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
 
 // Executed from a file picker change or drag-and-drop handler:
 // const handleSelect = async (file) => { await upload(file); };`} />
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Return</th>
-              <th style={styles.thStyle}>Type</th>
-              <th style={styles.thStyle}>Purpose</th>
+              <th style={customThStyle}>Return</th>
+              <th style={customThStyle}>Type</th>
+              <th style={customThStyle}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>upload</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(file: File){`=>`}Promise{`<string|null>`}</code></td>
-              <td style={styles.tdStyle}>Submits file via FormData to server and returns the public file URL on success</td>
+              <td style={customTdPropStyle}>upload</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(file: File){`=>`}Promise{`<string|null>`}</code></td>
+              <td style={customTdStyle}>Submits file via FormData to server and returns the public file URL on success</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>isUploading</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>boolean</code></td>
-              <td style={styles.tdStyle}>Indicates if an upload is currently in progress on the server</td>
+              <td style={customTdPropStyle}>isUploading</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>boolean</code></td>
+              <td style={customTdStyle}>Indicates if an upload is currently in progress on the server</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>error</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string | null</code></td>
-              <td style={styles.tdStyle}>Contains the error message if the upload attempt failed</td>
+              <td style={customTdPropStyle}>error</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string | null</code></td>
+              <td style={customTdStyle}>Contains the error message if the upload attempt failed</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>clearError</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>(){`=>`}void</code></td>
-              <td style={styles.tdStyle}>Resets the error state back to null</td>
+              <td style={customTdPropStyle}>clearError</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(){`=>`}void</code></td>
+              <td style={customTdStyle}>Resets the error state back to null</td>
             </tr>
           </tbody>
         </table>
@@ -210,51 +268,52 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
             <li>If none of those fields are available, it displays "?".</li>
           </ul>
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Profile - ImageCropper">
+      <div>
+        <h2 id={slugify("Profile - ImageCropper")} style={h2Style}>Profile - ImageCropper</h2>
         <p style={styles.textStyle}>
           Canvas-based image cropping component. Supports dragging, zooming, touch pinch gestures,
           rule-of-thirds overlay, and shape masking.
         </p>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Prop</th>
-              <th style={styles.thStyle}>Type</th>
-              <th style={styles.thStyle}>Purpose</th>
+              <th style={customThStyle}>Prop</th>
+              <th style={customThStyle}>Type</th>
+              <th style={customThStyle}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>imageUrl</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>string</code></td>
-              <td style={styles.tdStyle}>Source image URL (blob link, data URI, or cross-origin safe URL)</td>
+              <td style={customTdPropStyle}>imageUrl</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>string</code></td>
+              <td style={customTdStyle}>Source image URL (blob link, data URI, or cross-origin safe URL)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>shape</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'circle' | 'sq' | 'rsq'`}</code></td>
-              <td style={styles.tdStyle}>Cropping viewport shape: circular, square, or rounded square</td>
+              <td style={customTdPropStyle}>shape</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>{`'circle' | 'sq' | 'rsq'`}</code></td>
+              <td style={customTdStyle}>Cropping viewport shape: circular, square, or rounded square</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>outputSize</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
-              <td style={styles.tdStyle}>Width and height dimensions of the exported image (defaults to 512)</td>
+              <td style={customTdPropStyle}>outputSize</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>number</code></td>
+              <td style={customTdStyle}>Width and height dimensions of the exported image (defaults to 512)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>displaySize</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>number</code></td>
-              <td style={styles.tdStyle}>Rendered physical canvas width and height in pixels (defaults to 180)</td>
+              <td style={customTdPropStyle}>displaySize</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>number</code></td>
+              <td style={customTdStyle}>Rendered physical canvas width and height in pixels (defaults to 180)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>mode</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>{`'dark' | 'light'`}</code></td>
-              <td style={styles.tdStyle}>Active theme mode passed down from parent context</td>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>{`'dark' | 'light'`}</code></td>
+              <td style={customTdStyle}>Active theme mode passed down from parent context</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>colors</td>
-              <td style={styles.tdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
-              <td style={styles.tdStyle}>Hex colors configuration map used for drawing tool elements</td>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>ThemeColors</code></td>
+              <td style={customTdStyle}>Hex colors configuration map used for drawing tool elements</td>
             </tr>
           </tbody>
         </table>
@@ -320,9 +379,10 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           </code>
           Finally, the canvas is serialized to a PNG file using canvas.toBlob() at 92% quality and resolved to a Promise.
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Profile - Verification Flows">
+      <div>
+        <h2 id={slugify("Profile - Verification Flows")} style={h2Style}>Profile - Verification Flows</h2>
         <p style={styles.textStyle}>
           Contact modification operations (such as registering, updating, or deleting email and phone identifiers)
           require identity validation challenges to ensure security. State machines inside the component navigate
@@ -380,7 +440,7 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           <span style={styles.strongNoteStyle}>6. Error Code and Exception Handling:</span>
           All verification handlers parse error codes returned from the server API. Wrong codes, expired IDs, format issues, and rate-limiting blocks trigger descriptive UI alerts via the onError callback. If a token expires or invalidates, the modal state resets back to the initial password challenge phase to maintain a secure environment.
         </div>
-      </SectionWrap>
+      </div>
     </div>
   );
 }

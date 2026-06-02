@@ -2,13 +2,70 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function SecuritySection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Security - overview">
+      <div>
+        <h2 id={slugify("Security - overview")} style={h2Style}>Security - overview</h2>
         <p style={styles.textStyle}>
           The security section represents the most complex tab of the user profile dashboard. It manages TOTP authenticators, backup recovery codes, password configurations, email/phone contacts, WebAuthn passkeys, and account purges. 
           To protect sensitive user data, all mutative operations are guarded by a verification flow that requires a password challenge or contact OTP code verification.
@@ -35,49 +92,50 @@ export default function SecuritySection() {
           </li>
         </ul>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Functional Group</th>
-              <th style={styles.thStyle}>Prop Callbacks and Methods</th>
+              <th style={customThStyle}>Functional Group</th>
+              <th style={customThStyle}>Prop Callbacks and Methods</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>Identity Verification</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>Identity Verification</td>
+              <td style={customTdStyle}>
                 <code>onVerifyPassword</code>: Verifies current credentials and returns a verification record ID and validation timestamp.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>MFA & Authenticators</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>MFA & Authenticators</td>
+              <td style={customTdStyle}>
                 <code>onGetMfaVerifications</code>, <code>onGenerateTotpSecret</code>, <code>onAddMfaVerification</code>, <code>onDeleteMfaVerification</code>, <code>onReplaceTotpVerification</code>, <code>onGenerateBackupCodes</code>
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>WebAuthn Passkeys</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>WebAuthn Passkeys</td>
+              <td style={customTdStyle}>
                 <code>onRequestWebAuthnRegistration</code>, <code>onVerifyAndLinkWebAuthn</code>, <code>onRenamePasskey</code>
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Account & Password</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>Account & Password</td>
+              <td style={customTdStyle}>
                 <code>onUpdatePassword</code>, <code>onDeleteAccount</code>
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Toasts & Feedback</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>Toasts & Feedback</td>
+              <td style={customTdStyle}>
                 <code>onSuccess</code>, <code>onError</code>
               </td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - FlowModal transition flows">
+      <div>
+        <h2 id={slugify("Security - FlowModal transition flows")} style={h2Style}>Security - FlowModal transition flows</h2>
         <p style={styles.textStyle}>
           The <code>FlowModal</code> is a generic multi-step overlay designed to guide users through complex security configurations using a state machine driven by a discriminated <code>ModalStep</code> union.
         </p>
@@ -121,57 +179,59 @@ export default function SecuritySection() {
             <li><code>.html</code> format: A complete, dark-themed responsive HTML document with an embedded stylesheet, grid layout, warning messages, and generation timestamp, suitable for printing or digital archiving.</li>
           </ol>
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - validation rules & input guards">
+      <div>
+        <h2 id={slugify("Security - validation rules & input guards")} style={h2Style}>Security - validation rules & input guards</h2>
         <p style={styles.textStyle}>
           The dashboard implements validation checks at the client and server trust boundaries to block injections, overflows, and malformed data.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Target Field</th>
-              <th style={styles.thStyle}>Regex Pattern / Validation Constraint</th>
-              <th style={styles.thStyle}>Constraint Purpose</th>
+              <th style={customThStyle}>Target Field</th>
+              <th style={customThStyle}>Regex Pattern / Validation Constraint</th>
+              <th style={customThStyle}>Constraint Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>Password</td>
-              <td style={styles.tdStyle}>Presence check; max length 256 characters</td>
-              <td style={styles.tdStyle}>Ensures value is provided on the client. Actual password complexity validation and policy checks are managed securely server-side inside <code style={styles.codeSmStyle}>password.ts</code> to protect the verification flow.</td>
+              <td style={customTdPropStyle}>Password</td>
+              <td style={customTdStyle}>Presence check; max length 256 characters</td>
+              <td style={customTdStyle}>Ensures value is provided on the client. Actual password complexity validation and policy checks are managed securely server-side inside <code style={styles.codeSmStyle}>password.ts</code> to protect the verification flow.</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Email</td>
-              <td style={styles.tdStyle}><code>/^[^\s@]+@[^\s@]+\.[^\s@]+$/</code>; max 128 characters</td>
-              <td style={styles.tdStyle}>Enforces OIDC-compliant email formats and sets boundary lengths.</td>
+              <td style={customTdPropStyle}>Email</td>
+              <td style={customTdStyle}><code>/^[^\s@]+@[^\s@]+\.[^\s@]+$/</code>; max 128 characters</td>
+              <td style={customTdStyle}>Enforces OIDC-compliant email formats and sets boundary lengths.</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Username</td>
-              <td style={styles.tdStyle}><code>/^[a-zA-Z0-9_-]+$/</code>; length 3 to 32 characters</td>
-              <td style={styles.tdStyle}>Filters out invalid symbols; prevents SQL, shell, or HTML injections.</td>
+              <td style={customTdPropStyle}>Username</td>
+              <td style={customTdStyle}><code>/^[a-zA-Z0-9_-]+$/</code>; length 3 to 32 characters</td>
+              <td style={customTdStyle}>Filters out invalid symbols; prevents SQL, shell, or HTML injections.</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Phone</td>
-              <td style={styles.tdStyle}><code>{"/^\\+[1-9]\\d{1,14}$/"}</code> (spaces and hyphens stripped)</td>
-              <td style={styles.tdStyle}>Validates phone numbers against standard ITU-T E.164 recommendations.</td>
+              <td style={customTdPropStyle}>Phone</td>
+              <td style={customTdStyle}><code>{"/^\\+[1-9]\\d{1,14}$/"}</code> (spaces and hyphens stripped)</td>
+              <td style={customTdStyle}>Validates phone numbers against standard ITU-T E.164 recommendations.</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>OTP Code</td>
-              <td style={styles.tdStyle}><code>/^\d{6}$/</code></td>
-              <td style={styles.tdStyle}>Enforces standard 6-digit numeric verification structure.</td>
+              <td style={customTdPropStyle}>OTP Code</td>
+              <td style={customTdStyle}><code>/^\d{6}$/</code></td>
+              <td style={customTdStyle}>Enforces standard 6-digit numeric verification structure.</td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>Logto Identifier</td>
-              <td style={styles.tdStyle}><code>{"/^[A-Za-z0-9_-]{1,128}$/"}</code></td>
-              <td style={styles.tdStyle}>Validates safe Logto IDs (session IDs, verification IDs, and grant IDs) via <code>assertSafeLogtoId</code>.</td>
+              <td style={customTdPropStyle}>Logto Identifier</td>
+              <td style={customTdStyle}><code>{"/^[A-Za-z0-9_-]{1,128}$/"}</code></td>
+              <td style={customTdStyle}>Validates safe Logto IDs (session IDs, verification IDs, and grant IDs) via <code>assertSafeLogtoId</code>.</td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - TOTP flows & MFA enrollment">
+      <div>
+        <h2 id={slugify("Security - TOTP flows & MFA enrollment")} style={h2Style}>Security - TOTP flows & MFA enrollment</h2>
         <p style={styles.textStyle}>
           The time-based one-time password (MFA TOTP) enrollment lifecycle comprises five distinct phases:
         </p>
@@ -205,9 +265,10 @@ if (r.ok) {
   onSuccess(t.mfa.totpEnrolled);
   await refreshMfaList();
 }`} />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - WebAuthn & passkeys">
+      <div>
+        <h2 id={slugify("Security - WebAuthn & passkeys")} style={h2Style}>Security - WebAuthn & passkeys</h2>
         <p style={styles.textStyle}>
           The dashboard supports WebAuthn Passkeys, enabling users to register biometric or hardware credentials (such as Touch ID, Windows Hello, or YubiKeys) for secure, passwordless authentication.
         </p>
@@ -264,9 +325,10 @@ try {
   }
   onError(captureMessage(err));
 }`} />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - Identity Verification & Account Deletion">
+      <div>
+        <h2 id={slugify("Security - Identity Verification & Account Deletion")} style={h2Style}>Security - Identity Verification & Account Deletion</h2>
         <p style={styles.textStyle}>
           Account purges are irreversible, destructive actions. To prevent malicious or accidental account deletions, the system implements a strict, multi-layered verification and clean-up sequence.
         </p>
@@ -315,9 +377,10 @@ onSuccess(t.security.accountDeleted);
 setTimeout(() => {
   window.location.href = '/';
 }, DELETE_REDIRECT_DELAY);`} />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Security - ContactRow">
+      <div>
+        <h2 id={slugify("Security - ContactRow")} style={h2Style}>Security - ContactRow</h2>
         <p style={styles.textStyle}>
           Reusable component for email/phone management. Each row handles its own
           modal flow independently.
@@ -334,9 +397,10 @@ await onUpdateEmail(newEmail, codeVer.verificationRecordId, identity.verificatio
 const identity = await onVerifyPassword(pw);
 // 2. Remove email
 await onRemoveEmail(identity.verificationRecordId);`} />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Grant management">
+      <div>
+        <h2 id={slugify("Grant management")} style={h2Style}>Grant management</h2>
         <p style={styles.textStyle}>
           OAuth 2.0 grant (token) management. Grants authorize apps to act on behalf
           of the user. Revoking a grant forces the app to re-authenticate.
@@ -354,7 +418,7 @@ await revokeUserGrant(grantId, identityVerificationRecordId); // returns ActionR
           <strong style={styles.strongNoteStyle}>Use case:</strong> If a user suspects a third-party app has been compromised, they can revoke
           its grant without affecting other authorized apps.
         </div>
-      </SectionWrap>
+      </div>
     </div>
   );
 }

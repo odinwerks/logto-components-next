@@ -2,101 +2,157 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function SessionsSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Sessions Tab Component & Props">
+      <div>
+        <h2 id={slugify("SessionsTab Component & Props")} style={h2Style}>SessionsTab Component & Props</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>SessionsTab</code> component retrieves, displays, and manages active user sessions using Logto&apos;s Account API. It gates access to sensitive connection data through password identity challenges and allows users to track and revoke active sessions.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Prop</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '50%' }}>Purpose</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Prop</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '50%' }}>Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>userData</td>
-              <td style={styles.tdTypeStyle}>UserData</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={customTdStyle}>UserData</td>
+              <td style={customTdStyle}>
                 The main user profile dataset, containing identifiers and customData.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={styles.tdTypeStyle}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={customTdStyle}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 The active theme mode determining layout and component colors.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={styles.tdTypeStyle}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={customTdStyle}>ThemeColors</td>
+              <td style={customTdStyle}>
                 The primary styling token mapping containing hexadecimal color definitions.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={styles.tdTypeStyle}>Translations</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={customTdStyle}>Translations</td>
+              <td style={customTdStyle}>
                 Static key-value strings localized to the active language catalog.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mobmode</td>
-              <td style={styles.tdTypeStyle}>number?</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={customTdStyle}>number?</td>
+              <td style={customTdStyle}>
                 Optional flag where 1 signals mobile screen dimensions to shrink padding and layout structures.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onGetSessionsWithDeviceMeta</td>
-              <td style={styles.tdTypeStyle}>(verificationId: string) =&gt; Promise&lt;DataResult&lt;LogtoSession[]&gt;&gt;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onGetSessionsWithDeviceMeta</td>
+              <td style={customTdStyle}>(verificationId: string) =&gt; Promise&lt;DataResult&lt;LogtoSession[]&gt;&gt;</td>
+              <td style={customTdStyle}>
                 Asynchronously retrieves user sessions with parsed operating system and browser metadata.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onRevokeSession</td>
-              <td style={styles.tdTypeStyle}>(id: string, verificationId: string, target?: &apos;all&apos; | &apos;firstParty&apos;) =&gt; Promise&lt;ActionResult&gt;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onRevokeSession</td>
+              <td style={customTdStyle}>(id: string, verificationId: string, target?: &apos;all&apos; | &apos;firstParty&apos;) =&gt; Promise&lt;ActionResult&gt;</td>
+              <td style={customTdStyle}>
                 Revokes a specific active session. The target is set to &apos;firstParty&apos; to revoke first-party application grants.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onRevokeAllOtherSessions</td>
-              <td style={styles.tdTypeStyle}>(verificationId: string) =&gt; Promise&lt;ActionResult&gt;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onRevokeAllOtherSessions</td>
+              <td style={customTdStyle}>(verificationId: string) =&gt; Promise&lt;ActionResult&gt;</td>
+              <td style={customTdStyle}>
                 Terminates all active user sessions except the caller&apos;s current active connection context.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onVerifyPassword</td>
-              <td style={styles.tdTypeStyle}>(password: string) =&gt; Promise&lt;DataResult&lt;&#123; verificationRecordId: string &#125;&gt;&gt;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onVerifyPassword</td>
+              <td style={customTdStyle}>(password: string) =&gt; Promise&lt;DataResult&lt;&#123; verificationRecordId: string &#125;&gt;&gt;</td>
+              <td style={customTdStyle}>
                 Verifies user credentials to return a secure verification record ID and timestamp.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onSuccess</td>
-              <td style={styles.tdTypeStyle}>(msg: string) =&gt; void</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onSuccess</td>
+              <td style={customTdStyle}>(msg: string) =&gt; void</td>
+              <td style={customTdStyle}>
                 Dispatches feedback notifications upon successful operations.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>onError</td>
-              <td style={styles.tdTypeStyle}>(msg: string) =&gt; void</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>onError</td>
+              <td style={customTdStyle}>(msg: string) =&gt; void</td>
+              <td style={customTdStyle}>
                 Dispatches feedback notifications when operations fail.
               </td>
             </tr>
@@ -119,9 +175,10 @@ export default function SessionsSection() {
   onError: (message: string) => void;
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Identity Verification & State Lifecycle">
+      <div>
+        <h2 id={slugify("Identity Verification & State Lifecycle")} style={h2Style}>Identity Verification & State Lifecycle</h2>
         <p style={styles.textStyle}>
           Active sessions contain sensitive metadata (including IP addresses and device browser strings). Access to the sessions list is locked behind password identity confirmation.
         </p>
@@ -170,9 +227,10 @@ useEffect(() => {
   }
 }, [verificationRecordId, verificationExpiry]);`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="JTI Claims & Active Connection Contexts">
+      <div>
+        <h2 id={slugify("JTI Claims & Active Connection Contexts")} style={h2Style}>JTI Claims & Active Connection Contexts</h2>
         <p style={styles.textStyle}>
           The system ensures session operations target correct contexts by parsing claims and identifying active sessions.
         </p>
@@ -236,9 +294,10 @@ if (!currentSession) {
 // Filter out current active session to isolate targets to revoke
 const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.payload.uid);`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Revocation Mechanics">
+      <div>
+        <h2 id={slugify("Revocation Mechanics")} style={h2Style}>Revocation Mechanics</h2>
         <p style={styles.textStyle}>
           The dashboard supports both individual session termination and bulk multi-device revocation.
         </p>
@@ -289,9 +348,10 @@ for (const s of othersToRevoke) {
   }
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="IP Geolocation & User Agent Parsing">
+      <div>
+        <h2 id={slugify("IP Geolocation & User Agent Parsing")} style={h2Style}>IP Geolocation & User Agent Parsing</h2>
         <p style={styles.textStyle}>
           Active sessions extract connection parameters from user login metadata, parsing the user agent string and querying IP geolocation coordinates.
         </p>
@@ -396,7 +456,7 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   return promise;
 }`}
         />
-      </SectionWrap>
+      </div>
     </div>
   );
 }

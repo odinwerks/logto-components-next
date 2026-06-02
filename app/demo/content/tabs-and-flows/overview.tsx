@@ -2,71 +2,127 @@
 
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
-import { SectionWrap } from '../../components/SectionComponents';
+import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 
 export default function OverviewSection() {
   const styles = useDocStyles();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+
+  const h2Style: React.CSSProperties = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: isDark ? '#f3f4f6' : '#111827',
+    marginTop: '32px',
+    marginBottom: '16px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+    paddingBottom: '8px',
+  };
+
+  const customTableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.8rem',
+    marginBottom: '20px',
+    marginTop: '12px',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
+  };
+
+  const customThStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 12px',
+    borderBottom: `2px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#cbd5e1'}`,
+    background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+    color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+    fontWeight: 600,
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const customTdStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
+    color: isDark ? 'rgba(255,255,255,0.55)' : '#334155',
+    verticalAlign: 'top',
+    lineHeight: '1.5',
+  };
+
+  const customTdPropStyle: React.CSSProperties = {
+    ...customTdStyle,
+    color: isDark ? '#9cdcdb' : '#0369a1',
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontWeight: 600,
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <SectionWrap label="Tab overview">
+      <div>
+        <h2 id={slugify("Tab overview")} style={h2Style}>Tab overview</h2>
         <p style={styles.textStyle}>
           The Dashboard renders tabs based on the <code style={styles.codeStyle}>LOAD_TABS</code>{' '}
           env var. <code style={styles.codeStyle}>DashboardClient</code> maintains{' '}
           <code style={styles.codeStyle}>activeTab</code> state and conditionally renders
           each tab component.
         </p>
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={styles.thStyle}>Tab</th>
-              <th style={styles.thStyle}>Props</th>
-              <th style={styles.thStyle}>Hooks</th>
-              <th style={styles.thStyle}>Actions</th>
+              <th style={customThStyle}>Tab</th>
+              <th style={customThStyle}>Props</th>
+              <th style={customThStyle}>Hooks</th>
+              <th style={customThStyle}>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPathStyle}>Profile</td>
-              <td style={styles.tdStyle}>14 + common</td>
-              <td style={styles.tdStyle}>useAvatarUpload</td>
-              <td style={styles.tdStyle}>5+</td>
+              <td style={customTdPropStyle}>Profile</td>
+              <td style={customTdStyle}>14 + common</td>
+              <td style={customTdStyle}>useAvatarUpload</td>
+              <td style={customTdStyle}>5+</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Preferences</td>
-              <td style={styles.tdStyle}>1 + common</td>
-              <td style={styles.tdStyle}>useThemeMode, useLangMode</td>
-              <td style={styles.tdStyle}>0 (via context)</td>
+              <td style={customTdPropStyle}>Preferences</td>
+              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}>useThemeMode, useLangMode</td>
+              <td style={customTdStyle}>0 (via context)</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Security</td>
-              <td style={styles.tdStyle}>14 + common</td>
-              <td style={styles.tdStyle}> - </td>
-              <td style={styles.tdStyle}>15</td>
+              <td style={customTdPropStyle}>Security</td>
+              <td style={customTdStyle}>14 + common</td>
+              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>15</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Sessions</td>
-              <td style={styles.tdStyle}>6 + common</td>
-              <td style={styles.tdStyle}> - </td>
-              <td style={styles.tdStyle}>3</td>
+              <td style={customTdPropStyle}>Sessions</td>
+              <td style={customTdStyle}>6 + common</td>
+              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>3</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Identities</td>
-              <td style={styles.tdStyle}>common only</td>
-              <td style={styles.tdStyle}> - </td>
-              <td style={styles.tdStyle}>0</td>
+              <td style={customTdPropStyle}>Identities</td>
+              <td style={customTdStyle}>common only</td>
+              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>0</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Organizations</td>
-              <td style={styles.tdStyle}>1 + common</td>
-              <td style={styles.tdStyle}>useOrgMode</td>
-              <td style={styles.tdStyle}>2</td>
+              <td style={customTdPropStyle}>Organizations</td>
+              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}>useOrgMode</td>
+              <td style={customTdStyle}>2</td>
             </tr>
             <tr>
-              <td style={styles.tdPathStyle}>Dev</td>
-              <td style={styles.tdStyle}>1 + common</td>
-              <td style={styles.tdStyle}> - </td>
-              <td style={styles.tdStyle}>0</td>
+              <td style={customTdPropStyle}>Dev</td>
+              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>0</td>
             </tr>
           </tbody>
         </table>
@@ -89,9 +145,10 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           reduced spacing, and mobile-optimized button styling. Desktop clients omit this prop (undefined to desktop mode).
           Affects form layout, avatar modal (camera/upload buttons vs drag-and-drop), and action button placement.
         </div>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Tab Orchestration & Routing State">
+      <div>
+        <h2 id={slugify("Tab Orchestration & Routing State")} style={h2Style}>Tab Orchestration & Routing State</h2>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>DashboardClient</code> acts as the primary layout controller on the client side. It manages tab selection and conditional rendering using a centralized state pipeline.
         </p>
@@ -127,9 +184,10 @@ LOAD_TABS=profile,preferences,security,organizations`} />
             <strong>Dev Tab Hard Gating:</strong> In production environments, the <code style={styles.codeStyle}>dev</code> tab is strictly omitted from the <code style={styles.codeStyle}>loadedTabs</code> list. Even if a client attempts to artificially manipulate the local <code style={styles.codeStyle}>activeTab</code> state, the conditional rendering block prevents the component from mounting.
           </li>
         </ul>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="LOAD_TABS Env Variable Parsing">
+      <div>
+        <h2 id={slugify("LOAD_TABS Env Variable Parsing")} style={h2Style}>LOAD_TABS Env Variable Parsing</h2>
         <p style={styles.textStyle}>
           The tab configuration is declared via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. The helper function <code style={styles.codeStyle}>getLoadedTabs()</code> parses this variable on the server side or client side (with <code style={styles.codeSmStyle}>NEXT_PUBLIC_LOAD_TABS</code> as a fallback) using the following pipeline:
         </p>
@@ -196,62 +254,64 @@ LOAD_TABS=profile,preferences,security,organizations`} />
   return filtered.length === 0 ? ALL_TABS.filter(id => id !== 'dev') : filtered;
 }`}
         />
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Common Tab Properties Specification">
+      <div>
+        <h2 id={slugify("Common Tab Properties Specification")} style={h2Style}>Common Tab Properties Specification</h2>
         <p style={styles.textStyle}>
           To maintain a uniform UI layout, every tab component consumes a standardized prop contract. These properties provide identity context, global theme details, interface translations, and mobile optimization flags.
         </p>
 
-        <table style={styles.tableStyle}>
+        <table style={customTableStyle}>
           <thead>
             <tr>
-              <th style={{ ...styles.thStyle, width: '20%' }}>Property</th>
-              <th style={{ ...styles.thStyle, width: '25%' }}>Type</th>
-              <th style={{ ...styles.thStyle, width: '55%' }}>Technical Purpose</th>
+              <th style={{ ...customThStyle, width: '20%' }}>Property</th>
+              <th style={{ ...customThStyle, width: '25%' }}>Type</th>
+              <th style={{ ...customThStyle, width: '55%' }}>Technical Purpose</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={styles.tdPropStyle}>userData</td>
-              <td style={{ ...styles.tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>UserData</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>userData</td>
+              <td style={{ ...customTdStyle, fontFamily: 'monospace', fontSize: '11px' }}>UserData</td>
+              <td style={customTdStyle}>
                 The parsed OIDC user claims containing user identifiers, usernames, emails, phone numbers, custom profile fields, and registration metadata.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mode</td>
-              <td style={{ ...styles.tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>&apos;dark&apos; | &apos;light&apos;</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mode</td>
+              <td style={{ ...customTdStyle, fontFamily: 'monospace', fontSize: '11px' }}>&apos;dark&apos; | &apos;light&apos;</td>
+              <td style={customTdStyle}>
                 The active client UI mode managed by preferences providers. Tabs use this to adjust style layers and assets.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>colors</td>
-              <td style={{ ...styles.tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>ThemeColors</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>colors</td>
+              <td style={{ ...customTdStyle, fontFamily: 'monospace', fontSize: '11px' }}>ThemeColors</td>
+              <td style={customTdStyle}>
                 A collection of styling color variables containing CSS background colors, text primaries, border styles, and accent colors.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>t</td>
-              <td style={{ ...styles.tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>Translations</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>t</td>
+              <td style={{ ...customTdStyle, fontFamily: 'monospace', fontSize: '11px' }}>Translations</td>
+              <td style={customTdStyle}>
                 The active locale language bundle containing translated text strings for headers, labels, form descriptions, and feedback alerts.
               </td>
             </tr>
             <tr>
-              <td style={styles.tdPropStyle}>mobmode</td>
-              <td style={{ ...styles.tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>number | undefined</td>
-              <td style={styles.tdStyle}>
+              <td style={customTdPropStyle}>mobmode</td>
+              <td style={{ ...customTdStyle, fontFamily: 'monospace', fontSize: '11px' }}>number | undefined</td>
+              <td style={customTdStyle}>
                 Mobile rendering flag. Setting this parameter to 1 notifies child tabs to override desktop layouts and apply compact styling definitions.
               </td>
             </tr>
           </tbody>
         </table>
-      </SectionWrap>
+      </div>
 
-      <SectionWrap label="Mobile Layout Adaptation Behavior">
+      <div>
+        <h2 id={slugify("Mobile Layout Adaptation Behavior")} style={h2Style}>Mobile Layout Adaptation Behavior</h2>
         <p style={styles.textStyle}>
           When the viewport matches a mobile screen size, the client architecture passes <code style={styles.codeSmStyle}>mobmode === 1</code>. This flag forces components to restructure themselves vertically, shrink typography, and switch interactive features to match small viewports.
         </p>
@@ -318,7 +378,7 @@ LOAD_TABS=profile,preferences,security,organizations`} />
             <strong>Text Simplification:</strong> Long strings are shortened or replaced. Mobile viewports omit verbose labels (e.g., displaying raw dates instead of prefixed logged-in descriptions).
           </li>
         </ul>
-      </SectionWrap>
+      </div>
     </div>
   );
 }
