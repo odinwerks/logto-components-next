@@ -30,7 +30,7 @@ const sidebarStyle: React.CSSProperties = {
   width: '236px',
   minWidth: '236px',
   height: '100vh',
-  background: '#0f0f12',
+  background: '#050608',
   borderRight: '1px solid rgba(255,255,255,0.055)',
   display: 'flex',
   flexDirection: 'column',
@@ -193,7 +193,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
 
   const colors = mounted ? (mode === 'dark'
     ? {
-        bg: '#0f0f12',
+        bg: '#050608',
         border: 'rgba(255,255,255,0.055)',
         borderLight: 'rgba(255,255,255,0.05)',
         textMuted: 'rgba(255,255,255,0.4)',
@@ -233,7 +233,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
         code: '#6b7280',
       })
     : {
-        bg: '#0f0f12',
+        bg: '#050608',
         border: 'rgba(255,255,255,0.055)',
         borderLight: 'rgba(255,255,255,0.05)',
         textMuted: 'rgba(255,255,255,0.4)',

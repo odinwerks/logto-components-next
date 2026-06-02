@@ -614,6 +614,12 @@ The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - on
 
 Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
 
+> **Demo Dark Mode Palette:** The docs pages and sidebar use a custom scoped dark palette (`app/globals.css` → `.docs-content-container`) independent of the main dashboard theme for optimal reading contrast:
+> - Sidebar BG: `#050608`
+> - Docs content BG: `#08090a`
+> - Card/section BG: `#171c2a`
+> - Border: `#181c2b`
+
 ### How It Works
 
 The demo app consists of:

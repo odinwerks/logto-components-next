@@ -45,7 +45,7 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
     >
       <div style={appStyle}>
         <Sidebar items={NAV_ITEMS} />
-        <div style={{ flex: 1, overflowY: 'auto', background: '#0b0b0d' }}>
+        <div className="docs-content-container" style={{ flex: 1, overflowY: 'auto', background: 'var(--ldd-bg-page)' }}>
           {children}
         </div>
       </div>

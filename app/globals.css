@@ -133,3 +133,26 @@ select:focus {
   white-space: nowrap;
   border: 0;
 }
+
+/* Overrides for Demo App / Docs Area specifically */
+.docs-content-container {
+  /* Light theme values matching the original light theme defaults */
+  --ldd-bg-page: #f9fafb;
+  --ldd-bg-primary: #ffffff;
+  --ldd-bg-secondary: #f3f4f6;
+  --ldd-bg-tertiary: #e5e7eb;
+}
+
+[data-theme="dark"] .docs-content-container,
+:root[data-theme="dark"] .docs-content-container {
+  /* Flipped contrast navy-slate values specifically for the demo app docs */
+  --ldd-bg-page: #08090a;
+  --ldd-bg-primary: #111620;
+  --ldd-bg-secondary: #171c2a;
+  --ldd-bg-tertiary: #202738;
+}
+
+[data-theme="dark"] .docs-content-container ::-webkit-scrollbar-track,
+:root[data-theme="dark"] .docs-content-container ::-webkit-scrollbar-track {
+  background: var(--ldd-bg-page);
+}

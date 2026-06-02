@@ -31,35 +31,35 @@ export function useDocStyles() {
     } as React.CSSProperties,
 
     sectionWrapStyle: {
-      border: `1px solid ${isDark ? 'rgba(255,255,255,0.058)' : '#e5e7eb'}`,
+      border: `1px solid var(--ldd-border-color)`,
       borderRadius: '5px',
       overflow: 'hidden',
-      background: isDark ? 'rgba(255,255,255,0.01)' : '#f9fafb',
+      background: 'var(--ldd-bg-page)',
       display: 'flex',
       flexDirection: 'column',
     } as React.CSSProperties,
 
     sectionHeadStyle: {
       padding: '8px 14px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.045)' : '#e5e7eb'}`,
+      borderBottom: `1px solid var(--ldd-border-color)`,
       display: 'flex',
       alignItems: 'center',
       gap: '7px',
-      background: isDark ? 'rgba(255,255,255,0.015)' : '#f3f4f6',
+      background: 'var(--ldd-bg-secondary)',
     } as React.CSSProperties,
 
     sectionDotStyle: {
       width: '4px',
       height: '4px',
       borderRadius: '50%',
-      background: isDark ? 'rgba(255,255,255,0.18)' : '#9ca3af',
+      background: 'var(--ldd-text-tertiary)',
       flexShrink: 0,
     } as React.CSSProperties,
 
     sectionLabelStyle: {
       fontSize: '9px',
       fontWeight: 600,
-      color: isDark ? 'rgba(255,255,255,0.28)' : '#6b7280',
+      color: 'var(--ldd-text-secondary)',
       letterSpacing: '0.1em',
       textTransform: 'uppercase',
     } as React.CSSProperties,
@@ -71,7 +71,7 @@ export function useDocStyles() {
     textStyle: {
       fontSize: '0.75rem',
       lineHeight: 1.7,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#374151',
+      color: 'var(--ldd-text-secondary)',
       fontFamily: "'DM Sans', system-ui, sans-serif",
       marginBottom: '0.75rem',
     } as React.CSSProperties,
@@ -91,11 +91,11 @@ export function useDocStyles() {
     noteStyle: {
       fontSize: '0.6875rem',
       lineHeight: 1.7,
-      color: isDark ? 'rgba(255,255,255,0.38)' : '#6b7280',
+      color: 'var(--ldd-text-secondary)',
       fontFamily: "'DM Sans', system-ui, sans-serif",
       marginBottom: '0.625rem',
       paddingLeft: '10px',
-      borderLeft: `2px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#d1d5db'}`,
+      borderLeft: `2px solid var(--ldd-border-color)`,
     } as React.CSSProperties,
 
     tableStyle: {
@@ -110,8 +110,8 @@ export function useDocStyles() {
     thStyle: {
       textAlign: 'left',
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
-      color: isDark ? 'rgba(255,255,255,0.35)' : '#6b7280',
+      borderBottom: `1px solid var(--ldd-border-color)`,
+      color: 'var(--ldd-text-tertiary)',
       fontWeight: 600,
       fontSize: '0.5625rem',
       textTransform: 'uppercase',
@@ -121,15 +121,15 @@ export function useDocStyles() {
 
     tdStyle: {
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.035)' : '#f3f4f6'}`,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#374151',
+      borderBottom: `1px solid var(--ldd-border-color)`,
+      color: 'var(--ldd-text-secondary)',
       verticalAlign: 'top',
       lineHeight: 1.5,
     } as React.CSSProperties,
 
     tdPathStyle: {
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.035)' : '#f3f4f6'}`,
+      borderBottom: `1px solid var(--ldd-border-color)`,
       color: isDark ? '#9cdcdb' : '#0369a1',
       fontFamily: "'IBM Plex Mono', monospace",
       whiteSpace: 'nowrap',
@@ -139,7 +139,7 @@ export function useDocStyles() {
 
     tdPropStyle: {
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.035)' : '#f3f4f6'}`,
+      borderBottom: `1px solid var(--ldd-border-color)`,
       color: isDark ? '#9cdcdb' : '#0369a1',
       fontFamily: "'IBM Plex Mono', monospace",
       whiteSpace: 'nowrap',
@@ -149,7 +149,7 @@ export function useDocStyles() {
 
     tdTypeStyle: {
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.035)' : '#f3f4f6'}`,
+      borderBottom: `1px solid var(--ldd-border-color)`,
       color: isDark ? '#4ec9b0' : '#059669',
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: '0.625rem',
@@ -163,14 +163,14 @@ export function useDocStyles() {
       borderRadius: '3px',
       fontSize: '0.5625rem',
       fontFamily: "'IBM Plex Mono', monospace",
-      background: isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6',
-      border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
-      color: isDark ? 'rgba(255,255,255,0.45)' : '#6b7280',
+      background: 'var(--ldd-bg-secondary)',
+      border: `1px solid var(--ldd-border-color)`,
+      color: 'var(--ldd-text-secondary)',
       letterSpacing: '0.03em',
     } as React.CSSProperties,
 
     strongNoteStyle: {
-      color: isDark ? 'rgba(255,255,255,0.55)' : '#111827',
+      color: 'var(--ldd-text-primary)',
     } as React.CSSProperties,
 
     linkColor: isDark ? '#60a5fa' : '#2563eb',
@@ -178,23 +178,23 @@ export function useDocStyles() {
     thAltStyle: {
       textAlign: 'left',
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
-      background: isDark ? 'rgba(255,255,255,0.02)' : '#f9fafb',
-      color: isDark ? 'rgba(255,255,255,0.6)' : '#6b7280',
+      borderBottom: `1px solid var(--ldd-border-color)`,
+      background: 'var(--ldd-bg-secondary)',
+      color: 'var(--ldd-text-secondary)',
       fontWeight: 600,
     } as React.CSSProperties,
 
     tdAltStyle: {
       padding: '7px 10px',
-      borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.03)' : '#f3f4f6'}`,
-      color: isDark ? 'rgba(255,255,255,0.5)' : '#374151',
+      borderBottom: `1px solid var(--ldd-border-color)`,
+      color: 'var(--ldd-text-secondary)',
     } as React.CSSProperties,
 
     exampleCardStyle: {
-      border: `1px solid ${isDark ? 'rgba(255,255,255,0.058)' : '#e5e7eb'}`,
+      border: `1px solid var(--ldd-border-color)`,
       borderRadius: '5px',
       overflow: 'hidden',
-      background: isDark ? 'rgba(255,255,255,0.008)' : '#f9fafb',
+      background: 'var(--ldd-bg-secondary)',
       display: 'flex',
       alignItems: 'stretch',
     } as React.CSSProperties,
@@ -202,7 +202,7 @@ export function useDocStyles() {
     exampleCodeStyle: {
       flex: 1,
       minWidth: 0,
-      borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#e5e7eb'}`,
+      borderRight: `1px solid var(--ldd-border-color)`,
       padding: '8px 10px',
       display: 'flex',
       flexDirection: 'column',
@@ -212,7 +212,7 @@ export function useDocStyles() {
     exampleLabelStyle: {
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: '0.5rem',
-      color: isDark ? 'rgba(255,255,255,0.4)' : '#6b7280',
+      color: 'var(--ldd-text-secondary)',
       letterSpacing: '0.05em',
       whiteSpace: 'nowrap',
     } as React.CSSProperties,
@@ -220,7 +220,7 @@ export function useDocStyles() {
     exampleSubLabelStyle: {
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: '0.5rem',
-      color: isDark ? 'rgba(255,255,255,0.18)' : '#9ca3af',
+      color: 'var(--ldd-text-tertiary)',
       letterSpacing: '0.03em',
       whiteSpace: 'nowrap',
     } as React.CSSProperties,
@@ -232,7 +232,7 @@ export function useDocStyles() {
       justifyContent: 'center',
       gap: '8px',
       padding: '10px 16px',
-      background: isDark ? 'rgba(0,0,0,0.15)' : '#f3f4f6',
+      background: 'var(--ldd-bg-tertiary)',
     } as React.CSSProperties,
 
     exampleMetaStyle: {
@@ -244,17 +244,17 @@ export function useDocStyles() {
     } as React.CSSProperties,
 
     warningBannerStyle: {
-      background: isDark ? 'rgba(255,200,0,0.08)' : '#fef3c7',
-      border: `1px solid ${isDark ? 'rgba(255,200,0,0.3)' : '#f59e0b'}`,
+      background: 'var(--ldd-warning-bg)',
+      border: `1px solid var(--ldd-accent-yellow)`,
       borderRadius: '0.375rem',
       padding: '0.75rem 1rem',
       marginBottom: '1rem',
       fontSize: '0.8125rem',
-      color: isDark ? 'rgba(255,255,255,0.7)' : '#92400e',
+      color: 'var(--ldd-text-primary)',
     } as React.CSSProperties,
 
     warningBannerStrongStyle: {
-      color: isDark ? '#ffc800' : '#b45309',
+      color: 'var(--ldd-accent-yellow)',
     } as React.CSSProperties,
   };
 }
