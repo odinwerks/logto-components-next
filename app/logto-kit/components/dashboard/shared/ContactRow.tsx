@@ -21,10 +21,10 @@ export interface ContactRowProps {
   currentValue?: string;
   type: 'email' | 'phone';
   placeholder: string;
-  onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
-  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
-  onRemove: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onRemove: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   mobmode?: number;
@@ -68,7 +68,7 @@ export function ContactRow({
       setStep({ kind: 'loading', message: t.mfa.verifying });
       const r1 = await onVerifyPassword(pw);
       if (!r1.ok) { setPwErr(r1.error); return; }
-      const r2 = await onRemove(r1.data.verificationRecordId);
+      const r2 = await onRemove(r1.data.verificationRecordId, r1.data.verificationTimestamp);
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
       close();
@@ -81,15 +81,15 @@ export function ContactRow({
       const r2 = await onSendVerification(target);
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(`${t.verification.codeSent} ${target}`);
-      setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId });
+      setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId, verificationTimestamp: r1.data.verificationTimestamp });
     }
   };
 
   const handleCode = async (code: string) => {
     if (step.kind !== 'code') return;
-    const { destination, verificationId, identityVerificationId } = step;
+    const { destination, verificationId, identityVerificationId, verificationTimestamp } = step;
     setStep({ kind: 'loading', message: t.mfa.verifyingCode });
-    const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
+    const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code, verificationTimestamp);
     if (!r.ok) { onError(r.error); setStep({ kind: 'password' }); return; }
     onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
     close();

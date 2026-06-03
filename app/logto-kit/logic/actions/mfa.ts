@@ -55,11 +55,17 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
  */
 export async function addMfaVerification(
   verification: MfaVerificationPayload,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertMfaType(verification.type);
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const { type, payload } = verification;
 
@@ -114,11 +120,17 @@ export async function addMfaVerification(
  */
 export async function deleteMfaVerification(
   verificationId: string,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationId, 'verificationId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(verificationId)}`, {
       method: 'DELETE',
@@ -142,9 +154,17 @@ export async function deleteMfaVerification(
  * @param identityVerificationRecordId - Verification record for identity.
  * @returns Object containing the backup codes.
  */
-export async function generateBackupCodes(identityVerificationRecordId: string): Promise<DataResult<{ codes: string[] }>> {
+export async function generateBackupCodes(
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<DataResult<{ codes: string[] }>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     // Step 1: Generate codes (no verification header needed)
     const genRes = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
@@ -182,10 +202,16 @@ export async function generateBackupCodes(identityVerificationRecordId: string):
  * @returns Object containing the backup codes with their used status.
  */
 export async function getBackupCodes(
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<DataResult<{ codes: Array<{ code: string; usedAt: string | null }> }>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
@@ -200,10 +226,16 @@ export async function getBackupCodes(
 export async function replaceTotpVerification(
   secret: string,
   code: string,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
       method: 'PUT',

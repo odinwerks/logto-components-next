@@ -41,14 +41,15 @@ import { safeAction, type ActionResult } from './safe';
  *   verification. Only used to document intent; Logto enforces the actual
  *   verification via the preceding verifyPasswordForIdentity() flow that
  *   minted this record.
- * @param verificationRecordTimestamp - Timestamp (ms) derived server-side
- *   from Logto's `expiresAt` field (returned by verifyPasswordForIdentity).
- *   Never trust a client-supplied value here - always pass the timestamp
- *   from the verification action's DataResult.
+ * @param verificationRecordTimestamp - REQUIRED. Timestamp (ms) derived
+ *   server-side from Logto's `expiresAt` field (returned by
+ *   verifyPasswordForIdentity). Never trust a client-supplied value here -
+ *   always pass the timestamp from the verification action's DataResult.
+ *   Omitting this parameter bypasses the staleness check (BUG-SEC-003).
  */
 export async function deleteUserAccount(
   identityVerificationRecordId: string,
-  verificationRecordTimestamp?: number,
+  verificationRecordTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Require the caller to have completed password verification ─────────
@@ -58,10 +59,9 @@ export async function deleteUserAccount(
     // verificationTimestamp is now Logto's expiresAt (server-derived, changed
     // in verification.ts). We just check Date.now() > expiresAt - no hardcoded
     // TTL. If Logto changes its TTL this check automatically adapts.
-    if (verificationRecordTimestamp !== undefined) {
-      if (Date.now() > verificationRecordTimestamp) {
-        throw new Error('VERIFICATION_EXPIRED');
-      }
+    // BUG-SEC-003: This check is mandatory - never skip it.
+    if (Date.now() > verificationRecordTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
     }
 
     // ── Derive token + userId server-side (never trust the client) ─────────

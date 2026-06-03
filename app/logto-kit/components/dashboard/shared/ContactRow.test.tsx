@@ -81,8 +81,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   it('handles edit-flow: onVerifyPassword success → onSendVerification success → shows code step', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true, data: { verificationId: 'vid-1' },
     } satisfies DataResult<{ verificationId: string }>);
@@ -110,7 +110,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Wrong password',
-    } satisfies DataResult<{ verificationRecordId: string }>);
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
 
     render(<ContactRow {...props} />);
     openEditModal();
@@ -128,8 +128,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   it('handles edit-flow: onSendVerification returns error after successful password', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Rate limited',
     } satisfies DataResult<{ verificationId: string }>);
@@ -153,8 +153,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     const props = buildDefaults();
 
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true, data: { verificationId: 'vid-1' },
     } satisfies DataResult<{ verificationId: string }>);
@@ -174,7 +174,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onVerifyCodeAndUpdate).toHaveBeenCalledWith(
-        'user@example.com', 'vid-1', 'vr-1', '123456',
+        'user@example.com', 'vid-1', 'vr-1', '123456', expect.any(Number),
       );
       expect(props.onSuccess).toHaveBeenCalledWith(enUS.profile.emailUpdated);
     });
@@ -183,8 +183,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   it('handles code verification: error calls onError and closes', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true, data: { verificationId: 'vid-1' },
     } satisfies DataResult<{ verificationId: string }>);
@@ -212,8 +212,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   it('handles remove-flow: onVerifyPassword success → onRemove success → onSuccess', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onRemove as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
     } satisfies ActionResult);
@@ -226,7 +226,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onVerifyPassword).toHaveBeenCalledWith('pw123');
-      expect(props.onRemove).toHaveBeenCalledWith('vr-1');
+      expect(props.onRemove).toHaveBeenCalledWith('vr-1', expect.any(Number));
       expect(props.onSuccess).toHaveBeenCalledWith(enUS.profile.emailRemoved);
     });
   });
@@ -235,7 +235,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Wrong password',
-    } satisfies DataResult<{ verificationRecordId: string }>);
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
 
     render(<ContactRow {...props} />);
     openRemoveModal();
@@ -253,8 +253,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   it('handles remove-flow: onRemove error after successful password → onError', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true, data: { verificationRecordId: 'vr-1' },
-    } satisfies DataResult<{ verificationRecordId: string }>);
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
     (props.onRemove as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false, error: 'Cannot remove last email',
     } satisfies ActionResult);

@@ -36,7 +36,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <head />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const stored = window.sessionStorage.getItem('theme-mode');
+                if (stored) {
+                  document.documentElement.setAttribute('data-theme', stored);
+                } else {
+                  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable}`}>
         <AuthWatcher />
         <SessionHeartbeat />

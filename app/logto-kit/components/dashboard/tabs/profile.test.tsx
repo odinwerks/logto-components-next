@@ -61,7 +61,7 @@ import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 // ── Stub callbacks ────────────────────────────────────────
 const noop = () => undefined;
 const resolvedActionResult = () => Promise.resolve({ ok: true } as ActionResult);
-const resolvedVerifyPassword = () => Promise.resolve({ ok: true, data: { verificationRecordId: 'mock' } } as DataResult<{ verificationRecordId: string }>);
+const resolvedVerifyPassword = () => Promise.resolve({ ok: true, data: { verificationRecordId: 'mock', verificationTimestamp: Date.now() + 600000 } } as DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
 const resolvedSendVerification = () => Promise.resolve({ ok: true, data: { verificationId: 'mock' } } as DataResult<{ verificationId: string }>);
 const resolvedVerifyCode = () => Promise.resolve({ ok: true, data: { verificationRecordId: 'mock' } } as DataResult<{ verificationRecordId: string }>);
 

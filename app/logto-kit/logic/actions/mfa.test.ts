@@ -65,6 +65,7 @@ const mockOkResponse = (data?: unknown): Response =>
 
 describe('addMfaVerification', () => {
   const validIdentityVrecId = 'ivrec-def456';
+  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -78,7 +79,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(true);
 
@@ -98,7 +99,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '1'.repeat(17), secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -112,7 +113,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'a'.repeat(65) },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -126,7 +127,7 @@ describe('addMfaVerification', () => {
         type: 'Totp' as const,
         payload: { code: 123456 as unknown as string, secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -140,7 +141,7 @@ describe('addMfaVerification', () => {
         type: 'Totp' as const,
         payload: { code: '123456', secret: 12345 as unknown as string },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -154,7 +155,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: 'a'.repeat(16), secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(true);
   });
@@ -165,7 +166,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'a'.repeat(64) },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(true);
   });
@@ -178,7 +179,7 @@ describe('addMfaVerification', () => {
           newIdentifierVerificationRecordId: 'r'.repeat(129),
         },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -194,7 +195,7 @@ describe('addMfaVerification', () => {
           newIdentifierVerificationRecordId: 'vrec-abc123',
         },
       },
-      validIdentityVrecId,
+      validIdentityVrecId, validTimestamp,
     );
     expect(r.ok).toBe(true);
 

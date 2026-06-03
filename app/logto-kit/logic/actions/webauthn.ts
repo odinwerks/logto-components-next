@@ -49,10 +49,16 @@ export async function verifyAndLinkWebAuthn(
   payload: unknown,
   verificationRecordId: string,
   identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     if (!payload || typeof payload !== 'object') {
       throw new ValidationError('INVALID_INPUT', 'payload');
@@ -96,10 +102,16 @@ export async function renamePasskey(
   verificationId: string,
   name: string,
   identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationId, 'verificationId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
     const trimmedName = typeof name === 'string' ? name.trim() : name;
     assertPasskeyName(trimmedName);
 

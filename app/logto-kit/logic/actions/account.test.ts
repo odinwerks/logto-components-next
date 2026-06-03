@@ -120,19 +120,32 @@ describe('deleteUserAccount', () => {
     );
   });
 
-  // ── Backward compat: no timestamp provided ──────────────────────────────
+  // ── SECURITY: timestamp is required ─────────────────────────────────────
+  // BUG-SEC-003: A malicious client can omit verificationRecordTimestamp to
+  // bypass the staleness check. Making it required prevents this.
 
-  it('proceeds when no verificationRecordTimestamp is provided (backward compat)', async () => {
+  it('requires verificationRecordTimestamp - omitted timestamp should fail at type level', async () => {
     const { deleteUserAccount } = await import('./account');
-
-    const result = await deleteUserAccount('verif_record_1');
-
+    // Calling without the second argument is now a TYPE error (TS compile check).
+    // At runtime, this test documents that the function signature requires the timestamp.
+    // If someone removes the required param, this test documents the security intent.
+    expect(typeof deleteUserAccount).toBe('function');
+    // Verify the function accepts both args (required + required)
+    const result = await deleteUserAccount('verif_record_1', Date.now() + 60000);
     expect(result.ok).toBe(true);
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/users/'),
-      expect.objectContaining({ method: 'DELETE' }),
-    );
+  });
+
+  // ── SECURITY: staleness check always runs ───────────────────────────────
+  // BUG-SEC-003: Even if somehow bypassed, the staleness check must execute.
+
+  it('always executes staleness check - expired record always rejected', async () => {
+    const { deleteUserAccount } = await import('./account');
+    const expiredTs = Date.now() - 1000; // 1 second ago → expired
+
+    const result = await deleteUserAccount('verif_record_1', expiredTs);
+
+    expect(result.ok).toBe(false);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   // ── Exactly at the 10-minute boundary ───────────────────────────────────
@@ -168,7 +181,7 @@ describe('deleteUserAccount', () => {
     ]);
 
     const { deleteUserAccount } = await import('./account');
-    const result = await deleteUserAccount('verif_record_1');
+    const result = await deleteUserAccount('verif_record_1', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
     

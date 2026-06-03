@@ -143,11 +143,20 @@ export async function verifyVerificationCode(
 export async function updateEmailWithVerification(
   email: string | null,
   newIdentifierVerificationRecordId: string,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    // verificationTimestamp is Logto's expiresAt (server-derived from
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt — no
+    // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'POST',
@@ -161,11 +170,20 @@ export async function updateEmailWithVerification(
 export async function updatePhoneWithVerification(
   phone: string,
   newIdentifierVerificationRecordId: string,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    // verificationTimestamp is Logto's expiresAt (server-derived from
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt — no
+    // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/primary-phone', {
       method: 'POST',
@@ -176,9 +194,17 @@ export async function updatePhoneWithVerification(
   });
 }
 
-export async function removeUserEmail(identityVerificationRecordId: string): Promise<ActionResult> {
+export async function removeUserEmail(
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'DELETE',
@@ -188,9 +214,17 @@ export async function removeUserEmail(identityVerificationRecordId: string): Pro
   });
 }
 
-export async function removeUserPhone(identityVerificationRecordId: string): Promise<ActionResult> {
+export async function removeUserPhone(
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const res = await makeRequest('/api/my-account/primary-phone', {
       method: 'DELETE',

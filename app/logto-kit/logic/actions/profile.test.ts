@@ -527,7 +527,7 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
-  it('still serializes concurrent updates from the same user', async () => {
+  it('rate limits concurrent updates from the same user', async () => {
     vi.resetModules();
 
     vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as any);
@@ -536,9 +536,6 @@ describe('updateUserCustomData', () => {
 
     const { updateUserCustomData } = await import('./profile');
 
-    let firstCallFinished = false;
-    let secondCallStarted = false;
-
     vi.stubGlobal('fetch', vi.fn()
       // First call GET - slow
       .mockImplementationOnce(async () => {
@@ -546,16 +543,6 @@ describe('updateUserCustomData', () => {
         return mockOkResponse({});
       })
       // First call PATCH
-      .mockImplementationOnce(async () => {
-        firstCallFinished = true;
-        return mockOkResponse({});
-      })
-      // Second call GET - starts after first finishes
-      .mockImplementationOnce(async () => {
-        secondCallStarted = true;
-        return mockOkResponse({});
-      })
-      // Second call PATCH
       .mockImplementationOnce(async () => mockOkResponse({}))
     );
 
@@ -563,17 +550,21 @@ describe('updateUserCustomData', () => {
     const promise1 = updateUserCustomData({ Preferences: { theme: 'dark' } });
     const promise2 = updateUserCustomData({ Preferences: { lang: 'en' } });
 
-    // First should complete before second starts
-    await promise1;
-    expect(firstCallFinished).toBe(true);
+    // First should complete successfully
+    const result1 = await promise1;
+    expect(result1.ok).toBe(true);
 
-    await promise2;
-    expect(secondCallStarted).toBe(true);
+    // Second should be rejected with rate limit error (wrapped in safeAction)
+    const result2 = await promise2;
+    expect(result2.ok).toBe(false);
+    if (!result2.ok) {
+      expect(result2.error).toBe('UPDATE_RATE_LIMITED');
+    }
 
     vi.unstubAllGlobals();
   });
 
-  it('correctly serializes and chains concurrent updates from the same user without overlap', async () => {
+  it('rate limits rapid updates from the same user, allowing only one per second', async () => {
     vi.resetModules();
 
     vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as any);
@@ -597,14 +588,26 @@ describe('updateUserCustomData', () => {
     const p2 = updateUserCustomData({ Preferences: { lang: 'en' } });
     const p3 = updateUserCustomData({ Preferences: { theme: 'light' } });
 
-    await Promise.all([p1, p2, p3]);
+    // First should succeed
+    const result1 = await p1;
+    expect(result1.ok).toBe(true);
 
-    // Expected timeline should be strictly sequential:
-    // start-GET, end-GET, start-PATCH, end-PATCH, start-GET, end-GET, start-PATCH, end-PATCH, ...
+    // Second and third should be rate limited (wrapped in safeAction)
+    const result2 = await p2;
+    expect(result2.ok).toBe(false);
+    if (!result2.ok) {
+      expect(result2.error).toBe('UPDATE_RATE_LIMITED');
+    }
+
+    const result3 = await p3;
+    expect(result3.ok).toBe(false);
+    if (!result3.ok) {
+      expect(result3.error).toBe('UPDATE_RATE_LIMITED');
+    }
+
+    // Only the first request should have completed
     expect(timeline).toEqual([
       'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
-      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
-      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH'
     ]);
 
     vi.unstubAllGlobals();

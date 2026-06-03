@@ -145,6 +145,7 @@ describe('verifyAndLinkWebAuthn', () => {
   const validPayload = { id: 'cred123', rawId: 'rawid', type: 'public-key', response: {} };
   const validVrecId = 'vrec-abc123';
   const validIdentityVrecId = 'ivrec-def456';
+  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -153,7 +154,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('makes two POST requests and succeeds', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(true);
 
     expect(makeRequest).toHaveBeenCalledTimes(2);
@@ -164,7 +165,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('sends correct body for verify step', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(true);
 
     const [firstCall] = vi.mocked(makeRequest).mock.calls;
@@ -175,7 +176,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('sends correct body and headers for link step', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(true);
 
     const [, secondCall] = vi.mocked(makeRequest).mock.calls;
@@ -187,26 +188,26 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('returns error for invalid verificationRecordId', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, '../bad-id', validIdentityVrecId);
+    const r = await verifyAndLinkWebAuthn(validPayload, '../bad-id', validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for invalid identityVerificationRecordId', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, '../bad-id');
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, '../bad-id', validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for non-object payload', async () => {
-    let r = await verifyAndLinkWebAuthn('not-an-object', validVrecId, validIdentityVrecId);
+    let r = await verifyAndLinkWebAuthn('not-an-object', validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_INPUT');
 
-    r = await verifyAndLinkWebAuthn(null, validVrecId, validIdentityVrecId);
+    r = await verifyAndLinkWebAuthn(null, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_INPUT');
@@ -215,7 +216,7 @@ describe('verifyAndLinkWebAuthn', () => {
   it('returns error when throwOnApiError rejects', async () => {
     vi.mocked(throwOnApiError).mockRejectedValueOnce(new Error('MFA_ENROLL_FAILED'));
 
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
@@ -231,6 +232,7 @@ describe('renamePasskey', () => {
   const validId = 'passkey-abc123';
   const validIdentityId = 'ivrec-def456';
   const validName = 'My MacBook';
+  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -239,7 +241,7 @@ describe('renamePasskey', () => {
   });
 
   it('makes a PATCH request to the correct endpoint', async () => {
-    const r = await renamePasskey(validId, validName, validIdentityId);
+    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
     expect(r.ok).toBe(true);
 
     expect(makeRequest).toHaveBeenCalledWith(
@@ -253,54 +255,54 @@ describe('renamePasskey', () => {
   });
 
   it('returns error for invalid verificationId (path traversal)', async () => {
-    const r = await renamePasskey('../bad', validName, validIdentityId);
+    const r = await renamePasskey('../bad', validName, validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for invalid identityVerificationRecordId', async () => {
-    const r = await renamePasskey(validId, validName, '../bad');
+    const r = await renamePasskey(validId, validName, '../bad', validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for empty passkey name', async () => {
-    let r = await renamePasskey(validId, '', validIdentityId);
+    let r = await renamePasskey(validId, '', validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_FIELD_TYPE');
 
-    r = await renamePasskey(validId, '   ', validIdentityId);
+    r = await renamePasskey(validId, '   ', validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_FIELD_TYPE');
   });
 
   it('returns error for name over 64 characters', async () => {
-    const r = await renamePasskey(validId, 'a'.repeat(65), validIdentityId);
+    const r = await renamePasskey(validId, 'a'.repeat(65), validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('FIELD_TOO_LONG');
   });
 
   it('returns error for name with control characters', async () => {
-    const r = await renamePasskey(validId, 'name\x00inject', validIdentityId);
+    const r = await renamePasskey(validId, 'name\x00inject', validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_CHARS');
   });
 
   it('accepts a name exactly 64 characters long', async () => {
-    const r = await renamePasskey(validId, 'a'.repeat(64), validIdentityId);
+    const r = await renamePasskey(validId, 'a'.repeat(64), validIdentityId, validTimestamp);
     expect(r.ok).toBe(true);
   });
 
   it('returns error when throwOnApiError rejects', async () => {
     vi.mocked(throwOnApiError).mockRejectedValueOnce(new Error('MFA_ENROLL_FAILED'));
 
-    const r = await renamePasskey(validId, validName, validIdentityId);
+    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
