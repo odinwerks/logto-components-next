@@ -22,6 +22,7 @@ const mockTranslations = {
   jsonMustBeObject: 'Must be a JSON object (not array or null)',
   invalidJson: 'Invalid JSON',
   unknownError: 'Unknown error',
+  phoneCountryNotAllowed: 'Phone number from this country is not supported',
 };
 
 describe('validateEmail', () => {

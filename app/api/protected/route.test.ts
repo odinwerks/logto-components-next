@@ -164,10 +164,13 @@ describe('POST /api/protected - config validation', () => {
 // ── Personal RBAC (self bypass) ─────────────────────────────────────────────
 describe('POST /api/protected - personal RBAC (self bypass)', () => {
   it('returns 403 ROLE_DENIED when user lacks the required personal role', async () => {
-    const { getUserRoles } = await import('../../logto-kit/logic/actions');
-    (getUserRoles as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      data: [{ id: 'other-role', name: 'Other Role' }],
+      data: {
+        roles: [{ id: 'other-role', name: 'Other Role' }],
+        permissions: ['calc:basic'],
+      },
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -186,11 +189,14 @@ describe('POST /api/protected - personal RBAC (self bypass)', () => {
     expect(body.error).toBe('ROLE_DENIED');
   });
 
-  it('bypasses permission check completely (returns success even when no permissions are loaded)', async () => {
-    const { getUserRoles } = await import('../../logto-kit/logic/actions');
-    (getUserRoles as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  it('returns 403 PERMISSION_DENIED when user lacks the required personal permission', async () => {
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      data: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+      data: {
+        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+        permissions: [],
+      },
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -205,16 +211,18 @@ describe('POST /api/protected - personal RBAC (self bypass)', () => {
     const res = await POST(req);
     const body = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(body.error).toBeNull();
-    expect(body.data).toEqual({ answer: 42 });
+    expect(res.status).toBe(403);
+    expect(body.error).toBe('PERMISSION_DENIED');
   });
 
-  it('returns the answer when personal RBAC passes', async () => {
-    const { getUserRoles } = await import('../../logto-kit/logic/actions');
-    (getUserRoles as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  it('returns the answer when personal RBAC passes (both role and permission present)', async () => {
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      data: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+      data: {
+        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+        permissions: ['calc:basic'],
+      },
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -395,10 +403,13 @@ describe('POST /api/protected - org RBAC', () => {
 // ── Handler errors ──────────────────────────────────────────────────────────
 describe('POST /api/protected - handler errors', () => {
   it('returns 400 INVALID_PAYLOAD when the handler throws INVALID_PAYLOAD', async () => {
-    const { getUserRoles } = await import('../../logto-kit/logic/actions');
-    (getUserRoles as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      data: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+      data: {
+        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+        permissions: ['calc:basic'],
+      },
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -424,10 +435,13 @@ describe('POST /api/protected - Authorization header fallback', () => {
     const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
     (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('No session'));
 
-    const { getUserRoles } = await import('../../logto-kit/logic/actions');
-    (getUserRoles as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      data: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+      data: {
+        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+        permissions: ['calc:basic'],
+      },
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

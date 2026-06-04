@@ -1,5 +1,4 @@
 
-export { Dashboard } from './components/dashboard';
 export { useIsPortrait, DashboardRouter } from './components/dashboard/dashboard-router';
 
 export { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './components/providers/preferences';
@@ -10,12 +9,6 @@ export { UserDataProvider, useUserDataContext } from './components/providers/use
 export { LogtoProvider, useLogto } from './components/providers/logto-provider';
 
 export { UserButton, UserBadge, UserCard } from './components/UserButton';
-
-export * from './logic';
-
-export * from './custom-logic';
-
-export * from './components/dashboard';
 
 export * from './themes';
 

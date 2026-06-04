@@ -42,12 +42,13 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
   });
 
   describe('When orgId === "self" (Self/User RBAC mode)', () => {
-    it('ONLY calls loadPersonalRoles and does NOT call loadPersonalPermissions', async () => {
+    it('calls both loadPersonalRoles and loadPersonalPermissions concurrently', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
       mockUseLogto.mockReturnValue({
         userData: { id: 'user_123', organizations: [] },
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [] });
 
       render(
         <Protected orgId="self" roleId="role_admin">
@@ -60,7 +61,7 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
       });
 
       expect(mockLoadPersonalRoles).toHaveBeenCalledTimes(1);
-      expect(mockLoadPersonalPermissions).not.toHaveBeenCalled();
+      expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(1);
     });
 
     it('denies access if the user does not have the required roleId', async () => {
@@ -69,6 +70,7 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
         userData: { id: 'user_123', organizations: [] },
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_user' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [] });
 
       render(
         <Protected orgId="self" roleId="role_admin" fallback={<div>Access Denied</div>}>
@@ -82,12 +84,13 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
       });
     });
 
-    it('ignores permission (perm) check in personal scope', async () => {
+    it('validates permission (perm) check in personal scope', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
       mockUseLogto.mockReturnValue({
         userData: { id: 'user_123', organizations: [] },
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
 
       render(
         <Protected orgId="self" roleId="role_admin" perm="some_perm">
@@ -99,7 +102,69 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
         expect(screen.getByText('Secret Personal Content')).toBeInTheDocument();
       });
 
-      expect(mockLoadPersonalPermissions).not.toHaveBeenCalled();
+      expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(1);
+    });
+
+    it('denies access if the user lacks the required personal permission', async () => {
+      mockUseOrgMode.mockReturnValue({ asOrg: null });
+      mockUseLogto.mockReturnValue({
+        userData: { id: 'user_123', organizations: [] },
+      });
+      mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'other_perm' }] });
+
+      render(
+        <Protected orgId="self" perm="some_perm" fallback={<div>Access Denied</div>}>
+          <div>Secret Personal Content</div>
+        </Protected>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Secret Personal Content')).not.toBeInTheDocument();
+      });
+    });
+
+    it('supports personal roles and personal permissions when orgId is omitted', async () => {
+      mockUseOrgMode.mockReturnValue({ asOrg: null });
+      mockUseLogto.mockReturnValue({
+        userData: { id: 'user_123', organizations: [] },
+      });
+      mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
+
+      render(
+        <Protected roleId="role_admin" perm="some_perm">
+          <div>Secret Personal Content</div>
+        </Protected>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Secret Personal Content')).toBeInTheDocument();
+      });
+
+      expect(mockLoadPersonalRoles).toHaveBeenCalledTimes(1);
+      expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(1);
+    });
+
+    it('denies access when orgId is omitted and user lacks required personal roles or permissions', async () => {
+      mockUseOrgMode.mockReturnValue({ asOrg: null });
+      mockUseLogto.mockReturnValue({
+        userData: { id: 'user_123', organizations: [] },
+      });
+      mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_user' }] });
+      mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
+
+      render(
+        <Protected roleId="role_admin" perm="some_perm" fallback={<div>Access Denied</div>}>
+          <div>Secret Personal Content</div>
+        </Protected>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Secret Personal Content')).not.toBeInTheDocument();
+      });
     });
   });
 

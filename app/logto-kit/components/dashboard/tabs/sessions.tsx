@@ -12,6 +12,7 @@ import { SessionMapModal } from '../shared/SessionMapModal';
 import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache';
 import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
+import { readEnv } from '../../../logic/env';
 
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
@@ -22,10 +23,10 @@ interface SessionsTabProps {
   colors: ThemeColors;
   t: Translations;
   mobmode?: number;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
-  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -64,6 +65,8 @@ export function SessionsTab({
   onError,
 }: SessionsTabProps) {
   const isMobile = mobmode === 1;
+  const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
+  const showLastActive = backendType === 'blacktop';
   // ─── Replaced tk(tc) with direct color references ───
   const c = colors;
   const T = {
@@ -93,6 +96,7 @@ export function SessionsTab({
   const [mapModalIp, setMapModalIp] = useState<string>('');
 
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
+  const [verificationTimestamp, setVerificationTimestamp] = useState<number>(0);
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
   const [viewState, setViewState] = useState<'unverified' | 'loaded'>('unverified');
 
@@ -141,15 +145,16 @@ export function SessionsTab({
       setModalStep({ kind: 'password' });
       return;
     }
-    const { verificationRecordId: vid } = verifyResult.data;
+    const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
     const expiresAt = Date.now() + VERIFICATION_TTL_MS;
     setVerificationRecordId(vid);
+    setVerificationTimestamp(ts);
     setVerificationExpiry(expiresAt);
 
     setModalStep(null);
 
     setLoading(true);
-    const sessionsResult = await onGetSessionsWithDeviceMeta(vid);
+    const sessionsResult = await onGetSessionsWithDeviceMeta(vid, ts);
     if (!sessionsResult.ok) {
       onError(sessionsResult.error);
       setVerificationRecordId(null);
@@ -165,7 +170,7 @@ export function SessionsTab({
   const loadSessions = useCallback(async () => {
     if (!isVerificationValid) return;
     setLoading(true);
-    const r = await onGetSessionsWithDeviceMeta(verificationRecordId!);
+    const r = await onGetSessionsWithDeviceMeta(verificationRecordId!, verificationTimestamp);
     if (!r.ok) {
       onError(r.error);
       // Only reset verification for auth-related failures
@@ -178,7 +183,7 @@ export function SessionsTab({
     }
     setSessions(r.data);
     setLoading(false);
-  }, [verificationRecordId, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
+  }, [verificationRecordId, verificationTimestamp, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
 
   const handleRefresh = useCallback(async () => {
     clearGeoCache();
@@ -236,6 +241,7 @@ export function SessionsTab({
     setModalError('');
 
     let vid = verificationRecordId;
+    let vts = verificationTimestamp;
     if (!vid || Date.now() >= verificationExpiry) {
       const verifyResult = await onVerifyPassword(password);
       if (!verifyResult.ok) {
@@ -246,7 +252,9 @@ export function SessionsTab({
         return;
       }
       vid = verifyResult.data.verificationRecordId;
+      vts = verifyResult.data.verificationTimestamp;
       setVerificationRecordId(vid);
+      setVerificationTimestamp(vts);
       setVerificationExpiry(Date.now() + VERIFICATION_TTL_MS);
     }
 
@@ -257,7 +265,7 @@ export function SessionsTab({
     }
 
     if (target.kind === 'all') {
-      const revokeResult = await onRevokeAllOtherSessions(vid);
+      const revokeResult = await onRevokeAllOtherSessions(vid, vts);
       if (!revokeResult.ok) {
         setModalError(revokeResult.error);
         setModalStep({ kind: 'password' });
@@ -265,7 +273,7 @@ export function SessionsTab({
         return;
       }
     } else {
-      const revokeResult = await onRevokeSession(target.id, vid, 'firstParty');
+      const revokeResult = await onRevokeSession(target.id, vid, vts, 'firstParty');
       if (!revokeResult.ok) {
         setModalError(revokeResult.error);
         setModalStep({ kind: 'password' });
@@ -498,7 +506,7 @@ export function SessionsTab({
                     }}>
                       {title || t.sessions.unknown}
                     </h3>
-                    {!isMobile && meta?.lastActive && (
+                    {!isMobile && showLastActive && meta?.lastActive && (
                       <span style={{
                         fontFamily: T.font,
                         fontSize: '0.6875rem',
@@ -527,7 +535,7 @@ export function SessionsTab({
                     <span>{t.sessions.expires}: {formatDate(session.payload.exp)}</span>
                   </div>
 
-                  {isMobile && meta?.lastActive && (
+                  {isMobile && showLastActive && meta?.lastActive && (
                     <div style={{ marginTop: '0.125rem', fontSize: '0.625rem' }}>
                       <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
                       {meta.lastActive === 'now' ? (

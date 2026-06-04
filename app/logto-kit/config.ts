@@ -1,6 +1,9 @@
+import 'server-only';
+
 import { UserScope } from '@logto/next';
 import { readEnv } from './logic/env';
 import { warn } from './logic/log';
+import { parseCountryList } from './logic/country-list-filter';
 
 // Map SCOPES string to Logto enum
 const SCOPE_MAP: Record<string, string> = {
@@ -21,14 +24,15 @@ const SCOPE_MAP: Record<string, string> = {
 const PRIVATE_ENV_VARS = new Set([
   'APP_SECRET', 'COOKIE_SECRET', 'LOGTO_M2M_APP_SECRET',
   'LOGTO_M2M_APP_ID', 'S3_SECRET_ACCESS_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
+  'COUNTRY_CODE_ALLOW_LIST', 'COUNTRY_CODE_BLOCK_LIST',
 ]);
 
 function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
 
-  // During build time, don't throw for missing env vars to allow demo builds
-  const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.CI && !valueRaw;
+  const isNextBuild = process.env.npm_lifecycle_event === 'build';
+  const isBuildTime = (isNextBuild && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
   if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
   }
@@ -60,7 +64,7 @@ function parseScopes(scopeString: string): string[] {
 
 export const logtoConfig = (() => {
   const appId = getEnvVar('APP_ID', false);
-  const appSecret = getEnvVar('APP_SECRET', false);
+  const appSecret = getEnvVar('APP_SECRET', true);
   const endpoint = getEnvVar('ENDPOINT', false);
   const baseUrl = getEnvVar('BASE_URL', false);
   const cookieSecret = getEnvVar('COOKIE_SECRET', false);
@@ -177,4 +181,38 @@ export async function getManagementApiToken(): Promise<string> {
   }
 
   return data.access_token as string;
+}
+
+// ============================================================================
+// Backend Type and Country Filter Configurations
+// ============================================================================
+
+export function getBackendType(): 'blacktop' | 'upstream' {
+  const raw = readEnv('BACKEND_TYPE');
+  const normalized = (raw?.trim().toLowerCase()) || 'upstream'; // Safe default: upstream
+  if (normalized !== 'blacktop' && normalized !== 'upstream') {
+    warn(`[config] Invalid BACKEND_TYPE="${raw}". Must be 'blacktop' or 'upstream'. Falling back to 'upstream'.`);
+    return 'upstream';
+  }
+  return normalized;
+}
+
+const DEFAULT_FALLBACK_CODES = ['1', '995']; // US, Georgia
+
+export function getCountryFilter(): { mode: 'allow' | 'block' | 'allow'; codes: string[] } {
+  const allow = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
+  const block = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
+
+  if (allow.length > 0 && block.length > 0) {
+    warn('[config] Both COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive. Falling back to allow list.');
+    return { mode: 'allow', codes: allow };
+  }
+  if (allow.length > 0) {
+    return { mode: 'allow', codes: allow };
+  }
+  if (block.length > 0) {
+    return { mode: 'block', codes: block };
+  }
+  // Fallback: US (+1) and Georgia (+995) are auto-allowed when no explicit configuration is provided.
+  return { mode: 'allow', codes: DEFAULT_FALLBACK_CODES };
 }

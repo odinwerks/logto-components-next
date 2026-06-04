@@ -211,6 +211,7 @@ interface ProfileTabProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t:                 Translations;
+  countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   mobmode?: number;
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
@@ -229,7 +230,7 @@ interface ProfileTabProps {
 }
 
 export function ProfileTab({
-  userData, mode, colors, t, mobmode,
+  userData, mode, colors, t, countryFilter, mobmode,
   onUpdateBasicInfo, onUpdateAvatarUrl, onUpdateProfile,
   onVerifyPassword, onSendEmailVerification, onSendPhoneVerification,
   onVerifyCode, onUpdateEmail, onUpdatePhone, onRemoveEmail, onRemovePhone,
@@ -937,6 +938,7 @@ export function ProfileTab({
           currentValue={userData.primaryPhone}
           type="phone"
           placeholder={t.profile.phonePlaceholder}
+          countryFilter={countryFilter}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code, verificationTimestamp): Promise<ActionResult> => {

@@ -7,28 +7,32 @@ import type { DataResult, ActionResult } from '../../../logic/actions/safe';
 
 // Store FlowModal handlers so tests can invoke them directly
 let flowModalHandlers: {
+  onValueSubmit?: () => void;
   onPasswordSubmit?: (pw: string) => void;
   onCodeSubmit?: (code: string) => void;
   onClose?: () => void;
 } = {};
 
 let flowModalStep: string = 'password';
+let flowModalValueSubmitDisabled: boolean | undefined;
 
 vi.mock('./FlowModal', () => ({
   FlowModal: ({
-    step, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra, headerExtra,
+    step, onValueSubmit, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra, headerExtra, valueSubmitDisabled,
   }: Record<string, unknown>) => {
     // Expose handlers for test access
     flowModalHandlers = {
+      onValueSubmit: onValueSubmit as () => void,
       onPasswordSubmit: onPasswordSubmit as (pw: string) => void,
       onCodeSubmit: onCodeSubmit as (code: string) => void,
       onClose: onClose as () => void,
     };
     flowModalStep = (step as { kind: string }).kind;
+    flowModalValueSubmitDisabled = valueSubmitDisabled as boolean | undefined;
     return (
       <div data-testid="flow-modal" data-step={flowModalStep}>
         {passwordError ? <div data-testid="password-error">{passwordError as string}</div> : null}
-        {extra ? <div data-testid="extra">{'extra'}</div> : null}
+        {extra ? <div data-testid="extra">{extra as React.ReactNode}</div> : null}
         {headerExtra ? <div data-testid="header-extra">{headerExtra as React.ReactNode}</div> : null}
       </div>
     );
@@ -62,6 +66,10 @@ function openEditModal() {
   fireEvent.click(screen.getByText(enUS.profile.edit));
 }
 
+function openAddModal() {
+  fireEvent.click(screen.getByText(enUS.profile.add));
+}
+
 function openRemoveModal() {
   openEditModal();
   fireEvent.click(screen.getByText(enUS.profile.deleteHint));
@@ -72,6 +80,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     vi.clearAllMocks();
     flowModalHandlers = {};
     flowModalStep = 'password';
+    flowModalValueSubmitDisabled = undefined;
   });
 
   // ══════════════════════════════════════════════════════════
@@ -90,7 +99,11 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     render(<ContactRow {...props} />);
     openEditModal();
     expect(screen.getByTestId('flow-modal')).toBeInTheDocument();
-    expect(screen.getByTestId('extra')).toBeInTheDocument(); // new-value input
+    expect(screen.getByTestId('extra')).toBeInTheDocument(); // value-entry input
+    expect(flowModalStep).toBe('value');
+
+    await act(async () => flowModalHandlers.onValueSubmit!());
+    expect(flowModalStep).toBe('password');
 
     // Submit password (triggers handlePassword)
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
@@ -114,6 +127,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('badpw'));
 
@@ -122,6 +136,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
       // NOT via onError callback - onError is only for send/verify/remove errors.
       expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onSendVerification).not.toHaveBeenCalled();
+      expect(flowModalStep).toBe('password');
     });
   });
 
@@ -136,6 +151,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
 
@@ -164,6 +180,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    await act(async () => flowModalHandlers.onValueSubmit!());
 
     // Submit password to get to code step
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
@@ -194,6 +211,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
     await waitFor(() => { expect(flowModalStep).toBe('code'); });
@@ -247,6 +265,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
       // NOT via onError callback - onError is only for send/verify/remove errors.
       expect(screen.getByTestId('password-error')).toHaveTextContent('Wrong password');
       expect(props.onRemove).not.toHaveBeenCalled();
+      expect(flowModalStep).toBe('password');
     });
   });
 
@@ -268,5 +287,70 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
       expect(props.onError).toHaveBeenCalledWith('Cannot remove last email');
       expect(props.onVerifyPassword).toHaveBeenCalled();
     });
+  });
+
+  it('renders PhoneCountrySelect and tel input when type is phone and currentValue is not set', async () => {
+    const props = buildDefaults() as unknown as ContactRowProps;
+    props.type = 'phone';
+    props.currentValue = undefined;
+    props.label = 'Phone';
+    props.placeholder = 'Enter phone number';
+
+    render(<ContactRow {...props} />);
+    openAddModal();
+
+    expect(flowModalStep).toBe('value');
+
+    // The tel input should be rendered
+    const telInput = screen.getByPlaceholderText('Enter phone number');
+    expect(telInput).toBeInTheDocument();
+    expect(telInput).toHaveAttribute('type', 'tel');
+
+    // PhoneCountrySelect button has text content including "+995"
+    const countryButton = screen.getByRole('button', { name: /995/ });
+    expect(countryButton).toBeInTheDocument();
+  });
+
+  it('keeps add-phone flow on value step when local phone digits are cleared', async () => {
+    const props = buildDefaults() as unknown as ContactRowProps;
+    props.type = 'phone';
+    props.currentValue = undefined;
+    props.label = 'Phone';
+    props.placeholder = 'Enter phone number';
+
+    render(<ContactRow {...props} />);
+    openAddModal();
+
+    expect(flowModalStep).toBe('value');
+
+    const telInput = screen.getByPlaceholderText('Enter phone number');
+    fireEvent.change(telInput, { target: { value: '5551234' } });
+    fireEvent.change(telInput, { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(flowModalValueSubmitDisabled).toBe(true);
+    });
+
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    expect(flowModalStep).toBe('value');
+    expect(screen.getByTestId('password-error')).toHaveTextContent(enUS.security.enterValueFirst);
+  });
+
+  it('continues add-phone flow when local phone digits are provided', async () => {
+    const props = buildDefaults() as unknown as ContactRowProps;
+    props.type = 'phone';
+    props.currentValue = undefined;
+    props.label = 'Phone';
+    props.placeholder = 'Enter phone number';
+
+    render(<ContactRow {...props} />);
+    openAddModal();
+
+    fireEvent.change(screen.getByPlaceholderText('Enter phone number'), { target: { value: '5551234' } });
+
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    expect(flowModalStep).toBe('password');
   });
 });

@@ -14,10 +14,14 @@ import { safeAction, type ActionResult } from './safe';
  */
 export async function updateUserPassword(
   newPassword: string,
-  identityVerificationRecordId: string
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
     if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {
       throw new ValidationError('INVALID_INPUT', 'newPassword');
     }

@@ -30,11 +30,12 @@ export type PasswordModalStep =
   | { kind: 'loading'; message: string };
 
 export type ModalStep =
+  | { kind: 'value' }
   | { kind: 'password' }
   | { kind: 'loading'; message: string }
   | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string; verificationTimestamp: number }
   | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string; verificationTimestamp: number }
-  | { kind: 'new-password'; verificationRecordId: string }
+  | { kind: 'new-password'; verificationRecordId: string; verificationTimestamp: number }
   | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string; verificationTimestamp: number };
 
 export function PasswordVerifyModal({
@@ -155,16 +156,18 @@ export function PasswordVerifyModal({
 }
 
 export function FlowModal({
-  title, subtitle, step, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
+  title, subtitle, step, onValueSubmit, valueSubmitDisabled, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
   passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger,
 }: {
   title: string;
   subtitle: string;
   step: ModalStep;
+  onValueSubmit?: () => void;
+  valueSubmitDisabled?: boolean;
   onPasswordSubmit: (password: string) => void;
   onCodeSubmit?: (code: string) => void;
   onTotpSubmit?: (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => void;
-  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string) => void;
+  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string, verificationTimestamp: number) => void;
   onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => void;
   onClose: () => void;
   passwordError?: string;
@@ -259,6 +262,26 @@ export function FlowModal({
         </div>
 
         <div style={{ padding: '1.25rem 1.375rem' }}>
+
+          {step.kind === 'value' && (
+            <>
+              {extra}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
+                {!hideFooterClose && (
+                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                )}
+                <Button
+                  variant={danger ? 'danger' : 'primary'}
+                  onClick={() => onValueSubmit?.()}
+                  disabled={valueSubmitDisabled}
+                  mode={mode}
+                  colors={colors}
+                >
+                  {t.profile.saveChanges} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                </Button>
+              </div>
+            </>
+          )}
 
           {step.kind === 'password' && (
             <>
@@ -420,7 +443,7 @@ export function FlowModal({
                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) onNewPasswordSubmit?.(newPw, step.verificationRecordId); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp); }}
                 mode={mode} colors={colors}
                 suffix={
                   <button onClick={() => setShowNewPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
@@ -437,7 +460,7 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => newPw && onNewPasswordSubmit?.(newPw, step.verificationRecordId)} disabled={!newPw} mode={mode} colors={colors}>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => newPw && onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)} disabled={!newPw} mode={mode} colors={colors}>
                   {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>

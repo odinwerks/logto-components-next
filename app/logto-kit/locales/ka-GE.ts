@@ -73,6 +73,8 @@ export const kaGE: Translations = {
     deletingAccount: 'ანგარიში იშლება…',
     passwordChangeFailed: 'პაროლის შეცვლა ვერ მოხერხდა',
     reconfigure: 'თავიდან კონფიგურაცია',
+    searchCountry: 'Search country...', // TODO: native translation
+    noCountryFound: 'No countries match', // TODO: native translation
   },
   
   // Sidebar
@@ -191,6 +193,7 @@ export const kaGE: Translations = {
     jsonMustBeObject: 'უნდა იყოს JSON ობიექტი (არა მასივი ან null)',
     invalidJson: 'არასწორი JSON',
     unknownError: 'უცნობი შეცდომა',
+    phoneCountryNotAllowed: 'ტელეფონის ნომერი ამ ქვეყნიდან არ არის მხარდაჭერილი',
   },
   
   // Preferences tab

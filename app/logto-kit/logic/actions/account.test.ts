@@ -153,11 +153,14 @@ describe('deleteUserAccount', () => {
   it('allows a verification record that has not yet expired', async () => {
     const { deleteUserAccount } = await import('./account');
     // verificationTimestamp is now expiresAt. Any future timestamp is valid.
-    const boundaryTs = Date.now() + 100; // expires 100ms from now → still valid
-
-    const result = await deleteUserAccount('verif_record_1', boundaryTs);
-
-    expect(result.ok).toBe(true);
+    const mockNow = 1700000000000;
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    try {
+      const result = await deleteUserAccount('verif_record_1', mockNow);
+      expect(result.ok).toBe(true);
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   // ── Negative timestamp (future) - should always be within window ────────

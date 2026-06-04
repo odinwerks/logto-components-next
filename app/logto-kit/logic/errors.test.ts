@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
+beforeEach(() => {
+  vi.resetModules();
+  vi.unstubAllEnvs();
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
+
 describe('sanitize', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.unstubAllEnvs();
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-  });
 
   it('with PLAIN_ERRORS=true: returns error with code prefix + original message', async () => {
     vi.stubEnv('PLAIN_ERRORS', 'true');
@@ -69,5 +70,43 @@ describe('throwOnApiError from errors.ts', () => {
     const body = JSON.stringify({ code: 'some_error', message: '' });
     const res = new Response(body, { status: 400 });
     await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.toThrow('UPDATE_FAILED');
+  });
+
+  it('does not leak 5xx message in production (isDev=false, PLAIN_ERRORS=false)', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'internal_error', message: 'Database trace details leak.' });
+    const res = new Response(body, { status: 500 });
+    await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.toThrow('INTERNAL_ERROR');
+    // Ensure the raw error message is NOT thrown
+    await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.not.toThrow('Database trace details leak.');
+  });
+
+  it('allows 5xx message in development (isDev=true)', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'internal_error', message: 'Database trace details leak.' });
+    const res = new Response(body, { status: 500 });
+    await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.toThrow('Database trace details leak.');
+  });
+
+  it('allows 5xx message when PLAIN_ERRORS is true', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('PLAIN_ERRORS', 'true');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'internal_error', message: 'Database trace details leak.' });
+    const res = new Response(body, { status: 500 });
+    await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.toThrow('Database trace details leak.');
+  });
+
+  it('allows 4xx message even in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'user.invalid_password', message: 'Invalid password.' });
+    const res = new Response(body, { status: 400 });
+    await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.toThrow('Invalid password.');
   });
 });

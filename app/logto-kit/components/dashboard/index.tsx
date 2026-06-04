@@ -34,6 +34,7 @@ import { DARK_COLORS } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
+import { getCountryFilter } from '../../config';
 
 export async function Dashboard() {
   // ── Locale & translations ──────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export async function Dashboard() {
           initialData={{
             userData: result.userData,
           }}
+          countryFilter={getCountryFilter()}
           currentOrgId={resolvedOrg ?? undefined}
           userShape={(process.env.NEXT_PUBLIC_USER_SHAPE as 'circle' | 'sq' | 'rsq') ?? 'circle'}
           translations={translations}

@@ -100,7 +100,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id');
+    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -116,7 +116,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id');
+    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -131,7 +131,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id');
+    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -150,7 +150,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id');
+    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
 
     // Should NOT fail even though introspection failed
     expect(result.ok).toBe(true);
@@ -186,7 +186,7 @@ describe('revokeAllOtherSessions', () => {
     );
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id');
+    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
@@ -213,7 +213,7 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id');
+    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
 
@@ -256,7 +256,7 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id');
+    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
 
     expect(result.ok).toBe(true);
 
@@ -278,7 +278,7 @@ describe('revokeAllOtherSessions', () => {
 
     const { revokeAllOtherSessions } = await import('./sessions');
     // Should complete successfully - nothing to revoke
-    const result = await revokeAllOtherSessions('verification-record-id');
+    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
     expect(result).toEqual({ ok: true });
   });
 
@@ -289,9 +289,64 @@ describe('revokeAllOtherSessions', () => {
     } as unknown as Response);
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verif_1');
+    const result = await revokeAllOtherSessions('verif_1', Date.now() + 60000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
     expect(result.error).toContain('Cannot identify current session');
+  });
+});
+
+describe('verificationTimestamp staleness checks', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it('fails getUserSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { getUserSessions } = await import('./sessions');
+    const result = await getUserSessions('verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+
+  it('fails getSessionsWithDeviceMeta with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+
+  it('fails revokeUserSession with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { revokeUserSession } = await import('./sessions');
+    const result = await revokeUserSession('session-1', 'verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+
+  it('fails revokeAllOtherSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+
+  it('fails getUserGrants with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { getUserGrants } = await import('./sessions');
+    const result = await getUserGrants('verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+
+  it('fails revokeUserGrant with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+    const { revokeUserGrant } = await import('./sessions');
+    const result = await revokeUserGrant('grant-1', 'verif_expired', Date.now() - 1000);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
   });
 });

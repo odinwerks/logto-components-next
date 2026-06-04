@@ -34,6 +34,7 @@ import { DARK_COLORS } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
+import { getCountryFilter } from '../../config';
 
 export async function MobileDashboard() {
   const locale = getMainLocale();
@@ -99,6 +100,7 @@ export async function MobileDashboard() {
           allTranslations={allTranslations}
           supportedLangs={supportedLangs}
           loadedTabs={loadedTabs}
+          countryFilter={getCountryFilter()}
           onUpdateBasicInfo={updateUserBasicInfo}
           onUpdateAvatarUrl={updateAvatarUrl}
           onUpdateProfile={updateUserProfile}

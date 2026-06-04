@@ -7,6 +7,30 @@ import { FlowModal, PasswordVerifyModal, BackupCodesModal } from './FlowModal';
 describe('FlowModal - localization', () => {
   const noop = () => {};
 
+  it('renders value step without password input and allows advancing', () => {
+    const onValueSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Update email"
+        subtitle="Step 1"
+        step={{ kind: 'value' }}
+        onPasswordSubmit={noop}
+        onValueSubmit={onValueSubmit}
+        onClose={noop}
+        extra={<div>VALUE FORM</div>}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.getByText('VALUE FORM')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: enUS.profile.saveChanges }));
+    expect(onValueSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it('renders code step with translation keys instead of hardcoded English', () => {
     render(
       <FlowModal
@@ -60,7 +84,7 @@ describe('FlowModal - localization', () => {
       <FlowModal
         title="Change password"
         subtitle="Enter new password"
-        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        step={{ kind: 'new-password', verificationRecordId: 'vr1', verificationTimestamp: Date.now() + 60000 }}
         onPasswordSubmit={noop}
         onClose={noop}
         onNewPasswordSubmit={noop}

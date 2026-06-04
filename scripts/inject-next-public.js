@@ -22,6 +22,7 @@ const PUBLIC_VARS = [
   'NAME_TYPE',
   'LOAD_TABS',
   'DELETE_REDIRECT_DELAY',
+  'BACKEND_TYPE',
 ];
 
 const envPath = path.join(__dirname, '..', '.env');

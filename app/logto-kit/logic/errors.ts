@@ -24,6 +24,7 @@
  */
 
 import { warn } from './log';
+import { isDev } from './dev-mode';
 
 const plainErrors = process.env.PLAIN_ERRORS === 'true';
 
@@ -148,9 +149,14 @@ export async function throwOnApiError(
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-      const err = new Error(parsed.message.trim());
-      err.name = 'SanitizedError';
-      throw err;
+      // Fail-secure: Do not bypass sanitization for 5xx Internal Server Errors in production
+      if (res.status >= 500 && !isDev && !plainErrors) {
+        // Let it fall through to generic fallback code
+      } else {
+        const err = new Error(parsed.message.trim());
+        err.name = 'SanitizedError';
+        throw err;
+      }
     }
   } catch (parseErr) {
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {

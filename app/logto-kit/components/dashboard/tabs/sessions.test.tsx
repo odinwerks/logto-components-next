@@ -98,10 +98,10 @@ const defaultUserData: UserData = {
 };
 
 interface RenderSessionsOptions {
-  onGetSessionsWithDeviceMeta?: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions?: (verificationRecordId: string) => Promise<ActionResult>;
-  onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+  onGetSessionsWithDeviceMeta?: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions?: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
 }
 
 function renderSessionsTab({
@@ -111,26 +111,26 @@ function renderSessionsTab({
   onVerifyPassword,
 }: RenderSessionsOptions = {}) {
   const getSessionsFn = (onGetSessionsWithDeviceMeta ??
-    vi.fn<(verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
+    vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
       ok: true,
       data: createdSessions,
-    })) as (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+    })) as (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
 
   const revokeSessionFn = (onRevokeSession ??
-    vi.fn<(sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>>().mockResolvedValue({
+    vi.fn<(sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>>().mockResolvedValue({
       ok: true,
-    })) as (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+    })) as (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
 
   const revokeAllFn = (onRevokeAllOtherSessions ??
-    vi.fn<(verificationRecordId: string) => Promise<ActionResult>>().mockResolvedValue({
+    vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>>().mockResolvedValue({
       ok: true,
-    })) as (verificationRecordId: string) => Promise<ActionResult>;
+    })) as (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
 
   const verifyFn = (onVerifyPassword ??
-    vi.fn<(password: string) => Promise<DataResult<{ verificationRecordId: string }>>>().mockResolvedValue({
+    vi.fn<(password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>>().mockResolvedValue({
       ok: true,
-      data: { verificationRecordId: 'test-vid' },
-    })) as (password: string) => Promise<DataResult<{ verificationRecordId: string }>>;
+      data: { verificationRecordId: 'test-vid', verificationTimestamp: 123456789 },
+    })) as (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
 
   const onSuccess = vi.fn();
   const onError = vi.fn();

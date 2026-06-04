@@ -2,6 +2,7 @@
 
 import * as Minio from 'minio';
 import { getCleanEndpoint, introspectToken } from '../utils';
+import { getBackendType } from '../../config';
 import { assertSafeUserId } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { plainCode } from '../errors';
@@ -313,7 +314,8 @@ export async function uploadAvatar(
   }
 
   // ── Backend selection ────────────────────────────────────────────────
-  if (process.env.PFP_BACKEND?.trim().toLowerCase() === 'logto') {
+  const effectiveBackend = getBackendType() === 'upstream' ? 's3' : (process.env.PFP_BACKEND?.trim().toLowerCase() ?? 's3');
+  if (effectiveBackend === 'logto') {
     const endpoint = getCleanEndpoint();
     if (!endpoint) throw plainCode('UPLOAD_FAILED');
 

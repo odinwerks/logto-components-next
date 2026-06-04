@@ -41,11 +41,18 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
 /**
  * Gets the user's active sessions.
  * @param verificationRecordId - Verification record for identity.
+ * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of LogtoSession objects.
  */
-export async function getUserSessions(verificationRecordId: string): Promise<DataResult<LogtoSession[]>> {
+export async function getUserSessions(
+  verificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
     debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
     const res = await makeRequest('/api/my-account/sessions', {
       extraHeaders: { 'logto-verification-id': verificationRecordId },
@@ -61,11 +68,15 @@ export async function getUserSessions(verificationRecordId: string): Promise<Dat
 /**
  * Gets the user's sessions with device metadata enriched.
  * @param verificationRecordId - Verification record for identity.
+ * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of LogtoSession objects with enriched metadata.
  */
-export async function getSessionsWithDeviceMeta(verificationRecordId: string): Promise<DataResult<LogtoSession[]>> {
+export async function getSessionsWithDeviceMeta(
+  verificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
-    const sessionsResult = await getUserSessions(verificationRecordId);
+    const sessionsResult = await getUserSessions(verificationRecordId, verificationTimestamp);
     if (!sessionsResult.ok) {
       throw new Error(sessionsResult.error);
     }
@@ -117,17 +128,22 @@ export async function getSessionsWithDeviceMeta(verificationRecordId: string): P
  * Revokes a user session.
  * @param sessionId - The session ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
+ * @param verificationTimestamp - Verification record creation timestamp.
  * @param revokeGrantsTarget - Optional target for grant revocation.
  */
 export async function revokeUserSession(
   sessionId: string,
   identityVerificationRecordId: string,
+  verificationTimestamp: number,
   revokeGrantsTarget?: 'all' | 'firstParty',
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(sessionId, 'sessionId');
     assertRevokeGrantsTarget(revokeGrantsTarget);
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
     debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId.substring(0, 8)}...`);
@@ -161,13 +177,20 @@ export async function revokeUserSession(
  * Throws if neither method can identify the current session.
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
+ * @param verificationTimestamp - Verification record creation timestamp.
  */
-export async function revokeAllOtherSessions(verificationRecordId: string): Promise<ActionResult> {
+export async function revokeAllOtherSessions(
+  verificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
     debugLog('[revokeAllOtherSessions] Fetching sessions');
 
-    const sessionsResult = await getUserSessions(verificationRecordId);
+    const sessionsResult = await getUserSessions(verificationRecordId, verificationTimestamp);
     if (!sessionsResult.ok) {
       throw new Error(sessionsResult.error);
     }
@@ -197,7 +220,7 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
     const results: PromiseSettledResult<void>[] = [];
     for (const s of othersToRevoke) {
       const result = await Promise.race([
-        revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty')  // uid, not jti
+        revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty')  // uid, not jti
           .then(r => { if (!r.ok) throw new Error(r.error); })
           .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
           .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),
@@ -232,11 +255,18 @@ export async function revokeAllOtherSessions(verificationRecordId: string): Prom
 /**
  * Gets the user's grants.
  * @param identityVerificationRecordId - Verification record from a prior identity check.
+ * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of grants.
  */
-export async function getUserGrants(identityVerificationRecordId: string): Promise<DataResult<unknown[]>> {
+export async function getUserGrants(
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<DataResult<unknown[]>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
     const res = await makeRequest('/api/my-account/grants', {
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
@@ -250,14 +280,19 @@ export async function getUserGrants(identityVerificationRecordId: string): Promi
  * Revokes a user grant.
  * @param grantId - The grant ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
+ * @param verificationTimestamp - Verification record creation timestamp.
  */
 export async function revokeUserGrant(
   grantId: string,
   identityVerificationRecordId: string,
+  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(grantId, 'grantId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+    if (Date.now() > verificationTimestamp) {
+      throw new Error('VERIFICATION_EXPIRED');
+    }
 
     const extraHeaders: Record<string, string> = {
       'logto-verification-id': identityVerificationRecordId,

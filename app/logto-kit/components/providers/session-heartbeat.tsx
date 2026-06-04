@@ -18,6 +18,7 @@
 
 import { useEffect, useRef } from 'react';
 import { recordHeartbeat } from '../../logic/actions/heartbeat';
+import { readEnv } from '../../logic/env';
 
 const PING_INTERVAL_MS = 30_000;
 const DEBOUNCE_MS = 10_000;
@@ -27,6 +28,9 @@ export default function SessionHeartbeat() {
   const mountedRef = useRef(false);
 
   useEffect(() => {
+    const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
+    if (backendType === 'upstream') return;
+
     if (mountedRef.current) return;
     mountedRef.current = true;
 

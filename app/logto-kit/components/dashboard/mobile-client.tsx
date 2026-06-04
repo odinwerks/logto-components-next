@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId, ToastMessage } from './types';
 import type { Translations } from '../../locales';
@@ -25,6 +25,7 @@ import { getTabLabel } from './tab-utils';
 
 interface MobileClientProps {
   initialData: { userData: UserData };
+  countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
   userShape?: 'circle' | 'sq' | 'rsq';
   translations: Translations;
@@ -49,14 +50,14 @@ interface MobileClientProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onGenerateBackupCodes: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp: number) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
   onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onSignOut: () => Promise<void>;
 }
 
@@ -64,6 +65,7 @@ interface MobileClientProps {
 
 export function MobileClient({
   initialData,
+  countryFilter,
   currentOrgId,
   userShape = 'circle',
   translations: serverTranslations,
@@ -112,8 +114,17 @@ export function MobileClient({
 
   const [view, setView] = useState<'menu' | 'tab'>('menu');
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 26rem)');
+    setIsNarrowViewport(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsNarrowViewport(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     const toast: ToastMessage = {
@@ -128,6 +139,13 @@ export function MobileClient({
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const mapErrorToast = useCallback((message: string) => {
+    if (message === 'PHONE_COUNTRY_NOT_ALLOWED') {
+      return t.validation.phoneCountryNotAllowed;
+    }
+    return message;
+  }, [t]);
 
   const router = useRouter();
   const refreshData = useCallback(() => {
@@ -190,7 +208,7 @@ export function MobileClient({
         <div
           style={{
             width: '100%',
-            maxWidth: '20rem',
+            maxWidth: isNarrowViewport ? '18.5rem' : '20rem',
             border: `1px solid ${colors.borderColor}`,
             borderRadius: '0.5rem',
             overflow: 'hidden',
@@ -268,7 +286,7 @@ export function MobileClient({
         style={{
           width: '100%',
           minHeight: '100dvh',
-          padding: '1.5rem 1.25rem 4rem',
+          padding: isNarrowViewport ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
           boxSizing: 'border-box',
           overflowY: 'auto',
         }}
@@ -288,6 +306,7 @@ export function MobileClient({
               colors={colors}
               t={t}
               mobmode={1}
+            countryFilter={countryFilter}
             onUpdateBasicInfo={onUpdateBasicInfo}
             onUpdateAvatarUrl={onUpdateAvatarUrl}
             onUpdateProfile={onUpdateProfile}
@@ -300,7 +319,7 @@ export function MobileClient({
             onRemoveEmail={onRemoveEmail}
             onRemovePhone={onRemovePhone}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
             refreshData={refreshData}
           />
         )}
@@ -335,7 +354,7 @@ export function MobileClient({
             onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
             onRenamePasskey={onRenamePasskey}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
           />
         )}
 
@@ -351,7 +370,7 @@ export function MobileClient({
             onRevokeAllOtherSessions={onRevokeAllOtherSessions}
             onVerifyPassword={onVerifyPassword}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
           />
         )}
 

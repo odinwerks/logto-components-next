@@ -27,7 +27,7 @@ interface SecurityTabProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onGenerateBackupCodes: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp: number) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
   onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
@@ -446,11 +446,11 @@ export function SecurityTab({
             const pwResult = await onVerifyPassword(pw);
             if (pwChangeAbortRef.current) return;
             if (!pwResult.ok) { setPwChangeErr(pwResult.error); setPwStep({ kind: 'password' }); return; }
-            setPwStep({ kind: 'new-password', verificationRecordId: pwResult.data.verificationRecordId });
+            setPwStep({ kind: 'new-password', verificationRecordId: pwResult.data.verificationRecordId, verificationTimestamp: pwResult.data.verificationTimestamp });
           }}
-          onNewPasswordSubmit={async (newPw, verificationRecordId) => {
+          onNewPasswordSubmit={async (newPw, verificationRecordId, verificationTimestamp) => {
             setPwStep({ kind: 'loading', message: t.mfa.changingPassword });
-            const result = await onUpdatePassword(newPw, verificationRecordId);
+            const result = await onUpdatePassword(newPw, verificationRecordId, verificationTimestamp);
             if (pwChangeAbortRef.current) return;
             if (result.ok) {
               onSuccess(t.security.passwordChanged);

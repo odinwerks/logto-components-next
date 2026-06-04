@@ -73,6 +73,8 @@ export const ukUA: Translations = {
     deletingAccount: 'Видалення облікового запису…',
     passwordChangeFailed: 'Помилка зміни пароля',
     reconfigure: 'Переналаштувати',
+    searchCountry: 'Search country...', // TODO: native translation
+    noCountryFound: 'No countries match', // TODO: native translation
   },
   
   // Sidebar
@@ -191,6 +193,7 @@ export const ukUA: Translations = {
     jsonMustBeObject: 'Має бути об’єктом JSON (не масивом або null)',
     invalidJson: 'Некоректний JSON',
     unknownError: 'Невідома помилка',
+    phoneCountryNotAllowed: 'Номер телефону з цієї країни не підтримується',
   },
   
   // Preferences tab

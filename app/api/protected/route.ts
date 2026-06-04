@@ -6,7 +6,7 @@ import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
 import { getManagementApiToken } from '../../logto-kit/config';
-import { getUserRoles, verifyOrgAccess } from '../../logto-kit/logic/actions';
+import { verifyPersonalAccess, verifyOrgAccess } from '../../logto-kit/logic/actions';
 
 async function fetchUserAsOrg(userId: string): Promise<string | null> {
   try {
@@ -139,12 +139,13 @@ export async function POST(request: NextRequest) {
     // Branch: "self" bypass checks personal roles.
     // Otherwise, check custom data asOrg first, then load org roles/permissions and verify both.
     if (actionConfig.requiredOrgId === 'self') {
-      const rolesResult = await getUserRoles();
-      if (!rolesResult.ok) {
-        debugLog('[Protected API] Personal roles verification failed:', rolesResult.error);
+      const personalAccessResult = await verifyPersonalAccess();
+      if (!personalAccessResult.ok) {
+        debugLog('[Protected API] Personal access verification failed:', personalAccessResult.error);
         return apiError('UNAUTHORIZED', 401);
       }
-      const roles = rolesResult.data;
+      const roles = personalAccessResult.data.roles;
+      const permissions = personalAccessResult.data.permissions;
 
       // ── Step 2: Role check ────────────────────────────────────────────────────
       const requiredRoles = Array.isArray(actionConfig.requiredRoleId)
@@ -156,7 +157,18 @@ export async function POST(request: NextRequest) {
         debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
         return apiError('ROLE_DENIED', 403);
       }
-      // No permission check for self bypass
+
+      // ── Step 3: Permission check ──────────────────────────────────────────────
+      const requiredPerms = Array.isArray(actionConfig.requiredPermId)
+        ? actionConfig.requiredPermId
+        : [actionConfig.requiredPermId];
+
+      const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
+
+      if (!hasPermission) {
+        debugLog('[Protected API] Required personal permissions not present. Required:', requiredPerms, 'Has:', permissions);
+        return apiError('PERMISSION_DENIED', 403);
+      }
     } else {
       const orgId = actionConfig.requiredOrgId;
       const asOrg = await fetchUserAsOrg(id);

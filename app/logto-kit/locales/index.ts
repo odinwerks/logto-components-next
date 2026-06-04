@@ -88,6 +88,8 @@ export interface Translations {
     accountDeleted: string;
     deletingAccount: string;    passwordChangeFailed: string;
     reconfigure: string;
+    searchCountry: string;
+    noCountryFound: string;
   };
 
   // Sidebar
@@ -206,6 +208,7 @@ export interface Translations {
     jsonMustBeObject: string;
     invalidJson: string;
     unknownError: string;
+    phoneCountryNotAllowed: string;
   };
   
   // Preferences tab

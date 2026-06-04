@@ -73,6 +73,8 @@ export const enUS: Translations = {
     deletingAccount: 'Deleting account…',
     passwordChangeFailed: 'Password change failed',
     reconfigure: 'Reconfigure',
+    searchCountry: 'Search country...',
+    noCountryFound: 'No countries match',
   },
   
   // Sidebar
@@ -191,6 +193,7 @@ export const enUS: Translations = {
     jsonMustBeObject: 'Must be a JSON object (not array or null)',
     invalidJson: 'Invalid JSON',
     unknownError: 'Unknown error',
+    phoneCountryNotAllowed: 'Phone number from this country is not supported',
   },
   
   // Preferences tab

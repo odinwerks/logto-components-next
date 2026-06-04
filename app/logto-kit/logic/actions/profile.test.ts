@@ -527,44 +527,66 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
-  it('rate limits concurrent updates from the same user', async () => {
+  it('serializes concurrent updates from the same user', async () => {
     vi.resetModules();
 
-    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as any);
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
+    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as any);
 
     const { updateUserCustomData } = await import('./profile');
 
+    let resolveFirst: () => void;
+    const firstCall = new Promise<void>(r => { resolveFirst = r; });
+
+    let firstCallStarted = false;
+    let secondCallStarted = false;
+
     vi.stubGlobal('fetch', vi.fn()
-      // First call GET - slow
+      // First call's GET - will block
       .mockImplementationOnce(async () => {
-        await new Promise(r => setTimeout(r, 50));
+        firstCallStarted = true;
+        await firstCall;
         return mockOkResponse({});
       })
-      // First call PATCH
+      // First call's PATCH
+      .mockImplementationOnce(async () => mockOkResponse({}))
+      // Second call's GET - should only start AFTER first call finishes completely
+      .mockImplementationOnce(async () => {
+        secondCallStarted = true;
+        return mockOkResponse({});
+      })
+      // Second call's PATCH
       .mockImplementationOnce(async () => mockOkResponse({}))
     );
 
     // Start both calls concurrently
     const promise1 = updateUserCustomData({ Preferences: { theme: 'dark' } });
-    const promise2 = updateUserCustomData({ Preferences: { lang: 'en' } });
+    const promise2 = updateUserCustomData({ Preferences: { theme: 'light' } });
 
-    // First should complete successfully
-    const result1 = await promise1;
+    // Wait a bit for the event loop
+    await new Promise(r => setTimeout(r, 10));
+
+    // First call has started
+    expect(firstCallStarted).toBe(true);
+    // Second call should NOT have started yet because it is queued behind the lock for 'same-user-123'
+    expect(secondCallStarted).toBe(false);
+
+    // Now resolve first call's GET, letting the first call complete (including its PATCH)
+    resolveFirst!();
+
+    // Both should eventually succeed
+    const [result1, result2] = await Promise.all([promise1, promise2]);
     expect(result1.ok).toBe(true);
+    expect(result2.ok).toBe(true);
 
-    // Second should be rejected with rate limit error (wrapped in safeAction)
-    const result2 = await promise2;
-    expect(result2.ok).toBe(false);
-    if (!result2.ok) {
-      expect(result2.error).toBe('UPDATE_RATE_LIMITED');
-    }
+    // Now second call should have started and finished
+    expect(secondCallStarted).toBe(true);
 
     vi.unstubAllGlobals();
   });
 
-  it('rate limits rapid updates from the same user, allowing only one per second', async () => {
+  it('serializes multiple rapid updates from the same user in sequence, ensuring all succeed', async () => {
     vi.resetModules();
 
     vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as any);
@@ -578,7 +600,7 @@ describe('updateUserCustomData', () => {
       const isPatch = init?.method === 'PATCH';
       const type = isPatch ? 'PATCH' : 'GET';
       timeline.push(`start-${type}`);
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise(r => setTimeout(r, 10));
       timeline.push(`end-${type}`);
       return mockOkResponse({});
     }));
@@ -588,25 +610,16 @@ describe('updateUserCustomData', () => {
     const p2 = updateUserCustomData({ Preferences: { lang: 'en' } });
     const p3 = updateUserCustomData({ Preferences: { theme: 'light' } });
 
-    // First should succeed
-    const result1 = await p1;
-    expect(result1.ok).toBe(true);
+    // All should succeed
+    const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    expect(r3.ok).toBe(true);
 
-    // Second and third should be rate limited (wrapped in safeAction)
-    const result2 = await p2;
-    expect(result2.ok).toBe(false);
-    if (!result2.ok) {
-      expect(result2.error).toBe('UPDATE_RATE_LIMITED');
-    }
-
-    const result3 = await p3;
-    expect(result3.ok).toBe(false);
-    if (!result3.ok) {
-      expect(result3.error).toBe('UPDATE_RATE_LIMITED');
-    }
-
-    // Only the first request should have completed
+    // They should have run in complete sequential blocks: GET->PATCH, then GET->PATCH, then GET->PATCH
     expect(timeline).toEqual([
+      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
+      'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
       'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
     ]);
 

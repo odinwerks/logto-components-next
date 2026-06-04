@@ -60,6 +60,7 @@ import { useOrgMode } from '../components/providers/preferences';
 import { useLogto } from '../components/providers/logto-provider';
 import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
 import { loadPersonalRoles } from '../server-actions/load-personal-roles';
+import { loadPersonalPermissions } from '../server-actions/load-personal-permissions';
 import { loadOrganizationUserRoles } from '../server-actions/load-org-roles';
 import { debugLog } from '../logic/debug';
 
@@ -113,16 +114,26 @@ export function Protected({
       return;
     }
 
-    // Personal scope bypass (orgId="self")
-    if (orgId === 'self') {
+    // Personal scope (orgId === 'self' or omitted)
+    const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
+    if (isPersonalScope) {
       let cancelled = false;
       setIsLoadingPerms(true);
       setLoadError(false);
 
-      loadPersonalRoles()
-        .then((rolesRes) => {
+      Promise.all([
+        loadPersonalPermissions(),
+        loadPersonalRoles(),
+      ])
+        .then(([permsRes, rolesRes]) => {
           if (!cancelled) {
-            setLoadedPerms([]); // Clear loadedPerms state to []
+            if (!permsRes.ok) {
+              console.error(permsRes.error);
+              setLoadedPerms([]);
+            } else {
+              setLoadedPerms(permsRes.data.map((p) => p.scope));
+            }
+
             if (!rolesRes.ok) {
               console.error(rolesRes.error);
               setLoadedRoles([]);
@@ -221,8 +232,9 @@ export function Protected({
   const effectivePerms = loadedPerms;
 
   const checkAccess = (): boolean => {
-    // Personal scope bypass - check roles only, ignore perm check
-    if (orgId === 'self') {
+    // Personal scope (orgId === 'self' or omitted)
+    const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
+    if (isPersonalScope) {
       if (roleId) {
         const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
         const hasRoles = requireAll
@@ -233,22 +245,22 @@ export function Protected({
           return false;
         }
       }
+      if (perm && (Array.isArray(perm) ? perm.length > 0 : true)) {
+        const requiredPerms = Array.isArray(perm) ? perm : [perm];
+        const hasPerms = requireAll
+          ? requiredPerms.every((p) => loadedPerms.includes(p))
+          : requiredPerms.some((p) => loadedPerms.includes(p));
+        if (!hasPerms) {
+          debugLog('[Protected] User lacks required personal permissions');
+          return false;
+        }
+      }
       return true;
     }
 
     if (!userData?.organizations) {
       debugLog('[Protected] No user organizations found');
       return false;
-    }
-
-    if (!orgId && !orgName) {
-      // No org context - if a permission is required, deny by default.
-      // If no permission is required, the component is just checking membership, so allow.
-      if (perm || roleId) {
-        debugLog('[Protected] Permission or role specified but no orgId/orgName provided - default-deny');
-        return false;
-      }
-      return true;
     }
 
     let targetOrgId: string;

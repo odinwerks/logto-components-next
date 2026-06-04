@@ -98,6 +98,7 @@ function getTabIcon(id: TabId) {
 
 interface DashboardClientProps {
   initialData: DashboardData;
+  countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
   userShape?: 'circle' | 'sq' | 'rsq';
   translations: Translations;
@@ -122,14 +123,14 @@ interface DashboardClientProps {
   onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onGenerateBackupCodes: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp: number) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
   onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onSignOut: () => Promise<void>;
 }
 
@@ -139,6 +140,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({
   initialData,
+  countryFilter,
   currentOrgId,
   userShape = 'circle',
   translations: serverTranslations,
@@ -210,6 +212,13 @@ export function DashboardClient({
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const mapErrorToast = useCallback((message: string) => {
+    if (message === 'PHONE_COUNTRY_NOT_ALLOWED') {
+      return t.validation.phoneCountryNotAllowed;
+    }
+    return message;
+  }, [t]);
 
   // ── Refresh ────────────────────────────────────────────────────────────────
   // router.refresh() re-fetches the RSC payload for the current route,
@@ -380,6 +389,7 @@ export function DashboardClient({
             mode={mode}
             colors={colors}
             t={t}
+            countryFilter={countryFilter}
             onUpdateBasicInfo={onUpdateBasicInfo}
             onUpdateAvatarUrl={onUpdateAvatarUrl}
             onUpdateProfile={onUpdateProfile}
@@ -392,7 +402,7 @@ export function DashboardClient({
             onRemoveEmail={onRemoveEmail}
             onRemovePhone={onRemovePhone}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
             refreshData={refreshData}
           />
         )}
@@ -425,7 +435,7 @@ export function DashboardClient({
             onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
             onRenamePasskey={onRenamePasskey}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
           />
         )}
 
@@ -440,7 +450,7 @@ export function DashboardClient({
             onRevokeAllOtherSessions={onRevokeAllOtherSessions}
             onVerifyPassword={onVerifyPassword}
             onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', msg)}
+            onError={(msg) => showToast('error', mapErrorToast(msg))}
           />
         )}
 
@@ -562,4 +572,3 @@ function SignOutButton({
     </button>
   );
 }
-

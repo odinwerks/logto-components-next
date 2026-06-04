@@ -9,6 +9,21 @@ import {
 } from '../guards';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
+import { assertPhoneCountryAllowed } from '../country-list-filter';
+import { getCountryFilter } from '../../config';
+
+/**
+ * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, etc.,
+ * keeping the leading "+" and digits.
+ */
+function cleanPhoneNumber(phone: string): string {
+  if (typeof phone !== 'string') {
+    return phone;
+  }
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  return digits;
+}
 
 // ============================================================================
 // Password Verification
@@ -38,9 +53,22 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     // Logto's TTL. Storing expiresAt itself means the staleness check in
     // account.ts just compares Date.now() > verificationTimestamp - no TTL
     // assumption needed. Fallback: now + 10min if Logto omits expiresAt.
-    const verificationTimestamp = parsed.expiresAt
-      ? new Date(parsed.expiresAt).getTime()
-      : Date.now() + 10 * 60 * 1000;
+    let verificationTimestamp: number;
+    if (parsed.expiresAt !== undefined && parsed.expiresAt !== null) {
+      if (typeof parsed.expiresAt === 'number') {
+        if (parsed.expiresAt < 10000000000) {
+          verificationTimestamp = parsed.expiresAt * 1000;
+        } else {
+          verificationTimestamp = parsed.expiresAt;
+        }
+      } else if (typeof parsed.expiresAt === 'string') {
+        verificationTimestamp = new Date(parsed.expiresAt).getTime();
+      } else {
+        verificationTimestamp = new Date(parsed.expiresAt).getTime();
+      }
+    } else {
+      verificationTimestamp = Date.now() + 10 * 60 * 1000;
+    }
     return {
       verificationRecordId: parsed.verificationRecordId,
       verificationTimestamp,  // milliseconds; = expiresAt, server-derived
@@ -76,12 +104,15 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
 
 export async function sendPhoneVerificationCode(phone: string): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
-    if (typeof phone !== 'string' || phone.length === 0 || phone.length > 20 || !/^\+[1-9]\d{1,14}$/.test(phone)) {
+    const countryFilter = getCountryFilter();
+    const cleanedPhone = cleanPhoneNumber(phone);
+    if (typeof cleanedPhone !== 'string' || cleanedPhone.length === 0 || cleanedPhone.length > 20) {
       throw new ValidationError('INVALID_INPUT', 'phone');
     }
+    assertPhoneCountryAllowed(cleanedPhone, countryFilter);
     const res = await makeRequest('/api/verifications/verification-code', {
       method: 'POST',
-      body: { identifier: { type: 'phone', value: phone } },
+      body: { identifier: { type: 'phone', value: cleanedPhone } },
     });
     await throwOnApiError(res, 'VERIFICATION_FAILED', 'phone-verify-send');
     const parsed = await res.json();
@@ -103,29 +134,36 @@ export async function verifyVerificationCode(
   code: string
 ): Promise<DataResult<{ verificationRecordId: string }>> {
   return safeAction(async () => {
+    const countryFilter = getCountryFilter();
     // Validate all client-supplied inputs at the trust boundary.
     assertVerificationType(type);
     assertVerificationCode(code);
     assertSafeLogtoId(verificationId, 'verificationId');
 
+    const cleanedValue = type === 'phone' ? cleanPhoneNumber(value) : value;
+
+    if (type === 'phone') {
+      assertPhoneCountryAllowed(cleanedValue, countryFilter);
+    }
+
     // Validate value format - mirrors the checks in send*VerificationCode.
     // The value is forwarded verbatim to Logto, so reject bad-shaped input here
     // rather than letting an arbitrary string reach the upstream API.
     if (type === 'email') {
-      if (typeof value !== 'string' || value.length === 0 || value.length > 128
-          || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      if (typeof cleanedValue !== 'string' || cleanedValue.length === 0 || cleanedValue.length > 128
+          || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedValue)) {
         throw new ValidationError('INVALID_INPUT', 'value');
       }
     } else {
-      if (typeof value !== 'string' || value.length === 0 || value.length > 20
-          || !/^\+[1-9]\d{1,14}$/.test(value)) {
+      // PHONE: basic sanity only — let Logto validate E.164
+      if (typeof cleanedValue !== 'string' || cleanedValue.length === 0 || cleanedValue.length > 20) {
         throw new ValidationError('INVALID_INPUT', 'value');
       }
     }
 
     const res = await makeRequest('/api/verifications/verification-code/verify', {
       method: 'POST',
-      body: { identifier: { type, value }, verificationId, code },
+      body: { identifier: { type, value: cleanedValue }, verificationId, code },
     });
     await throwOnApiError(res, 'VERIFICATION_FAILED', 'verify-code');
     const parsed = await res.json();
@@ -174,6 +212,7 @@ export async function updatePhoneWithVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const countryFilter = getCountryFilter();
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -185,9 +224,12 @@ export async function updatePhoneWithVerification(
       throw new Error('VERIFICATION_EXPIRED');
     }
 
+    const cleanedPhone = cleanPhoneNumber(phone);
+    assertPhoneCountryAllowed(cleanedPhone, countryFilter);
+
     const res = await makeRequest('/api/my-account/primary-phone', {
       method: 'POST',
-      body: { phone, newIdentifierVerificationRecordId },
+      body: { phone: cleanedPhone, newIdentifierVerificationRecordId },
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-update');

@@ -2,6 +2,7 @@
 
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
+import { getBackendType } from '../../config';
 
 /**
  * Records a session heartbeat by calling Logto's Account API.
@@ -15,6 +16,7 @@ import { makeRequest } from './request';
  * available in the correct Next.js auth context.
  */
 export async function recordHeartbeat(): Promise<void> {
+  if (getBackendType() === 'upstream') return;
   try {
     const token = await getTokenForServerAction().catch(() => null);
     if (!token) return; // Not authenticated - silently skip
