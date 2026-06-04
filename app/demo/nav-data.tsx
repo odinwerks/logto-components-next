@@ -107,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'guide',
     icon: <RocketIcon />,
     desc: 'Clone, configure ENV, replace the demo with your app. All other docs assume this environment.',
-    sections: ['Pre-requisites', 'Clone & install', 'ENV setup', 'Avatar upload', 'Logto Console', 'Replace the demo'],
+    sections: ['Pre-requisites', 'Clone & install', 'ENV setup', 'Backend selection', 'Avatar upload', 'Logto Console', 'Replace the demo'],
   },
   {
     id: 'user-button',
@@ -178,6 +178,7 @@ export const SECTION_HINTS: SectionHint = {
   'Pre-requisites': 'Necessary developer prerequisites...',
   'Clone & install': 'Clone the repository and install packages...',
   'ENV setup': 'Required environment variables...',
+  'Backend selection': 'Backend selection, feature comparison matrix, and phone country code filters...',
   'Avatar upload': 'Supabase REST API or MinIO/S3...',
   'Logto Console': 'Regular Web App, M2M App...',
   'Replace the demo': 'Swap DemoApp with your component...',

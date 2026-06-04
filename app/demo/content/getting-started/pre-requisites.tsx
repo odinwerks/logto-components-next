@@ -353,6 +353,10 @@ networks:
       <p style={styles.textStyle}>
         Applying this custom stylesheet is functionally identical to toggling the paid "Remove branding" feature inside Logto.
       </p>
+
+      <div style={{ ...styles.noteStyle, marginTop: '24px' }}>
+        <strong style={styles.strongNoteStyle}>OIDC & Upstream Compatibility:</strong> If you are integrating with standard OIDC providers or standard self-hosted Logto OSS instances (which do not support Blacktop custom API additions like heartbeats or custom avatar endpoints), remember to set the environment variable <code style={styles.codeSmStyle}>BACKEND_TYPE=upstream</code>. This automatically locks the Kit to stock OIDC compatibility mode.
+      </div>
     </div>
   );
 }

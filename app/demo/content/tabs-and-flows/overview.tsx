@@ -84,27 +84,27 @@ export default function OverviewSection() {
           <tbody>
             <tr>
               <td style={customTdPropStyle}>Profile</td>
-              <td style={customTdStyle}>14 + common</td>
+              <td style={customTdStyle}>Common props plus profile callbacks</td>
               <td style={customTdStyle}>useAvatarUpload</td>
-              <td style={customTdStyle}>5+</td>
+              <td style={customTdStyle}>Profile updates and contact verification</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Preferences</td>
-              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}>Common props plus preferences state</td>
               <td style={customTdStyle}>useThemeMode, useLangMode</td>
-              <td style={customTdStyle}>0 (via context)</td>
+              <td style={customTdStyle}>Context-driven updates</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Security</td>
-              <td style={customTdStyle}>14 + common</td>
+              <td style={customTdStyle}>Common props plus security callbacks</td>
               <td style={customTdStyle}> - </td>
-              <td style={customTdStyle}>15</td>
+              <td style={customTdStyle}>MFA, passkeys, password, account actions</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Sessions</td>
-              <td style={customTdStyle}>6 + common</td>
+              <td style={customTdStyle}>Common props plus session callbacks</td>
               <td style={customTdStyle}> - </td>
-              <td style={customTdStyle}>3</td>
+              <td style={customTdStyle}>List and revoke session actions</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Identities</td>
@@ -114,13 +114,13 @@ export default function OverviewSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>Organizations</td>
-              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}>Common props plus organization callbacks</td>
               <td style={customTdStyle}>useOrgMode</td>
-              <td style={customTdStyle}>2</td>
+              <td style={customTdStyle}>Organization switch and state updates</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Dev</td>
-              <td style={customTdStyle}>1 + common</td>
+              <td style={customTdStyle}>Common props plus debug payload</td>
               <td style={customTdStyle}> - </td>
               <td style={customTdStyle}>0</td>
             </tr>
@@ -137,13 +137,11 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
           <code style={styles.codeSmStyle}>colors: ThemeColors</code>,{' '}
           <code style={styles.codeSmStyle}>t: Translations</code>, and{' '}
-          <code style={styles.codeSmStyle}>mobmode?: number</code>. These are omitted from individual prop tables below.
+          <code style={styles.codeSmStyle}>mobmode?: number</code>. Individual sections only document tab-specific props.
         </div>
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>mobmode:</strong>{' '}
-          Mobile rendering flag. <code style={styles.codeSmStyle}>mobmode === 1</code> enables compact layouts,
-          reduced spacing, and mobile-optimized button styling. Desktop clients omit this prop (undefined to desktop mode).
-          Affects form layout, avatar modal (camera/upload buttons vs drag-and-drop), and action button placement.
+          Mobile rendering flag. <code style={styles.codeSmStyle}>mobmode === 1</code> enables compact spacing and stacked layout blocks.
         </div>
       </div>
 
@@ -313,21 +311,22 @@ LOAD_TABS=profile,preferences,security,organizations`} />
       <div>
         <h2 id={slugify("Mobile Layout Adaptation Behavior")} style={h2Style}>Mobile Layout Adaptation Behavior</h2>
         <p style={styles.textStyle}>
-          When the viewport matches a mobile screen size, the client architecture passes <code style={styles.codeSmStyle}>mobmode === 1</code>. This flag forces components to restructure themselves vertically, shrink typography, and switch interactive features to match small viewports.
+          When the viewport is mobile, the client passes <code style={styles.codeSmStyle}>mobmode === 1</code>.
+          Tabs use this flag to reduce spacing and move dense rows into stacked layouts.
         </p>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           1. Spacing and Structural Adaptation
         </h4>
         <p style={styles.textStyle}>
-          Components adjust container bounds to reclaim valuable screen width. Grid elements transition from multi-column configurations to a simplified single column layout. Padding parameters are scaled down, and container min-height constraints are deactivated:
+          Layout changes are simple:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ marginBottom: '8px' }}>
-            Desktop: Uses padded container configurations (e.g., <code style={styles.codeSmStyle}>padding: &apos;0.5rem 1.25rem 0.5rem 1rem&apos;</code>) and fixed row heights (e.g., <code style={styles.codeSmStyle}>minHeight: &apos;5.5rem&apos;</code>).
+            Desktop keeps wider spacing and multi-column rows where needed.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            Mobile: Sets margins and paddings to minimal bounds (e.g., <code style={styles.codeSmStyle}>padding: &apos;0.75rem 0.75rem&apos;</code>) and allows auto container expansion (e.g., <code style={styles.codeSmStyle}>minHeight: &apos;auto&apos;</code>).
+            Mobile reduces spacing and prefers one-column blocks.
           </li>
         </ul>
 
@@ -335,14 +334,14 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           2. Form Rows and Input Flex Alignment
         </h4>
         <p style={styles.textStyle}>
-          Form rows switch alignment dynamically based on the active viewport. Actions that are horizontally aligned on desktop are stacked vertically to prevent clipping:
+          Form rows switch by viewport:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ marginBottom: '8px' }}>
-            Desktop Layout: Horizontal arrangement (<code style={styles.codeSmStyle}>flexDirection: &apos;row&apos;</code>, <code style={styles.codeSmStyle}>gap: &apos;0.375rem&apos;</code>).
+            Desktop uses row alignment for labels and actions.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            Mobile Layout: Vertical layout stacking (<code style={styles.codeSmStyle}>flexDirection: &apos;column&apos;</code>, <code style={styles.codeSmStyle}>gap: &apos;0.25rem&apos;</code>) ensuring interactive fields fill the horizontal space.
+            Mobile stacks controls so inputs stay readable.
           </li>
         </ul>
 
@@ -350,14 +349,14 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           3. Typography and Button Sizing
         </h4>
         <p style={styles.textStyle}>
-          Font sizing, spacing values, and action pads are reduced to ensure a consistent, non-overlapping design:
+          Typography and buttons scale down on smaller screens:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ marginBottom: '8px' }}>
-            Primary text displays scale down from <code style={styles.codeSmStyle}>0.9375rem</code> on desktop to <code style={styles.codeSmStyle}>0.8125rem</code> on mobile. Supporting meta labels shrink to <code style={styles.codeSmStyle}>0.625rem</code>.
+            Primary and secondary text use smaller sizes.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            Action buttons scale down padding from desktop bounds (<code style={styles.codeSmStyle}>0.3125rem 0.75rem</code>) to mobile-friendly boundaries (<code style={styles.codeSmStyle}>0.25rem 0.5rem</code>) with scaled text sizes (<code style={styles.codeSmStyle}>0.625rem</code>).
+            Buttons use smaller padding and compact labels.
           </li>
         </ul>
 
@@ -365,17 +364,17 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           4. Interactive and Action Adapters
         </h4>
         <p style={styles.textStyle}>
-          Complex workflows adapt their interface to make interactions easier on small touch devices:
+          Some workflows also switch to touch-friendly controls:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Avatar Upload:</strong> The profile avatar component disables hover triggers and the desktop drag-and-drop file target. It displays simple upload and camera picker buttons directly.
+            <strong>Avatar Upload:</strong> Uses direct pick controls instead of desktop-only hover patterns.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Passkey Management:</strong> Security tab operations switch modal templates. Rather than using centered desktop overlay panels, it renders bottom action lists for passkey management.
+            <strong>Passkey Management:</strong> Uses compact action layouts.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Text Simplification:</strong> Long strings are shortened or replaced. Mobile viewports omit verbose labels (e.g., displaying raw dates instead of prefixed logged-in descriptions).
+            <strong>Text Simplification:</strong> Labels are shortened where space is limited.
           </li>
         </ul>
       </div>

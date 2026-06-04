@@ -122,8 +122,8 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onVerifyPassword</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId}>`}</code></td>
-              <td style={customTdStyle}>Verifies password and returns a one-time verification record ID to authorize changes</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId, verificationTimestamp}>`}</code></td>
+              <td style={customTdStyle}>Verifies password and returns verification ID plus server timestamp</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onSendEmailVerification</td>
@@ -142,23 +142,23 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdateEmail</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Binds the verified email to the user using the identity and new identifier records</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified email using both verification IDs and timestamp</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdatePhone</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Binds the verified phone to the user using the identity and new identifier records</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified phone using both verification IDs and timestamp</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRemoveEmail</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Removes the current primary email address utilizing the identity verification record</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary email with identity verification and timestamp</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRemovePhone</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Removes the current primary phone number utilizing the identity verification record</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary phone with identity verification and timestamp</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onSuccess</td>
@@ -384,61 +384,61 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
       <div>
         <h2 id={slugify("Profile - Verification Flows")} style={h2Style}>Profile - Verification Flows</h2>
         <p style={styles.textStyle}>
-          Contact modification operations (such as registering, updating, or deleting email and phone identifiers)
-          require identity validation challenges to ensure security. State machines inside the component navigate
-          this verification lifecycle.
+          Contact updates and removals use a strict modal flow with server verification.
         </p>
         <p style={styles.textStyle}>
           <strong>Comprehensive Verification Lifecycle:</strong>
         </p>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>1. Initiation and State Management:</span>
-          The verification flow is triggered by clicking edit or delete in the ContactRow component.
-          It maintains a localized state machine:
+          <span style={styles.strongNoteStyle}>1. Modal sequence:</span>
+          Edit mode follows a strict order:
+          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+            <li><code style={styles.codeSmStyle}>value</code>: User enters the new email or phone value.</li>
+            <li><code style={styles.codeSmStyle}>password</code>: User verifies identity with password.</li>
+            <li><code style={styles.codeSmStyle}>code</code>: User enters the 6-digit verification code.</li>
+          </ul>
+          Component state includes:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
             <li>`modalKind`: Tracks the operation ('edit' to update or add, 'remove' to delete, or null).</li>
             <li>`newValue`: Stores the text input for the email address or phone number.</li>
-            <li>`step`: Manages the active modal dialog phase ('password' for challenge, 'loading' for network wait, or 'code' for confirmation).</li>
+            <li>`step`: Active modal step.</li>
             <li>`pwErr`: Captures and displays password challenge validation errors.</li>
           </ul>
         </div>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>2. Identity Verification (Password Challenge):</span>
-          Before any network request is issued to update contact information, the client must verify user identity.
-          The user inputs their password, and the modal triggers the onVerifyPassword(pw) callback. On success, the server
-          returns a short-lived verification token (identityVerificationId). If password verification fails, the error is
-          rendered, and the flow is halted.
+          <span style={styles.strongNoteStyle}>2. Password verification:</span>
+          <code style={styles.codeSmStyle}>onVerifyPassword(pw)</code> returns <code style={styles.codeSmStyle}>verificationRecordId</code> and <code style={styles.codeSmStyle}>verificationTimestamp</code>.
+          The timestamp is required in later update and remove requests.
         </div>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>3. Verification Code Dispatch:</span>
-          Once the identity challenge is passed, the client initiates contact code dispatch:
+          <span style={styles.strongNoteStyle}>3. Code dispatch:</span>
+          In edit mode, after password verification:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>In edit mode, it calls onSendVerification(target) which instructs Logto to deliver a 6-digit one-time code to the user's new email or phone number. Logto registers the dispatch record and returns a unique delivery verificationId.</li>
-            <li>The client transitions to the code input step, tracking both the password identityVerificationId and the delivery verificationId.</li>
+            <li><code style={styles.codeSmStyle}>onSendVerification(target)</code> sends a 6-digit code and returns <code style={styles.codeSmStyle}>verificationId</code>.</li>
+            <li>The modal moves to the <code style={styles.codeSmStyle}>code</code> step with destination, verification IDs, and timestamp.</li>
           </ul>
         </div>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>4. Code Verification and Account Update:</span>
-          The user inputs the 6-digit code. The component calls onVerifyCodeAndUpdate.
-          This handles two distinct updates:
+          <span style={styles.strongNoteStyle}>4. Code verification and update:</span>
+          <code style={styles.codeSmStyle}>onVerifyCodeAndUpdate</code> runs this sequence:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>It first calls onVerifyCode(type, value, verificationId, code) to validate the input code against the delivery verificationId. On success, the server returns a newIdentifierVerificationRecordId.</li>
-            <li>It immediately proceeds to submit onUpdateEmail or onUpdatePhone, passing the target identifier value, the newIdentifierVerificationRecordId, and the original identityVerificationId.</li>
-            <li>The server commits the change, the client calls refreshData() to fetch the fresh state, and the modal is dismissed.</li>
+            <li>Verify code with <code style={styles.codeSmStyle}>onVerifyCode(type, value, verificationId, code)</code>.</li>
+            <li>Call <code style={styles.codeSmStyle}>onUpdateEmail</code> or <code style={styles.codeSmStyle}>onUpdatePhone</code> with new identifier verification ID, identity verification ID, and <code style={styles.codeSmStyle}>verificationTimestamp</code>.</li>
+            <li>Refresh UI data and close the modal.</li>
           </ul>
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>5. Contact Removal Flow:</span>
-          Removing an identifier (email or phone) skips code dispatch but still enforces identity verification:
+          Removal skips code dispatch but still requires password verification:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>The user confirms deletion by submitting their password to onVerifyPassword(pw) to acquire an identityVerificationId.</li>
-            <li>The client executes onRemove(identityVerificationId) (mapping to onRemoveEmail or onRemovePhone).</li>
-            <li>The server unbinds the contact field from the user account under Logto, triggers refreshData(), and closes the dialog.</li>
+            <li>Get <code style={styles.codeSmStyle}>identityVerificationId</code> and <code style={styles.codeSmStyle}>verificationTimestamp</code> from <code style={styles.codeSmStyle}>onVerifyPassword</code>.</li>
+            <li>Call <code style={styles.codeSmStyle}>onRemove(identityVerificationId, verificationTimestamp)</code>.</li>
+            <li>Refresh UI data and close the modal.</li>
           </ul>
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>6. Error Code and Exception Handling:</span>
-          All verification handlers parse error codes returned from the server API. Wrong codes, expired IDs, format issues, and rate-limiting blocks trigger descriptive UI alerts via the onError callback. If a token expires or invalidates, the modal state resets back to the initial password challenge phase to maintain a secure environment.
+          Verification errors are surfaced through <code style={styles.codeSmStyle}>onError</code>. On failure, the modal returns to the password step.
         </div>
       </div>
     </div>

@@ -133,6 +133,12 @@ export default function EnvSetup() {
               Audience resource indicator for the Machine-to-Machine client credentials grant. Defaults to 'https://default.logto.app/api' for Logto OSS.
             </td>
           </tr>
+          <tr>
+            <td style={customTdPathStyle}>BACKEND_TYPE</td>
+            <td style={customTdStyle}>
+              Backend capability mode. Values: <code style={styles.codeSmStyle}>blacktop</code> (custom fork features enabled) or <code style={styles.codeSmStyle}>upstream</code> (stock Logto compatibility mode). Server default is <code style={styles.codeSmStyle}>upstream</code> if unset or invalid.
+            </td>
+          </tr>
         </tbody>
       </table>
 
@@ -161,6 +167,9 @@ LOGTO_M2M_APP_ID=         # Machine-to-Machine app ID from Logto Console
 LOGTO_M2M_APP_SECRET=     # Machine-to-Machine client secret
 LOGTO_INTROSPECTION_URL=  # Optional: Token introspection endpoint
 
+# - Backend Selection -
+BACKEND_TYPE=upstream      # Backend mode: blacktop | upstream (server default: upstream)
+
 # - Avatar Storage Provider -
 PFP_BACKEND=s3           # Storage backend: s3 (default) | logto
 
@@ -170,6 +179,10 @@ DEFAULT_THEME_MODE=dark   # Default visual state: dark | light
 
 # - Multi-Factor Authentication (MFA) -
 MFA_ISSUER=MyApp          # Issuer name displayed in user's authenticator app
+
+# - Phone Country Code Filtering (mutually exclusive) -
+COUNTRY_CODE_ALLOW_LIST=   # Comma-separated allowed dial codes (e.g., 1,995,380)
+COUNTRY_CODE_BLOCK_LIST=   # Comma-separated blocked dial codes (e.g., 7,86)
 
 # - Security & Delay Controls -
 DELETE_REDIRECT_DELAY=3000 # Delay (ms) before redirecting client after deleting account
@@ -224,6 +237,18 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
             <td style={customTdPathStyle}>LOAD_TABS</td>
             <td style={customTdStyle}>
               A comma-separated, ordered sequence list of dashboard tabs to actively load and render. Supported tokens: <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>security</code>, <code style={styles.codeSmStyle}>sessions</code>, <code style={styles.codeSmStyle}>organizations</code>, <code style={styles.codeSmStyle}>identities</code>, <code style={styles.codeSmStyle}>dev</code>.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPathStyle}>COUNTRY_CODE_ALLOW_LIST</td>
+            <td style={customTdStyle}>
+              Comma-separated list of allowed dial codes (e.g., <code style={styles.codeSmStyle}>1,995,380</code>). If set, only these codes are accepted. If both allow and block lists are set, allow list takes priority.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPathStyle}>COUNTRY_CODE_BLOCK_LIST</td>
+            <td style={customTdStyle}>
+              Comma-separated list of blocked dial codes (e.g., <code style={styles.codeSmStyle}>7,86</code>). Used only when allow list is not set. If neither list is set, fallback allow list is <code style={styles.codeSmStyle}>1,995</code>.
             </td>
           </tr>
         </tbody>

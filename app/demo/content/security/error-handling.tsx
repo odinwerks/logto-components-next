@@ -60,15 +60,15 @@ export default function SecurityErrorHandlingDoc() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <h2 id={slugify("Error Sanitization System")} style={{ ...h2Style, marginTop: 0 }}>Error Sanitization System</h2>
       <p style={styles.textStyle}>
-        Production applications must avoid exposing raw server exceptions to the client. Direct exposure of stack traces, database schema details, or upstream API error logs can lead to information disclosure or assist attackers with user enumeration.
+        The app avoids leaking raw internal exceptions to the client in production. This includes stack traces, infrastructure details, and low-level upstream failures.
       </p>
       <p style={styles.textStyle}>
-        The system implements an error sanitization layer that intercepts all unhandled errors at the server action and route boundaries. When an error occurs in production:
+        Error handling is split across helpers. <code style={styles.codeSmStyle}>safeAction</code> wraps server actions. <code style={styles.codeSmStyle}>sanitize</code> and <code style={styles.codeSmStyle}>throwOnApiError</code> shape what messages cross the boundary.
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
-        <li>The raw error details, including stack traces and database errors, are written only to the secure server logs.</li>
-        <li>The error is sanitized and replaced with a fixed error code (representing a Safe Error Code).</li>
-        <li>If the PLAIN_ERRORS environment variable is set to true (typically in local development), the sanitization layer is bypassed, allowing full error details to be passed to the client for debugging.</li>
+        <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs upstream response details server-side and may extract <code style={styles.codeSmStyle}>message</code> from known Logto JSON errors.</li>
+        <li><code style={styles.codeSmStyle}>safeAction</code> returns <code style={styles.codeSmStyle}>{`{ ok: false, error }`}</code> and preserves pre-sanitized errors in production.</li>
+        <li><code style={styles.codeSmStyle}>sanitize</code> returns fixed fallback codes by default, and includes raw details only when <code style={styles.codeSmStyle}>PLAIN_ERRORS=true</code>.</li>
       </ul>
 
       <h2 id={slugify("Safe Error Codes")} style={h2Style}>Safe Error Codes</h2>
@@ -176,10 +176,10 @@ export default function SecurityErrorHandlingDoc() {
 
       <h2 id={slugify("The safeAction Wrapper and Types")} style={h2Style}>The safeAction Wrapper and Types</h2>
       <p style={styles.textStyle}>
-        All server actions that run in the user session are wrapped in a generic safeAction utility. This utility ensures that errors are caught, registered with the telemetry system via captureMessage, and sanitized before crossing the client-server boundary.
+        Most session-bound server actions are wrapped in <code style={styles.codeSmStyle}>safeAction</code>. The wrapper catches exceptions and returns a typed result payload.
       </p>
       <p style={styles.textStyle}>
-        The communication between client components and wrapped server actions uses two strict TypeScript interfaces:
+        Client components consume two result types:
       </p>
       <CodeBlock
         title="Safe Action TypeScript Interfaces"
@@ -189,9 +189,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 // Represents the result of an operation that returns data on success
 export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string };`}
       />
-      <p style={styles.textStyle}>
-        The wrapper intercepts unhandled exceptions, logs them internally, and converts them to the standardized error format:
-      </p>
+      <p style={styles.textStyle}>Current wrapper behavior:</p>
       <CodeBlock
         title="safeAction Implementation"
         code={`export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>> {
@@ -199,11 +197,11 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     const data = await fn();
     return { ok: true, data };
   } catch (err) {
-    // Preserve pre-sanitized errors (e.g. name='SanitizedError') so intentional codes survive
+    // Keep pre-sanitized errors in production
     if (!isDev && err instanceof Error && err.name === 'SanitizedError') {
       return { ok: false, error: captureMessage(err) };
     }
-    // Sanitize before extracting message to prevent upstream API detail leakage
+    // In dev: return raw error message. In production: sanitize with INTERNAL_ERROR fallback.
     const safe = isDev ? err : sanitize(err, { fallback: 'INTERNAL_ERROR' });
     return { ok: false, error: captureMessage(safe) };
   }
@@ -212,10 +210,10 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
       <h2 id={slugify("Upstream API Error Extraction")} style={h2Style}>Upstream API Error Extraction</h2>
       <p style={styles.textStyle}>
-        When interacting with the Logto Management API or other identity provider endpoints, responses may fail with specific validation messages. Simple network error catching would result in generic error codes that degrade the user experience.
+        Upstream identity endpoints often return useful JSON error payloads. The helper tries to keep those user-safe messages when possible.
       </p>
       <p style={styles.textStyle}>
-        To provide meaningful errors while maintaining security, the system inspects upstream failure bodies in the throwOnApiError helper. It attempts to parse the response as JSON to extract nested Logto error messages first (specifically checking parsed.message) before falling back to generic codes.
+        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs details server-side, attempts to extract <code style={styles.codeSmStyle}>parsed.message</code>, then applies fallback behavior when needed.
       </p>
       <CodeBlock
         title="Upstream Error Extraction"
@@ -233,16 +231,21 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     detail = res.statusText;
   }
 
-  // Log full raw upstream details server-side for operators
+  // Log upstream detail on server
   warn(\`[\${operation}] HTTP \${res.status}: \${detail.substring(0, 1000)}\`);
 
-  // Extract Logto's user-facing message from JSON body
+  // Try to use Logto's message
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
+      // In production with PLAIN_ERRORS=false, do not expose message for 5xx
+      if (res.status >= 500 && !isDev && !plainErrors) {
+        // continue to fallback
+      } else {
       const err = new Error(parsed.message.trim());
       err.name = 'SanitizedError';
-      throw err; // Thrown as a sanitized error to bypass generic replacement
+      throw err;
+      }
     }
   } catch (parseErr) {
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
@@ -250,7 +253,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     }
   }
 
-  // Fallback to development detailed error or production safe code
+  // Fallback behavior
   if (plainErrors) {
     throw new Error(\`\${fallback} \${res.status}: \${detail}\`);
   }

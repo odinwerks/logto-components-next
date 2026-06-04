@@ -28,6 +28,7 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
     'pre-requisites': () => import('../../../demo/content/getting-started/pre-requisites'),
     'clone-install': () => import('../../../demo/content/getting-started/clone-and-install'),
     'env-setup': () => import('../../../demo/content/getting-started/env-setup'),
+    'backend-selection': () => import('../../../demo/content/getting-started/backend-selection'),
     'avatar-upload': () => import('../../../demo/content/getting-started/avatar-upload'),
     'logto-console': () => import('../../../demo/content/getting-started/logto-console'),
     'replace-the-demo': () => import('../../../demo/content/getting-started/replace-the-demo'),

@@ -67,28 +67,28 @@ export default function SecuritySection() {
       <div>
         <h2 id={slugify("Security - overview")} style={h2Style}>Security - overview</h2>
         <p style={styles.textStyle}>
-          The security section represents the most complex tab of the user profile dashboard. It manages TOTP authenticators, backup recovery codes, password configurations, email/phone contacts, WebAuthn passkeys, and account purges. 
-          To protect sensitive user data, all mutative operations are guarded by a verification flow that requires a password challenge or contact OTP code verification.
+          The security tab manages password changes, MFA, passkeys, contact security actions, and account deletion.
+          Sensitive actions require password verification and, where needed, code verification.
         </p>
 
         <p style={styles.textStyle}>
-          The interface is segmented into five distinct functional panels (cards):
+          Main panels:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', margin: '0 0 16px 0' }}>
           <li>
-            <strong>Password Panel:</strong> Displays masked password status (represented as 12 bullet characters) and provides a trigger button to initialize the password modification workflow.
+            <strong>Password Panel:</strong> Shows password status and starts the password update flow.
           </li>
           <li>
-            <strong>Authenticator App Panel:</strong> Displays the current multi-factor authentication (MFA) state. If active, shows a status badge ("Authenticator active") alongside the creation date and the last used timestamp. Re-configuration and deletion are supported.
+            <strong>Authenticator App Panel:</strong> Shows TOTP status and supports setup, replace, and removal.
           </li>
           <li>
-            <strong>Recovery Codes Panel:</strong> Displays backup recovery code status, showing a badge with the remaining codes count. Logto policy dictates that recovery code enrollment is disabled unless at least one other active MFA factor (TOTP or WebAuthn) is registered.
+            <strong>Recovery Codes Panel:</strong> Manages backup codes for account recovery.
           </li>
           <li>
-            <strong>Passkeys Panel:</strong> Integrates WebAuthn credentials, listing active keys with registration dates and last used timestamps. Triggers edit (rename) and delete (revoke) workflows. Displays a client-side warning if WebAuthn is unsupported by the browser.
+            <strong>Passkeys Panel:</strong> Lists WebAuthn passkeys and supports add, rename, and delete.
           </li>
           <li>
-            <strong>Danger Zone Panel:</strong> Houses the destructive account deletion action, isolated visually to prevent accidental triggering.
+            <strong>Danger Zone Panel:</strong> Contains account deletion.
           </li>
         </ul>
 
@@ -141,42 +141,46 @@ export default function SecuritySection() {
         </p>
 
         <CodeBlock title="ModalStep Discriminated Union" code={`export type ModalStep =
+  | { kind: 'value' }
   | { kind: 'password' }
   | { kind: 'loading'; message: string }
-  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
-  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
-  | { kind: 'new-password'; verificationRecordId: string }
-  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };`} />
+  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string; verificationTimestamp: number }
+  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string; verificationTimestamp: number }
+  | { kind: 'new-password'; verificationRecordId: string; verificationTimestamp: number }
+  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string; verificationTimestamp: number };`} />
 
         <p style={styles.textStyle}>
           The flow transition states operate as follows:
         </p>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', margin: '0 0 16px 0' }}>
           <li>
-            <strong>password:</strong> The initial checkpoint for all mutative workflows. Users must enter their password to generate a secure <code>verificationRecordId</code>.
+            <strong>value:</strong> Used by contact edit flows to collect the new email or phone value before identity checks.
           </li>
           <li>
-            <strong>loading:</strong> Displays a CSS spinner alongside a dynamic progress message while async background tasks communicate with the server API.
+            <strong>password:</strong> User enters password to get <code>verificationRecordId</code> and <code>verificationTimestamp</code>.
           </li>
           <li>
-            <strong>code:</strong> Prompts the user to enter a 6-digit confirmation code. Displays the masked target email or phone destination.
+            <strong>loading:</strong> Shows progress while requests are running.
           </li>
           <li>
-            <strong>totp-scan:</strong> Displays a high-density QR code canvas and standard base32 text credentials for manually setting up authenticator apps.
+            <strong>code:</strong> User enters a 6-digit code for contact verification.
           </li>
           <li>
-            <strong>new-password:</strong> Shows an input field to configure a new password. The client only performs a basic presence check, while password complexity validation rules are strictly managed server-side inside <code style={styles.codeSmStyle}>password.ts</code>.
+            <strong>totp-scan:</strong> Shows QR code and secret for authenticator app setup.
           </li>
           <li>
-            <strong>rename-passkey:</strong> Displays a single text input (enforcing a maximum of 64 characters) to rename registered WebAuthn credentials.
+            <strong>new-password:</strong> Collects a new password. Policy checks are enforced server-side.
+          </li>
+          <li>
+            <strong>rename-passkey:</strong> Renames a passkey with a 64-character limit.
           </li>
         </ul>
 
         <div style={styles.noteStyle}>
-          <strong style={styles.strongNoteStyle}>BackupCodesModal:</strong> Handles backup recovery code output after successful generation. It displays codes in a structured grid, allowing users to copy them to the clipboard or download them in two distinct file formats generated on the fly via client-side Blob APIs:
+          <strong style={styles.strongNoteStyle}>BackupCodesModal:</strong> Shows generated codes and supports export:
           <ol style={{ margin: '8px 0 0 16px', paddingLeft: '10px' }}>
             <li><code>.txt</code> format: Plain-text list of codes separated by newline characters.</li>
-            <li><code>.html</code> format: A complete, dark-themed responsive HTML document with an embedded stylesheet, grid layout, warning messages, and generation timestamp, suitable for printing or digital archiving.</li>
+            <li><code>.html</code> format: Printable document with codes and generation time.</li>
           </ol>
         </div>
       </div>
@@ -386,17 +390,25 @@ setTimeout(() => {
           modal flow independently.
         </p>
         <CodeBlock title="Edit email flow" code={`// 1. Password verification
-const identity = await onVerifyPassword(pw);
-// 2. Send verification code to new email
+// 0. Value step in modal
+setStep({ kind: 'value' });
+// 1. Password verification
+const identity = await onVerifyPassword(pw); // returns recordId + verificationTimestamp
+// 2. Send code to new email
 const { verificationId } = await onSendEmailVerification(newEmail);
 // 3. User enters code
 const codeVer = await onVerifyCode('email', newEmail, verificationId, code);
-// 4. Update email with both verification IDs
-await onUpdateEmail(newEmail, codeVer.verificationRecordId, identity.verificationRecordId);`} />
+// 4. Update email with verification IDs and timestamp
+await onUpdateEmail(
+  newEmail,
+  codeVer.verificationRecordId,
+  identity.verificationRecordId,
+  identity.verificationTimestamp
+);`} />
         <CodeBlock title="Remove email flow" code={`// 1. Password verification
 const identity = await onVerifyPassword(pw);
 // 2. Remove email
-await onRemoveEmail(identity.verificationRecordId);`} />
+await onRemoveEmail(identity.verificationRecordId, identity.verificationTimestamp);`} />
       </div>
 
       <div>

@@ -499,6 +499,47 @@ LANG_AVAILABLE=en-US,ka-GE
 # DEBUG=true
 ```
 
+### Backend Type Configuration
+
+Set `BACKEND_TYPE` to select the capability mode of your Logto backend environment:
+
+```env
+# Values: blacktop | upstream
+# Server default: upstream (if unset or invalid)
+BACKEND_TYPE=upstream
+```
+
+- **`blacktop` (Custom Fork Mode)**: Enables all advanced features. This includes:
+  - **Real-Time Heartbeats**: Keeps the session fresh by posting heartbeats every 30 seconds.
+  - **Last Active Timestamps**: Tracks and displays precise `lastActiveAt` timestamps for active user sessions.
+  - **Logto Native Avatar Uploads**: Allows choosing `PFP_BACKEND=logto` to store profile pictures natively in Logto customData.
+- **`upstream` (Stock OIDC / Official SaaS Mode)**: Intended for stock Logto Open-Source or Cloud instances. In this mode, certain custom features are automatically disabled to guarantee compatibility:
+  - **Heartbeats**: The 30s background heartbeat loop is completely disabled.
+  - **Last Active Timestamps**: Precise active session tracking is disabled, and timestamps are hidden in the Sessions tab.
+  - **Avatar Uploads**: The `logto` native backend is disabled. S3-compatible storage (`s3`) is strictly forced as the effective backend, even if `PFP_BACKEND` is set to `logto`.
+
+Set `BACKEND_TYPE` explicitly in your env file. The server resolver falls back to `upstream`, while some client-side checks still default to `blacktop` if the variable is missing.
+
+### Phone Country Code Filtering
+
+Configure how phone number registration and update validation behaves for different countries.
+
+You can specify either an allow-list or a block-list (they are mutually exclusive). If both are set, the allow-list takes precedence. If neither is set, fallback allow-list is `1,995`.
+
+```env
+# Comma-separated list of country dial codes to ALLOW (e.g., 1,995,380).
+# If specified, ONLY these country codes can be selected or saved.
+# COUNTRY_CODE_ALLOW_LIST=1,995,380
+
+# Comma-separated list of country dial codes to BLOCK (e.g., 7,86).
+# If specified, phone numbers from these countries are rejected.
+# COUNTRY_CODE_BLOCK_LIST=7,86
+```
+
+- **Interactive Dropdown Combobox**: When adding or updating phone numbers, the **PhoneCountrySelect** dropdown matches and filters active countries on-the-fly. If an allow-list is active, only permitted countries are shown. If a block-list is active, blocked countries are removed from the options list.
+- **Dropdown fallback behavior**: If filtering produces zero options, the dropdown falls back to the full country list.
+- **Server-Side Verification**: Server actions normalize phone input to digits and enforce the country filter. In allow mode, unknown or unmapped prefixes are rejected with `PHONE_COUNTRY_NOT_ALLOWED`.
+
 ### Avatar Storage Backend
 
 Choose between two storage backends for avatar uploads:
