@@ -335,3 +335,55 @@ describe('PasswordVerifyModal - Escape key dismissal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('Password modal error interaction', () => {
+  const noop = () => {};
+
+  it('hides FlowModal inline password error after typing', () => {
+    render(
+      <FlowModal
+        title="Verify"
+        subtitle="Enter password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        passwordError="Wrong password"
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.getByText('Wrong password')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'n' },
+    });
+
+    expect(screen.queryByText('Wrong password')).not.toBeInTheDocument();
+  });
+
+  it('hides PasswordVerifyModal inline password error after typing', () => {
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        passwordError="Wrong password"
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.getByText('Wrong password')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'n' },
+    });
+
+    expect(screen.queryByText('Wrong password')).not.toBeInTheDocument();
+  });
+});

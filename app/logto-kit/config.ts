@@ -187,14 +187,50 @@ export async function getManagementApiToken(): Promise<string> {
 // Backend Type and Country Filter Configurations
 // ============================================================================
 
-export function getBackendType(): 'blacktop' | 'upstream' {
-  const raw = readEnv('BACKEND_TYPE');
-  const normalized = (raw?.trim().toLowerCase()) || 'upstream'; // Safe default: upstream
-  if (normalized !== 'blacktop' && normalized !== 'upstream') {
-    warn(`[config] Invalid BACKEND_TYPE="${raw}". Must be 'blacktop' or 'upstream'. Falling back to 'upstream'.`);
-    return 'upstream';
+export type BackendType = 'blacktop' | 'upstream';
+export type AvatarBackend = 'logto' | 's3';
+
+function parseEnvChoice<T extends string>(
+  envVarName: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  const raw = readEnv(envVarName);
+  const normalized = raw?.trim().toLowerCase();
+  if (!normalized) return fallback;
+
+  if ((allowed as readonly string[]).includes(normalized)) {
+    return normalized as T;
   }
-  return normalized;
+
+  warn(
+    `[config] Invalid ${envVarName}="${raw}". Must be one of: ${allowed.join(', ')}. Falling back to '${fallback}'.`
+  );
+  return fallback;
+}
+
+export function getBackendType(): BackendType {
+  // Safe default: upstream
+  return parseEnvChoice('BACKEND_TYPE', ['blacktop', 'upstream'], 'upstream');
+}
+
+function getAvatarBackendFromEnv(): AvatarBackend {
+  // Safe default: S3-compatible storage
+  return parseEnvChoice('PFP_BACKEND', ['logto', 's3'], 's3');
+}
+
+export function getAvatarBackend(): AvatarBackend {
+  const backendType = getBackendType();
+  const configured = getAvatarBackendFromEnv();
+
+  if (backendType === 'upstream') {
+    if (configured !== 's3') {
+      warn(`[config] BACKEND_TYPE=upstream forces PFP_BACKEND='s3' (received '${configured}').`);
+    }
+    return 's3';
+  }
+
+  return configured;
 }
 
 const DEFAULT_FALLBACK_CODES = ['1', '995']; // US, Georgia

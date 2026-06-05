@@ -64,6 +64,7 @@ export const enUS: Translations = {
     removeAuthenticator: 'Remove authenticator',
     removeAuthenticatorDesc: 'Enter your password to remove two-factor authentication from your account.',
     generateBackupCodesTitle: 'Generate backup codes',
+    generateBackupCodesConfirm: 'Generating new backup codes will void old ones. Continue?',
     viewBackupCodesTitle: 'View backup codes',
     enterCurrentPassword: 'Enter your current password to verify your identity.',
     enterNewPassword: 'Enter your new password below.',

@@ -7,8 +7,10 @@ const mockConfig = vi.hoisted(() => {
       codes: [] as string[],
     },
     backendType: 'blacktop' as 'blacktop' | 'upstream',
+    avatarBackend: 'logto' as 'logto' | 's3',
     getCountryFilter: () => cfg.countryFilter,
     getBackendType: () => cfg.backendType,
+    getAvatarBackend: () => cfg.avatarBackend,
   };
   return cfg;
 });
@@ -84,6 +86,7 @@ describe('uploadAvatar backend selection', () => {
     process.env.S3_SECRET_ACCESS_KEY = 'secret';
     process.env.S3_ENDPOINT = 'https://s3.example.com';
     mockConfig.backendType = 'blacktop';
+    mockConfig.avatarBackend = 'logto';
   });
 
   it('uses Logto backend when backendType is blacktop and PFP_BACKEND is logto', async () => {
@@ -101,7 +104,7 @@ describe('uploadAvatar backend selection', () => {
   });
 
   it('forces S3/MinIO backend when backendType is upstream even if PFP_BACKEND is logto', async () => {
-    mockConfig.backendType = 'upstream';
+    mockConfig.avatarBackend = 's3';
 
     const formData = new FormData();
     formData.append('file', createFakeImageFile());
@@ -109,7 +112,42 @@ describe('uploadAvatar backend selection', () => {
     const result = await uploadAvatar(formData);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error();
-    // Since backendType is upstream, it should bypass Logto and go to S3/MinIO
+    expect(result.data.url).toContain('https://s3.example.com/user123/you.png');
+    expect(mockPutObject).toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/my-account/avatar'),
+      expect.any(Object)
+    );
+  });
+
+  it('uses S3/MinIO backend when resolved avatar backend is s3 in blacktop mode', async () => {
+    mockConfig.backendType = 'blacktop';
+    mockConfig.avatarBackend = 's3';
+
+    const formData = new FormData();
+    formData.append('file', createFakeImageFile());
+
+    const result = await uploadAvatar(formData);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error();
+    expect(result.data.url).toContain('https://s3.example.com/user123/you.png');
+    expect(mockPutObject).toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/my-account/avatar'),
+      expect.any(Object)
+    );
+  });
+
+  it('forces S3/MinIO backend when resolved avatar backend is s3 in upstream mode', async () => {
+    mockConfig.backendType = 'upstream';
+    mockConfig.avatarBackend = 's3';
+
+    const formData = new FormData();
+    formData.append('file', createFakeImageFile());
+
+    const result = await uploadAvatar(formData);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error();
     expect(result.data.url).toContain('https://s3.example.com/user123/you.png');
     expect(mockPutObject).toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalledWith(

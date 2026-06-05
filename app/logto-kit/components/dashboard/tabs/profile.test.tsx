@@ -10,12 +10,37 @@ vi.mock('@logto/next/server-actions', () => ({
 
 // ── Mocks (use vi.hoisted for values vi.mock factories need) ──
 
-const { mockReadEnv, MockUserBadge, mockLoadPersonalPermissions, mockLoadPersonalRoles } = vi.hoisted(() => ({
+const {
+  mockReadEnv,
+  MockUserBadge,
+  mockLoadPersonalPermissions,
+  mockLoadPersonalRoles,
+  mockUpload,
+  mockUseAvatarUpload,
+  getLastAvatarUploadOnSuccess,
+} = vi.hoisted(() => {
+  let lastAvatarUploadOnSuccess: ((url: string) => void | Promise<void>) | undefined;
+  const upload = vi.fn(async () => null as string | null);
+  const useAvatarUpload = vi.fn((options?: { onSuccess?: (url: string) => void | Promise<void> }) => {
+    lastAvatarUploadOnSuccess = options?.onSuccess;
+    return {
+      upload,
+      isUploading: false,
+      error: null,
+      clearError: () => undefined,
+    };
+  });
+
+  return {
   mockReadEnv: vi.fn(),
   MockUserBadge: () => null,
   mockLoadPersonalPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
   mockLoadPersonalRoles: vi.fn().mockResolvedValue({ ok: true, data: [] }),
-}));
+    mockUpload: upload,
+    mockUseAvatarUpload: useAvatarUpload,
+    getLastAvatarUploadOnSuccess: () => lastAvatarUploadOnSuccess,
+  };
+});
 
 vi.mock('../../../server-actions/load-personal-permissions', () => ({
   loadPersonalPermissions: () => mockLoadPersonalPermissions(),
@@ -40,12 +65,7 @@ vi.mock('../../../logic/actions', () => ({
 
 // Mock use-avatar-upload
 vi.mock('../../../hooks/use-avatar-upload', () => ({
-  useAvatarUpload: () => ({
-    upload: async () => null,
-    isUploading: false,
-    error: null,
-    clearError: () => undefined,
-  }),
+  useAvatarUpload: (options?: { onSuccess?: (url: string) => void | Promise<void> }) => mockUseAvatarUpload(options),
 }));
 
 // Mock userbutton (avoids LogtoProvider dependency)
@@ -130,6 +150,8 @@ function renderProfile(
 describe('ProfileTab - NAME_TYPE gating', () => {
   beforeEach(() => {
     mockReadEnv.mockClear();
+    mockUpload.mockClear();
+    mockUseAvatarUpload.mockClear();
   });
 
   describe('given_family mode (default)', () => {
@@ -380,5 +402,53 @@ describe('ProfileTab - behavioral', () => {
     await waitFor(() => {
       expect(mockLoadPersonalPermissions).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('always persists uploaded avatar URL after upload success (no client env mismatch)', async () => {
+    const onUpdateAvatarUrl = vi.fn().mockResolvedValue({ ok: true } as ActionResult);
+    const refreshData = vi.fn();
+    const onSuccess = vi.fn();
+
+    mockReadEnv.mockImplementation((key: string) => {
+      if (key === 'NAME_TYPE') return 'given_family';
+      if (key === 'USER_SHAPE') return 'circle';
+      if (key === 'PFP_BACKEND') return 'logto';
+      return undefined;
+    });
+
+    render(
+      <ProfileTab
+        userData={defaultUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onUpdateBasicInfo={resolvedActionResult}
+        onUpdateAvatarUrl={onUpdateAvatarUrl}
+        onUpdateProfile={resolvedActionResult}
+        onVerifyPassword={resolvedVerifyPassword}
+        onSendEmailVerification={resolvedSendVerification}
+        onSendPhoneVerification={resolvedSendVerification}
+        onVerifyCode={resolvedVerifyCode}
+        onUpdateEmail={resolvedActionResult}
+        onUpdatePhone={resolvedActionResult}
+        onRemoveEmail={resolvedActionResult}
+        onRemovePhone={resolvedActionResult}
+        onSuccess={onSuccess}
+        onError={noop}
+        refreshData={refreshData}
+      />,
+    );
+
+    const onAvatarUploadSuccess = getLastAvatarUploadOnSuccess();
+    expect(onAvatarUploadSuccess).toBeTypeOf('function');
+
+    await act(async () => {
+      await onAvatarUploadSuccess?.('https://s3.example.com/user123/you.png?v=1');
+    });
+
+    expect(onUpdateAvatarUrl).toHaveBeenCalledTimes(1);
+    expect(onUpdateAvatarUrl).toHaveBeenCalledWith('https://s3.example.com/user123/you.png?v=1');
+    expect(onSuccess).toHaveBeenCalled();
+    expect(refreshData).toHaveBeenCalled();
   });
 });

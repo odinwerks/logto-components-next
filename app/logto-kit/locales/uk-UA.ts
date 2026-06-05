@@ -64,6 +64,7 @@ export const ukUA: Translations = {
     removeAuthenticator: 'Видалити автентифікатор',
     removeAuthenticatorDesc: 'Введіть ваш пароль, щоб видалити двофакторну автентифікацію з вашого облікового запису.',
     generateBackupCodesTitle: 'Згенерувати резервні коди',
+    generateBackupCodesConfirm: 'Generating new backup codes will void old ones. Continue?',
     viewBackupCodesTitle: 'Переглянути резервні коди',
     enterCurrentPassword: 'Введіть поточний пароль для підтвердження особи.',
     enterNewPassword: 'Введіть ваш новий пароль нижче.',

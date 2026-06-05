@@ -42,6 +42,29 @@ describe('config resolution', () => {
     });
   });
 
+  describe('avatarBackend', () => {
+    it('uses logto when BACKEND_TYPE=blacktop and PFP_BACKEND=logto', async () => {
+      process.env.BACKEND_TYPE = 'blacktop';
+      process.env.PFP_BACKEND = 'logto';
+      const { getAvatarBackend } = await import('./config');
+      expect(getAvatarBackend()).toBe('logto');
+    });
+
+    it('uses s3 when BACKEND_TYPE=blacktop and PFP_BACKEND=s3', async () => {
+      process.env.BACKEND_TYPE = 'blacktop';
+      process.env.PFP_BACKEND = 's3';
+      const { getAvatarBackend } = await import('./config');
+      expect(getAvatarBackend()).toBe('s3');
+    });
+
+    it('forces s3 when BACKEND_TYPE=upstream even if PFP_BACKEND=logto', async () => {
+      process.env.BACKEND_TYPE = 'upstream';
+      process.env.PFP_BACKEND = 'logto';
+      const { getAvatarBackend } = await import('./config');
+      expect(getAvatarBackend()).toBe('s3');
+    });
+  });
+
   describe('countryFilter', () => {
     it('should set fallback allow list when no country lists are provided', async () => {
       delete process.env.COUNTRY_CODE_ALLOW_LIST;

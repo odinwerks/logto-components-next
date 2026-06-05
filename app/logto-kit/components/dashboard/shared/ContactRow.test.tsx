@@ -75,6 +75,12 @@ function openRemoveModal() {
   fireEvent.click(screen.getByText(enUS.profile.deleteHint));
 }
 
+function setEmailInput(value: string = 'next@example.com') {
+  fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+    target: { value },
+  });
+}
+
 describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,6 +108,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     expect(screen.getByTestId('extra')).toBeInTheDocument(); // value-entry input
     expect(flowModalStep).toBe('value');
 
+    setEmailInput();
     await act(async () => flowModalHandlers.onValueSubmit!());
     expect(flowModalStep).toBe('password');
 
@@ -111,12 +118,25 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     // Should have called onVerifyPassword and onSendVerification
     await waitFor(() => {
       expect(props.onVerifyPassword).toHaveBeenCalledWith('pw123');
-      expect(props.onSendVerification).toHaveBeenCalledWith('user@example.com');
+      expect(props.onSendVerification).toHaveBeenCalledWith('next@example.com');
       // onSuccess should have been called with "code sent" message
       expect(props.onSuccess).toHaveBeenCalled();
       // Step should have advanced to 'code'
       expect(flowModalStep).toBe('code');
     });
+  });
+
+  it('opens email edit modal with empty input and keeps placeholder guidance', () => {
+    const props = buildDefaults();
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+
+    expect(flowModalStep).toBe('value');
+
+    const emailInput = screen.getByPlaceholderText('you@example.com') as HTMLInputElement;
+    expect(emailInput).toBeInTheDocument();
+    expect(emailInput.value).toBe('');
   });
 
   it('handles edit-flow: onVerifyPassword returns error → shows password error', async () => {
@@ -127,6 +147,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    setEmailInput();
     await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('badpw'));
@@ -151,6 +172,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    setEmailInput();
     await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
@@ -180,6 +202,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    setEmailInput();
     await act(async () => flowModalHandlers.onValueSubmit!());
 
     // Submit password to get to code step
@@ -191,7 +214,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onVerifyCodeAndUpdate).toHaveBeenCalledWith(
-        'user@example.com', 'vid-1', 'vr-1', '123456', expect.any(Number),
+        'next@example.com', 'vid-1', 'vr-1', '123456', expect.any(Number),
       );
       expect(props.onSuccess).toHaveBeenCalledWith(enUS.profile.emailUpdated);
     });
@@ -211,6 +234,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     render(<ContactRow {...props} />);
     openEditModal();
+    setEmailInput();
     await act(async () => flowModalHandlers.onValueSubmit!());
 
     await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));

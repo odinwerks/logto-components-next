@@ -114,7 +114,7 @@ export function ContactRow({
     ? formatPhone(currentValue)
     : currentValue;
 
-  const openEdit = () => { setNewValue(currentValue ?? ''); setPwErr(''); setStep({ kind: 'value' }); setModalKind('edit'); };
+  const openEdit = () => { setNewValue(type === 'email' ? '' : (currentValue ?? '')); setPwErr(''); setStep({ kind: 'value' }); setModalKind('edit'); };
   const close = () => { setModalKind(null); setStep({ kind: 'password' }); setPwErr(''); };
 
   const getTrimmedTarget = () => newValueRef.current.trim();

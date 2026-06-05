@@ -397,11 +397,8 @@ export function ProfileTab({
   const { upload, isUploading, clearError } = useAvatarUpload({
     userId: userData.id,
     onSuccess: async (url: string) => {
-      // Logto backend already persisted the avatar via POST /api/my-account/avatar
-      if (readEnv('PFP_BACKEND')?.toLowerCase() !== 'logto') {
-        const result = await onUpdateAvatarUrl(url);
-        if (!result.ok) { onError(result.error); return; }
-      }
+      const result = await onUpdateAvatarUrl(url);
+      if (!result.ok) { onError(result.error); return; }
       onSuccess(t.profile.avatarUpdated);
       refreshData();
       setAvatarModalOpen(false);

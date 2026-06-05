@@ -45,7 +45,7 @@ import { throwOnApiError } from '../errors';
 // Imports under test
 // ============================================================================
 
-import { addMfaVerification } from './mfa';
+import { addMfaVerification, generateBackupCodes } from './mfa';
 
 // ============================================================================
 // Helpers
@@ -207,5 +207,80 @@ describe('addMfaVerification', () => {
         }),
       }),
     );
+  });
+});
+
+describe('generateBackupCodes', () => {
+  const validIdentityVrecId = 'ivrec-def456';
+  const validTimestamp = Date.now() + 600000;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+  });
+
+  it('removes existing backup-code factors before generating and enrolling new codes', async () => {
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] }))
+      .mockResolvedValueOnce(mockOkResponse());
+
+    const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected success');
+    expect(r.data.codes).toEqual(['A1', 'B2']);
+
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      1,
+      '/api/my-account/mfa-verifications',
+      expect.objectContaining({
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      2,
+      '/api/my-account/mfa-verifications/backup-old-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      3,
+      '/api/my-account/mfa-verifications/backup-codes/generate',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      4,
+      '/api/my-account/mfa-verifications',
+      expect.objectContaining({
+        method: 'POST',
+        body: { type: 'BackupCode', codes: ['A1', 'B2'] },
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+  });
+
+  it('still generates and enrolls when no existing backup factors are present', async () => {
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['C3'] }))
+      .mockResolvedValueOnce(mockOkResponse());
+
+    const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected success');
+    expect(r.data.codes).toEqual(['C3']);
+    expect(makeRequest).toHaveBeenCalledTimes(3);
   });
 });

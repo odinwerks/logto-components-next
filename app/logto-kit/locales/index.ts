@@ -80,6 +80,7 @@ export interface Translations {
     removeAuthenticator: string;
     removeAuthenticatorDesc: string;
     generateBackupCodesTitle: string;
+    generateBackupCodesConfirm: string;
     viewBackupCodesTitle: string;
     enterCurrentPassword: string;
     enterNewPassword: string;

@@ -64,6 +64,7 @@ export const kaGE: Translations = {
     removeAuthenticator: 'აუთენტიფიკატორის წაშლა',
     removeAuthenticatorDesc: 'შეიყვანეთ პაროლი ორფაქტორიანი აუთენტიფიკაციის წასაშლელად.',
     generateBackupCodesTitle: 'სარეზერვო კოდების გენერაცია',
+    generateBackupCodesConfirm: 'Generating new backup codes will void old ones. Continue?',
     viewBackupCodesTitle: 'სარეზერვო კოდების ნახვა',
     enterCurrentPassword: 'შეიყვანეთ მიმდინარე პაროლი თქვენი ვერიფიკაციისთვის.',
     enterNewPassword: 'შეიყვანეთ ახალი პაროლი ქვემოთ.',

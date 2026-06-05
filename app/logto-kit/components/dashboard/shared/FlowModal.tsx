@@ -70,6 +70,7 @@ export function PasswordVerifyModal({
 
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [hidePwErrorWhileTyping, setHidePwErrorWhileTyping] = useState(false);
   const dangerColor = c.accentRed;
 
   const onCloseRef = useRef(onClose);
@@ -82,6 +83,10 @@ export function PasswordVerifyModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    setHidePwErrorWhileTyping(false);
+  }, [passwordError, step.kind]);
 
   return (
     <Overlay onDismiss={onClose}>
@@ -113,7 +118,10 @@ export function PasswordVerifyModal({
       <Input
         type={showPw ? 'text' : 'password'}
         value={pw}
-        onChange={(e) => setPw(e.target.value)}
+        onChange={(e) => {
+          setPw(e.target.value);
+          if (passwordError) setHidePwErrorWhileTyping(true);
+        }}
         placeholder={t.mfa.enterPasswordPlaceholder}
         autoFocus
         hasError={!!passwordError}
@@ -126,13 +134,23 @@ export function PasswordVerifyModal({
                   </button>
                 }
               />
-              {passwordError && (
+              {passwordError && !hidePwErrorWhileTyping && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
                   <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            onClick={() => {
+              if (!pw) return;
+              setHidePwErrorWhileTyping(false);
+              onPasswordSubmit(pw);
+            }}
+            disabled={!pw}
+            mode={mode}
+            colors={colors}
+          >
             {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -201,6 +219,7 @@ export function FlowModal({
   const [pw, setPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [hidePwErrorWhileTyping, setHidePwErrorWhileTyping] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [code, setCode] = useState('');
   const [showSecret, setShowSecret] = useState(false);
@@ -220,6 +239,10 @@ export function FlowModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    setHidePwErrorWhileTyping(false);
+  }, [passwordError, step.kind]);
 
   const copySecret = () => {
     if (step.kind !== 'totp-scan') return;
@@ -290,7 +313,10 @@ export function FlowModal({
               <Input
                 type={showPw ? 'text' : 'password'}
                 value={pw}
-                onChange={(e) => setPw(e.target.value)}
+                onChange={(e) => {
+                  setPw(e.target.value);
+                  if (passwordError) setHidePwErrorWhileTyping(true);
+                }}
                 placeholder={t.mfa.enterPasswordPlaceholder}
                 autoFocus={!extra}
                 hasError={!!passwordError}
@@ -302,7 +328,7 @@ export function FlowModal({
                   </button>
                 }
               />
-              {passwordError && (
+              {passwordError && !hidePwErrorWhileTyping && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
                   <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
@@ -311,7 +337,17 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => pw && onPasswordSubmit(pw)} disabled={!pw} mode={mode} colors={colors}>
+                <Button
+                  variant={danger ? 'danger' : 'primary'}
+                  onClick={() => {
+                    if (!pw) return;
+                    setHidePwErrorWhileTyping(false);
+                    onPasswordSubmit(pw);
+                  }}
+                  disabled={!pw}
+                  mode={mode}
+                  colors={colors}
+                >
                   {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>

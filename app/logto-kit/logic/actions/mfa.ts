@@ -166,7 +166,34 @@ export async function generateBackupCodes(
       throw new Error('VERIFICATION_EXPIRED');
     }
 
-    // Step 1: Generate codes (no verification header needed)
+    // Step 1: Remove existing backup-code factors so old codes are invalidated.
+    const listRes = await makeRequest('/api/my-account/mfa-verifications', {
+      extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+    });
+
+    await throwOnApiError(listRes, 'BACKUP_CODES_FAILED', 'backup-list');
+
+    const listData = await listRes.json();
+    const verifications: MfaVerification[] = Array.isArray(listData)
+      ? listData
+      : Array.isArray(listData?.verifications)
+        ? listData.verifications
+        : Array.isArray(listData?.data)
+          ? listData.data
+          : [];
+
+    const existingBackupFactors = verifications.filter(verification => verification.type === 'BackupCode');
+
+    for (const factor of existingBackupFactors) {
+      const removeRes = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {
+        method: 'DELETE',
+        extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+      });
+
+      await throwOnApiError(removeRes, 'BACKUP_CODES_FAILED', 'backup-remove-old');
+    }
+
+    // Step 2: Generate codes (no verification header needed)
     const genRes = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
       method: 'POST',
     });
@@ -175,7 +202,7 @@ export async function generateBackupCodes(
 
     const { codes } = await genRes.json();
 
-    // Step 2: Enroll/bind codes to the account.
+    // Step 3: Enroll/bind codes to the account.
     const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
       method: 'POST',
       body: { type: 'BackupCode', codes },
