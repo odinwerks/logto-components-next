@@ -280,10 +280,9 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 ├── docs/
 │   └── superpowers/
 │       └── plans/
-│           ├── 2026-06-01-dashboard-documentation.md
-│           ├── 2026-06-01-identities-documentation.md
-│           ├── 2026-06-01-user-button-docs-rebuild.md
-│           └── 2026-06-02-documentation-updates.md
+│           ├── 2026-06-02-documentation-fixes-group-a.md
+│           ├── 2026-06-04-docs-update.md
+│           └── 2026-06-04-verification-staleness-fix.md
 ├── LICENSE
 ├── next-env.d.ts
 ├── next.config.ts
@@ -300,7 +299,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   └── robots.txt
 ├── scripts/
 │   └── inject-next-public.js
-├── SECURITY.md
+├── global.d.ts
 ├── tree.py
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -382,6 +381,25 @@ The `docker-compose.yml` passes them as `build.args` sourced from your `.env` fi
 docker compose build --no-cache
 docker compose up -d
 ```
+
+Build args currently include:
+- `NEXT_PUBLIC_THEME`
+- `NEXT_PUBLIC_LANG_MAIN`
+- `NEXT_PUBLIC_LANG_AVAILABLE`
+- `NEXT_PUBLIC_MFA_ISSUER`
+- `NEXT_PUBLIC_DEFAULT_THEME_MODE`
+- `NEXT_PUBLIC_USER_SHAPE`
+- `NEXT_PUBLIC_NAME_TYPE`
+- `NEXT_PUBLIC_LOAD_TABS`
+- `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`
+- `NEXT_PUBLIC_BACKEND_TYPE`
+
+Runtime env passthrough currently includes backend and country behavior gates:
+- `BACKEND_TYPE`
+- `PFP_BACKEND`
+- `COUNTRY_CODE_ALLOW_LIST`
+- `COUNTRY_CODE_BLOCK_LIST`
+- `LOGTO_M2M_RESOURCE`
 
 ## Security Architecture (v0.3.0)
 
@@ -518,7 +536,7 @@ BACKEND_TYPE=upstream
   - **Last Active Timestamps**: Precise active session tracking is disabled, and timestamps are hidden in the Sessions tab.
   - **Avatar Uploads**: The `logto` native backend is disabled. S3-compatible storage (`s3`) is strictly forced as the effective backend, even if `PFP_BACKEND` is set to `logto`.
 
-Set `BACKEND_TYPE` explicitly in your env file. The server resolver falls back to `upstream`, while some client-side checks still default to `blacktop` if the variable is missing.
+Set `BACKEND_TYPE` explicitly in your env file. The resolver falls back to `upstream` when missing or invalid.
 
 ### Phone Country Code Filtering
 
@@ -542,7 +560,12 @@ You can specify either an allow-list or a block-list (they are mutually exclusiv
 
 ### Avatar Storage Backend
 
-Choose between two storage backends for avatar uploads:
+Avatar backend selection follows this matrix:
+
+- `BACKEND_TYPE=blacktop`: `PFP_BACKEND` can be `logto` or `s3`
+- `BACKEND_TYPE=upstream`: effective avatar backend is always `s3`
+
+Choose between these storage backends when `BACKEND_TYPE=blacktop`:
 
 #### Option 1: S3-Compatible Storage
 

@@ -86,7 +86,7 @@ cd logto-components-next`} />
           <tr>
             <td style={customTdPathStyle}>app/logto-kit/</td>
             <td style={customTdStyle}>
-              <strong>Core Abstraction Layer (Do Not Modify):</strong> Contains the core components, SDK wrapper, token management, middleware proxy, hooks, and types. This remains isolated so you can easily pull upstream updates.
+              <strong>Core kit layer:</strong> Contains components, SDK wrappers, token/session logic, middleware proxy, hooks, and shared types. Keep custom changes isolated and documented so upgrades stay manageable.
             </td>
           </tr>
           <tr>

@@ -122,7 +122,7 @@ export default function BackendSelection() {
       </div>
 
       <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
-        <strong style={styles.strongNoteStyle}>Important:</strong> The server resolver defaults to <code style={styles.codeSmStyle}>upstream</code> when <code style={styles.codeSmStyle}>BACKEND_TYPE</code> is missing or invalid. Some client-only UI checks still fall back to <code style={styles.codeSmStyle}>blacktop</code>. Set <code style={styles.codeSmStyle}>BACKEND_TYPE</code> explicitly to keep behavior consistent.
+        <strong style={styles.strongNoteStyle}>Important:</strong> The resolver defaults to <code style={styles.codeSmStyle}>upstream</code> when <code style={styles.codeSmStyle}>BACKEND_TYPE</code> is missing or invalid. In Docker, pass both <code style={styles.codeSmStyle}>BACKEND_TYPE</code> at runtime and <code style={styles.codeSmStyle}>NEXT_PUBLIC_BACKEND_TYPE</code> at build time so server and client stay in sync.
       </div>
 
       <h2 id={slugify("Phone Country Code Filtering")} style={h2Style}>Phone Country Code Filtering</h2>

@@ -17,6 +17,7 @@ services:
         NEXT_PUBLIC_NAME_TYPE:          ${NAME_TYPE}
         NEXT_PUBLIC_LOAD_TABS:          ${LOAD_TABS}
         NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY}
+        NEXT_PUBLIC_BACKEND_TYPE:       ${BACKEND_TYPE}
     networks:
       - dash-net
     # Port 2999 is NOT exposed to the host — only cloudflared can reach it
@@ -37,6 +38,11 @@ services:
       - LOGTO_M2M_APP_ID=${LOGTO_M2M_APP_ID}
       - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET}
       - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL}
+      - LOGTO_M2M_RESOURCE=${LOGTO_M2M_RESOURCE}
+      # ── Backend and phone-country behavior gates ─────────────────────────
+      - BACKEND_TYPE=${BACKEND_TYPE}
+      - COUNTRY_CODE_ALLOW_LIST=${COUNTRY_CODE_ALLOW_LIST}
+      - COUNTRY_CODE_BLOCK_LIST=${COUNTRY_CODE_BLOCK_LIST}
       # ── Avatar storage (S3-compatible / Supabase) ─────────────────────────
       - PFP_BACKEND=${PFP_BACKEND}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}

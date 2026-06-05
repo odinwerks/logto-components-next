@@ -171,7 +171,7 @@ LOGTO_INTROSPECTION_URL=  # Optional: Token introspection endpoint
 BACKEND_TYPE=upstream      # Backend mode: blacktop | upstream (server default: upstream)
 
 # - Avatar Storage Provider -
-PFP_BACKEND=s3           # Storage backend: s3 (default) | logto
+PFP_BACKEND=s3           # When BACKEND_TYPE=blacktop: s3 | logto. When upstream: effective backend is always s3.
 
 # - Preference Fallbacks -
 NAME_TYPE=given_family    # Display format: given_family | full | username
@@ -196,6 +196,10 @@ LOG_BACKEND=both          # Logging output destinations: console | pino | both
 # - Pino Telemetry & Logging -
 LOG_LEVEL=info            # Minimum severity log filter: debug | info | warn | error
 LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log telemetry`} />
+
+      <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
+        <strong style={styles.strongNoteStyle}>Docker note:</strong> For consistent backend behavior in containers, pass <code style={styles.codeSmStyle}>BACKEND_TYPE</code>, <code style={styles.codeSmStyle}>PFP_BACKEND</code>, and country filter vars at runtime, and pass <code style={styles.codeSmStyle}>NEXT_PUBLIC_BACKEND_TYPE</code> at build time.
+      </div>
 
       <p style={{ ...styles.textStyle, marginTop: '24px' }}>
         <strong>Feature-Specific Variables Reference:</strong>
