@@ -115,7 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <UserButtonIcon />,
-    desc: 'Standalone avatar component. Renders as UserButton (clickable, opens Dashboard modal), UserBadge (display only), or UserCard (inline with name/email). Priority: prop -> context -> auto-fetch. Falls back to a user icon after 1.5 s.',
+    desc: 'Standalone avatar primitives. Renders as UserButton (clickable avatar), UserBadge (display-only avatar), or UserCard (clickable avatar + identity text). Data priority: userData prop -> provider context -> fallback icon after 1.5 s (no auto-fetch step).',
     sections: ['Specs', 'Examples'],
   },
   {

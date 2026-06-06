@@ -77,168 +77,111 @@ export default function UserButtonSpecs() {
         Priority: prop, then provider context, then fallback icon.
       </p>
 
-      <h2 id={slugify("UserButton Props")} style={h2Style}>UserButton Props</h2>
+      <h2 id={slugify("Variants at a glance")} style={h2Style}>Variants at a glance</h2>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>UserButton:</strong>{' '}
+        Clickable avatar-only trigger. Best for compact headers/toolbars where opening the dashboard is the primary action.
+      </div>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>UserBadge:</strong>{' '}
+        Non-interactive avatar display. Best for read-only surfaces (status rows, passive profile chips).
+      </div>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>UserCard:</strong>{' '}
+        Clickable avatar + label/name card. Best when you want both identity context and dashboard access in one control.
+      </div>
+
+      <h2 id={slugify("Unified Props (UserButton / UserBadge / UserCard)")} style={h2Style}>Unified Props (UserButton / UserBadge / UserCard)</h2>
       <table style={customTableStyle}>
         <thead>
           <tr>
-            <th style={{ ...customThStyle, width: '20%' }}>Prop</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Type</th>
-            <th style={{ ...customThStyle, width: '20%' }}>Default</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Description</th>
+            <th style={{ ...customThStyle, width: '14%' }}>Prop</th>
+            <th style={{ ...customThStyle, width: '22%' }}>Applies to</th>
+            <th style={{ ...customThStyle, width: '22%' }}>Type</th>
+            <th style={{ ...customThStyle, width: '14%' }}>Default</th>
+            <th style={{ ...customThStyle, width: '28%' }}>Description</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td style={customTdPropStyle}>Canvas</td>
+            <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
             <td style={customTdTypeStyle}>'Avatar' | 'Initials'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Forces avatar image or initials fallback. Defaults to showing avatar image if available.</td>
+            <td style={customTdStyle}>'Avatar' (effective)</td>
+            <td style={customTdStyle}>Controls rendering mode. Unless explicitly set to <code style={styles.codeSmStyle}>'Initials'</code>, the component uses Avatar mode and shows initials only when avatar is missing/failed.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>Size</td>
+            <td style={customTdStyle}>UserButton, UserBadge</td>
             <td style={customTdTypeStyle}>string</td>
             <td style={customTdStyle}>'6.25rem'</td>
-            <td style={customTdStyle}>CSS size string (e.g. '80px', '4rem').</td>
+            <td style={customTdStyle}>CSS size string (for example <code style={styles.codeSmStyle}>'80px'</code>, <code style={styles.codeSmStyle}>'4rem'</code>).</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>Size</td>
+            <td style={customTdStyle}>UserCard</td>
+            <td style={customTdTypeStyle}>string</td>
+            <td style={customTdStyle}>'2.5rem'</td>
+            <td style={customTdStyle}>Avatar size inside the card layout. Smaller default than UserButton/UserBadge.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>shape</td>
-            <td style={customTdTypeStyle}>'circle' | 'sq' | 'rsq'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Sets border radius. Falls back to USER_SHAPE environment variable, then to 'circle'.</td>
+            <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
+            <td style={customTdTypeStyle}>'circle' | 'sq' | 'rsq' | string</td>
+            <td style={customTdStyle}>prop → USER_SHAPE → 'circle'</td>
+            <td style={customTdStyle}>Border radius strategy. Custom CSS radius strings are supported (for example <code style={styles.codeSmStyle}>'8px'</code>, <code style={styles.codeSmStyle}>'1rem'</code>).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>userData</td>
+            <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
             <td style={customTdTypeStyle}>UserData</td>
             <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads LogtoProvider context if omitted.</td>
+            <td style={customTdStyle}>Optional override mainly for demos, tests, or controlled previews. Normal production path is <code style={styles.codeSmStyle}>userData</code> from <code style={styles.codeSmStyle}>LogtoProvider</code> context.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>colors</td>
+            <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
             <td style={customTdTypeStyle}>ThemeColors</td>
             <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
+            <td style={customTdStyle}>Overrides all visual color tokens used by the component instance. If omitted, colors come from <code style={styles.codeSmStyle}>useThemeMode()</code> (<code style={styles.codeSmStyle}>PreferencesProvider</code>: dark/light token sets from <code style={styles.codeSmStyle}>themes/index.ts</code>; fallback theme when no provider).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>do</td>
+            <td style={customTdStyle}>UserButton, UserCard</td>
             <td style={customTdTypeStyle}>() =&gt; void</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Custom click action. If omitted, opens the user dashboard.</td>
+            <td style={customTdStyle}>Default: provider openDashboard</td>
+            <td style={customTdStyle}>Custom click handler. If omitted, the built-in handler opens the dashboard via provider state (<code style={styles.codeSmStyle}>openDashboard()</code> from <code style={styles.codeSmStyle}>useLogto()</code>).</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>do</td>
+            <td style={customTdStyle}>UserBadge</td>
+            <td style={customTdTypeStyle}>N/A</td>
+            <td style={customTdStyle}>N/A</td>
+            <td style={customTdStyle}>Not supported (UserBadge is intentionally non-interactive).</td>
           </tr>
         </tbody>
       </table>
       <CodeBlock title="UserButtonProps interface" code={`export interface UserButtonProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | string;
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;
 }`} />
 
-      <h2 id={slugify("UserBadge Props")} style={h2Style}>UserBadge Props</h2>
-      <table style={customTableStyle}>
-        <thead>
-          <tr>
-            <th style={{ ...customThStyle, width: '20%' }}>Prop</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Type</th>
-            <th style={{ ...customThStyle, width: '20%' }}>Default</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={customTdPropStyle}>Canvas</td>
-            <td style={customTdTypeStyle}>'Avatar' | 'Initials'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Forces avatar image or initials fallback. Defaults to showing avatar image if available.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Size</td>
-            <td style={customTdTypeStyle}>string</td>
-            <td style={customTdStyle}>'6.25rem'</td>
-            <td style={customTdStyle}>CSS size string (e.g. '80px', '4rem').</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>shape</td>
-            <td style={customTdTypeStyle}>'circle' | 'sq' | 'rsq'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Sets border radius. Falls back to USER_SHAPE environment variable, then to 'circle'.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>userData</td>
-            <td style={customTdTypeStyle}>UserData</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads LogtoProvider context if omitted.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>colors</td>
-            <td style={customTdTypeStyle}>ThemeColors</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
-          </tr>
-        </tbody>
-      </table>
       <CodeBlock title="UserBadgeProps interface" code={`export interface UserBadgeProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | string;
   userData?: UserData;
   colors?: ThemeColors;
 }`} />
 
-      <h2 id={slugify("UserCard Props")} style={h2Style}>UserCard Props</h2>
-      <table style={customTableStyle}>
-        <thead>
-          <tr>
-            <th style={{ ...customThStyle, width: '20%' }}>Prop</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Type</th>
-            <th style={{ ...customThStyle, width: '20%' }}>Default</th>
-            <th style={{ ...customThStyle, width: '30%' }}>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style={customTdPropStyle}>Canvas</td>
-            <td style={customTdTypeStyle}>'Avatar' | 'Initials'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Forces avatar image or initials fallback. Defaults to showing avatar image if available.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Size</td>
-            <td style={customTdTypeStyle}>string</td>
-            <td style={customTdStyle}>'2.5rem'</td>
-            <td style={customTdStyle}>CSS size string (e.g. '80px', '4rem'). Note that default is smaller than button or badge.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>shape</td>
-            <td style={customTdTypeStyle}>'circle' | 'sq' | 'rsq'</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Sets border radius. Falls back to USER_SHAPE environment variable, then to 'circle'.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>userData</td>
-            <td style={customTdTypeStyle}>UserData</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads LogtoProvider context if omitted.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>colors</td>
-            <td style={customTdTypeStyle}>ThemeColors</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override. Reads useThemeMode() context if omitted.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>do</td>
-            <td style={customTdTypeStyle}>() =&gt; void</td>
-            <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Custom click action. If omitted, opens the user dashboard.</td>
-          </tr>
-        </tbody>
-      </table>
       <CodeBlock title="UserCardProps interface" code={`export interface UserCardProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq';
+  shape?: 'circle' | 'sq' | 'rsq' | string;
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;

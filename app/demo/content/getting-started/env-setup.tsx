@@ -162,7 +162,7 @@ SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,
         Use these variables to enable or configure advanced features of the Logto Kit.
       </p>
       
-      <CodeBlock title="Feature & Debug variables" code={`# - M2M Integration (Required for account deletion and RBAC querying) -
+      <CodeBlock title="Feature & Debug variables" code={`# - M2M Integration (Required for account deletion, role/scope checks, and custom-data persistence) -
 LOGTO_M2M_APP_ID=         # Machine-to-Machine app ID from Logto Console
 LOGTO_M2M_APP_SECRET=     # Machine-to-Machine client secret
 LOGTO_INTROSPECTION_URL=  # Optional: Token introspection endpoint
@@ -199,6 +199,10 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
 
       <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
         <strong style={styles.strongNoteStyle}>Docker note:</strong> For consistent backend behavior in containers, pass <code style={styles.codeSmStyle}>BACKEND_TYPE</code>, <code style={styles.codeSmStyle}>PFP_BACKEND</code>, and country filter vars at runtime, and pass <code style={styles.codeSmStyle}>NEXT_PUBLIC_BACKEND_TYPE</code> at build time.
+      </div>
+
+      <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
+        <strong style={styles.strongNoteStyle}>Important M2M clarification:</strong> In this project, M2M credentials are used beyond deletion/RBAC reads. They are also required for server-side custom-data updates that persist Preferences values (<code style={styles.codeSmStyle}>theme</code>, <code style={styles.codeSmStyle}>lang</code>, and <code style={styles.codeSmStyle}>asOrg</code>).
       </div>
 
       <p style={{ ...styles.textStyle, marginTop: '24px' }}>

@@ -61,7 +61,7 @@ export default function CloneAndInstall() {
       <h2 id={slugify("Clone & Install")} style={{ ...h2Style, marginTop: 0 }}>Clone & Install</h2>
       
       <p style={styles.textStyle}>
-        Under the assumption that your Logto instance is now up and running, we move to git cloning the components/quick start kit (<a href="https://github.com/odinwerks/logto-components-next" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>logto-components-next</a>). During development, use <code style={styles.codeSmStyle}>npm run dev</code>, and in production, use docker compose (an example compose should be included in the repo).
+        Under the assumption that your Logto instance is now up and running, clone the starter kit repository (<a href="https://github.com/odinwerks/logto-components-next" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>logto-components-next</a>). During development, use <code style={styles.codeSmStyle}>npm run dev</code>. For production, use the repository&apos;s checked-in <code style={styles.codeSmStyle}>docker-compose.yml</code> (app + <code style={styles.codeSmStyle}>cloudflared</code> sidecar).
       </p>
       
       <CodeBlock title="Clone Repository" code={`git clone https://github.com/odinwerks/logto-components-next.git

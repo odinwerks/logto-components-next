@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, ArrowLeft, ChevronRight, X } from 'lucide-react';
+import { Menu, ArrowLeft, X } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
 import { NAV_ITEMS } from './nav-data';
@@ -23,13 +23,29 @@ export default function MobileDocsNav() {
 
   // ─── STYLES ────────────────────────────────────────────────────────────────
   // The central trigger button style used by Hamburger, Close (X), and Back (ArrowLeft)
+  const buttonResetStyle: React.CSSProperties = {
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    margin: 0,
+    font: 'inherit',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    fontWeight: 'inherit',
+    lineHeight: 'inherit',
+    letterSpacing: 'inherit',
+    color: 'inherit',
+    textAlign: 'inherit',
+    background: 'none',
+  };
+
   const triggerStyle: React.CSSProperties = {
+    ...buttonResetStyle,
     position: 'fixed',
-    bottom: '1.5rem',
-    right: '1.35rem',
-    width: '3rem',
-    height: '3rem',
-    borderRadius: '0.75rem',
+    bottom: '1rem',
+    right: '1rem',
+    width: '2.5rem',
+    height: '2.5rem',
+    borderRadius: '0.625rem',
     border: `1px solid ${colors.borderColor}`,
     background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
     backdropFilter: 'blur(0.5rem)',
@@ -39,6 +55,7 @@ export default function MobileDocsNav() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 0,
     zIndex: 1001, // High zIndex ensures it floats on top of the fullscreen overlay
     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     transition: 'all 0.15s ease',
@@ -51,7 +68,8 @@ export default function MobileDocsNav() {
     background: colors.bgPage,
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
+    height: '100dvh',
+    minHeight: '100vh',
     animation: 'fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   };
 
@@ -60,11 +78,12 @@ export default function MobileDocsNav() {
     flexDirection: 'column',
     height: '100%',
     width: '100%',
+    minHeight: 0,
   };
 
   const headerStyle: React.CSSProperties = {
-    height: '56px',
-    minHeight: '56px',
+    height: '52px',
+    minHeight: '52px',
     borderBottom: `1px solid ${colors.borderColor}`,
     display: 'flex',
     alignItems: 'center',
@@ -74,25 +93,32 @@ export default function MobileDocsNav() {
   };
 
   const headerTitleStyle: React.CSSProperties = {
-    fontSize: '1rem',
+    fontSize: '0.9375rem',
     fontWeight: 600,
     color: colors.textPrimary,
   };
 
   const listStyle: React.CSSProperties = {
     flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center', // Vertically center alignment of list contents
-    padding: '2rem 0',
+    justifyContent: 'flex-start',
+    padding: '0.75rem 0 calc(4.75rem + env(safe-area-inset-bottom, 0px))',
+  };
+
+  const listInnerStyle: React.CSSProperties = {
+    width: '100%',
+    margin: 'auto 0',
   };
 
   const itemStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center', // Center align text horizontally
-    padding: '1.15rem 1.25rem',
+    padding: '0.95rem 1rem',
     borderBottom: `1px solid ${colors.borderColor}50`,
     cursor: 'pointer',
     color: colors.textPrimary,
@@ -100,8 +126,9 @@ export default function MobileDocsNav() {
   };
 
   const itemLabelStyle: React.CSSProperties = {
-    fontSize: '1.2rem',
+    fontSize: '1rem',
     fontWeight: 500,
+    fontFamily: 'inherit',
     textAlign: 'center',
   };
 
@@ -109,10 +136,11 @@ export default function MobileDocsNav() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center', // Center align subtopics horizontally
-    padding: '1.15rem 1.25rem',
+    padding: '0.95rem 1rem',
     borderBottom: `1px solid ${colors.borderColor}35`,
     cursor: 'pointer',
-    fontSize: '1.1rem',
+    fontSize: '0.95rem',
+    fontFamily: 'inherit',
     color: colors.textSecondary,
     textAlign: 'center',
     transition: 'background 0.15s ease',
@@ -123,7 +151,7 @@ export default function MobileDocsNav() {
       {/* Floating Hamburger Trigger (Only rendered if Nav is closed) */}
       {!isOpen && (
         <button onClick={() => { setIsOpen(true); setStage('topics'); }} style={triggerStyle}>
-          <Menu size={22} />
+          <Menu size={18} />
         </button>
       )}
 
@@ -138,32 +166,38 @@ export default function MobileDocsNav() {
               
               {/* Vertically Centered Topics List */}
               <div style={listStyle}>
-                {NAV_ITEMS.map((item) => (
-                  <div key={item.id} onClick={() => { setSelectedTopic(item); setStage('sections'); }} style={itemStyle}>
-                    <div style={itemLabelStyle}>{item.label}</div>
-                    <ChevronRight size={18} style={{ marginLeft: '0.5rem', color: colors.textTertiary }} />
-                  </div>
-                ))}
+                <div style={listInnerStyle}>
+                  {NAV_ITEMS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => { setSelectedTopic(item); setStage('sections'); }}
+                      style={{ ...buttonResetStyle, ...itemStyle, width: '100%', border: 'none', background: 'transparent' }}
+                    >
+                       <div style={itemLabelStyle}>{item.label}</div>
+                     </button>
+                   ))}
+                </div>
               </div>
 
               {/* UserButton wrapper styled exactly to match the dimensions and alignment of the trigger */}
               <div style={{
                 position: 'fixed',
-                bottom: '1.5rem',
-                right: '5.35rem',
-                width: '3rem',
-                height: '3rem',
+                 bottom: '1rem',
+                 right: '4.15rem',
+                 width: '2.5rem',
+                 height: '2.5rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 1001,
               }}>
-                <UserButton Size="3rem" shape="rsq" />
+                 <UserButton Size="2.5rem" shape="rsq" />
               </div>
 
               {/* X Close button positioned exactly where Hamburger is */}
               <button onClick={() => setIsOpen(false)} style={triggerStyle}>
-                <X size={22} />
+                 <X size={18} />
               </button>
             </div>
           ) : (
@@ -175,16 +209,23 @@ export default function MobileDocsNav() {
 
               {/* Vertically Centered Subtopics List */}
               <div style={listStyle}>
-                {selectedTopic?.sections.map((section) => (
-                  <div key={section} onClick={() => handleSectionClick(selectedTopic.id, section)} style={subItemStyle}>
-                    {section}
-                  </div>
-                ))}
+                <div style={listInnerStyle}>
+                  {selectedTopic?.sections.map((section) => (
+                    <button
+                      key={section}
+                      type="button"
+                      onClick={() => handleSectionClick(selectedTopic.id, section)}
+                      style={{ ...buttonResetStyle, ...subItemStyle, width: '100%', border: 'none', background: 'transparent' }}
+                    >
+                      {section}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Back button positioned exactly where Hamburger/X is */}
               <button onClick={() => setStage('topics')} style={triggerStyle}>
-                <ArrowLeft size={22} />
+                 <ArrowLeft size={18} />
               </button>
             </div>
           )}

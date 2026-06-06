@@ -1,0 +1,99 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+
+const pushMock = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
+vi.mock('../logto-kit', () => ({
+  useThemeMode: () => ({
+    mode: 'light',
+    colors: {
+      bgPage: '#ffffff',
+      bgSecondary: '#f8f8f8',
+      borderColor: '#d9d9d9',
+      textPrimary: '#111111',
+      textSecondary: '#222222',
+      textTertiary: '#333333',
+    },
+  }),
+}));
+
+vi.mock('../logto-kit/components/UserButton', () => ({
+  UserButton: () => <button type="button">User</button>,
+}));
+
+vi.mock('./nav-data', () => ({
+  NAV_ITEMS: [
+    {
+      id: 'topic-a',
+      label: 'Topic A',
+      sections: ['Section One', 'Section Two'],
+    },
+  ],
+}));
+
+vi.mock('./components/SectionComponents', () => ({
+  slugify: (value: string) => value.toLowerCase().replace(/\s+/g, '-'),
+}));
+
+import MobileDocsNav from './MobileDocsNav';
+
+describe('MobileDocsNav mobile layout regressions', () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+  });
+
+  it('uses stable viewport sizing for fullscreen overlay', () => {
+    render(<MobileDocsNav />);
+
+    fireEvent.click(screen.getAllByRole('button')[0]);
+
+    const title = screen.getByText('Documentation');
+    const overlay = title.parentElement?.parentElement?.parentElement as HTMLElement;
+
+    expect(overlay).toHaveStyle('height: 100dvh');
+    expect(overlay).toHaveStyle('min-height: 100vh');
+  });
+
+  it('normalizes trigger and topic row button defaults', () => {
+    render(<MobileDocsNav />);
+
+    const trigger = screen.getAllByRole('button')[0];
+    expect(trigger).toHaveStyle('appearance: none');
+    expect(trigger.style.fontFamily).toBe('inherit');
+    expect(trigger).toHaveStyle('width: 2.5rem');
+    expect(trigger).toHaveStyle('height: 2.5rem');
+
+    fireEvent.click(trigger);
+
+    const topicButton = screen.getByText('Topic A').closest('button') as HTMLButtonElement;
+    expect(topicButton).toHaveStyle('appearance: none');
+    expect(topicButton.style.fontFamily).toBe('inherit');
+    expect(screen.getByText('Topic A').style.fontSize).toBe('1rem');
+
+    // Stage-one topic entries should be text-only and not include a right-arrow icon
+    expect(topicButton.querySelector('svg')).toBeNull();
+  });
+
+  it('keeps section stage typography and centered scroll behavior stable', () => {
+    render(<MobileDocsNav />);
+
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    fireEvent.click(screen.getByText('Topic A'));
+
+    const sectionButton = screen.getByText('Section One').closest('button') as HTMLButtonElement;
+    const listInner = sectionButton.parentElement as HTMLElement;
+    const listContainer = listInner.parentElement as HTMLElement;
+
+    expect(sectionButton).toHaveStyle('appearance: none');
+    expect(sectionButton.style.fontFamily).toBe('inherit');
+    expect(sectionButton.style.fontSize).toBe('0.95rem');
+
+    expect(listInner).toHaveStyle('margin: auto 0px');
+    expect(listContainer).toHaveStyle('justify-content: flex-start');
+    expect(listContainer).toHaveStyle('overflow-y: auto');
+  });
+});

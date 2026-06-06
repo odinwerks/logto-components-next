@@ -77,18 +77,25 @@ S3_PUBLIC_URL=https://your-public-cdn-or-bucket-domain/avatars`} />
         <strong style={styles.strongNoteStyle}>Access Policy:</strong> Ensure your target S3 bucket is configured with a <strong>Public Read Policy</strong> so avatars can be rendered on client browsers without presigned URL expiry overhead.
       </div>
 
-      <h3 id={slugify("Option C: Logto-Hosted Avatar Backend")} style={h3Style}>Option C: Logto-Hosted Avatar Backend</h3>
+      <h3 id={slugify("Option C: Logto-Hosted Avatar Backend (Blacktop only)")} style={h3Style}>Option C: Logto-Hosted Avatar Backend (Blacktop only)</h3>
       
       <p style={styles.textStyle}>
-        Alternatively, you can store avatar metadata directly within the Logto User Database using Logto's built-in Custom Data endpoint.
+        This option is only available when <code style={styles.codeSmStyle}>BACKEND_TYPE=blacktop</code>. In upstream mode, the runtime forcibly falls back to <code style={styles.codeSmStyle}>s3</code> even if you set <code style={styles.codeSmStyle}>PFP_BACKEND=logto</code>.
       </p>
       
-      <CodeBlock title="Logto Custom Data Configuration" code={`# Switch backend from standard 's3' to 'logto'
+      <CodeBlock title="Blacktop-only Configuration" code={`# Required for Option C
+BACKEND_TYPE=blacktop
+
+# Switch backend from standard 's3' to 'logto'
 PFP_BACKEND=logto`} />
       
       <p style={styles.textStyle}>
-        When using <code style={styles.codeSmStyle}>PFP_BACKEND=logto</code>, the system updates the avatar URL in Logto directly. No external storage bucket is required, which is excellent for quick and simple deployments.
+        Implementation detail: the Server Action <code style={styles.codeSmStyle}>uploadAvatar</code> forwards a multipart request to <code style={styles.codeSmStyle}>{`{ENDPOINT}/api/my-account/avatar`}</code> using the current user&apos;s server-derived session token. This path is non-standard for stock upstream deployments and is intended for the Blacktop fork capability mode.
       </p>
+
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Compatibility note:</strong> If you run upstream Logto (OSS/Cloud default behavior), use Option A or Option B. Option C is fork-specific.
+      </div>
 
       <h2 id={slugify("Architecture & Security")} style={h2Style}>Architecture & Security</h2>
       

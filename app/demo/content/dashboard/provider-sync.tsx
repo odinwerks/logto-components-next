@@ -63,22 +63,21 @@ export default function DashboardProviderSync() {
       </h2>
 
       <p style={styles.textStyle}>
-        The Dashboard creates <strong>isolated</strong> provider instances. External consumers (such as <code style={styles.codeStyle}>LogtoProvider</code>) run separate instances.
+        In the default starter layout, both your app shell and the dashboard overlay run under the same <code style={styles.codeStyle}>LogtoProvider</code> instance.
       </p>
 
       <p style={styles.textStyle}>
-        While the kit is engineered to support isolated/multiple provider synchronization via custom window events and storage, the default starter-kit layout configuration simplifies this by mapping all components inside a single, unified root-level provider tree.
+        The event + <code style={styles.codeStyle}>sessionStorage</code> sync layer still exists as a resilience mechanism and for advanced cases where multiple provider trees are mounted intentionally.
       </p>
 
       <CodeBlock
-        title="Two separate provider trees"
-        code={`// Dashboard (Server Component)
-//   └─ UserDataProvider (INSTANCE B)
-//   └─ PreferencesProvider (INSTANCE B)
+        title="Default provider topology"
+        code={`// app/(docs)/layout.tsx
+<LogtoProvider dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}>
+  {children}
+</LogtoProvider>
 
-// Your app (LogtoProvider)  
-//   └─ PreferencesProvider (INSTANCE A)
-//   └─ UserDataProvider (INSTANCE A)`}
+// Both children and dashboard consume the same Preferences/UserData context.`}
       />
 
       <p style={styles.textStyle}>

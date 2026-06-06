@@ -63,7 +63,7 @@ export default function DashboardMobile() {
       </h2>
 
       <p style={styles.textStyle}>
-        The system adapts to viewports using an orientation-based responsive router. When portrait mode triggers, the system mounts the mobile layout optimized for touch navigation.
+        The system adapts to viewports using a responsive router driven by media queries. The mobile layout is used when the viewport is portrait <em>or</em> narrow.
       </p>
 
       <CodeBlock
@@ -75,7 +75,7 @@ export default function DashboardMobile() {
       />
 
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>
-        Detection is driven by CSS media-queries, not screen dimensions. A narrow desktop window in landscape format displays the sidebar, whereas a portrait device displays the mobile-specific stack.
+        Detection is driven by CSS media queries: <code style={styles.codeSmStyle}>(orientation: portrait)</code> plus a width guard (<code style={styles.codeSmStyle}>(max-width: 64rem)</code>). So a narrow landscape window also switches to the mobile stack.
       </p>
 
       <h2 id={slugify("Orientation detection: useIsPortrait()")} style={h2Style}>
@@ -90,16 +90,26 @@ export default function DashboardMobile() {
         title="useIsPortrait implementation"
         code={`function useIsPortrait(): boolean {
   const [portrait, setPortrait] = useState(false);
+  const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia('(orientation: portrait)');
-    setPortrait(mq.matches);
-    const handler = (e) => setPortrait(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const orientationMq = window.matchMedia('(orientation: portrait)');
+    const widthMq = window.matchMedia('(max-width: 64rem)');
+    setPortrait(orientationMq.matches);
+    setNarrow(widthMq.matches);
+
+    const onOrientation = (e) => setPortrait(e.matches);
+    const onWidth = (e) => setNarrow(e.matches);
+
+    orientationMq.addEventListener('change', onOrientation);
+    widthMq.addEventListener('change', onWidth);
+    return () => {
+      orientationMq.removeEventListener('change', onOrientation);
+      widthMq.removeEventListener('change', onWidth);
+    };
   }, []);
 
-  return portrait;
+  return portrait || narrow;
 }`}
       />
 

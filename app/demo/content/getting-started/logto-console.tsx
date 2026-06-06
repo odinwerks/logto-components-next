@@ -38,6 +38,10 @@ export default function LogtoConsole() {
         Each serves a specific security context within the OAuth 2.0 / OIDC architecture.
       </p>
 
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Order (including mobile view):</strong> create and configure the <strong>Traditional Web</strong> application first, then create the <strong>M2M</strong> application. On narrow/mobile layouts this page stacks vertically in the same order.
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
         <div>
           <h3 id={slugify("1. Traditional Web Application")} style={{ ...h3Style, marginTop: 0 }}>1. Traditional Web Application</h3>
@@ -73,11 +77,13 @@ export default function LogtoConsole() {
           <div style={styles.noteStyle}>
             <strong style={styles.strongNoteStyle}>Role & Scope Assignment</strong>
             <br />
-            Assign the Logto Management API role with the following permissions:
+            Assign Management API permissions that cover this kit&apos;s usage:
             <br />
-            • <code style={styles.codeSmStyle}>User data → Write</code>
+            • user data read/write/delete (including custom-data updates)
             <br />
-            • <code style={styles.codeSmStyle}>Organization → Read</code> (only Read permission is required; Write is not needed)
+            • organization membership/role reads
+            <br />
+            • role/scope reads (personal + organization role scopes)
           </div>
           <div style={styles.noteStyle}>
             <strong style={styles.strongNoteStyle}>Target ENV Parameters</strong>
@@ -91,7 +97,15 @@ export default function LogtoConsole() {
           <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
             <strong style={styles.strongNoteStyle}>Core Purpose</strong>
             <br />
-            Used for elevated server actions like completely purging a user's record on deletion, checking user memberships, or mutating organization attributes.
+            Used for elevated server actions that cannot rely only on the end-user access token. In this kit, M2M credentials are used for:
+            <br />
+            • permanent account deletion
+            <br />
+            • personal/org role and permission resolution (RBAC checks and tab data)
+            <br />
+            • org membership verification
+            <br />
+            • user custom-data updates for persisted Preferences (<code style={styles.codeSmStyle}>theme</code>, <code style={styles.codeSmStyle}>lang</code>, <code style={styles.codeSmStyle}>asOrg</code>)
           </div>
         </div>
       </div>

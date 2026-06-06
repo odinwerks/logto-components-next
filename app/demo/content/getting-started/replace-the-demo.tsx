@@ -25,24 +25,26 @@ export default function ReplaceTheDemo() {
       <h2 id={slugify("Replacing the Demo App")} style={{ ...h2Style, marginTop: 0 }}>Replacing the Demo App</h2>
       
       <p style={styles.textStyle}>
-        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, the global layout and server-side OIDC hydration live under the layout route group at <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code>, and <code style={styles.codeSmStyle}>app/page.tsx</code> is a simple redirect to guide users to the docs. When replacing the demo, you can lift the provider structure into your root layout (<code style={styles.codeSmStyle}>app/layout.tsx</code>) or keep the route group setup.
+        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, global layout + server-side OIDC hydration live in <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code>, while <code style={styles.codeSmStyle}>app/page.tsx</code> currently redirects to the docs route. When replacing the demo, either move this provider wiring into your root layout (<code style={styles.codeSmStyle}>app/layout.tsx</code>) or keep the route-group approach.
       </p>
       
-      <CodeBlock title="app/page.tsx (Structure)" code={`import { LogtoProvider } from './logto-kit';
-import { Dashboard } from './logto-kit/components/dashboard';
-import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
-import DemoApp from './demo'; // ← Replace this import with your own component!
+      <CodeBlock title="Current provider wiring (from app/(docs)/layout.tsx)" code={`import { LogtoProvider } from '../logto-kit/components/providers/logto-provider';
+import { Dashboard } from '../logto-kit/components/dashboard';
+import { MobileDashboard } from '../logto-kit/components/dashboard/mobile-page';
 
-export default async function HomePage() {
+export default async function DocsLayout({ children }) {
   const result = await fetchDashboardData();
-  if (!result.success) { /* Handle error states */ }
+  if (!result.success) {
+    if ('needsAuth' in result && result.needsAuth) redirect('/callback');
+    return <div>Failed to load user data</div>;
+  }
 
   return (
     <LogtoProvider
       userData={result.userData}
       dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
     >
-      <DemoApp />  {/* ← Instantiate your application here */}
+      {children}
     </LogtoProvider>
   );
 }`} />
@@ -73,7 +75,7 @@ export default async function HomePage() {
       <h2 id={slugify("Run in Development & Production")} style={h2Style}>Run in Development & Production</h2>
       
       <p style={styles.textStyle}>
-        To run the project locally, verify you are using <strong>Node.js v25+</strong> (note that while the container-engine version aligns with the standard of Node v20/v22, the local standard of Node v25+ is recommended due to modern APIs like <code style={styles.codeSmStyle}>globalThis.structuredClone</code> which are fully supported natively since Node v17).
+        To run locally, use a current Node.js LTS runtime (Node 20+ recommended for modern Next.js toolchains).
       </p>
       
       <CodeBlock title="Development Mode" code={`npm run dev`} />
@@ -129,7 +131,7 @@ docker compose up -d`} />
         <strong style={styles.strongNoteStyle}>2. OIDC Authorize:</strong> Sign-in endpoint redirects to Logto. After successful login, Logto routes back to the <code style={styles.codeSmStyle}>/callback</code> route.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>3. Token Exchange:</strong> The callback endpoint securely exchanges the authorization code for tokens, writes session cookies, and redirects back to <code style={styles.codeSmStyle}>/</code>.
+        <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The callback route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which handles both OAuth callback completion and sign-in initiation when callback params are absent.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client's <code style={styles.codeSmStyle}>LogtoProvider</code> context.

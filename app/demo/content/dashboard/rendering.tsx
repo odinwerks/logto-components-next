@@ -76,7 +76,10 @@ export default function DashboardRendering() {
   return (
     <LogtoProvider
       userData={result.userData}
-      dashboard={<Dashboard />}  {/* Server Component JSX */}
+      dashboard={{
+        desktop: <Dashboard />,
+        mobile: <MobileDashboard />,
+      }}
     >
       <DemoApp />
     </LogtoProvider>

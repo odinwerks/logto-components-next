@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useIsPortrait } from '../logto-kit';
 import Sidebar from '../demo/Sidebar';
 import MobileDocsNav from '../demo/MobileDocsNav';
@@ -14,6 +15,14 @@ const appStyle: React.CSSProperties = {
 
 export default function DocsLayoutClient({ children }: { children: React.ReactNode }) {
   const isPortrait = useIsPortrait();
+  const pathname = usePathname();
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = contentContainerRef.current;
+    if (!container) return;
+    container.scrollTop = 0;
+  }, [pathname]);
 
   return (
     <div style={appStyle}>
@@ -34,6 +43,7 @@ export default function DocsLayoutClient({ children }: { children: React.ReactNo
 
       {!isPortrait && <Sidebar items={NAV_ITEMS} />}
       <div 
+        ref={contentContainerRef}
         className="docs-content-container" 
         style={{ 
           flex: 1, 
