@@ -183,8 +183,15 @@ export async function verifyPersonalAccess(
       }
     } else {
       // Existing strict behavior: session is required when no expected principal is supplied.
-      const sessionToken = await getTokenForServerAction();
-      const introspection = await introspectToken(sessionToken);
+      let introspection: Awaited<ReturnType<typeof introspectToken>>;
+
+      try {
+        const sessionToken = await getTokenForServerAction();
+        introspection = await introspectToken(sessionToken);
+      } catch {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
+
       if (!introspection.active) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }

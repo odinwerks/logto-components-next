@@ -335,8 +335,9 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     expect(telInput).toBeInTheDocument();
     expect(telInput).toHaveAttribute('type', 'tel');
 
-    // PhoneCountrySelect button has text content including "+995"
-    const countryButton = screen.getByRole('button', { name: /995/ });
+    // PhoneCountrySelect trigger is exposed as a combobox
+    const countryButton = screen.getByRole('combobox', { name: /country calling code/i });
+    expect(countryButton).toHaveTextContent('+995');
     expect(countryButton).toBeInTheDocument();
   });
 
@@ -387,7 +388,8 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     expect(telInput).toBeInTheDocument();
     expect(telInput.value).toBe('4155552671');
 
-    const countryButton = screen.getByRole('button', { name: /\+1/ });
+    const countryButton = screen.getByRole('combobox', { name: /country calling code/i });
+    expect(countryButton).toHaveTextContent('+1');
     expect(countryButton).toBeInTheDocument();
   });
 
