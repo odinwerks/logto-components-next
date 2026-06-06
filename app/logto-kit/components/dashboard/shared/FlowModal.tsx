@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -23,6 +23,90 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
       {children}
     </div>
   );
+}
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
+    return !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.getAttribute('aria-hidden') !== 'true';
+  });
+}
+
+function useDialogA11y(dialogRef: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusable = getFocusableElements(dialog);
+    const autoFocused = focusable.find((el) => el.hasAttribute('autofocus'));
+    const initial = autoFocused ?? focusable[0] ?? dialog;
+    initial.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current?.();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const currentDialog = dialogRef.current;
+      if (!currentDialog) return;
+
+      const nodes = getFocusableElements(currentDialog);
+      if (nodes.length === 0) {
+        e.preventDefault();
+        currentDialog.focus();
+        return;
+      }
+
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const outsideDialog = !active || !currentDialog.contains(active);
+
+      if (e.shiftKey) {
+        if (outsideDialog || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (outsideDialog || active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      const previous = restoreFocusRef.current;
+      if (previous && document.contains(previous)) {
+        previous.focus();
+      }
+    };
+  }, [dialogRef]);
 }
 
 export type PasswordModalStep =
@@ -71,18 +155,11 @@ export function PasswordVerifyModal({
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [hidePwErrorWhileTyping, setHidePwErrorWhileTyping] = useState(false);
+  const titleId = useId();
+  const descriptionId = useId();
   const dangerColor = c.accentRed;
-
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onClose);
 
   useEffect(() => {
     setHidePwErrorWhileTyping(false);
@@ -95,18 +172,18 @@ export function PasswordVerifyModal({
         background: T.surface, border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
         overflow: 'hidden',
-      }}>
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
         <div style={{
           padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
         }}>
           <div>
-            <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
+            <p id={titleId} style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
               {title}
             </p>
-            <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
+            <p id={descriptionId} style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
+          <button aria-label="Close dialog" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
             <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
           </button>
         </div>
@@ -129,7 +206,11 @@ export function PasswordVerifyModal({
         mode={mode}
         colors={colors}
                 suffix={
-                  <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
+                  <button
+                    aria-label={showPw ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPw(s => !s)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                  >
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
@@ -174,7 +255,7 @@ export function PasswordVerifyModal({
 }
 
 export function FlowModal({
-  title, subtitle, step, onValueSubmit, valueSubmitDisabled, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
+  title, subtitle, step, onValueSubmit, valueSubmitDisabled, valueSubmitLabel, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
   passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger,
 }: {
   title: string;
@@ -182,6 +263,7 @@ export function FlowModal({
   step: ModalStep;
   onValueSubmit?: () => void;
   valueSubmitDisabled?: boolean;
+  valueSubmitLabel?: string;
   onPasswordSubmit: (password: string) => void;
   onCodeSubmit?: (code: string) => void;
   onTotpSubmit?: (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => void;
@@ -226,19 +308,13 @@ export function FlowModal({
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [renameVal, setRenameVal] = useState('');
+  const titleId = useId();
+  const descriptionId = useId();
 
   const dangerColor = c.accentRed;
 
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current?.();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onClose);
 
   useEffect(() => {
     setHidePwErrorWhileTyping(false);
@@ -265,21 +341,21 @@ export function FlowModal({
         background: T.surface, border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
         overflow: 'hidden',
-      }}>
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
         <div style={{
           padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.1875rem' }}>
-              <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, letterSpacing: '-0.02em', margin: 0 }}>
+              <p id={titleId} style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: danger ? dangerColor : T.text, letterSpacing: '-0.02em', margin: 0 }}>
                 {title}
               </p>
               {headerExtra}
             </div>
-            <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
+            <p id={descriptionId} style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
+          <button aria-label="Close dialog" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
             <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
           </button>
         </div>
@@ -300,7 +376,7 @@ export function FlowModal({
                   mode={mode}
                   colors={colors}
                 >
-                  {t.profile.saveChanges} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                  {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
             </>
@@ -323,7 +399,11 @@ export function FlowModal({
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
                 mode={mode} colors={colors}
                 suffix={
-                  <button onClick={() => setShowPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
+                  <button
+                    aria-label={showPw ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPw(s => !s)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                  >
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
@@ -419,14 +499,14 @@ export function FlowModal({
                       }}>
                         {step.secret}
                       </div>
-                      <button onClick={() => setShowSecret(s => !s)} style={{
+                      <button aria-label={showSecret ? 'Hide secret key' : 'Show secret key'} onClick={() => setShowSecret(s => !s)} style={{
                         padding: '0 0.625rem', background: T.raised, border: 'none',
                         borderLeft: `1px solid ${T.border}`, cursor: 'pointer',
                         color: T.muted, display: 'flex', alignItems: 'center',
                       }}>
                         {showSecret ? <EyeOff size={'0.8125rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.8125rem'} color={T.muted} strokeWidth={1.5} />}
                       </button>
-                      <button onClick={copySecret} style={{
+                      <button aria-label="Copy secret key" onClick={copySecret} style={{
                         padding: '0 0.625rem', background: T.raised, border: 'none',
                         borderLeft: `1px solid ${T.border}`, cursor: 'pointer',
                         color: copied ? T.greenText : T.muted,
@@ -482,7 +562,11 @@ export function FlowModal({
                 onKeyDown={(e) => { if (e.key === 'Enter' && newPw) onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp); }}
                 mode={mode} colors={colors}
                 suffix={
-                  <button onClick={() => setShowNewPw(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}>
+                  <button
+                    aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowNewPw(s => !s)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                  >
                     {showNewPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
@@ -541,6 +625,9 @@ export function BackupCodesModal({
   mode: 'dark' | 'light';
   colors: ThemeColors;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onDone);
+
   const c = colors;
   const T = {
     surface: c.bgSecondary,
@@ -587,7 +674,7 @@ export function BackupCodesModal({
         border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6)',
         overflow: 'hidden',
-      }}>
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')}>
         <div style={{
           padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -600,7 +687,7 @@ export function BackupCodesModal({
               {isNew ? t.mfa.saveTheseCodes : t.mfa.existingCodes}
             </p>
           </div>
-          <button onClick={onDone} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex' }}>
+          <button aria-label="Close dialog" onClick={onDone} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex' }}>
             <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
           </button>
         </div>

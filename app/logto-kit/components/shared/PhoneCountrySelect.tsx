@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Globe, Check, ChevronDown } from 'lucide-react';
 import type { ThemeColors } from '../../themes';
@@ -9,8 +9,8 @@ import { COUNTRY_CODES, getFlagEmoji } from '../../logic/country-codes';
 import { isCountryAllowed } from '../../logic/country-list-filter';
 
 export interface PhoneCountrySelectProps {
-  value: string; // Dial code digits, e.g. "995" or "1" (without leading +)
-  onChange: (code: string) => void; // Called when a code is selected
+  value: string;
+  onChange: (code: string) => void;
   countryFilter?: {
     mode: 'allow' | 'block' | 'none';
     codes: string[];
@@ -36,6 +36,9 @@ export function PhoneCountrySelect({
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
 
+  const triggerId = useId();
+  const listboxId = useId();
+
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -45,19 +48,16 @@ export function PhoneCountrySelect({
     setMounted(true);
   }, []);
 
-  // Compute active countries list based on filter
   const activeCountries = useMemo(() => {
     const filter = countryFilter ?? { mode: 'none' as const, codes: [] };
     const filtered = COUNTRY_CODES.filter((c) => isCountryAllowed(c.code, filter));
     return filtered.length > 0 ? filtered : [...COUNTRY_CODES];
   }, [countryFilter]);
 
-  // Find currently selected country in filtered list
   const selectedCountry = useMemo(() => {
     return activeCountries.find((c) => c.code === value);
   }, [activeCountries, value]);
 
-  // Handle position computation
   const updateCoords = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -68,7 +68,6 @@ export function PhoneCountrySelect({
     }
   }, []);
 
-  // Update coords on open/scroll/resize
   useEffect(() => {
     if (isOpen) {
       updateCoords();
@@ -81,7 +80,6 @@ export function PhoneCountrySelect({
     };
   }, [isOpen, updateCoords]);
 
-  // Focus search input when open
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -91,7 +89,13 @@ export function PhoneCountrySelect({
     }
   }, [isOpen]);
 
-  // Handle clicks outside trigger and dropdown to close
+  const closeDropdown = useCallback((restoreTriggerFocus = false) => {
+    setIsOpen(false);
+    if (restoreTriggerFocus) {
+      setTimeout(() => triggerRef.current?.focus(), 0);
+    }
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -100,7 +104,7 @@ export function PhoneCountrySelect({
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        closeDropdown(false);
       }
     };
 
@@ -110,9 +114,8 @@ export function PhoneCountrySelect({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, closeDropdown]);
 
-  // Filter countries in real-time
   const filteredCountries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return activeCountries;
@@ -124,16 +127,20 @@ export function PhoneCountrySelect({
     );
   }, [activeCountries, searchQuery]);
 
-  // Reset highlight index when filtered list changes
   useEffect(() => {
-    setHighlightedIndex(0);
-  }, [filteredCountries]);
+    if (!isOpen) {
+      setHighlightedIndex(0);
+      return;
+    }
 
-  // Auto-scroll highlighted list item into view
+    const selectedIndex = filteredCountries.findIndex((country) => country.code === value);
+    setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [filteredCountries, isOpen, value]);
+
   useEffect(() => {
     if (listRef.current) {
       const highlightedEl = listRef.current.children[highlightedIndex] as HTMLElement;
-      if (highlightedEl) {
+      if (highlightedEl && typeof highlightedEl.scrollIntoView === 'function') {
         highlightedEl.scrollIntoView({ block: 'nearest' });
       }
     }
@@ -141,16 +148,37 @@ export function PhoneCountrySelect({
 
   const handleToggle = () => {
     if (disabled) return;
-    setIsOpen((prev) => !prev);
     setSearchQuery('');
+    setIsOpen((prev) => !prev);
   };
+
+  const openDropdown = useCallback(() => {
+    if (disabled) return;
+    setSearchQuery('');
+    setIsOpen(true);
+  }, [disabled]);
 
   const selectCountry = (country: typeof COUNTRY_CODES[number]) => {
     onChange(country.code);
-    setIsOpen(false);
+    closeDropdown(true);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDropdown();
+      return;
+    }
+
+    if (e.key === 'Escape' && isOpen) {
+      e.preventDefault();
+      closeDropdown(true);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex((prev) =>
@@ -166,9 +194,14 @@ export function PhoneCountrySelect({
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      setIsOpen(false);
+      closeDropdown(true);
     }
   };
+
+  const activeOption = filteredCountries[highlightedIndex];
+  const activeOptionId = activeOption
+    ? `phone-country-option-${activeOption.iso}-${activeOption.code}`
+    : undefined;
 
   const triggerStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -194,7 +227,7 @@ export function PhoneCountrySelect({
     position: 'absolute',
     top: `${coords.top}px`,
     left: `${coords.left}px`,
-    width: '16rem', // 256px
+    width: '16rem',
     maxHeight: '15rem',
     overflow: 'hidden',
     background: colors.bgSecondary,
@@ -255,9 +288,17 @@ export function PhoneCountrySelect({
     <>
       <button
         type="button"
+        id={triggerId}
         ref={triggerRef}
         disabled={disabled}
         onClick={handleToggle}
+        onKeyDown={handleTriggerKeyDown}
+        role="combobox"
+        aria-label="Country calling code"
+        aria-haspopup="listbox"
+        aria-controls={isOpen ? listboxId : undefined}
+        aria-expanded={isOpen}
+        aria-activedescendant={isOpen ? activeOptionId : undefined}
         style={triggerStyle}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -298,17 +339,33 @@ export function PhoneCountrySelect({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
                 style={searchInputStyle}
-                onKeyDown={handleKeyDown}
+                onKeyDown={handleSearchKeyDown}
+                role="combobox"
+                aria-label="Search countries"
+                aria-autocomplete="list"
+                aria-controls={listboxId}
+                aria-expanded={isOpen}
+                aria-activedescendant={activeOptionId}
               />
             </div>
-            <ul ref={listRef} style={listStyle}>
+            <ul
+              ref={listRef}
+              id={listboxId}
+              role="listbox"
+              aria-labelledby={triggerId}
+              style={listStyle}
+            >
               {filteredCountries.map((country, index) => {
                 const isSelected = selectedCountry?.iso === country.iso;
                 const isHighlighted = index === highlightedIndex;
+                const optionId = `phone-country-option-${country.iso}-${country.code}`;
 
                 return (
                   <li
                     key={`${country.iso}-${country.code}`}
+                    id={optionId}
+                    role="option"
+                    aria-selected={isSelected}
                     onClick={() => selectCountry(country)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     style={{
@@ -337,6 +394,9 @@ export function PhoneCountrySelect({
               })}
               {filteredCountries.length === 0 && (
                 <li
+                  role="option"
+                  aria-disabled="true"
+                  aria-selected="false"
                   style={{
                     ...itemStyle,
                     color: colors.textTertiary,

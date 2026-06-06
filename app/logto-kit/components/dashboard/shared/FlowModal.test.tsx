@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DARK_COLORS } from '../../../themes';
@@ -104,6 +105,25 @@ describe('FlowModal - localization', () => {
     // Title also says "Change password" so there are 2 elements
     const changePasswordElements = screen.getAllByText(enUS.security.changePassword);
     expect(changePasswordElements.length).toBe(2);
+  });
+
+  it('exposes dialog semantics and labels icon-only controls', () => {
+    render(
+      <FlowModal
+        title="Update password"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Update password' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /close dialog/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument();
   });
 });
 
@@ -296,6 +316,25 @@ describe('PasswordVerifyModal - Escape key dismissal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes dialog semantics and icon-button labels', () => {
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Verify' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /close dialog/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument();
+  });
+
   it('does not call onClose for other keys', () => {
     const onClose = vi.fn();
     render(
@@ -385,5 +424,109 @@ describe('Password modal error interaction', () => {
     });
 
     expect(screen.queryByText('Wrong password')).not.toBeInTheDocument();
+  });
+});
+
+describe('FlowModal - focus management', () => {
+  const noop = () => {};
+
+  it('traps keyboard focus within the FlowModal dialog', () => {
+    render(
+      <FlowModal
+        title="Trap test"
+        subtitle="Focus trap"
+        step={{ kind: 'value' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const iconClose = screen.getByRole('button', { name: /close dialog/i });
+    const footerClose = screen.getByRole('button', { name: enUS.common.close });
+    const save = screen.getByRole('button', { name: enUS.profile.saveChanges });
+
+    save.focus();
+    expect(document.activeElement).toBe(save);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(iconClose);
+
+    iconClose.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(save);
+
+    footerClose.focus();
+    expect(document.activeElement).toBe(footerClose);
+  });
+
+  it('restores focus to the previously focused element when closed', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open flow</button>
+          {open && (
+            <FlowModal
+              title="Restore"
+              subtitle="Focus restoration"
+              step={{ kind: 'value' }}
+              onPasswordSubmit={noop}
+              onClose={() => setOpen(false)}
+              t={enUS}
+              mode="dark"
+              colors={DARK_COLORS}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    const openButton = screen.getByRole('button', { name: 'Open flow' });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    expect(screen.getByRole('dialog', { name: 'Restore' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Restore' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it('restores focus when BackupCodesModal closes with Escape', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open backup</button>
+          {open && (
+            <BackupCodesModal
+              codes={[{ code: 'ABC123', used: false }]}
+              isNew
+              onDone={() => setOpen(false)}
+              onSuccess={noop}
+              t={enUS}
+              mode="dark"
+              colors={DARK_COLORS}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    const openButton = screen.getByRole('button', { name: 'Open backup' });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(openButton);
   });
 });

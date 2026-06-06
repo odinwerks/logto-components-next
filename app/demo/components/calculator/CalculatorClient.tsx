@@ -740,17 +740,33 @@ export function CalculatorClient() {
 
   return (
     <div style={calcWrapperStyle}>
-      <div style={displayStyle}>
-        <div style={modeRowStyle}>
-          <div style={modeLabelStyle} onClick={() => act('toggleMode', null)}>
+        <div style={displayStyle}>
+          <div style={modeRowStyle}>
+          <button
+            type="button"
+            style={{ ...modeLabelStyle, border: 'none', background: 'transparent' }}
+            onClick={() => act('toggleMode', null)}
+          >
             {state.isRad ? 'RAD' : 'DEG'}
+          </button>
+          <button
+            type="button"
+            style={{ ...invLabelStyle, border: 'none', background: 'transparent' }}
+            onClick={() => act('inv', null)}
+          >
+            INV
+          </button>
           </div>
-          <div style={invLabelStyle} onClick={() => act('inv', null)}>INV</div>
+          <div style={exprLineStyle}>{exprDisplay}</div>
+          <div style={mainLineStyle}>{mainDisplay}</div>
+        <button
+          type="button"
+          style={{ ...fxLabelStyle, border: 'none', background: 'transparent' }}
+          onClick={() => setDrawerOpen(!drawerOpen)}
+        >
+          f(x)
+        </button>
         </div>
-        <div style={exprLineStyle}>{exprDisplay}</div>
-        <div style={mainLineStyle}>{mainDisplay}</div>
-        <div style={fxLabelStyle} onClick={() => setDrawerOpen(!drawerOpen)}>f(x)</div>
-      </div>
       <div style={buttonsStyle}>
         <div style={drawerStyle}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '4px' }}>

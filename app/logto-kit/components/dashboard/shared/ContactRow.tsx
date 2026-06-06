@@ -75,15 +75,42 @@ export function ContactRow({
     return '995';
   }, [countryFilter]);
 
-  useEffect(() => {
-    if (modalKind === 'edit' && !currentValue) {
-      setSelectedCountry(defaultCountryCode);
-      setLocalPhone('');
+  const getPhoneParts = React.useCallback((rawPhone: string | undefined) => {
+    if (!rawPhone) {
+      return { countryCode: defaultCountryCode, localDigits: '' };
     }
-  }, [modalKind, currentValue, defaultCountryCode]);
+
+    const digits = rawPhone.replace(/\D/g, '');
+    if (!digits) {
+      return { countryCode: defaultCountryCode, localDigits: '' };
+    }
+
+    const ccIso = detectCountryFromE164(digits);
+    if (!ccIso) {
+      return { countryCode: defaultCountryCode, localDigits: digits };
+    }
+
+    const dialCode = COUNTRY_CODES.find(c => c.iso === ccIso)?.code;
+    if (!dialCode || !digits.startsWith(dialCode)) {
+      return { countryCode: defaultCountryCode, localDigits: digits };
+    }
+
+    return {
+      countryCode: dialCode,
+      localDigits: digits.slice(dialCode.length),
+    };
+  }, [defaultCountryCode]);
 
   useEffect(() => {
-    if (type === 'phone' && !currentValue) {
+    if (modalKind === 'edit' && type === 'phone') {
+      const { countryCode, localDigits } = getPhoneParts(currentValue);
+      setSelectedCountry(countryCode);
+      setLocalPhone(localDigits);
+    }
+  }, [modalKind, type, currentValue, getPhoneParts]);
+
+  useEffect(() => {
+    if (type === 'phone' && modalKind === 'edit') {
       const assembled = `+${selectedCountry}${localPhone}`;
       setNewValue(assembled);
 
@@ -107,29 +134,29 @@ export function ContactRow({
         setPhoneErr(null);
       }
     }
-  }, [selectedCountry, localPhone, type, currentValue, countryFilter, setNewValue, t]);
+  }, [selectedCountry, localPhone, type, modalKind, countryFilter, setNewValue, t]);
 
   const isMobile = mobmode === 1;
   const displayValue = type === 'phone' && currentValue
     ? formatPhone(currentValue)
     : currentValue;
 
-  const openEdit = () => { setNewValue(type === 'email' ? '' : (currentValue ?? '')); setPwErr(''); setStep({ kind: 'value' }); setModalKind('edit'); };
+  const openEdit = () => { setNewValue(type === 'email' ? '' : ''); setPwErr(''); setStep({ kind: 'value' }); setModalKind('edit'); };
   const close = () => { setModalKind(null); setStep({ kind: 'password' }); setPwErr(''); };
 
   const getTrimmedTarget = () => newValueRef.current.trim();
-  const isAddPhoneWithoutLocalDigits = type === 'phone' && !currentValue && localPhone.length === 0;
+  const isPhoneWithoutLocalDigits = type === 'phone' && modalKind === 'edit' && localPhone.length === 0;
 
   const canContinueFromValue = React.useMemo(() => {
     if (modalKind !== 'edit') return false;
-    if (isAddPhoneWithoutLocalDigits) return true;
+    if (isPhoneWithoutLocalDigits) return true;
     if (!getTrimmedTarget()) return true;
     if (type === 'phone' && !!phoneErr) return true;
     return false;
-  }, [modalKind, type, phoneErr, newValue, isAddPhoneWithoutLocalDigits]);
+  }, [modalKind, type, phoneErr, newValue, isPhoneWithoutLocalDigits]);
 
   const handleValueSubmit = () => {
-    if (isAddPhoneWithoutLocalDigits) { setPwErr(t.security.enterValueFirst); return; }
+    if (isPhoneWithoutLocalDigits) { setPwErr(t.security.enterValueFirst); return; }
     const target = getTrimmedTarget();
     if (!target) { setPwErr(t.security.enterValueFirst); return; }
     if (type === 'phone' && phoneErr) { setPwErr(phoneErr); return; }
@@ -196,7 +223,7 @@ export function ContactRow({
           extra={modalKind === 'edit' && step.kind === 'value' ? (
             <div style={{ marginBottom: '1rem' }}>
               <Lbl colors={colors}>{currentValue ? (type === 'email' ? t.security.email : t.security.phone) : label}</Lbl>
-              {type === 'phone' && !currentValue ? (
+              {type === 'phone' ? (
                 <>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: phoneErr ? '0.375rem' : '1rem' }}>
                     <PhoneCountrySelect

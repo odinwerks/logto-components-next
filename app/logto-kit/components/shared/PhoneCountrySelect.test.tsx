@@ -7,7 +7,7 @@ import { enUS } from '../../locales/en-US';
 
 describe('PhoneCountrySelect', () => {
   const defaultProps = {
-    value: '995', // Georgia
+    value: '995',
     onChange: vi.fn(),
     mode: 'dark' as const,
     colors: DARK_COLORS,
@@ -20,37 +20,31 @@ describe('PhoneCountrySelect', () => {
 
   it('renders trigger with selected country flag and code', () => {
     render(<PhoneCountrySelect {...defaultProps} />);
-    
-    // Georgia flag is 🇬🇪, code is +995
+
     expect(screen.getByText('🇬🇪')).toBeInTheDocument();
     expect(screen.getByText('+995')).toBeInTheDocument();
   });
 
   it('opens dropdown portal on click', () => {
     render(<PhoneCountrySelect {...defaultProps} />);
-    
-    // Dropdown should not be in document initially
+
     expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
-    // After clicking, search input should be present
     expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
   });
 
   it('filters countries on search query', () => {
     render(<PhoneCountrySelect {...defaultProps} />);
-    
-    const trigger = screen.getByRole('button');
+
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
     const searchInput = screen.getByPlaceholderText('Search...');
-    
-    // Type "Ukraine"
     fireEvent.change(searchInput, { target: { value: 'Ukraine' } });
 
-    // Ukraine should be in document, Georgia should not be matched
     expect(screen.getByText('Ukraine')).toBeInTheDocument();
     expect(screen.queryByText('Georgia')).not.toBeInTheDocument();
   });
@@ -59,10 +53,9 @@ describe('PhoneCountrySelect', () => {
     const onChange = vi.fn();
     render(<PhoneCountrySelect {...defaultProps} onChange={onChange} />);
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
-    // Click on Ukraine (+380)
     const searchInput = screen.getByPlaceholderText('Search...');
     fireEvent.change(searchInput, { target: { value: 'Ukraine' } });
 
@@ -77,13 +70,11 @@ describe('PhoneCountrySelect', () => {
     const onChange = vi.fn();
     render(<PhoneCountrySelect {...defaultProps} onChange={onChange} />);
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
     const searchInput = screen.getByPlaceholderText('Search...');
     fireEvent.change(searchInput, { target: { value: 'Ukraine' } });
-
-    // Highlight is at 0 (Ukraine), hit Enter
     fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith('380');
@@ -92,7 +83,7 @@ describe('PhoneCountrySelect', () => {
   it('closes on Escape key press', () => {
     render(<PhoneCountrySelect {...defaultProps} />);
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
     const searchInput = screen.getByPlaceholderText('Search...');
@@ -112,14 +103,11 @@ describe('PhoneCountrySelect', () => {
       />
     );
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
-    // Georgia (+995) and Ukraine (+380) should be available
     expect(screen.getByText('Georgia')).toBeInTheDocument();
     expect(screen.getByText('Ukraine')).toBeInTheDocument();
-
-    // Germany (+49) should NOT be available
     expect(screen.queryByText('Germany')).not.toBeInTheDocument();
   });
 
@@ -129,18 +117,59 @@ describe('PhoneCountrySelect', () => {
         {...defaultProps}
         countryFilter={{
           mode: 'block',
-          codes: ['49'], // Block Germany
+          codes: ['49'],
         }}
       />
     );
 
-    const trigger = screen.getByRole('button');
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
     fireEvent.click(trigger);
 
-    // Georgia (+995) should be available
     expect(screen.getByText('Georgia')).toBeInTheDocument();
-
-    // Germany (+49) should NOT be available
     expect(screen.queryByText('Germany')).not.toBeInTheDocument();
+  });
+
+  it('exposes combobox/listbox accessibility semantics', () => {
+    render(<PhoneCountrySelect {...defaultProps} />);
+
+    const trigger = screen.getByRole('combobox');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
+  it('supports trigger keyboard open and sets active descendant', () => {
+    render(<PhoneCountrySelect {...defaultProps} />);
+
+    const trigger = screen.getByRole('combobox');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' });
+
+    const searchInput = screen.getByRole('combobox', { name: /search countries/i });
+    expect(searchInput).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown', code: 'ArrowDown' });
+    const activeId = searchInput.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+
+    const activeOption = document.getElementById(String(activeId));
+    expect(activeOption).toHaveAttribute('role', 'option');
+  });
+
+  it('returns focus to trigger when dropdown closes with Escape', () => {
+    render(<PhoneCountrySelect {...defaultProps} />);
+
+    const trigger = screen.getByRole('combobox');
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: 'Enter', code: 'Enter' });
+
+    const searchInput = screen.getByRole('combobox', { name: /search countries/i });
+    fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
   });
 });

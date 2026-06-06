@@ -81,6 +81,15 @@ function setEmailInput(value: string = 'next@example.com') {
   });
 }
 
+function buildPhoneProps(overrides: Partial<ContactRowProps> = {}): ContactRowProps {
+  const base = buildDefaults() as unknown as ContactRowProps;
+  base.type = 'phone';
+  base.label = 'Phone';
+  base.placeholder = 'Enter phone number';
+  base.currentValue = undefined;
+  return { ...base, ...overrides };
+}
+
 describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -314,11 +323,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   });
 
   it('renders PhoneCountrySelect and tel input when type is phone and currentValue is not set', async () => {
-    const props = buildDefaults() as unknown as ContactRowProps;
-    props.type = 'phone';
-    props.currentValue = undefined;
-    props.label = 'Phone';
-    props.placeholder = 'Enter phone number';
+    const props = buildPhoneProps();
 
     render(<ContactRow {...props} />);
     openAddModal();
@@ -336,11 +341,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   });
 
   it('keeps add-phone flow on value step when local phone digits are cleared', async () => {
-    const props = buildDefaults() as unknown as ContactRowProps;
-    props.type = 'phone';
-    props.currentValue = undefined;
-    props.label = 'Phone';
-    props.placeholder = 'Enter phone number';
+    const props = buildPhoneProps();
 
     render(<ContactRow {...props} />);
     openAddModal();
@@ -362,11 +363,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
   });
 
   it('continues add-phone flow when local phone digits are provided', async () => {
-    const props = buildDefaults() as unknown as ContactRowProps;
-    props.type = 'phone';
-    props.currentValue = undefined;
-    props.label = 'Phone';
-    props.placeholder = 'Enter phone number';
+    const props = buildPhoneProps();
 
     render(<ContactRow {...props} />);
     openAddModal();
@@ -376,5 +373,43 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     await act(async () => flowModalHandlers.onValueSubmit!());
 
     expect(flowModalStep).toBe('password');
+  });
+
+  it('renders country picker in phone modify flow and pre-fills local digits from E.164', () => {
+    const props = buildPhoneProps({ currentValue: '+14155552671' });
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+
+    expect(flowModalStep).toBe('value');
+
+    const telInput = screen.getByPlaceholderText('Enter phone number') as HTMLInputElement;
+    expect(telInput).toBeInTheDocument();
+    expect(telInput.value).toBe('4155552671');
+
+    const countryButton = screen.getByRole('button', { name: /\+1/ });
+    expect(countryButton).toBeInTheDocument();
+  });
+
+  it('submits modified phone as assembled E.164 digits from picker + local number', async () => {
+    const props = buildPhoneProps({ currentValue: '+14155552671' });
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationId: 'vid-1' },
+    } satisfies DataResult<{ verificationId: string }>);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+
+    fireEvent.change(screen.getByPlaceholderText('Enter phone number'), { target: { value: '7778888' } });
+
+    await act(async () => flowModalHandlers.onValueSubmit!());
+    await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
+
+    await waitFor(() => {
+      expect(props.onSendVerification).toHaveBeenCalledWith('+17778888');
+    });
   });
 });

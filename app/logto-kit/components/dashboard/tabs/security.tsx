@@ -421,14 +421,15 @@ export function SecurityTab({
       {backupStep && (
         <FlowModal
           title={t.security.generateBackupCodesTitle}
-          subtitle={backupStep.kind === 'value' ? t.security.generateBackupCodesConfirm : t.mfa.verifyPasswordToGenerateBackupCodes}
+          subtitle={t.mfa.verifyPasswordToGenerateBackupCodes}
           step={backupStep}
           onValueSubmit={() => { setBackupPwErr(''); setBackupStep({ kind: 'password' }); }}
+          valueSubmitLabel={t.security.generateBackupCodesCta}
           onPasswordSubmit={handleBackupPw}
           onClose={closeBackupModal}
           passwordError={backupPwErr}
           extra={backupStep.kind === 'value' ? (
-            <p style={{ fontFamily: T.font, fontSize: '0.8125rem', color: T.sub, lineHeight: 1.55, margin: 0 }}>
+            <p style={{ fontFamily: T.font, fontSize: '0.8125rem', fontWeight: 700, color: T.text, lineHeight: 1.55, margin: 0 }}>
               {t.security.generateBackupCodesConfirm}
             </p>
           ) : undefined}

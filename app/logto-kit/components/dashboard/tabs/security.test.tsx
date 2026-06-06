@@ -103,14 +103,17 @@ describe('SecurityTab', () => {
     vi.clearAllMocks();
   });
 
-  it('shows explicit backup regeneration confirmation before password step', async () => {
+  it('shows backup regeneration warning only in modal body with explicit CTA label', async () => {
     renderSecurity();
 
     await screen.findByText(enUS.mfa.recoveryCodes);
     fireEvent.click(screen.getByRole('button', { name: enUS.security.generateBackupCodesTitle }));
 
-    expect(screen.getAllByText('Generating new backup codes will void old ones. Continue?').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: enUS.profile.saveChanges })).toBeInTheDocument();
+    const warningText = screen.getByText(enUS.security.generateBackupCodesConfirm);
+    expect(screen.getAllByText(enUS.security.generateBackupCodesConfirm)).toHaveLength(1);
+    expect(warningText).toHaveStyle({ fontWeight: '700' });
+    expect(screen.getByText(enUS.mfa.verifyPasswordToGenerateBackupCodes)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: enUS.security.generateBackupCodesCta })).toBeInTheDocument();
   });
 
   it('keeps backup-codes modal open with inline error on wrong password', async () => {
@@ -120,7 +123,7 @@ describe('SecurityTab', () => {
 
     await screen.findByText(enUS.mfa.recoveryCodes);
     fireEvent.click(screen.getByRole('button', { name: enUS.security.generateBackupCodesTitle }));
-    fireEvent.click(screen.getByRole('button', { name: enUS.profile.saveChanges }));
+    fireEvent.click(screen.getByRole('button', { name: enUS.security.generateBackupCodesCta }));
 
     fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
       target: { value: 'bad' },

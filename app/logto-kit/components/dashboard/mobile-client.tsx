@@ -161,6 +161,14 @@ export function MobileClient({
     setView('menu');
   }, []);
 
+  const handleSignOut = useCallback(async () => {
+    try {
+      await onSignOut();
+    } catch {
+      showToast('error', t.dashboard.error);
+    }
+  }, [onSignOut, showToast, t.dashboard.error]);
+
   // ── Menu view ────────────────────────────────────────────────────────────
 
   if (view === 'menu') {
@@ -206,6 +214,7 @@ export function MobileClient({
 
         {/* Entry box */}
         <div
+          data-testid="mobile-main-stack"
           style={{
             width: '100%',
             maxWidth: isNarrowViewport ? '18.5rem' : '20rem',
@@ -218,7 +227,6 @@ export function MobileClient({
           {loadedTabs.map((tabId, index) => (
             <MobileMenuEntry
               key={tabId}
-              tabId={tabId}
               label={getTabLabel(tabId, t)}
               index={index}
               total={loadedTabs.length}
@@ -227,6 +235,34 @@ export function MobileClient({
               onClick={() => openTab(tabId)}
             />
           ))}
+        </div>
+
+        <div
+          data-testid="mobile-signout-dock"
+          style={{
+            position: 'absolute',
+            left: 'max(1rem, env(safe-area-inset-left, 0px))',
+            right: 'max(1rem, env(safe-area-inset-right, 0px))',
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)',
+            margin: '0 auto',
+            width: '100%',
+            maxWidth: isNarrowViewport ? '18.5rem' : '20rem',
+            border: `1px solid ${colors.borderColor}`,
+            borderRadius: '0.5rem',
+            overflow: 'hidden',
+            background: colors.bgSecondary,
+            zIndex: 10,
+          }}
+        >
+          <MobileMenuEntry
+            key="mobile-signout"
+            label={t.common.signOut}
+            index={0}
+            total={1}
+            colors={colors}
+            mode={mode}
+            onClick={handleSignOut}
+          />
         </div>
 
         {/* Close dashboard button */}
@@ -431,7 +467,6 @@ export function MobileClient({
 // ── MobileMenuEntry ──────────────────────────────────────────────────────────
 
 function MobileMenuEntry({
-  tabId,
   label,
   index,
   total,
@@ -439,7 +474,6 @@ function MobileMenuEntry({
   mode,
   onClick,
 }: {
-  tabId: TabId;
   label: string;
   index: number;
   total: number;
