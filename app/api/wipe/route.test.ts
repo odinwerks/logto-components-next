@@ -8,11 +8,17 @@ import { NextRequest } from 'next/server';
  * with Logto cookies present.
  */
 function makeWipeRequest(
-  method: 'POST' = 'POST',
+  method: 'GET' | 'POST' = 'POST',
   force = false,
   origin?: string,
+  nonce?: string,
+  nonceCookie?: string,
 ): NextRequest {
-  const url = `http://localhost:3000/api/wipe${force ? '?force=true' : ''}`;
+  const search = new URLSearchParams();
+  if (force) search.set('force', 'true');
+  if (nonce) search.set('nonce', nonce);
+  const qs = search.toString();
+  const url = `http://localhost:3000/api/wipe${qs ? `?${qs}` : ''}`;
   const headers: Record<string, string> = {};
   if (method === 'POST' && origin) headers.origin = origin;
 
@@ -25,6 +31,9 @@ function makeWipeRequest(
   req.cookies.set('logto_token', 'fake-id-token-value');
   req.cookies.set('logto_refresh', 'fake-refresh-token-value');
   req.cookies.set('logto_active_org', 'org-123');
+  if (nonceCookie) {
+    req.cookies.set('logto-wipe-nonce', nonceCookie);
+  }
 
   return req;
 }
@@ -130,5 +139,27 @@ describe('POST /api/wipe', () => {
     const res = await POST(req);
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe('GET /api/wipe', () => {
+  it('requires nonce for non-force stale-cookie recovery path', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false);
+    const res = await GET(req);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('validates nonce and clears cookies for non-force stale-cookie recovery path', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false, undefined, 'nonce-123', 'nonce-123');
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    const setCookies = getSetCookies(res);
+    expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
+    expect(setCookies.some(c => c.includes('logto_refresh') && c.includes('Max-Age=0'))).toBe(true);
+    expect(setCookies.some(c => c.includes('logto-wipe-nonce') && c.includes('Max-Age=0'))).toBe(true);
   });
 });

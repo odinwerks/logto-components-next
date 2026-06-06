@@ -3,6 +3,8 @@ import LogtoClient from '@logto/next/edge';
 import { getLogtoConfig } from './app/logto-kit/config';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
+const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
+const WIPE_NONCE_TTL_SECONDS = 60;
 
 // These paths are public (no session needed). They are either:
 //   - Cookie/session management (wipe, sign-out) - GET for convenience, POST for CSRF safety
@@ -52,7 +54,19 @@ export async function proxy(request: NextRequest) {
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
       console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
-      return NextResponse.redirect(new URL('/api/wipe', request.url));
+      // Nonce is required so only this middleware-triggered flow can wipe via GET.
+      const nonce = crypto.randomUUID();
+      const wipeUrl = new URL('/api/wipe', request.url);
+      wipeUrl.searchParams.set('nonce', nonce);
+      const response = NextResponse.redirect(wipeUrl);
+      response.cookies.set(WIPE_NONCE_COOKIE, nonce, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: request.nextUrl.protocol === 'https:',
+        path: '/',
+        maxAge: WIPE_NONCE_TTL_SECONDS,
+      });
+      return response;
     }
 
     // Any other error - redirect to sign-in

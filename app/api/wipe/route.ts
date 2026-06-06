@@ -5,6 +5,7 @@ import { error } from '../../logto-kit/logic/log';
 import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
+const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 
 function clearLogtoCookies(request: NextRequest, response: NextResponse): NextResponse {
   request.cookies.getAll().forEach(cookie => {
@@ -15,28 +16,36 @@ function clearLogtoCookies(request: NextRequest, response: NextResponse): NextRe
   return response;
 }
 
+function clearWipeNonce(response: NextResponse): NextResponse {
+  response.cookies.set(WIPE_NONCE_COOKIE, '', { maxAge: 0, path: '/' });
+  return response;
+}
+
 /**
  * GET clears Logto cookies and redirects home.
- * Convenience handler for browser navigation - plain cookie-clear needs no
- * CSRF protection (not a privileged operation, must remain browser-navigable).
- * The ?force=true path triggers a server-side signOut and IS protected.
+ * Browser-navigable stale-cookie recovery requires a middleware-issued nonce.
+ * The ?force=true path triggers a server-side signOut and is same-origin protected.
  */
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
-  // Only protect the destructive force-signOut path.
-  // Plain cookie-clear is safe without CSRF protection since it's
-  // not a privileged operation and must remain browser-navigable.
+  // Protect force-signOut via same-origin, and gate non-force GET wipe via nonce.
   if (force) {
     const originError = checkSameOrigin(request);
     if (originError) return originError;
+  } else {
+    const nonce = request.nextUrl.searchParams.get('nonce');
+    const cookieNonce = request.cookies.get(WIPE_NONCE_COOKIE)?.value;
+    if (!nonce || !cookieNonce || nonce !== cookieNonce) {
+      return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
+    }
   }
 
-  const response = clearLogtoCookies(
+  const response = clearWipeNonce(clearLogtoCookies(
     request,
     NextResponse.redirect(new URL('/', baseUrl)),
-  );
+  ));
 
   if (force) {
     let signOutFn: typeof SignOutType | undefined;
