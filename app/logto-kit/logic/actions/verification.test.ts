@@ -482,6 +482,18 @@ describe('Country Gating on Phone Verification Actions', () => {
       const result = await sendPhoneVerificationCode('+2651234567'); // MW (unmapped)
       expect(result.ok).toBe(true);
     });
+
+    it('blocks explicitly blocked country in block list mode', async () => {
+      mockCountryFilter.mode = 'block';
+      mockCountryFilter.codes = ['1']; // US/CA blocked
+
+      const { sendPhoneVerificationCode } = await import('./verification');
+      const result = await sendPhoneVerificationCode('+14155552671');
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected failure');
+      expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyVerificationCode gating', () => {
@@ -579,6 +591,18 @@ describe('Country Gating on Phone Verification Actions', () => {
       const { updatePhoneWithVerification } = await import('./verification');
       const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident', futureTimestamp); // MW (unmapped)
       expect(result.ok).toBe(true);
+    });
+
+    it('blocks explicitly blocked country in block list mode', async () => {
+      mockCountryFilter.mode = 'block';
+      mockCountryFilter.codes = ['1']; // US/CA blocked
+
+      const { updatePhoneWithVerification } = await import('./verification');
+      const result = await updatePhoneWithVerification('+14155552671', 'id_ver', 'id_ident', futureTimestamp);
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected failure');
+      expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
     });
   });
 });

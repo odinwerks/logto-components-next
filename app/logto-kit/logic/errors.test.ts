@@ -50,6 +50,7 @@ describe('throwOnApiError from errors.ts', () => {
   });
 
   it('extracts Logto message field from JSON body', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('PLAIN_ERRORS', 'false');
     const { throwOnApiError } = await import('./errors');
     const body = JSON.stringify({ code: 'user.backup_code_already_in_use', message: 'Backup code is already in use.' });
@@ -101,9 +102,28 @@ describe('throwOnApiError from errors.ts', () => {
     await expect(throwOnApiError(res, 'INTERNAL_ERROR')).rejects.toThrow('Database trace details leak.');
   });
 
-  it('allows 4xx message even in production', async () => {
+  it('does not leak 4xx message in production when PLAIN_ERRORS=false', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'user.invalid_password', message: 'Invalid password.' });
+    const res = new Response(body, { status: 400 });
+    await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.toThrow('UPDATE_FAILED');
+    await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.not.toThrow('Invalid password.');
+  });
+
+  it('allows 4xx message in development mode', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('PLAIN_ERRORS', 'false');
+    const { throwOnApiError } = await import('./errors');
+    const body = JSON.stringify({ code: 'user.invalid_password', message: 'Invalid password.' });
+    const res = new Response(body, { status: 400 });
+    await expect(throwOnApiError(res, 'UPDATE_FAILED')).rejects.toThrow('Invalid password.');
+  });
+
+  it('allows 4xx message in production when PLAIN_ERRORS=true', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('PLAIN_ERRORS', 'true');
     const { throwOnApiError } = await import('./errors');
     const body = JSON.stringify({ code: 'user.invalid_password', message: 'Invalid password.' });
     const res = new Response(body, { status: 400 });

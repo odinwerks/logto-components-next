@@ -17,6 +17,7 @@ export async function makeRequest(
     extraHeaders?: Record<string, string>;
     /** Query parameters appended safely via URLSearchParams - never put these in `path`. */
     query?: Record<string, string>;
+    signal?: AbortSignal;
   } = {}
 ): Promise<Response> {
   // Guard: only allow /api/ paths, no path traversal or query/fragment injection.
@@ -48,5 +49,6 @@ export async function makeRequest(
     method: options.method || 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    signal: options.signal,
   });
 }
