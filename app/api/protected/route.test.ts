@@ -52,6 +52,7 @@ vi.mock('../../logto-kit/config', () => ({
 beforeEach(() => {
   process.env.BASE_URL = 'http://localhost:3000';
   delete process.env.APP_URL;
+  delete process.env.PROTECTED_ALLOW_BEARER_FALLBACK;
   vi.clearAllMocks();
   vi.resetModules();
 });
@@ -241,6 +242,38 @@ describe('POST /api/protected - personal RBAC (self bypass)', () => {
     expect(body.error).toBeNull();
     expect(body.data).toEqual({ answer: 3 });
   });
+
+  it('returns 401 UNAUTHORIZED when personal verifier reports principal mismatch in compatibility mode', async () => {
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockImplementationOnce(async (expectedPrincipal?: { sub?: string }) => {
+      if (expectedPrincipal?.sub === 'mock-user-id') {
+        return { ok: false, error: 'UNAUTHORIZED' };
+      }
+
+      return {
+        ok: true,
+        data: {
+          roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+          permissions: ['calc:basic'],
+        },
+      };
+    });
+
+    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      requiredOrgId: 'self',
+      requiredRoleId: 'calc-user-role-id',
+      requiredPermId: 'calc:basic',
+      handler: vi.fn().mockResolvedValue({ answer: 3 }),
+    });
+
+    const req = makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('UNAUTHORIZED');
+  });
 });
 
 // ── Org RBAC ────────────────────────────────────────────────────────────────
@@ -398,6 +431,39 @@ describe('POST /api/protected - org RBAC', () => {
     expect(body.error).toBeNull();
     expect(body.data).toEqual({ answer: 42 });
   });
+
+  it('returns 401 UNAUTHORIZED when org verifier reports principal mismatch in compatibility mode', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+      }),
+    } as Response);
+
+    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
+    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockImplementationOnce(async (_orgId: string, expectedPrincipal?: { sub?: string }) => {
+      if (expectedPrincipal?.sub === 'mock-user-id') {
+        return { ok: false, error: 'UNAUTHORIZED' };
+      }
+
+      return { ok: false, error: 'ORG_NOT_MEMBER' };
+    });
+
+    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      requiredOrgId: 'test-org-id',
+      requiredRoleId: 'role-1',
+      requiredPermId: 'perm:1',
+      handler: vi.fn(),
+    });
+
+    const req = makeRequest({ action: 'org-action' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('UNAUTHORIZED');
+  });
 });
 
 // ── Handler errors ──────────────────────────────────────────────────────────
@@ -482,6 +548,30 @@ describe('POST /api/protected - Authorization header fallback', () => {
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'calc/add', payload: { a: 1, b: 2 } }),
+    });
+
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('UNAUTHORIZED');
+  });
+
+  it("fails with 401 UNAUTHORIZED when session token fails, bearer exists, and PROTECTED_ALLOW_BEARER_FALLBACK='false'", async () => {
+    process.env.PROTECTED_ALLOW_BEARER_FALLBACK = 'false';
+
+    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
+    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('No session'));
+
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        authorization: 'Bearer my-bearer-token',
       },
       body: JSON.stringify({ action: 'calc/add', payload: { a: 1, b: 2 } }),
     });

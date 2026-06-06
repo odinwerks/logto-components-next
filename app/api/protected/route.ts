@@ -52,6 +52,13 @@ interface ProtectedRequestBody {
   payload?: unknown;
 }
 
+function isBearerFallbackAllowed(): boolean {
+  const value = process.env.PROTECTED_ALLOW_BEARER_FALLBACK;
+  if (value == null) return true;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
@@ -71,6 +78,10 @@ export async function POST(request: NextRequest) {
     try {
       token = await getTokenForServerAction();
     } catch {
+      if (!isBearerFallbackAllowed()) {
+        return apiError('UNAUTHORIZED', 401);
+      }
+
       // Fallback: check Authorization header
       const authHeader = request.headers.get('Authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -98,6 +109,10 @@ export async function POST(request: NextRequest) {
     if (!id) {
       return apiError('TOKEN_INVALID', 401);
     }
+
+    const expectedPrincipal = introspection.sid
+      ? { sub: id, sid: introspection.sid }
+      : { sub: id };
 
     try {
       assertSafeUserId(id);
@@ -139,7 +154,7 @@ export async function POST(request: NextRequest) {
     // Branch: "self" bypass checks personal roles.
     // Otherwise, check custom data asOrg first, then load org roles/permissions and verify both.
     if (actionConfig.requiredOrgId === 'self') {
-      const personalAccessResult = await verifyPersonalAccess();
+      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal);
       if (!personalAccessResult.ok) {
         debugLog('[Protected API] Personal access verification failed:', personalAccessResult.error);
         return apiError('UNAUTHORIZED', 401);
@@ -178,9 +193,12 @@ export async function POST(request: NextRequest) {
         return apiError('ORG_NOT_MEMBER', 403);
       }
 
-      const result = await verifyOrgAccess(orgId);
+      const result = await verifyOrgAccess(orgId, expectedPrincipal);
       if (!result.ok) {
         debugLog('[Protected API] Org access verification failed:', result.error);
+        if (result.error === 'UNAUTHORIZED') {
+          return apiError('UNAUTHORIZED', 401);
+        }
         return apiError('ORG_NOT_MEMBER', 403);
       }
       const roles = result.data.roles;

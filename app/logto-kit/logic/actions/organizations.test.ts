@@ -225,3 +225,70 @@ describe('getOrgPermissionsWithDescriptions', () => {
     expect(result.error).toBe('INVALID_INPUT');
   });
 });
+
+describe('verifyOrgAccess - expected principal compatibility hardening', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getLogtoConfig).mockReturnValue({ endpoint: 'https://auth.example.org', appId: 'mock-app-id', appSecret: 'mock-secret', baseUrl: 'http://localhost:3000', cookieSecret: 'mock-cookie-secret', cookieSecure: false, resources: [], scopes: [] });
+
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('uses expected principal fallback when session token retrieval fails', async () => {
+    vi.mocked(getTokenForServerAction).mockRejectedValueOnce(new Error('session-unavailable'));
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-compat-777' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://auth.example.org/api/organizations/org-123/users/user-compat-777/roles',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('fails closed with UNAUTHORIZED when expected sub differs', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-other-999' });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+  });
+
+  it('fails closed with UNAUTHORIZED when expected sid differs and both sides include sid', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123', sid: 'sid-actual-123' } as never);
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', {
+      sub: 'user-test-123',
+      sid: 'sid-expected-999',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+  });
+});

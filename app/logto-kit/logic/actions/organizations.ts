@@ -99,6 +99,11 @@ export interface OrgAccessResult {
   permissions: string[];
 }
 
+interface ExpectedPrincipal {
+  sub: string;
+  sid?: string;
+}
+
 /**
  * Verifies the authenticated user's access to an organization via the
  * Logto Management API (M2M credentials - never the user's own session token).
@@ -116,20 +121,69 @@ export interface OrgAccessResult {
  * Empty roles (member with no roles assigned) → { roles: [], permissions: [] }
  * which downstream permission checks will reject as PERMISSION_DENIED.
  */
-export async function verifyOrgAccess(orgId: string): Promise<DataResult<OrgAccessResult>> {
+export async function verifyOrgAccess(
+  orgId: string,
+  expectedPrincipal?: ExpectedPrincipal
+): Promise<DataResult<OrgAccessResult>> {
   return safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
 
-    // Derive userId server-side from session (never trust the client)
-    const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
-    if (!introspection.active) {
-      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    let userId: string;
+
+    if (expectedPrincipal) {
+      let introspection: Awaited<ReturnType<typeof introspectToken>> | undefined;
+
+      try {
+        const sessionToken = await getTokenForServerAction();
+        introspection = await introspectToken(sessionToken);
+      } catch {
+        // Compatibility fallback mode: caller-provided principal is authoritative
+        // only when session token retrieval/introspection cannot run.
+        introspection = undefined;
+      }
+
+      if (!introspection) {
+        userId = expectedPrincipal.sub;
+      } else {
+        if (!introspection.active) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
+
+        const actualUserId = introspection.sub;
+        if (!actualUserId) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
+
+        if (expectedPrincipal.sub !== actualUserId) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
+
+        if (
+          expectedPrincipal.sid &&
+          introspection.sid &&
+          expectedPrincipal.sid !== introspection.sid
+        ) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
+
+        userId = actualUserId;
+      }
+    } else {
+      // Existing strict behavior: session is required when no expected principal is supplied.
+      const sessionToken = await getTokenForServerAction();
+      const introspection = await introspectToken(sessionToken);
+      if (!introspection.active) {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
+
+      const actualUserId = introspection.sub;
+      if (!actualUserId) {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
+
+      userId = actualUserId;
     }
-    const userId = introspection.sub;
-    if (!userId) {
-      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-    }
+
     assertSafeUserId(userId);
 
     const m2mToken = await getManagementApiToken();
