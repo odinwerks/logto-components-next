@@ -189,7 +189,6 @@ DELETE_REDIRECT_DELAY=3000 # Delay (ms) before redirecting client after deleting
 
 # - Developer Diagnostics -
 DEBUG=                    # Set to 'true' to enable verbose terminal server logging
-PLAIN_ERRORS=false        # Set to 'true' to receive unmasked error messages on the client
 LOGTO_DANGER_EXPOSE_TOKEN=false  # ⚠️ Set to 'true' to expose access token in the Dev tab (NEVER enable in production)
 LOG_BACKEND=both          # Logging output destinations: console | pino | both
 

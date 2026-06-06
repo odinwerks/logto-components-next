@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Error types & PLAIN_ERRORS-aware sanitisation
+ * Error types and sanitisation helpers
  * ============================================================================
  *
  * By default, errors returned to the client are fixed codes - never raw
@@ -10,8 +10,6 @@
  *     vs "already verified").
  *   - Internal detail disclosure (DB constraint names, upstream service
  *     URLs, request IDs).
- *
- * Set PLAIN_ERRORS=true to bypass sanitisation and get full error text.
  *
  * Usage pattern in server actions:
  *
@@ -24,9 +22,8 @@
  */
 
 import { warn } from './log';
-import { isDev } from './dev-mode';
 
-const plainErrors = process.env.PLAIN_ERRORS === 'true';
+const GENERIC_LOGTO_ERROR_MESSAGE = 'Request failed.';
 
 // ============================================================================
 // Domain-specific error class for upstream Logto API failures
@@ -80,9 +77,6 @@ export type ErrorCode =
 /**
  * Returns an `Error` safe to throw across the server-action boundary.
  *
- * When PLAIN_ERRORS=true: preserves original error messages.
- * Otherwise: replaces the message with a fixed error code.
- *
  * The `operation`/`status` properties of LogtoApiError are always stripped
  * from the thrown error's message - they live in server logs only.
  *
@@ -91,14 +85,6 @@ export type ErrorCode =
  */
 export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error {
   const fallback = options.fallback;
-
-  // Plain errors: preserve full context to aid debugging.
-  if (plainErrors) {
-    if (err instanceof Error) {
-      return new Error(`${fallback}: ${err.message}`);
-    }
-    return new Error(`${fallback}: ${String(err)}`);
-  }
 
   // Production: fixed error code only. Never leak upstream detail.
   const safe = new Error(fallback);
@@ -111,12 +97,12 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
 // ============================================================================
 
 /**
- * Throws a sanitised Error if the response is not OK. Logs the full upstream
- * detail server-side for the operator.
+ * Throws a client-safe Error if the response is not OK.
  *
- * When PLAIN_ERRORS=false (production): extracts Logto's `message` field from
- * the JSON body and passes it through directly as a user-facing error.
- * Falls back to the fixed code only when no message is available.
+ * Behavior:
+ * - Always logs full upstream detail to server logs.
+ * - Returns Logto's `message` field to client when present.
+ * - Falls back to a generic user-facing message when missing.
  *
  * @param res       The fetch Response.
  * @param fallback  Error code used when no Logto message is available.
@@ -124,7 +110,7 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  */
 export async function throwOnApiError(
   res: Response,
-  fallback: ErrorCode,
+  _fallback: ErrorCode,
   operation = 'logto-api',
 ): Promise<void> {
   if (res.ok) return;
@@ -136,27 +122,19 @@ export async function throwOnApiError(
     detail = res.statusText;
   }
 
-  // Always log server-side regardless of env - full detail, no truncation.
+  // Always log server-side with full detail.
   if (typeof console !== 'undefined') {
-    warn(
-      `[${operation}] HTTP ${res.status}: ${detail.replace(/[\r\n]/g, ' ').substring(0, 1000)}`,
-    );
+    warn(`[${operation}] HTTP ${res.status}: ${detail}`);
   }
 
-  // Always try to extract Logto's user-facing message first.
-  // Logto returns {"code": "...", "message": "..."} for known errors.
-  // This takes priority over PLAIN_ERRORS mode - the message is the answer.
+  // Parse Logto's canonical payload shape: { code, message }.
+  // `message` is the only client-facing field we propagate.
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-      // Fail-secure: Do not bypass sanitization for 5xx Internal Server Errors in production
-      if (res.status >= 500 && !isDev && !plainErrors) {
-        // Let it fall through to generic fallback code
-      } else {
-        const err = new Error(parsed.message.trim());
-        err.name = 'SanitizedError';
-        throw err;
-      }
+      const err = new Error(parsed.message.trim());
+      err.name = 'SanitizedError';
+      throw err;
     }
   } catch (parseErr) {
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
@@ -165,13 +143,8 @@ export async function throwOnApiError(
     // Not JSON or no message field - fall through
   }
 
-  // No message field: PLAIN_ERRORS dumps full detail for debugging
-  if (plainErrors) {
-    throw new Error(`${fallback} ${res.status}: ${detail}`);
-  }
-
-  // Production fallback: fixed code only
-  const safe = new Error(fallback);
+  // No message field: generic user-facing fallback.
+  const safe = new Error(GENERIC_LOGTO_ERROR_MESSAGE);
   safe.name = 'SanitizedError';
   throw safe;
 }
@@ -184,18 +157,12 @@ export async function throwOnApiError(
 /**
  * Creates an Error from a code and an optional underlying detail.
  *
- * When PLAIN_ERRORS=true: appends the cause's message to the code.
- * Otherwise: returns just the code.
+ * Returns a sanitized fixed code error.
  */
 export function plainCode(code: ErrorCode, cause?: unknown): Error {
-  let err: Error;
-  if (plainErrors && cause instanceof Error) {
-    err = new Error(`${code}: ${cause.message}`);
-  } else if (plainErrors && cause !== undefined) {
-    err = new Error(`${code}: ${String(cause)}`);
-  } else {
-    err = new Error(code);
-  }
+  // `cause` is intentionally ignored for client-safe output.
+  void cause;
+  const err = new Error(code);
   err.name = 'SanitizedError';
   return err;
 }

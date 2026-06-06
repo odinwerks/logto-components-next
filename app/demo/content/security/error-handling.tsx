@@ -68,7 +68,7 @@ export default function SecurityErrorHandlingDoc() {
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
         <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs upstream response details server-side and may extract <code style={styles.codeSmStyle}>message</code> from known Logto JSON errors.</li>
         <li><code style={styles.codeSmStyle}>safeAction</code> returns <code style={styles.codeSmStyle}>{`{ ok: false, error }`}</code> and preserves pre-sanitized errors in production.</li>
-        <li><code style={styles.codeSmStyle}>sanitize</code> returns fixed fallback codes by default, and includes raw details only when <code style={styles.codeSmStyle}>PLAIN_ERRORS=true</code>.</li>
+        <li><code style={styles.codeSmStyle}>sanitize</code> keeps fixed fallback codes for non-Logto failures, while Logto API failures surface the upstream <code style={styles.codeSmStyle}>message</code> field.</li>
       </ul>
 
       <h2 id={slugify("Safe Error Codes")} style={h2Style}>Safe Error Codes</h2>
@@ -213,7 +213,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
         Upstream identity endpoints often return useful JSON error payloads. The helper tries to keep those user-safe messages when possible.
       </p>
       <p style={styles.textStyle}>
-        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs details server-side, attempts to extract <code style={styles.codeSmStyle}>parsed.message</code>, then applies fallback behavior when needed.
+        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs details server-side, returns Logto&apos;s <code style={styles.codeSmStyle}>message</code> field when present, and falls back to a generic client-safe message when missing.
       </p>
       <CodeBlock
         title="Upstream Error Extraction"
@@ -232,20 +232,15 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
   }
 
   // Log upstream detail on server
-  warn(\`[\${operation}] HTTP \${res.status}: \${detail.substring(0, 1000)}\`);
+  warn(\`[\${operation}] HTTP \${res.status}: \${detail}\`);
 
   // Try to use Logto's message
   try {
     const parsed = JSON.parse(detail);
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-      // In production with PLAIN_ERRORS=false, do not expose message for 5xx
-      if (res.status >= 500 && !isDev && !plainErrors) {
-        // continue to fallback
-      } else {
       const err = new Error(parsed.message.trim());
       err.name = 'SanitizedError';
       throw err;
-      }
     }
   } catch (parseErr) {
     if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
@@ -254,11 +249,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
   }
 
   // Fallback behavior
-  if (plainErrors) {
-    throw new Error(\`\${fallback} \${res.status}: \${detail}\`);
-  }
-
-  const safe = new Error(fallback);
+  const safe = new Error('Request failed.');
   safe.name = 'SanitizedError';
   throw safe;
 }`}

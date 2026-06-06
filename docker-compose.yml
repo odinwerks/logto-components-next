@@ -54,8 +54,6 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       # ── Debug (set DEBUG=true to enable verbose server logging) ───────────
       - DEBUG=${DEBUG}
-      # ── Plain errors (set PLAIN_ERRORS=true to get full error text) ────────
-      - PLAIN_ERRORS=${PLAIN_ERRORS}
       # ── UI / theme vars (server-side reads bare names via readEnv) ──────────
       - THEME=${THEME}
       - LANG_MAIN=${LANG_MAIN}
