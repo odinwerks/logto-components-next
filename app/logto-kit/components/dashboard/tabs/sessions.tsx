@@ -167,10 +167,15 @@ export function SessionsTab({
     setLoading(false);
   }, [onVerifyPassword, onGetSessionsWithDeviceMeta, onError, t]);
 
-  const loadSessions = useCallback(async () => {
-    if (!isVerificationValid) return;
+  const loadSessions = useCallback(async (verification?: { recordId: string; timestamp: number }) => {
+    const recordId = verification?.recordId ?? verificationRecordId;
+    const timestamp = verification?.timestamp ?? verificationTimestamp;
+    const hasValidVerification = verification ? true : isVerificationValid;
+
+    if (!recordId || !hasValidVerification) return;
+
     setLoading(true);
-    const r = await onGetSessionsWithDeviceMeta(verificationRecordId!, verificationTimestamp);
+    const r = await onGetSessionsWithDeviceMeta(recordId, timestamp);
     if (!r.ok) {
       onError(r.error);
       // Only reset verification for auth-related failures
@@ -282,7 +287,7 @@ export function SessionsTab({
       }
     }
     onSuccess(t.sessions.revoked);
-    await loadSessions();
+    await loadSessions({ recordId: vid, timestamp: vts });
     setModalStep(null);
     revokeTargetRef.current = null;
     setRevokingId(null);

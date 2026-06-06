@@ -358,6 +358,79 @@ describe('SessionsTab', () => {
     });
   });
 
+  describe('BUG 1: re-verification uses fresh values', () => {
+    it('reloads sessions with refreshed verification after revoke re-verification', async () => {
+      const now = new Date('2026-01-01T00:00:00.000Z').getTime();
+      let mockedNow = now;
+      const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockedNow);
+
+      try {
+        const onVerifyPassword = vi.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            data: { verificationRecordId: 'initial-vid', verificationTimestamp: 111111111 },
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            data: { verificationRecordId: 'refreshed-vid', verificationTimestamp: 222222222 },
+          });
+
+        const onGetSessions = vi.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            data: createdSessions,
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            data: createdSessions,
+          });
+
+        const onRevokeSession = vi.fn().mockResolvedValue({ ok: true });
+
+        renderSessionsTab({
+          onVerifyPassword,
+          onGetSessionsWithDeviceMeta: onGetSessions,
+          onRevokeSession,
+        });
+
+        await verifyAndLoadSessions();
+
+        await waitFor(() => {
+          expect(screen.getByText('This device')).toBeDefined();
+        });
+
+        mockedNow = now + 10 * 60 * 1000 + 1;
+
+        const revokeBtn = screen.getByRole('button', { name: 'Revoke' });
+        await act(async () => {
+          fireEvent.click(revokeBtn);
+        });
+
+        const passwordInput = screen.getByPlaceholderText('Enter password');
+        fireEvent.change(passwordInput, { target: { value: 'test-password' } });
+
+        const submitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+        await act(async () => {
+          fireEvent.click(submitBtn);
+        });
+
+        await waitFor(() => {
+          expect(onVerifyPassword).toHaveBeenCalledTimes(2);
+        });
+
+        await waitFor(() => {
+          expect(onGetSessions).toHaveBeenCalledTimes(2);
+        });
+
+        expect(onGetSessions.mock.calls[1][0]).toBe('refreshed-vid');
+        expect(onGetSessions.mock.calls[1][1]).toBe(222222222);
+      } finally {
+        dateNowSpy.mockRestore();
+      }
+    });
+  });
+
+
   describe('BUG-014: macOS / Mac OS icon rendering', () => {
     it('renders the macOS icon for both macOS and Mac OS values', async () => {
       const macOSSessions: LogtoSession[] = [
