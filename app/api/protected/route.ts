@@ -52,13 +52,6 @@ interface ProtectedRequestBody {
   payload?: unknown;
 }
 
-function isBearerFallbackAllowed(): boolean {
-  const value = process.env.PROTECTED_ALLOW_BEARER_FALLBACK;
-  if (value == null) return true;
-  const normalized = value.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
-}
-
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
@@ -77,18 +70,9 @@ export async function POST(request: NextRequest) {
     let token: string;
     try {
       token = await getTokenForServerAction();
-    } catch {
-      if (!isBearerFallbackAllowed()) {
-        return apiError('UNAUTHORIZED', 401);
-      }
-
-      // Fallback: check Authorization header
-      const authHeader = request.headers.get('Authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      } else {
-        return apiError('UNAUTHORIZED', 401);
-      }
+    } catch (error) {
+      debugError('[Protected API] Session token error:', error instanceof Error ? error.message : String(error));
+      return apiError('UNAUTHORIZED', 401);
     }
 
     let introspection;

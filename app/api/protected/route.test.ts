@@ -95,6 +95,20 @@ describe('POST /api/protected - CSRF protection', () => {
 
 // ── Action resolution ───────────────────────────────────────────────────────
 describe('POST /api/protected - action resolution', () => {
+  it('returns 401 UNAUTHORIZED when session token retrieval fails', async () => {
+    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
+    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('missing session token'));
+
+    const req = makeRequest({ action: 'some-action' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('UNAUTHORIZED');
+    expect(body.data).toBeNull();
+  });
+
   it('returns 404 when action is not found', async () => {
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
 
@@ -492,95 +506,5 @@ describe('POST /api/protected - handler errors', () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toBe('INVALID_PAYLOAD');
-  });
-});
-
-// ── Authorization header fallback ──────────────────────────────────────────
-describe('POST /api/protected - Authorization header fallback', () => {
-  it('succeeds when cookie session throws but Authorization: Bearer <token> is provided', async () => {
-    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
-    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('No session'));
-
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-        permissions: ['calc:basic'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockResolvedValue({ answer: 3 }),
-    });
-
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        authorization: 'Bearer my-bearer-token',
-      },
-      body: JSON.stringify({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-    });
-
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.error).toBeNull();
-    expect(body.data).toEqual({ answer: 3 });
-
-    const { introspectToken } = await import('../../logto-kit/logic/utils');
-    expect(introspectToken).toHaveBeenCalledWith('my-bearer-token');
-  });
-
-  it('fails with 401 UNAUTHORIZED when both cookie session and Authorization header are missing', async () => {
-    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
-    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('No session'));
-
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-    });
-
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(body.error).toBe('UNAUTHORIZED');
-  });
-
-  it("fails with 401 UNAUTHORIZED when session token fails, bearer exists, and PROTECTED_ALLOW_BEARER_FALLBACK='false'", async () => {
-    process.env.PROTECTED_ALLOW_BEARER_FALLBACK = 'false';
-
-    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
-    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('No session'));
-
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        authorization: 'Bearer my-bearer-token',
-      },
-      body: JSON.stringify({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-    });
-
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(body.error).toBe('UNAUTHORIZED');
   });
 });
