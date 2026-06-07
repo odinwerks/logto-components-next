@@ -5,14 +5,177 @@ describe('config resolution', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    process.env = {
-      ...originalEnv,
-      APP_SECRET: 'dummy-app-secret',
-    };
+    vi.unstubAllEnvs();
+    vi.stubEnv('APP_SECRET', 'dummy-app-secret');
+    vi.stubEnv('NODE_ENV', 'development');
   });
 
   afterEach(() => {
-    process.env = { ...originalEnv };
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  describe('HTTPS validation in production', () => {
+    beforeEach(() => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('npm_lifecycle_event', '');
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('rejects HTTP LOGTO_INTROSPECTION_URL in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'http://evil.example.com/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      await expect(import('./config')).rejects.toThrow(
+        'LOGTO_INTROSPECTION_URL must use HTTPS in production'
+      );
+    });
+
+    it('allows HTTPS LOGTO_INTROSPECTION_URL in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('allows HTTP localhost LOGTO_INTROSPECTION_URL in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'http://localhost:3001/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('allows HTTP 127.0.0.1 LOGTO_INTROSPECTION_URL in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'http://127.0.0.1:3001/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('rejects invalid LOGTO_INTROSPECTION_URL format in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'not-a-valid-url';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      await expect(import('./config')).rejects.toThrow(
+        'LOGTO_INTROSPECTION_URL is not a valid URL'
+      );
+    });
+
+    it('rejects HTTP ENDPOINT in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'http://evil.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      await expect(import('./config')).rejects.toThrow(
+        'ENDPOINT must use HTTPS in production'
+      );
+    });
+
+    it('allows HTTPS ENDPOINT in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('allows placeholder ENDPOINT in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://placeholder.logto.app';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('rejects HTTP LOGTO_M2M_RESOURCE in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+      process.env.LOGTO_M2M_RESOURCE = 'http://evil.example.com/api';
+
+      await expect(import('./config')).rejects.toThrow(
+        'LOGTO_M2M_RESOURCE must use HTTPS in production'
+      );
+    });
+
+    it('allows HTTPS LOGTO_M2M_RESOURCE in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+      process.env.LOGTO_M2M_RESOURCE = 'https://api.example.com';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('skips HTTPS validation during next build', async () => {
+      vi.stubEnv('npm_lifecycle_event', 'build');
+      vi.stubEnv('LOGTO_INTROSPECTION_URL', 'http://evil.example.com/introspect');
+      vi.stubEnv('APP_ID', 'client-id-123');
+      vi.stubEnv('APP_SECRET', 'super-secret-value');
+      vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+      vi.stubEnv('BASE_URL', 'https://app.example.com');
+      vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('skips HTTPS validation in development', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      vi.stubEnv('LOGTO_INTROSPECTION_URL', 'http://evil.example.com/introspect');
+      vi.stubEnv('APP_ID', 'client-id-123');
+      vi.stubEnv('APP_SECRET', 'super-secret-value');
+      vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+      vi.stubEnv('BASE_URL', 'https://app.example.com');
+      vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
   });
 
   describe('backendType', () => {

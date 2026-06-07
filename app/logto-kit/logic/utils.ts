@@ -48,19 +48,6 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     );
   }
 
-  // Guard: enforce HTTPS for introspection URL (protects client_secret in transit)
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
-      throw new Error();
-    }
-  } catch {
-    throw new Error(
-      'LOGTO_INTROSPECTION_URL must use HTTPS in production - secrets must not be ' +
-      'transmitted over unencrypted connections.'
-    );
-  }
-
   const body = new URLSearchParams({
     token,
     client_id: clientId,

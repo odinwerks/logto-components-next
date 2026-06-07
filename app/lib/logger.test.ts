@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { LOG_EVENTS, type LogEvent } from './log-events';
+import { LOG_EVENTS } from './log-events';
 
 describe('logger', () => {
   let capturedLines: string[] = [];
@@ -24,6 +24,23 @@ describe('logger', () => {
     vi.restoreAllMocks();
     // Clear any cached logger modules
     vi.resetModules();
+    delete (globalThis as { __appLoggerSingleton__?: unknown }).__appLoggerSingleton__;
+  });
+
+  describe('default logger singleton', () => {
+    it('reuses the same default logger across module reloads', async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+
+      const first = await import('./logger');
+      const firstLogger = first.logger;
+
+      vi.resetModules();
+
+      const second = await import('./logger');
+
+      expect(second.logger).toBe(firstLogger);
+      expect(second.logger.raw).toBe(firstLogger.raw);
+    });
   });
 
   describe('createLogger', () => {

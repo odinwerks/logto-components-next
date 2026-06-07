@@ -111,6 +111,38 @@ export const logtoConfig = (() => {
     );
   }
 
+  // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
+  const isNextBuildForHttps = process.env.npm_lifecycle_event === 'build';
+  if (nodeEnv === 'production' && !isNextBuildForHttps) {
+    function assertHttpsInProduction(url: string | undefined, name: string): void {
+      if (!url) return; // Let existing required checks handle missing values
+      try {
+        const parsed = new URL(url);
+        const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+        if (parsed.protocol !== 'https:' && !isLocalhost) {
+          throw new Error(
+            `${name} must use HTTPS in production - secrets must not be ` +
+            'transmitted over unencrypted connections.'
+          );
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('must use HTTPS')) throw e;
+        throw new Error(`${name} is not a valid URL`);
+      }
+    }
+
+    // Validate LOGTO_INTROSPECTION_URL
+    assertHttpsInProduction(process.env.LOGTO_INTROSPECTION_URL, 'LOGTO_INTROSPECTION_URL');
+
+    // Validate ENDPOINT
+    if (config.endpoint && config.endpoint !== 'https://placeholder.logto.app') {
+      assertHttpsInProduction(config.endpoint, 'ENDPOINT');
+    }
+
+    // Validate LOGTO_M2M_RESOURCE if set
+    assertHttpsInProduction(process.env.LOGTO_M2M_RESOURCE, 'LOGTO_M2M_RESOURCE');
+  }
+
   return config;
 })();
 

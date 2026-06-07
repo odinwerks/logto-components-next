@@ -34,7 +34,7 @@ export function getDefaultLevel(): LevelWithSilent {
   return process.env.NODE_ENV === 'production' ? 'info' : 'debug';
 }
 
-const isDev = process.env.NODE_ENV !== 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 // ============================================================================
 // Webhook Transport
@@ -119,7 +119,7 @@ export function createLogger(config: LoggerConfig = {}): TypedLogger {
     timestamp: pino.stdTimeFunctions.isoTime,
   };
 
-  if (isDev) {
+  if (isDevelopment) {
     // Development: pretty-printed output to stderr
     options.transport = {
       target: 'pino-pretty',
@@ -133,7 +133,7 @@ export function createLogger(config: LoggerConfig = {}): TypedLogger {
 
   let logger: Logger;
 
-  if (webhookUrl && !isDev) {
+  if (webhookUrl && !isDevelopment) {
     // Production with webhook: use multistream
     const webhookStream = createWebhookDestination(webhookUrl);
     logger = pino(
@@ -201,4 +201,14 @@ function wrapLogger(raw: Logger): TypedLogger {
  * Default logger instance for the application.
  * Import and use directly in server actions and API routes.
  */
-export const logger = createLogger();
+const LOGGER_SINGLETON_KEY = '__appLoggerSingleton__';
+
+type GlobalWithLogger = typeof globalThis & {
+  [LOGGER_SINGLETON_KEY]?: TypedLogger;
+};
+
+const globalWithLogger = globalThis as GlobalWithLogger;
+
+export const logger =
+  globalWithLogger[LOGGER_SINGLETON_KEY] ??
+  (globalWithLogger[LOGGER_SINGLETON_KEY] = createLogger());
