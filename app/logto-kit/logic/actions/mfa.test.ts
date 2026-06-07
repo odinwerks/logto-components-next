@@ -34,6 +34,19 @@ vi.mock('../guards', async (importOriginal) => {
   };
 });
 
+vi.mock('@logto/next/server-actions', () => ({
+  getLogtoContext: vi.fn().mockResolvedValue({
+    claims: { sub: 'user-test-123' },
+    isAuthenticated: true,
+  }),
+}));
+
+vi.mock('../../config', () => ({
+  getLogtoConfig: vi.fn().mockReturnValue({
+    endpoint: 'https://logto.example.com',
+  }),
+}));
+
 // ============================================================================
 // Imports of mocked modules
 // ============================================================================

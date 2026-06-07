@@ -8,6 +8,7 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult } from './safe';
 
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 /**
  * Changes the authenticated user's password.
  * Error messages are sanitised in production to prevent enumeration.
@@ -19,7 +20,7 @@ export async function updateUserPassword(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
     if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {

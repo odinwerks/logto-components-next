@@ -304,7 +304,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails getUserSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { getUserSessions } = await import('./sessions');
-    const result = await getUserSessions('verif_expired', Date.now() - 1000);
+    const result = await getUserSessions('verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
@@ -312,7 +312,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails getSessionsWithDeviceMeta with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verif_expired', Date.now() - 1000);
+    const result = await getSessionsWithDeviceMeta('verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
@@ -320,7 +320,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails revokeUserSession with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { revokeUserSession } = await import('./sessions');
-    const result = await revokeUserSession('session-1', 'verif_expired', Date.now() - 1000);
+    const result = await revokeUserSession('session-1', 'verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
@@ -328,7 +328,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails revokeAllOtherSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verif_expired', Date.now() - 1000);
+    const result = await revokeAllOtherSessions('verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
@@ -336,7 +336,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails getUserGrants with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { getUserGrants } = await import('./sessions');
-    const result = await getUserGrants('verif_expired', Date.now() - 1000);
+    const result = await getUserGrants('verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
@@ -344,7 +344,7 @@ describe('verificationTimestamp staleness checks', () => {
 
   it('fails revokeUserGrant with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
     const { revokeUserGrant } = await import('./sessions');
-    const result = await revokeUserGrant('grant-1', 'verif_expired', Date.now() - 1000);
+    const result = await revokeUserGrant('grant-1', 'verif_expired', Date.now() - 16_000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');

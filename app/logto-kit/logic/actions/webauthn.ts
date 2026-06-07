@@ -8,6 +8,7 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 /**
  * Step 1 of WebAuthn registration: requests registration options from Logto.
  * @returns Registration options (for @simplewebauthn/browser) and a verificationRecordId.
@@ -56,7 +57,7 @@ export async function verifyAndLinkWebAuthn(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -109,7 +110,7 @@ export async function renamePasskey(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
     const trimmedName = typeof name === 'string' ? name.trim() : name;

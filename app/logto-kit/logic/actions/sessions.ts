@@ -9,6 +9,7 @@ import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { safeAction, type ActionResult, type DataResult } from './safe';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 
 // ============================================================================
 // User Agent Parsing
@@ -50,7 +51,7 @@ export async function getUserSessions(
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
     debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
@@ -141,7 +142,7 @@ export async function revokeUserSession(
     assertSafeLogtoId(sessionId, 'sessionId');
     assertRevokeGrantsTarget(revokeGrantsTarget);
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -185,7 +186,7 @@ export async function revokeAllOtherSessions(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
     debugLog('[revokeAllOtherSessions] Fetching sessions');
@@ -264,7 +265,7 @@ export async function getUserGrants(
 ): Promise<DataResult<unknown[]>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
     const res = await makeRequest('/api/my-account/grants', {
@@ -290,7 +291,7 @@ export async function revokeUserGrant(
   return safeAction(async () => {
     assertSafeLogtoId(grantId, 'grantId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 

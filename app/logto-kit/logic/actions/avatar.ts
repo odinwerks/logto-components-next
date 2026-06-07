@@ -31,33 +31,18 @@ const MAGIC_BYTES: Record<string, [number[], number[]]> = {
 };
 
 // ============================================================================
-// In-memory rate limiter for avatar uploads
+// Lazy TTL Rate Limiter for avatar uploads (no setInterval - serverless safe)
 // ============================================================================
 
 const uploadTimestamps = new Map<string, number[]>();
-
-// Periodic cleanup of stale rate-limit entries (every 5 minutes)
-// Prevents unbounded memory growth from one-time uploaders.
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const cutoff = Date.now() - 60_000;
-    for (const [userId, timestamps] of uploadTimestamps) {
-      const recent = timestamps.filter(t => t > cutoff);
-      if (recent.length === 0) {
-        uploadTimestamps.delete(userId);
-      } else {
-        uploadTimestamps.set(userId, recent);
-      }
-    }
-  }, 300_000).unref();
-}
-
 const MAX_UPLOADS_PER_MINUTE = 5;
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
   const timestamps = uploadTimestamps.get(userId) || [];
+  // Lazy cleanup: filter stale entries ON READ
   const recent = timestamps.filter(t => now - t < 60_000);
+  
   if (recent.length >= MAX_UPLOADS_PER_MINUTE) return false;
   recent.push(now);
   uploadTimestamps.set(userId, recent);
@@ -286,11 +271,6 @@ export async function uploadAvatar(
   }
   assertSafeUserId(userId);
 
-  // ── Rate limit ───────────────────────────────────────────────────────
-  if (!checkRateLimit(userId)) {
-    throw plainCode('UPLOAD_RATE_LIMITED');
-  }
-
   // ── Extract and validate file ────────────────────────────────────────
   const rawFile = formData.get('file');
   if (!(rawFile instanceof File)) {
@@ -342,6 +322,11 @@ export async function uploadAvatar(
     await audit({ actor: userId, action: 'avatar.upload', resource: userId });
 
     return { url: data.avatar ?? '' };
+  }
+
+  // ── Rate limit (S3/MinIO backend only - Logto has its own) ────────────
+  if (!checkRateLimit(userId)) {
+    throw plainCode('UPLOAD_RATE_LIMITED');
   }
 
   // ── Storage config ───────────────────────────────────────────────────

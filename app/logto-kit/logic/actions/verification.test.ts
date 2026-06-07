@@ -182,12 +182,40 @@ describe('updateEmailWithVerification', () => {
 
   it('rejects when verificationTimestamp is in the past (staleness check)', async () => {
     const { updateEmailWithVerification } = await import('./verification');
-    const expiredTimestamp = Date.now() - 1000; // 1 second ago
+    const expiredTimestamp = Date.now() - 16_000; // 16 seconds ago (beyond 15s tolerance)
     const result = await updateEmailWithVerification(
       'new@example.com',
       'vr_identifier',
       'vr_identity',
       expiredTimestamp,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const withinTolerance = Date.now() - 15_000; // exactly 15 seconds ago (within tolerance)
+    const result = await updateEmailWithVerification(
+      'new@example.com',
+      'vr_identifier',
+      'vr_identity',
+      withinTolerance,
+    );
+    expect(result.ok).toBe(true);
+    expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+  });
+
+  it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const justBeyondTolerance = Date.now() - 15_001; // 15.001 seconds ago (beyond tolerance)
+    const result = await updateEmailWithVerification(
+      'new@example.com',
+      'vr_identifier',
+      'vr_identity',
+      justBeyondTolerance,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -247,12 +275,40 @@ describe('updatePhoneWithVerification', () => {
 
   it('rejects when verificationTimestamp is in the past (staleness check)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const expiredTimestamp = Date.now() - 1000;
+    const expiredTimestamp = Date.now() - 16_000; // 16 seconds ago (beyond 15s tolerance)
     const result = await updatePhoneWithVerification(
       '1234567890',
       'vr_identifier',
       'vr_identity',
       expiredTimestamp,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const withinTolerance = Date.now() - 15_000; // exactly 15 seconds ago (within tolerance)
+    const result = await updatePhoneWithVerification(
+      '+1234567890',
+      'vr_identifier',
+      'vr_identity',
+      withinTolerance,
+    );
+    expect(result.ok).toBe(true);
+    expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+  });
+
+  it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const justBeyondTolerance = Date.now() - 15_001; // 15.001 seconds ago (beyond tolerance)
+    const result = await updatePhoneWithVerification(
+      '+1234567890',
+      'vr_identifier',
+      'vr_identity',
+      justBeyondTolerance,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');

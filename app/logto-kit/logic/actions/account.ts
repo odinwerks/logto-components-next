@@ -9,6 +9,7 @@ import { throwOnApiError, sanitize } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { safeAction, type ActionResult } from './safe';
 
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 /**
  * Permanently deletes the currently authenticated user's account.
  *
@@ -60,7 +61,7 @@ export async function deleteUserAccount(
     // in verification.ts). We just check Date.now() > expiresAt - no hardcoded
     // TTL. If Logto changes its TTL this check automatically adapts.
     // BUG-SEC-003: This check is mandatory - never skip it.
-    if (Date.now() > verificationRecordTimestamp) {
+    if (Date.now() > verificationRecordTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 

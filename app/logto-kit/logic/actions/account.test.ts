@@ -140,7 +140,7 @@ describe('deleteUserAccount', () => {
 
   it('always executes staleness check - expired record always rejected', async () => {
     const { deleteUserAccount } = await import('./account');
-    const expiredTs = Date.now() - 1000; // 1 second ago → expired
+    const expiredTs = Date.now() - 16_000; // 1 second ago → expired
 
     const result = await deleteUserAccount('verif_record_1', expiredTs);
 

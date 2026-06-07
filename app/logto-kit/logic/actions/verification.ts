@@ -11,6 +11,7 @@ import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
 import { getCountryFilter } from '../../config';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 
 /**
  * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, etc.,
@@ -190,9 +191,10 @@ export async function updateEmailWithVerification(
 
     // ── Staleness check (defense in depth) ────────────────────────────────
     // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt — no
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
     // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
-    if (Date.now() > verificationTimestamp) {
+    // 15s forward tolerance handles app clock being ahead of Logto server clock.
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -218,9 +220,10 @@ export async function updatePhoneWithVerification(
 
     // ── Staleness check (defense in depth) ────────────────────────────────
     // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt — no
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
     // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
-    if (Date.now() > verificationTimestamp) {
+    // 15s forward tolerance handles app clock being ahead of Logto server clock.
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -244,7 +247,10 @@ export async function removeUserEmail(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    // verificationTimestamp is Logto's expiresAt (server-derived from
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
+    // 15s forward tolerance handles app clock being ahead of Logto server clock.
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -264,7 +270,10 @@ export async function removeUserPhone(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    // verificationTimestamp is Logto's expiresAt (server-derived from
+    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
+    // 15s forward tolerance handles app clock being ahead of Logto server clock.
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
