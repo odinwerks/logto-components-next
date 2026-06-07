@@ -199,7 +199,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
     if (!visible) return;
     let cancelled = false;
 
-    setLoadedPermissions([]);
+    // Don't clear permissions here - show stale data until new data arrives (prevents flicker)
     setPermissionsLoading(true);
 
     loadOrganizationPermissions(activeOrgId)

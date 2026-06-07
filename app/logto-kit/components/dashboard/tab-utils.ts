@@ -13,7 +13,6 @@ export function getTabLabel(id: TabId, t: Translations): string {
     case 'sessions': return t.tabs.sessions;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
-    case 'dev': return t.tabs.dev;
     default: return (id as string).toUpperCase();
   }
 }

@@ -46,7 +46,6 @@ export interface Translations {
     identities: string;
     organizations: string;
     mfa: string;
-    dev: string;
   };
   
   // Security tab
@@ -361,20 +360,6 @@ export interface Translations {
     backupCodesRequireOtherFactor: string;
   };
   
-  // Dev tab
-  raw: {
-    title: string;
-    rawUserData: string;
-    dataTitle: string;
-    accessToken: string;
-    tokenType: string;
-    cookieActions: string;
-    clearCookies: string;
-    clearCookiesLabel: string;
-    invalidateSession: string;
-    invalidateSessionDescription: string;
-  };
-
   // Sessions tab
   sessions: {
     title: string;

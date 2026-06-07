@@ -189,7 +189,6 @@ DELETE_REDIRECT_DELAY=3000 # Delay (ms) before redirecting client after deleting
 
 # - Developer Diagnostics -
 DEBUG=                    # Set to 'true' to enable verbose terminal server logging
-LOGTO_DANGER_EXPOSE_TOKEN=false  # ⚠️ Set to 'true' to expose access token in the Dev tab (NEVER enable in production)
 LOG_BACKEND=both          # Logging output destinations: console | pino | both
 
 # - Pino Telemetry & Logging -
@@ -243,7 +242,7 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
           <tr>
             <td style={customTdPathStyle}>LOAD_TABS</td>
             <td style={customTdStyle}>
-              A comma-separated, ordered sequence list of dashboard tabs to actively load and render. Supported tokens: <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>security</code>, <code style={styles.codeSmStyle}>sessions</code>, <code style={styles.codeSmStyle}>organizations</code>, <code style={styles.codeSmStyle}>identities</code>, <code style={styles.codeSmStyle}>dev</code>.
+              A comma-separated, ordered sequence list of dashboard tabs to actively load and render. Supported tokens: <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>security</code>, <code style={styles.codeSmStyle}>sessions</code>, <code style={styles.codeSmStyle}>organizations</code>, <code style={styles.codeSmStyle}>identities</code>.
             </td>
           </tr>
           <tr>

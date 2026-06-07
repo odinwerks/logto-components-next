@@ -56,7 +56,6 @@ vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
 vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
 vi.mock('./tabs/identities', () => ({ IdentitiesTab: () => null }));
 vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
-vi.mock('./tabs/dev', () => ({ DevTab: () => null }));
 vi.mock('./shared/Toast', () => ({ ToastContainer: () => null }));
 
 // Import after mocks
@@ -93,7 +92,6 @@ const stubTranslations = {
     sessions: 'Sessions',
     identities: 'Identities',
     organizations: 'Organizations',
-    dev: 'Developer',
   },
   profile: { notSet: 'Not set' },
 } as Translations;

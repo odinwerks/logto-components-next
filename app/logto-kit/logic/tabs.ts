@@ -5,7 +5,7 @@
 
 // TabId is defined here (logic layer) so that components/dashboard/types.ts
 // can import it from logic - not the other way around.
-export type TabId = 'profile' | 'preferences' | 'security' | 'sessions' | 'identities' | 'organizations' | 'dev';
+export type TabId = 'profile' | 'preferences' | 'security' | 'sessions' | 'identities' | 'organizations';
 
 // All valid tab IDs and their display labels (used as fallback)
 export const ALL_TABS: TabId[] = [
@@ -15,12 +15,10 @@ export const ALL_TABS: TabId[] = [
   'sessions',
   'identities',
   'organizations',
-  'dev',
 ];
 
 // ENV value aliases - lets operators use friendly names
 import { readEnv } from './env';
-import { isDev } from './dev-mode';
 import { warn } from './log';
 
 const TAB_ALIASES: Record<string, TabId> = {
@@ -56,33 +54,27 @@ const TAB_ALIASES: Record<string, TabId> = {
   session: 'sessions',
   devices: 'sessions',
   activity: 'sessions',
-
-  // dev aliases
-  dev: 'dev',
-  debug: 'dev',
-  data: 'dev',
-  raw: 'dev',
 };
 
 /**
  * Returns the ordered list of tab IDs to load, based on LOAD_TABS env var.
  *
  * Source: `LOAD_TABS` (also checks `NEXT_PUBLIC_LOAD_TABS` as fallback)
- * Example: "profile,custom-data,mfa,raw"
+ * Example: "profile,custom-data,mfa"
  *
  * Rules:
  *  1. Parse as comma-separated list.
- *  2. Resolve aliases (e.g. "personal" → "profile").
+ *  2. Resolve aliases (e.g. "personal" -> "profile").
  *  3. Filter to valid TabId values.
  *  4. Deduplicate while preserving order.
- *  5. If ENV is not set or empty → show ALL tabs in default order.
+ *  5. If ENV is not set or empty -> show ALL tabs in default order.
  */
 export function getLoadedTabs(): TabId[] {
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
-    // ENV not set → show all tabs in default order (minus 'dev' in prod).
-    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
+    // ENV not set -> show all tabs in default order.
+    return [...ALL_TABS];
   }
 
   const seen = new Set<TabId>();
@@ -104,15 +96,10 @@ export function getLoadedTabs(): TabId[] {
     }
   }
 
-  // Security: strip 'dev' tab in production regardless of LOAD_TABS setting.
-  // The DevTab component displays the user's access token and raw JSON, which
-  // is a debugging feature that must never ship to real end users.
-  const filtered = isDev ? result : result.filter(id => id !== 'dev');
-
-  if (filtered.length === 0) {
+  if (result.length === 0) {
     warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to safe defaults.');
-    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
+    return [...ALL_TABS];
   }
 
-  return filtered;
+  return result;
 }

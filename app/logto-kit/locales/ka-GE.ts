@@ -30,7 +30,6 @@ export const kaGE: Translations = {
     identities: 'იდენტიტეტები',
     organizations: 'ორგანიზაციები',
     mfa: 'მრავალფაქტორული აუთენტიფიკაცია',
-    dev: 'პროგრამისტებისთვის',
   },
   
   // Security tab
@@ -346,19 +345,6 @@ export const kaGE: Translations = {
     backupCodesRequireOtherFactor: 'სარეზერვო კოდების გენერირებამდე დაარეგისტრირეთ ავთენტიფიკაციის აპლიკაცია ან გასაღები.',
   },
   
-  // Dev tab
-  raw: {
-    title: 'პროგრამისტებისთვის',
-    rawUserData: 'Json ობიექტი',
-    dataTitle: 'userData',
-    accessToken: 'წვდომის ტოკენი',
-    tokenType: 'ტოკენი',
-    cookieActions: 'პეჩენიის მართვა',
-    clearCookies: 'პეჩენიის განადგურება',
-    clearCookiesLabel: 'პეჩენიის განადგურება (/api/wipe)',
-    invalidateSession: 'სესიის და პეჩენიის მკვლელობა (/api/wipe?force=true)',
-    invalidateSessionDescription: 'პირველად გამოსვლა Logto-ს სესიის დასრულების ენდპოინტით, შემდეგ პეჩენიის განადგურება (ზედმეტი, მაგრამ სრული)',
-  },
 
   // Sessions tab
   sessions: {

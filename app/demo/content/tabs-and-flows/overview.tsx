@@ -118,12 +118,6 @@ export default function OverviewSection() {
               <td style={customTdStyle}>useOrgMode</td>
               <td style={customTdStyle}>Organization switch and state updates</td>
             </tr>
-            <tr>
-              <td style={customTdPropStyle}>Dev</td>
-              <td style={customTdStyle}>Common props plus debug payload</td>
-              <td style={customTdStyle}> - </td>
-              <td style={customTdStyle}>0</td>
-            </tr>
           </tbody>
         </table>
         <CodeBlock title="LOAD_TABS" code={`# Show all tabs (default)
@@ -178,9 +172,6 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           <li style={{ marginBottom: '8px' }}>
             <strong>Conditional Rendering:</strong> The central content panel uses short-circuit operators (e.g., <code style={styles.codeSmStyle}>activeTab === &apos;security&apos; &amp;&amp; &lt;SecurityTab ... /&gt;</code>) to render components. Unrendered tabs remain unmounted, preventing unauthorized component lifecycles, background api calls, or state initializations.
           </li>
-          <li style={{ marginBottom: '8px' }}>
-            <strong>Dev Tab Hard Gating:</strong> In production environments, the <code style={styles.codeStyle}>dev</code> tab is strictly omitted from the <code style={styles.codeStyle}>loadedTabs</code> list. Even if a client attempts to artificially manipulate the local <code style={styles.codeStyle}>activeTab</code> state, the conditional rendering block prevents the component from mounting.
-          </li>
         </ul>
       </div>
 
@@ -206,17 +197,16 @@ LOAD_TABS=profile,preferences,security,organizations`} />
               <li><code style={styles.codeSmStyle}>orgs</code>, <code style={styles.codeSmStyle}>org</code> : resolves to <code style={styles.codeSmStyle}>organizations</code></li>
               <li><code style={styles.codeSmStyle}>mfa</code>, <code style={styles.codeSmStyle}>2fa</code>, <code style={styles.codeSmStyle}>totp</code> : resolves to <code style={styles.codeSmStyle}>security</code></li>
               <li><code style={styles.codeSmStyle}>session</code>, <code style={styles.codeSmStyle}>devices</code>, <code style={styles.codeSmStyle}>activity</code> : resolves to <code style={styles.codeSmStyle}>sessions</code></li>
-              <li><code style={styles.codeSmStyle}>debug</code>, <code style={styles.codeSmStyle}>data</code>, <code style={styles.codeSmStyle}>raw</code> : resolves to <code style={styles.codeSmStyle}>dev</code></li>
             </ul>
           </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Deduplication and Validation:</strong> Skips invalid tokens with warning logs and inserts valid canonical IDs into a <code style={styles.codeSmStyle}>Set</code> to eliminate duplicate values while preserving the configured tab order.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Production Sanitization:</strong> Explicitly excludes the <code style={styles.codeSmStyle}>dev</code> tab if the environment is not in development mode (preventing exposure of active OIDC ID tokens or debugging payloads).
+            <strong>Normalization:</strong> The resolved tab list is normalized to canonical tab IDs before render-time checks.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Empty Fallback:</strong> If no tabs remain or the variable is not set, the helper falls back to loading all tabs (excluding the <code style={styles.codeSmStyle}>dev</code> tab in production).
+            <strong>Empty Fallback:</strong> If no tabs remain or the variable is not set, the helper falls back to loading all tabs in default order.
           </li>
         </ol>
 
@@ -226,7 +216,7 @@ LOAD_TABS=profile,preferences,security,organizations`} />
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
-    return isDev ? [...ALL_TABS] : ALL_TABS.filter(id => id !== 'dev');
+    return [...ALL_TABS];
   }
 
   const seen = new Set<TabId>();
@@ -248,8 +238,7 @@ LOAD_TABS=profile,preferences,security,organizations`} />
     }
   }
 
-  const filtered = isDev ? result : result.filter(id => id !== 'dev');
-  return filtered.length === 0 ? ALL_TABS.filter(id => id !== 'dev') : filtered;
+  return result.length === 0 ? [...ALL_TABS] : result;
 }`}
         />
       </div>

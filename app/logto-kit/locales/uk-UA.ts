@@ -30,7 +30,6 @@ export const ukUA: Translations = {
     identities: 'ІДЕНТИЧНОСТІ',
     organizations: 'ОРГАНІЗАЦІЇ',
     mfa: 'MFA',
-    dev: 'РОЗРОБКА',
   },
   
   // Security tab
@@ -346,19 +345,6 @@ export const ukUA: Translations = {
     backupCodesRequireOtherFactor: 'Налаштуйте спочатку додаток автентифікатора або ключ доступу, перш ніж генерувати резервні коди.',
   },
   
-  // Dev tab
-  raw: {
-    title: 'DEV',
-    rawUserData: 'Необроблений об’єкт JSON',
-    dataTitle: 'userData',
-    accessToken: 'Токен доступу',
-    tokenType: 'токен',
-    cookieActions: 'Дії з файлами Cookie',
-    clearCookies: 'Очистити Cookies',
-    clearCookiesLabel: 'Очистити Cookies (/api/wipe)',
-    invalidateSession: 'Анулювати сесію та cookie (/api/wipe?force=true)',
-    invalidateSessionDescription: 'Спочатку виходить через кінцеву точку сесії Logto, а потім очищає файли cookie (надлишково, але ретельно)',
-  },
 
   // Sessions tab
   sessions: {

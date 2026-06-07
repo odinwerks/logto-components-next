@@ -15,7 +15,6 @@ import { SecurityTab } from './tabs/security';
 import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
-import { DevTab } from './tabs/dev';
 import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession } from '../../logic/types';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft } from 'lucide-react';
@@ -418,9 +417,6 @@ export function MobileClient({
           <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
         )}
 
-        {activeTab === 'dev' && (
-          <DevTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
-        )}
         </div>
       </div>
 

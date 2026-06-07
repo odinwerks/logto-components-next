@@ -15,13 +15,12 @@ import { SecurityTab } from './tabs/security';
 import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
-import { DevTab } from './tabs/dev';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
-import { Terminal, Monitor } from 'lucide-react';
+import { Monitor } from 'lucide-react';
 import { getTabLabel } from './tab-utils';
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -87,7 +86,6 @@ function getTabIcon(id: TabId) {
     case 'identities': return LinkIcon;
     case 'organizations': return BuildingIcon;
     case 'preferences': return SettingsIcon;
-    case 'dev': return Terminal;
     default: return UserIcon;
   }
 }
@@ -462,9 +460,6 @@ export function DashboardClient({
           <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
         )}
 
-        {activeTab === 'dev' && (
-          <DevTab userData={userData} mode={mode} colors={colors} t={t} />
-        )}
 
           </div>{/* end fade wrapper */}
         </div>

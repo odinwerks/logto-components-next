@@ -94,5 +94,3 @@ export {
 // Token Introspection (for RBAC)
 export { introspectTokenWithOrg } from './introspection';
 
-// Dev-only: Token access for the Dev tab (server refuses in production)
-export { getCurrentAccessToken } from './debug-token';

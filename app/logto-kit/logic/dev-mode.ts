@@ -6,7 +6,6 @@
  * Single source of truth for the "are we in development?" check across the
  * codebase. Used to gate:
  *
- *   - The Dev tab (renders access token + raw user JSON)
  *   - Verbose error messages from server actions
  *   - Debug logging
  *

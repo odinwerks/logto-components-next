@@ -7,9 +7,8 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Semi-Clean Production-ish UI**: Squared buttons, CSS-variable theming, and a set of UI components
 - **Full Responsive & Mobile Support**: Dynamic orientation-based responsive routing (`useIsPortrait`) that swaps standard sidebar layouts for touch-optimized mobile navigation. Features a tactile, morphing floating button (Hamburger, X, and ArrowLeft), a beautiful two-stage fullscreen navigation drawer (Topics -> Subtopics), and fully responsive, horizontally scrollable data tables.
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn), and developer tools views
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
-- **Dev Tab**: Debug view for access tokens (click-to-reveal), ID tokens, cookie management, and session control
 - **Theme System**: CSS-only theme system with dark/light CSS variables. THEME env var selects the theme folder. No JS registration needed.
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
 - **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn passkey management (register, rename, delete). Uses `@simplewebauthn/browser` for the browser ceremony.
@@ -18,7 +17,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
 - **Route Protection**: Middleware (`proxy.ts`) checks authentication before page rendering and redirects unauthenticated requests to sign-in.
-- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated. The Dev tab is only visible when `NODE_ENV` is `development` or `test`.
+- **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated.
 
 ## Project Structure
 
@@ -113,7 +112,6 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   │   ├── input-guards.tsx
 │   │   │   │   └── logging.tsx
 │   │   │   ├── tabs-and-flows/
-│   │   │   │   ├── dev.tsx
 │   │   │   │   ├── identities.tsx
 │   │   │   │   ├── organizations.tsx
 │   │   │   │   ├── overview.tsx
@@ -169,7 +167,6 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   │   │   └── Toast.tsx
 │   │   │   │   ├── tab-utils.ts           # getTabLabel (shared by desktop + mobile)
 │   │   │   │   ├── tabs/
-│   │   │   │   │   ├── dev.tsx
 │   │   │   │   │   ├── identities.tsx
 │   │   │   │   │   ├── organizations.tsx
 │   │   │   │   │   ├── preferences.tsx
@@ -212,8 +209,6 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 │   │   │   │   ├── auth.ts
 │   │   │   │   ├── avatar.ts              # Avatar upload (S3/Logto Native)
 │   │   │   │   ├── dashboard.ts
-│   │   │   │   ├── debug-token.test.ts
-│   │   │   │   ├── debug-token.ts         # Dev-only token access (refused in production)
 │   │   │   │   ├── heartbeat.ts
 │   │   │   │   ├── index.ts               # Barrel (re-exports all actions)
 │   │   │   │   ├── introspection.ts
@@ -411,7 +406,6 @@ v0.3.0 introduced dedicated security modules for defense-in-depth:
 | `guards.ts` | `app/logto-kit/logic/guards.ts` | Input validators for all trust boundaries - IDs, user IDs, MFA types, passkey names, custom data |
 | `audit.ts` | `app/logto-kit/logic/audit.ts` | Audit log primitive - emits structured events for mutations (no-op until you provide a custom transport) |
 | `dev-mode.ts` | `app/logto-kit/logic/dev-mode.ts` | `NODE_ENV` gate - strips dev-only features at runtime in non-development/test environments |
-| `debug-token.ts` | `app/logto-kit/logic/actions/debug-token.ts` | Dev-only Server Action for token access (refused by server in production) |
 
 To activate audit logging, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`.
 
@@ -453,9 +447,9 @@ You have to set this up for pfp uploads and account deletion to work. Also to re
 
 ```env
 # Which tabs to show and in what order (comma-separated)
-# Allowed: profile, preferences, security, sessions, identities, organizations, dev
-# Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations; debug, data, raw → dev
-LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
+# Allowed: profile, preferences, security, sessions, identities, organizations
+# Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
 ```
 
 ### Account Deletion
@@ -677,7 +671,7 @@ The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - on
 | Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
 | Primitives | reference | Reusable building blocks: useRefreshable() hook, <RefreshButton />, direct org token fetch, PermissionsBlock pattern |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, Organizations, and Dev tabs.
+Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, and Organizations.
 
 > **Demo Dark Mode Palette:** The docs pages and sidebar use a custom scoped dark palette (`app/globals.css` → `.docs-content-container`) independent of the main dashboard theme for optimal reading contrast:
 > - Sidebar BG: `#050608`
@@ -699,7 +693,7 @@ The demo app consists of:
 | `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
 | `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
 | `docs/dashboard.tsx` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (4 pages) |
-| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (8 pages) |
+| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (7 pages) |
 | `docs/org-switcher.tsx` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
 | `docs/providers.tsx` | Providers documentation - LogtoProvider, hooks reference |
 | `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
@@ -1545,20 +1539,19 @@ Available tab IDs with their display aliases:
 | `sessions` | `session`, `devices`, `activity` | Active session management and device overview |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
-| `dev` | `debug`, `data`, `raw` | Developer tools: access tokens, ID tokens, cookies, session management |
 
 ### Configuration Examples
 
 ```env
 # Show all tabs in default order
-LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
 
 # Show only profile, security, sessions, and preferences (in that order)
 LOAD_TABS=profile,security,sessions,preferences
 
 # Use aliases - these are all equivalent to the first example
-LOAD_TABS=personal,prefs,mfa,sessions,identity,orgs,debug
-LOAD_TABS=user,custom-data,2fa,devices,identities,organization,data
+LOAD_TABS=personal,prefs,mfa,sessions,identity,orgs
+LOAD_TABS=user,custom-data,2fa,devices,identities,organization
 
 # If not set or empty, shows all tabs in default order
 ```
@@ -2389,7 +2382,6 @@ SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
 - [x] Profile tab - redesigned with proper edit UI
 - [x] Preferences tab - removed JSON editor
 - [x] Security tab - button styling unified across all tabs
-- [x] Dev tab - new developer tools tab for tokens and session management
 - [x] Identities tab - reviewed, looks good
 - [x] Organizations tab - implemented with org memberships, roles display, and org switching 
 

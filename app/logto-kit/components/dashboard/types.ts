@@ -7,7 +7,7 @@ export type { TabId };
 
 export interface DashboardData {
   userData:    UserData;
-  // Access token kept server-side; fetch via getCurrentAccessToken() when dev mode requires it.
+  // Dashboard user payload for client rendering.
 }
 
 export interface ToastMessage {

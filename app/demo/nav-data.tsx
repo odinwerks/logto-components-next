@@ -124,7 +124,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <DashboardIcon />,
-    desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Identities, Organizations, Dev (tokens, cookies, session). Drop it anywhere - wraps itself in required providers.',
+    desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Identities, Organizations. Drop it anywhere - wraps itself in required providers.',
     sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering', 'Mobile'],
   },
   {
@@ -134,7 +134,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'reference',
     icon: <DashboardIcon />,
     desc: 'Deep dive into each dashboard tab: props, hooks (useAvatarUpload, useThemeMode, useLangMode, useOrgMode), server actions, FlowModal architecture, TOTP flows, ContactRow, org switching.',
-    sections: ['Overview', 'Profile', 'Preferences', 'Security', 'Sessions', 'Identities', 'Organizations', 'Dev'],
+    sections: ['Overview', 'Profile', 'Preferences', 'Security', 'Sessions', 'Identities', 'Organizations'],
   },
   {
     id: 'rbac',
@@ -161,7 +161,7 @@ export const NAV_ITEMS: NavItem[] = [
     type: 'reference',
     icon: <PrimitivesIcon />,
     desc: 'Internal layout contexts and architectural tokens. Consolidates multi-tier provider hierarchies, CSS custom color modes, file-bound translation bundles, and baseline building blocks.',
-    sections: ['Providers', 'Theme', 'i18n', 'Primitives'],
+    sections: ['Providers', 'Theme', 'i18n', 'Primitives', 'Async Patterns'],
   },
   {
     id: 'security',
@@ -196,7 +196,6 @@ export const SECTION_HINTS: SectionHint = {
   Sessions: 'Device session maps, hearts beats, and revocations...',
   Identities: 'OIDC social integrations, sync timelines, and metadata trackers...',
   Organizations: 'Role mappings, permissions, and dynamic organization switching...',
-  Dev: 'OIDC tokens inspector and context logging structures...',
   'UI <Protected />': 'Client-side gating component and conditional layout rendering...',
   API: 'Server-side action validation and token claims enforcement...',
   Overview: 'System design, directory mappings, and operational flows...',
@@ -207,6 +206,7 @@ export const SECTION_HINTS: SectionHint = {
   Theme: 'ThemeColors, color tokens, and custom styling parameters...',
   i18n: 'Statically bundled locale dictionaries and on-the-fly language switching...',
   Primitives: 'Lower-level building blocks: useRefreshable, RefreshButton, and direct token fetches...',
+  'Async Patterns': 'Cancelled flag pattern for Server Action race handling. Why AbortController does not work for server-side requests.',
   'Error Handling': 'Action error sanitization wrappers and standard safety filters...',
   'Input Guards': 'Boundary verification guards, SafeUrl, and same-origin protections...',
   Logging: 'Unstructured and structured event logs with Pino configurations...',

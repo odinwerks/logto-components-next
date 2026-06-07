@@ -73,7 +73,6 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
     'sessions': () => import('../../../demo/content/tabs-and-flows/sessions'),
     'identities': () => import('../../../demo/content/tabs-and-flows/identities'),
     'organizations': () => import('../../../demo/content/tabs-and-flows/organizations'),
-    'dev': () => import('../../../demo/content/tabs-and-flows/dev'),
   },
 };
 
