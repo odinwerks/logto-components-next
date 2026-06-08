@@ -4,6 +4,7 @@ import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
 // ── Mock geo-cache to avoid network requests ──
 const { mockGetCachedGeo, mockFetchGeo, mockClearGeoCache } = vi.hoisted(() => ({
@@ -129,7 +130,7 @@ function renderSessionsTab({
   const verifyFn = (onVerifyPassword ??
     vi.fn<(password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>>().mockResolvedValue({
       ok: true,
-      data: { verificationRecordId: 'test-vid', verificationTimestamp: 123456789 },
+      data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
     })) as (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
 
   const onSuccess = vi.fn();
@@ -178,7 +179,7 @@ describe('SessionsTab', () => {
     it('stays in unverified state when sessions fetch fails in verifyAndLoad', async () => {
       const onVerifyPassword = vi.fn().mockResolvedValue({
         ok: true,
-        data: { verificationRecordId: 'test-vid' },
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
       });
       const onGetSessions = vi.fn().mockResolvedValue({
         ok: false,
@@ -209,7 +210,7 @@ describe('SessionsTab', () => {
       // First, successfully verify and load sessions
       const onVerifyPassword = vi.fn().mockResolvedValue({
         ok: true,
-        data: { verificationRecordId: 'test-vid' },
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
       });
       const onGetSessions = vi.fn()
         .mockResolvedValueOnce({
@@ -245,7 +246,7 @@ describe('SessionsTab', () => {
       // First, successfully verify and load sessions
       const onVerifyPassword = vi.fn().mockResolvedValue({
         ok: true,
-        data: { verificationRecordId: 'test-vid' },
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
       });
       const onGetSessions = vi.fn()
         .mockResolvedValueOnce({
@@ -289,7 +290,7 @@ describe('SessionsTab', () => {
       // Verify and load sessions first
       const onVerifyPassword = vi.fn().mockResolvedValue({
         ok: true,
-        data: { verificationRecordId: 'test-vid' },
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
       });
       const onGetSessions = vi.fn().mockResolvedValue({
         ok: true,
@@ -365,14 +366,17 @@ describe('SessionsTab', () => {
       const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockedNow);
 
       try {
+        const initialVerificationTimestamp = now + 30_000;
+        const refreshedVerificationTimestamp = now + 60_000;
+
         const onVerifyPassword = vi.fn()
           .mockResolvedValueOnce({
             ok: true,
-            data: { verificationRecordId: 'initial-vid', verificationTimestamp: 111111111 },
+            data: { verificationRecordId: 'initial-vid', verificationTimestamp: initialVerificationTimestamp },
           })
           .mockResolvedValueOnce({
             ok: true,
-            data: { verificationRecordId: 'refreshed-vid', verificationTimestamp: 222222222 },
+            data: { verificationRecordId: 'refreshed-vid', verificationTimestamp: refreshedVerificationTimestamp },
           });
 
         const onGetSessions = vi.fn()
@@ -399,7 +403,7 @@ describe('SessionsTab', () => {
           expect(screen.getByText('This device')).toBeDefined();
         });
 
-        mockedNow = now + 10 * 60 * 1000 + 1;
+        mockedNow = initialVerificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS + 1;
 
         const revokeBtn = screen.getByRole('button', { name: 'Revoke' });
         await act(async () => {
@@ -423,10 +427,66 @@ describe('SessionsTab', () => {
         });
 
         expect(onGetSessions.mock.calls[1][0]).toBe('refreshed-vid');
-        expect(onGetSessions.mock.calls[1][1]).toBe(222222222);
+        expect(onGetSessions.mock.calls[1][1]).toBe(refreshedVerificationTimestamp);
       } finally {
         dateNowSpy.mockRestore();
       }
+    });
+  });
+
+  describe('verification expiry source', () => {
+    it('treats stale server verification timestamp as expired on refresh', async () => {
+      const now = new Date('2026-01-01T00:00:00.000Z').getTime();
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+
+      try {
+        const onVerifyPassword = vi.fn().mockResolvedValue({
+          ok: true,
+          data: { verificationRecordId: 'stale-vid', verificationTimestamp: now - 60_000 },
+        });
+
+        const onGetSessions = vi.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            data: createdSessions,
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            data: createdSessions,
+          });
+
+        renderSessionsTab({ onVerifyPassword, onGetSessionsWithDeviceMeta: onGetSessions });
+
+        await verifyAndLoadSessions();
+
+        await waitFor(() => {
+          expect(screen.getByText('This device')).toBeDefined();
+        });
+
+        const refreshBtn = screen.getByRole('button', { name: /refresh/i });
+        await act(async () => {
+          fireEvent.click(refreshBtn);
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Verify your identity')).toBeDefined();
+        });
+
+        expect(onGetSessions).toHaveBeenCalledTimes(1);
+      } finally {
+        dateNowSpy.mockRestore();
+      }
+    });
+  });
+
+  describe('geolocation disclosure copy', () => {
+    it('shows IP-based approximate location disclosure in loaded view', async () => {
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.locationDisclosure)).toBeInTheDocument();
+      });
     });
   });
 

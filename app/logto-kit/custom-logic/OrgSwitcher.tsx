@@ -19,26 +19,13 @@ interface OrgSwitcherProps {
   };
 }
 
-export function OrgSwitcher({ organizations, currentOrgId, mode, colors, t }: OrgSwitcherProps) {
+export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitcherProps) {
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
-  const [selected, setSelected] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const isSwitchingRef = useRef(false);
 
   const c = colors;
-
-  useEffect(() => {
-    const activeOrg = asOrg ?? currentOrgId ?? '';
-    setSelected(activeOrg);
-  }, [asOrg, currentOrgId]);
-
-  useEffect(() => {
-    if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current) {
-      isSwitchingRef.current = true;
-      handleChange(organizations[0].id).finally(() => { isSwitchingRef.current = false; });
-    }
-  }, [organizations, asOrg, currentOrgId]);
 
   const handleChange = async (newOrgId: string) => {
     const orgIdToSet = newOrgId || null;
@@ -52,13 +39,19 @@ export function OrgSwitcher({ organizations, currentOrgId, mode, colors, t }: Or
       
       startTransition(() => {
         setAsOrg(orgIdToSet);
-        setSelected(newOrgId);
         router.refresh();
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current) {
+      isSwitchingRef.current = true;
+      handleChange(organizations[0].id).finally(() => { isSwitchingRef.current = false; });
+    }
+  }, [organizations, asOrg, currentOrgId]);
 
   if (organizations.length === 0) {
     return null;

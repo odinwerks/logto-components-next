@@ -202,7 +202,11 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
 
       <div style={wellStyle}>
         {/* Theme picker */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', marginBottom: '1.625rem' }}>
+        <div
+          role="radiogroup"
+          aria-label={t.common.appearance}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', marginBottom: '1.625rem' }}
+        >
           {options.map(opt => {
             const isSelected = activeMode === opt.id;
             return (
@@ -285,6 +289,9 @@ function ThemeOption({
 
   return (
     <button
+      type="button"
+      role="radio"
+      aria-checked={isSelected}
       onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

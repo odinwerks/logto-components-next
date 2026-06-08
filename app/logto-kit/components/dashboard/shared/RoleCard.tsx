@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, Loader2 } from 'lucide-react';
 import { getRoleDetails } from '../../../logic/actions/roles';
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
+import { getClampedTooltipPosition } from './tooltip-position';
 
 interface RoleCardProps {
   name: string;
@@ -14,15 +15,19 @@ interface RoleCardProps {
   description?: string;
   colors: ThemeColors;
   t: Translations;
+  mode?: 'dark' | 'light';
 }
 
 
 const descriptionCache = new Map<string, string | null>();
 
-export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps) {
+export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }: RoleCardProps) {
   const c = colors;
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const showTooltip = isHovered || isFocused;
+  const tooltipId = useId();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [resolvedDescription, setResolvedDescription] = useState<string | null | undefined>(description);
   const [loadingDesc, setLoadingDesc] = useState(false);
@@ -62,21 +67,42 @@ export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps
     }
   }, [roleId, description]);
 
-  const handleMouseEnter = useCallback(() => {
+  const openTooltip = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const { left, top } = getClampedTooltipPosition({
+      left: rect.left,
+      top: rect.bottom + 6,
+      width: 288,
+      height: 120,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
     setTooltipStyle({
       position: 'fixed',
-      bottom: `${window.innerHeight - rect.top + 6}px`,
-      right: `${window.innerWidth - rect.right}px`,
+      top: `${top}px`,
+      left: `${left}px`,
       zIndex: 9999,
     });
-    setShowTooltip(true);
     fetchDescription();
   }, [fetchDescription]);
 
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    openTooltip();
+  }, [openTooltip]);
+
   const handleMouseLeave = useCallback(() => {
-    setShowTooltip(false);
+    setIsHovered(false);
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    openTooltip();
+  }, [openTooltip]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
   }, []);
 
   return (
@@ -102,11 +128,24 @@ export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps
       >
         {name}
       </div>
-      <div
+      <button
         ref={triggerRef}
-        style={{ display: 'flex', alignItems: 'center' }}
+        type="button"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        aria-describedby={showTooltip ? tooltipId : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          margin: 0,
+          cursor: 'help',
+          outline: 'none',
+        }}
       >
         <Info
           size={14}
@@ -116,6 +155,7 @@ export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps
         {showTooltip &&
           createPortal(
             <div
+              id={tooltipId}
               style={tooltipStyle}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
@@ -128,7 +168,9 @@ export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps
                   padding: '0.5rem 0.625rem',
                   minWidth: '14rem',
                   maxWidth: '18rem',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  boxShadow: mode === 'dark'
+                    ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.15)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.25rem',
@@ -161,7 +203,7 @@ export function RoleCard({ name, roleId, description, colors, t }: RoleCardProps
             </div>,
             document.body
           )}
-      </div>
+      </button>
     </div>
   );
 }

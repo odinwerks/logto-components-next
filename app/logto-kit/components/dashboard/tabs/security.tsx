@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';

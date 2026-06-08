@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
@@ -13,6 +13,7 @@ import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache'
 import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { readEnv } from '../../../logic/env';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
@@ -30,8 +31,6 @@ interface SessionsTabProps {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
-
-const VERIFICATION_TTL_MS = 10 * 60 * 1000;
 
 function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: string | null; size: number }) {
   const [imgError, setImgError] = useState(false);
@@ -146,7 +145,7 @@ export function SessionsTab({
       return;
     }
     const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
-    const expiresAt = Date.now() + VERIFICATION_TTL_MS;
+    const expiresAt = ts + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS;
     setVerificationRecordId(vid);
     setVerificationTimestamp(ts);
     setVerificationExpiry(expiresAt);
@@ -260,7 +259,7 @@ export function SessionsTab({
       vts = verifyResult.data.verificationTimestamp;
       setVerificationRecordId(vid);
       setVerificationTimestamp(vts);
-      setVerificationExpiry(Date.now() + VERIFICATION_TTL_MS);
+      setVerificationExpiry(vts + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS);
     }
 
     const target = revokeTargetRef.current;
@@ -460,6 +459,16 @@ export function SessionsTab({
           </button>
         </div>
       </div>
+
+      <p style={{
+        fontFamily: T.font,
+        fontSize: '0.625rem',
+        color: T.muted,
+        margin: '0 0 0.875rem 0',
+        lineHeight: 1.5,
+      }}>
+        {t.sessions.locationDisclosure}
+      </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {sessions.length === 0 ? (

@@ -30,7 +30,7 @@ import {
 } from '../../logic/actions';
 import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
-import { DARK_COLORS } from '../../themes';
+import { DARK_COLORS, FONT_MONO } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
 import { getLoadedTabs } from '../../logic/tabs';
 import { getPreferencesFromUserData } from '../../logic/preferences';
@@ -61,7 +61,7 @@ export async function MobileDashboard() {
           justifyContent: 'center',
           background: errorColors.bgPage,
           color: errorColors.textPrimary,
-          fontFamily: 'monospace',
+          fontFamily: FONT_MONO,
           padding: '1.25rem',
         }}
       >

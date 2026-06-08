@@ -58,8 +58,13 @@ export function ContactRow({
   const [newValue, setNewValue] = useState('');
   const [step, setStep] = useState<ModalStep>({ kind: 'password' });
   const [pwErr, setPwErr] = useState('');
+  const operationTokenRef = React.useRef(0);
   const newValueRef = React.useRef(newValue);
   newValueRef.current = newValue;
+
+  const invalidateInFlightOperations = React.useCallback(() => {
+    operationTokenRef.current += 1;
+  }, []);
 
   const [selectedCountry, setSelectedCountry] = useState('995');
   const [localPhone, setLocalPhone] = useState('');
@@ -141,8 +146,19 @@ export function ContactRow({
     ? formatPhone(currentValue)
     : currentValue;
 
-  const openEdit = () => { setNewValue(type === 'email' ? '' : ''); setPwErr(''); setStep({ kind: 'value' }); setModalKind('edit'); };
-  const close = () => { setModalKind(null); setStep({ kind: 'password' }); setPwErr(''); };
+  const openEdit = () => {
+    invalidateInFlightOperations();
+    setNewValue(type === 'email' ? '' : '');
+    setPwErr('');
+    setStep({ kind: 'value' });
+    setModalKind('edit');
+  };
+  const close = () => {
+    invalidateInFlightOperations();
+    setModalKind(null);
+    setStep({ kind: 'password' });
+    setPwErr('');
+  };
 
   const getTrimmedTarget = () => newValueRef.current.trim();
   const isPhoneWithoutLocalDigits = type === 'phone' && modalKind === 'edit' && localPhone.length === 0;
@@ -165,12 +181,17 @@ export function ContactRow({
   };
 
   const handlePassword = async (pw: string) => {
+    const operationToken = operationTokenRef.current;
+    const isStaleOperation = () => operationToken !== operationTokenRef.current;
+
     setPwErr('');
     if (modalKind === 'remove') {
       setStep({ kind: 'loading', message: t.mfa.verifying });
       const r1 = await onVerifyPassword(pw);
+      if (isStaleOperation()) return;
       if (!r1.ok) { setPwErr(r1.error); setStep({ kind: 'password' }); return; }
       const r2 = await onRemove(r1.data.verificationRecordId, r1.data.verificationTimestamp);
+      if (isStaleOperation()) return;
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
       close();
@@ -180,8 +201,10 @@ export function ContactRow({
       if (type === 'phone' && phoneErr) { setPwErr(phoneErr); return; }
       setStep({ kind: 'loading', message: t.mfa.sendingCode });
       const r1 = await onVerifyPassword(pw);
+      if (isStaleOperation()) return;
       if (!r1.ok) { setPwErr(r1.error); setStep({ kind: 'password' }); return; }
       const r2 = await onSendVerification(target);
+      if (isStaleOperation()) return;
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(`${t.verification.codeSent} ${target}`);
       setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId, verificationTimestamp: r1.data.verificationTimestamp });
@@ -190,9 +213,12 @@ export function ContactRow({
 
   const handleCode = async (code: string) => {
     if (step.kind !== 'code') return;
+    const operationToken = operationTokenRef.current;
+    const isStaleOperation = () => operationToken !== operationTokenRef.current;
     const { destination, verificationId, identityVerificationId, verificationTimestamp } = step;
     setStep({ kind: 'loading', message: t.mfa.verifyingCode });
     const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code, verificationTimestamp);
+    if (isStaleOperation()) return;
     if (!r.ok) { onError(r.error); setStep({ kind: 'password' }); return; }
     onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
     close();
@@ -279,7 +305,12 @@ export function ContactRow({
           ) : undefined}
           headerExtra={modalKind === 'edit' && currentValue && (step.kind === 'value' || step.kind === 'password') ? (
             <button
-              onClick={() => { setModalKind('remove'); setPwErr(''); setStep({ kind: 'password' }); }}
+              onClick={() => {
+                invalidateInFlightOperations();
+                setModalKind('remove');
+                setPwErr('');
+                setStep({ kind: 'password' });
+              }}
               style={{
                 background: 'none', border: 'none', padding: 0,
                 cursor: 'pointer', color: c.accentRed,

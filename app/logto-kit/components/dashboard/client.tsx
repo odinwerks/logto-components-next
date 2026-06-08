@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
-import type { DashboardData, TabId, ToastMessage, UserData, MfaVerificationPayload, ThemeColors } from './types';
+import type { DashboardData, TabId, UserData, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
@@ -17,6 +17,8 @@ import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
+import { useDashboardToasts } from './shared/use-dashboard-toasts';
+import { TabErrorBoundary } from './shared/TabErrorBoundary';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -195,28 +197,52 @@ export function DashboardClient({
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
 
   // ── Toast ──────────────────────────────────────────────────────────────────
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const { toasts, showToast, dismissToast, mapErrorToast } = useDashboardToasts(t);
 
-  const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
-    const toast: ToastMessage = {
-      id: `${Date.now()}-${Math.random()}`,
-      type,
-      message,
-      duration: type === 'success' ? 3000 : 8000,
-    };
-    setToasts((prev) => [...prev, toast]);
+  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  const tabPanelId = 'dashboard-tabpanel';
+
+  const focusAndActivateTab = useCallback((tabId: TabId) => {
+    setActiveTab(tabId);
+    tabRefs.current[tabId]?.focus();
   }, []);
 
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const mapErrorToast = useCallback((message: string) => {
-    if (message === 'PHONE_COUNTRY_NOT_ALLOWED') {
-      return t.validation.phoneCountryNotAllowed;
+  const handleTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, currentTabId: TabId) => {
+    if (loadedTabs.length === 0) {
+      return;
     }
-    return message;
-  }, [t]);
+
+    const currentIndex = loadedTabs.indexOf(currentTabId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    let targetTab: TabId | null = null;
+
+    switch (event.key) {
+      case 'ArrowRight':
+        targetTab = loadedTabs[(currentIndex + 1) % loadedTabs.length] ?? null;
+        break;
+      case 'ArrowLeft':
+        targetTab = loadedTabs[(currentIndex - 1 + loadedTabs.length) % loadedTabs.length] ?? null;
+        break;
+      case 'Home':
+        targetTab = loadedTabs[0] ?? null;
+        break;
+      case 'End':
+        targetTab = loadedTabs[loadedTabs.length - 1] ?? null;
+        break;
+      default:
+        break;
+    }
+
+    if (!targetTab) {
+      return;
+    }
+
+    event.preventDefault();
+    focusAndActivateTab(targetTab);
+  }, [focusAndActivateTab, loadedTabs]);
 
   // ── Refresh ────────────────────────────────────────────────────────────────
   // router.refresh() re-fetches the RSC payload for the current route,
@@ -351,6 +377,12 @@ export function DashboardClient({
             Icon={Icon}
             colors={colors}
             themeMode={mode}
+            panelId={tabPanelId}
+            tabIndex={isActive ? 0 : -1}
+            onKeyDown={(event) => handleTabKeyDown(event, tabId)}
+            buttonRef={(node) => {
+              tabRefs.current[tabId] = node;
+            }}
             onClick={() => setActiveTab(tabId)}
           />
               );
@@ -371,7 +403,9 @@ export function DashboardClient({
         {/* Content */}
         <div
           role="tabpanel"
+          id={tabPanelId}
           aria-labelledby={`tab-${activeTab}`}
+          tabIndex={0}
           style={{
             flex: 1,
             padding: '1.75rem 2rem',
@@ -380,7 +414,22 @@ export function DashboardClient({
             boxSizing: 'border-box',
           }}
         >
-          <div key={activeTab} style={{ animation: 'fadeIn 0.12s ease' }}>
+          <TabErrorBoundary
+            resetKey={activeTab}
+            fallback={(
+              <div
+                role="alert"
+                style={{
+                  fontFamily: 'var(--font-ibm-plex-mono)',
+                  color: colors.accentRed,
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {t.dashboard.error}
+              </div>
+            )}
+          >
+            <div key={activeTab} style={{ animation: 'fadeIn 0.12s ease' }}>
         {activeTab === 'profile' && (
           <ProfileTab
             userData={userData}
@@ -461,7 +510,8 @@ export function DashboardClient({
         )}
 
 
-          </div>{/* end fade wrapper */}
+            </div>{/* end fade wrapper */}
+          </TabErrorBoundary>
         </div>
       </div>
 
@@ -476,14 +526,18 @@ export function DashboardClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function NavButton({
-  tabId, isActive, label, Icon, colors, themeMode, onClick,
+  tabId, isActive, label, Icon, colors, themeMode, onClick, panelId, tabIndex, onKeyDown, buttonRef,
 }: {
-  tabId: string;
+  tabId: TabId;
   isActive: boolean;
   label: string;
   Icon: React.ComponentType<{ size?: number; color?: string }>;
   colors: ThemeColors;
   themeMode: 'dark' | 'light';
+  panelId: string;
+  tabIndex: number;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+  buttonRef: (node: HTMLButtonElement | null) => void;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -491,10 +545,14 @@ function NavButton({
 
   return (
     <button
+      ref={buttonRef}
       id={`tab-${tabId}`}
       role="tab"
       aria-selected={isActive}
+      aria-controls={panelId}
+      tabIndex={tabIndex}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

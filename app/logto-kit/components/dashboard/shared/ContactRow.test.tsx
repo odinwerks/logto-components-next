@@ -61,6 +61,14 @@ const buildDefaults = () => ({
   colors: DARK_COLORS,
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 // ── Helpers ──
 function openEditModal() {
   fireEvent.click(screen.getByText(enUS.profile.edit));
@@ -192,6 +200,87 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     });
   });
 
+  it('ignores stale password verification completion after close/reopen', async () => {
+    const props = buildDefaults();
+    const verifyPasswordDeferred = deferred<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>();
+
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockReturnValue(verifyPasswordDeferred.promise);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationId: 'vid-stale' },
+    } satisfies DataResult<{ verificationId: string }>);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput('first@example.com');
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    await act(async () => {
+      void flowModalHandlers.onPasswordSubmit!('pw123');
+    });
+
+    act(() => {
+      flowModalHandlers.onClose!();
+    });
+
+    openEditModal();
+    expect(flowModalStep).toBe('value');
+
+    await act(async () => {
+      verifyPasswordDeferred.resolve({
+        ok: true,
+        data: { verificationRecordId: 'vr-stale', verificationTimestamp: Date.now() + 600000 },
+      } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(props.onSendVerification).not.toHaveBeenCalled();
+    expect(props.onSuccess).not.toHaveBeenCalled();
+    expect(flowModalStep).toBe('value');
+  });
+
+  it('ignores stale send-verification completion after close/reopen', async () => {
+    const props = buildDefaults();
+    const sendVerificationDeferred = deferred<DataResult<{ verificationId: string }>>();
+
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockReturnValue(sendVerificationDeferred.promise);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput('first@example.com');
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    await act(async () => {
+      void flowModalHandlers.onPasswordSubmit!('pw123');
+    });
+
+    await waitFor(() => {
+      expect(props.onSendVerification).toHaveBeenCalledWith('first@example.com');
+    });
+
+    act(() => {
+      flowModalHandlers.onClose!();
+    });
+
+    openEditModal();
+    expect(flowModalStep).toBe('value');
+
+    await act(async () => {
+      sendVerificationDeferred.resolve({
+        ok: true,
+        data: { verificationId: 'vid-stale' },
+      } satisfies DataResult<{ verificationId: string }>);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(props.onSuccess).not.toHaveBeenCalled();
+    expect(flowModalStep).toBe('value');
+  });
+
   // ══════════════════════════════════════════════════════════
   // EDIT Flow - code verification (ActionResult - void)
   // ══════════════════════════════════════════════════════════
@@ -254,6 +343,48 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     await waitFor(() => {
       expect(props.onError).toHaveBeenCalledWith('Invalid code');
     });
+  });
+
+  it('ignores stale code verification completion after close/reopen', async () => {
+    const props = buildDefaults();
+    const verifyCodeDeferred = deferred<ActionResult>();
+
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationId: 'vid-1' },
+    } satisfies DataResult<{ verificationId: string }>);
+    (props.onVerifyCodeAndUpdate as ReturnType<typeof vi.fn>).mockReturnValue(verifyCodeDeferred.promise);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput();
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
+    await waitFor(() => { expect(flowModalStep).toBe('code'); });
+
+    await act(async () => {
+      void flowModalHandlers.onCodeSubmit!('123456');
+    });
+
+    act(() => {
+      flowModalHandlers.onClose!();
+    });
+
+    openEditModal();
+    expect(flowModalStep).toBe('value');
+
+    await act(async () => {
+      verifyCodeDeferred.resolve({ ok: true } satisfies ActionResult);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(props.onSuccess).not.toHaveBeenCalledWith(enUS.profile.emailUpdated);
+    expect(screen.getByTestId('flow-modal')).toBeInTheDocument();
+    expect(flowModalStep).toBe('value');
   });
 
   // ══════════════════════════════════════════════════════════

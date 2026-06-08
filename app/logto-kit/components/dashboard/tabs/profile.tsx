@@ -18,6 +18,7 @@ import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
+import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles } from '../../../server-actions/load-personal-roles';
 import { loadPersonalPermissions } from '../../../server-actions/load-personal-permissions';
@@ -95,7 +96,15 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
 
   const handlePermMouseEnter = (e: React.MouseEvent, perm: PersonalPermission) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipPos({ x: rect.left, y: rect.bottom + 4 });
+    const { left, top } = getClampedTooltipPosition({
+      left: rect.left,
+      top: rect.bottom + 4,
+      width: 288,
+      height: 120,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+    setTooltipPos({ x: left, y: top });
     setActivePerm(perm);
     setShowTooltip(true);
   };
@@ -112,7 +121,12 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
             <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
               {t.profile.personalPermissionsDesc}
             </p>
-            <RefreshButton onClick={triggerRefresh} loading={loading} colors={colors} />
+            <RefreshButton
+              onClick={triggerRefresh}
+              loading={loading}
+              colors={colors}
+              ariaLabel={t.profile.refreshPersonalPermissions}
+            />
           </div>
           {loading ? (
             <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
@@ -128,9 +142,9 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {permissions.map((perm, index) => (
+              {permissions.map((perm) => (
                 <div
-                  key={`${perm.resourceIndicator}:${perm.scope}-${index}`}
+                  key={`${perm.resourceIndicator}:${perm.scope}`}
                   style={{
                     padding: '0.5rem 0.75rem',
                     background: c.bgPrimary,
@@ -174,7 +188,9 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
           padding: '0.5rem 0.625rem',
           minWidth: '14rem',
           maxWidth: '18rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          boxShadow: mode === 'dark'
+            ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+            : '0 2px 8px rgba(0, 0, 0, 0.15)',
           zIndex: 10000,
           pointerEvents: 'none',
           display: 'flex',
@@ -371,6 +387,8 @@ export function ProfileTab({
   const [cropPreviewUrl, setCropPreviewUrl] = useState<string | null>(null);
   const cropperRef = useRef<ImageCropperRef>(null);
   const cropPreviewUrlRef = useRef<string | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { cropPreviewUrlRef.current = cropPreviewUrl; }, [cropPreviewUrl]);
 
@@ -485,13 +503,74 @@ export function ProfileTab({
     handleCloseModal();
   }, [handleCloseModal]);
 
-  // ESC key handler - disabled during upload
+  // Focus management: mount focus & focus restoration
   useEffect(() => {
-    if (!avatarModalOpen || isUploading) return;
+    if (avatarModalOpen) {
+      triggerRef.current = document.activeElement as HTMLElement;
+      if (modalRef.current) {
+        modalRef.current.focus();
+      }
+    } else {
+      if (triggerRef.current) {
+        triggerRef.current.focus();
+        triggerRef.current = null;
+      }
+    }
+  }, [avatarModalOpen]);
+
+  // Unified ESC & Focus Trap handler
+  useEffect(() => {
+    if (!avatarModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        handleCloseModal();
+        if (!isUploading) {
+          handleCloseModal();
+        }
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (!modalRef.current) return;
+
+        // Get all potentially focusable elements
+        const candidates = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]'
+          )
+        );
+
+        // Filter candidates to exclude hidden file/camera inputs and visually hidden elements
+        const focusables = candidates.filter((el) => {
+          if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'file') {
+            return false;
+          }
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') {
+            return false;
+          }
+          return el.tabIndex !== -1;
+        });
+
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === modalRef.current) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
       }
     };
 
@@ -512,17 +591,25 @@ export function ProfileTab({
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {avatarModalOpen && (
         <Overlay onDismiss={handleCloseModal}>
-          <div style={{
-            width: '100%',
-            maxWidth: inCropMode ? '42rem' : '32rem',
-            background: c.bgSecondary,
-            border: `1px solid ${c.borderColor}`,
-            boxShadow: mode === 'dark' ? '0 2rem 5.625rem rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)' : '0 2rem 5.625rem rgba(0,0,0,0.2)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'max-width 0.25s ease',
-          }}>
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="avatar-modal-title"
+            tabIndex={-1}
+            style={{
+              width: '100%',
+              maxWidth: inCropMode ? '42rem' : '32rem',
+              background: c.bgSecondary,
+              border: `1px solid ${c.borderColor}`,
+              boxShadow: mode === 'dark' ? '0 2rem 5.625rem rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)' : '0 2rem 5.625rem rgba(0,0,0,0.2)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'max-width 0.25s ease',
+              outline: 'none',
+            }}
+          >
             {/* Header - title + delete text + X */}
             <div style={{
               padding: '1rem 1.25rem',
@@ -537,13 +624,16 @@ export function ProfileTab({
                 gap: '0.75rem',
                 flexWrap: 'wrap',
               }}>
-                <span style={{
-                  fontFamily: ty.fontSans,
-                  fontWeight: 600,
-                  fontSize: '0.9375rem',
-                  color: c.textPrimary,
-                  letterSpacing: '-0.02em',
-                }}>
+                <span
+                  id="avatar-modal-title"
+                  style={{
+                    fontFamily: ty.fontSans,
+                    fontWeight: 600,
+                    fontSize: '0.9375rem',
+                    color: c.textPrimary,
+                    letterSpacing: '-0.02em',
+                  }}
+                >
                   {inCropMode
                     ? t.profile.adjustPhoto
                     : t.profile.profilePhoto}
@@ -585,6 +675,7 @@ export function ProfileTab({
               </div>
               <button
                 onClick={handleCloseModal}
+                aria-label="Close modal"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textTertiary, padding: '0.25rem', display: 'flex' }}
               >
                 <X size={18} strokeWidth={1.5} />
@@ -958,7 +1049,12 @@ export function ProfileTab({
               <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
                 {t.profile.rolesDescription}
               </p>
-              <RefreshButton onClick={() => setRolesRefreshKey(k => k + 1)} loading={rolesLoading} colors={colors} />
+              <RefreshButton
+                onClick={() => setRolesRefreshKey(k => k + 1)}
+                loading={rolesLoading}
+                colors={colors}
+                ariaLabel={t.profile.refreshRoles}
+              />
             </div>
             {rolesLoading ? (
               <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
@@ -982,6 +1078,7 @@ export function ProfileTab({
                     description={role.description}
                     colors={colors}
                     t={t}
+                    mode={mode}
                   />
                 ))}
               </div>

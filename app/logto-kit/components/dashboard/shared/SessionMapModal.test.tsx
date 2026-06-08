@@ -106,6 +106,8 @@ const mockTranslations: Translations = {
     satellite: 'Satellite',
     street: 'Street',
     activeNow: 'Active now',
+    locationDisclosure: 'Location is estimated from IP and may be approximate.',
+    externalMapDisclosure: 'Map links open external services with approximate coordinates.',
   },
 } as Translations;
 
@@ -298,5 +300,132 @@ describe('SessionMapModal', () => {
 
     const card = container.querySelector('div[style*="#ffffff"]');
     expect(card).toBeDefined();
+  });
+
+  it('shows geolocation disclosure in modal body', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />,
+    );
+
+    expect(screen.getByText(mockTranslations.sessions.locationDisclosure)).toBeDefined();
+    expect(screen.getByText(mockTranslations.sessions.externalMapDisclosure)).toBeDefined();
+  });
+
+  it('should have role="dialog" and aria-modal="true" on the modal card wrapper', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeDefined();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('should have aria-label="Close dialog" on the close button', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    const closeBtn = screen.getByRole('button', { name: /close dialog/i });
+    expect(closeBtn).toBeDefined();
+  });
+
+  it('should focus the close button on mount', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    const closeBtn = screen.getByRole('button', { name: /close dialog/i });
+    expect(document.activeElement).toBe(closeBtn);
+
+    document.body.removeChild(trigger);
+  });
+
+  it('should restore focus to the previously active element upon unmounting', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { unmount } = render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+
+    document.body.removeChild(trigger);
+  });
+
+  it('should trap focus inside the modal on Tab keydown events', () => {
+    render(
+      <SessionMapModal
+        geo={mockGeo}
+        ip="192.168.1.1"
+        mode="light"
+        colors={mockColors}
+        t={mockTranslations}
+        onClose={mockOnClose}
+      />
+    );
+
+    const closeBtn = screen.getByRole('button', { name: /close dialog/i });
+    const links = screen.getAllByRole('link');
+    const osmLink = links[0];
+    const googleMapsLink = links[1];
+
+    // Starts on close button
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Focus the last element (googleMapsLink) and trigger Tab
+    googleMapsLink.focus();
+    expect(document.activeElement).toBe(googleMapsLink);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    // Focus should wrap back to closeBtn
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Tab backward (Shift+Tab) from first element (closeBtn)
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    // Focus should wrap to last element (googleMapsLink)
+    expect(document.activeElement).toBe(googleMapsLink);
   });
 });

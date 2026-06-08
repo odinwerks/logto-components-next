@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { TabId, ToastMessage } from './types';
+import type { TabId } from './types';
 import type { Translations } from '../../locales';
-import type { ThemeColors } from '../../themes';
+import { FONT_MONO, type ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { useLogto } from '../providers/logto-provider';
 import { ToastContainer } from './shared/Toast';
+import { useDashboardToasts } from './shared/use-dashboard-toasts';
+import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -115,7 +117,7 @@ export function MobileClient({
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const { toasts, showToast, dismissToast, mapErrorToast } = useDashboardToasts(t);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 26rem)');
@@ -124,27 +126,6 @@ export function MobileClient({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-
-  const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
-    const toast: ToastMessage = {
-      id: `${Date.now()}-${Math.random()}`,
-      type,
-      message,
-      duration: type === 'success' ? 3000 : 8000,
-    };
-    setToasts((prev) => [...prev, toast]);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const mapErrorToast = useCallback((message: string) => {
-    if (message === 'PHONE_COUNTRY_NOT_ALLOWED') {
-      return t.validation.phoneCountryNotAllowed;
-    }
-    return message;
-  }, [t]);
 
   const router = useRouter();
   const refreshData = useCallback(() => {
@@ -182,7 +163,7 @@ export function MobileClient({
           justifyContent: 'center',
           background: colors.bgPage,
           color: colors.textPrimary,
-          fontFamily: 'monospace',
+          fontFamily: FONT_MONO,
           position: 'relative',
           overflow: 'hidden',
           padding: '2rem 1rem',
@@ -334,6 +315,21 @@ export function MobileClient({
             minHeight: 'calc(100dvh - 5.5rem)',
           }}
         >
+          <TabErrorBoundary
+            resetKey={activeTab ?? 'menu'}
+            fallback={(
+              <div
+                role="alert"
+                style={{
+                  fontFamily: FONT_MONO,
+                  color: colors.accentRed,
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {t.dashboard.error}
+              </div>
+            )}
+          >
           {activeTab === 'profile' && (
             <ProfileTab
               userData={userData}
@@ -416,6 +412,7 @@ export function MobileClient({
         {activeTab === 'organizations' && (
           <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
         )}
+          </TabErrorBoundary>
 
         </div>
       </div>
@@ -505,7 +502,7 @@ function MobileMenuEntry({
         border: 'none',
         borderBottom: isLast ? 'none' : `1px solid ${colors.borderColor}`,
         color: pressed ? colors.accentBlue : colors.textPrimary,
-        fontFamily: 'monospace',
+        fontFamily: FONT_MONO,
         fontSize: '0.9375rem',
         fontWeight: 500,
         cursor: 'pointer',

@@ -7,13 +7,15 @@ interface RefreshButtonProps {
   onClick: () => void;
   loading: boolean;
   colors: ThemeColors;
+  ariaLabel: string;
 }
 
-export function RefreshButton({ onClick, loading, colors: c }: RefreshButtonProps) {
+export function RefreshButton({ onClick, loading, colors: c, ariaLabel }: RefreshButtonProps) {
   return (
     <button
       onClick={onClick}
       disabled={loading}
+      aria-label={ariaLabel}
       style={{
         background: 'none',
         border: `1px solid ${c.borderColor}`,

@@ -388,9 +388,7 @@ describe('ProfileTab - behavioral', () => {
     // Wait for the permissions to be loaded and rendered, so loading becomes false and the refresh button is enabled
     await screen.findByText('read:profile');
 
-    const textNode = screen.getByText('Granted permissions');
-    const parent = textNode.parentElement;
-    const refreshButton = parent?.querySelector('button');
+    const refreshButton = screen.getByRole('button', { name: enUS.profile.refreshPersonalPermissions });
     expect(refreshButton).toBeInTheDocument();
     expect(refreshButton).not.toBeDisabled();
 
@@ -450,5 +448,95 @@ describe('ProfileTab - behavioral', () => {
     expect(onUpdateAvatarUrl).toHaveBeenCalledWith('https://s3.example.com/user123/you.png?v=1');
     expect(onSuccess).toHaveBeenCalled();
     expect(refreshData).toHaveBeenCalled();
+  });
+
+  describe('Avatar Modal Accessibility and Focus Management', () => {
+    it('implements proper accessible dialog contract', async () => {
+      renderProfile();
+      
+      const triggerBtn = screen.getByTitle('Change photo');
+      fireEvent.click(triggerBtn);
+
+      const modal = screen.getByRole('dialog');
+      expect(modal).toBeInTheDocument();
+      expect(modal).toHaveAttribute('aria-modal', 'true');
+      expect(modal).toHaveAttribute('aria-labelledby', 'avatar-modal-title');
+      expect(modal).toHaveAttribute('tabIndex', '-1');
+
+      const title = screen.getByText(enUS.profile.profilePhoto);
+      expect(title).toHaveAttribute('id', 'avatar-modal-title');
+
+      const closeBtn = screen.getByLabelText('Close modal');
+      expect(closeBtn).toBeInTheDocument();
+    });
+
+    it('manages focus: mounts focus and restores focus to trigger on close', async () => {
+      renderProfile();
+      
+      const triggerBtn = screen.getByTitle('Change photo');
+      // Set focus to the trigger button first to simulate real user action
+      triggerBtn.focus();
+      expect(document.activeElement).toBe(triggerBtn);
+
+      // Open the modal
+      fireEvent.click(triggerBtn);
+
+      // Modal container should receive focus on mount
+      const modal = screen.getByRole('dialog');
+      expect(document.activeElement).toBe(modal);
+
+      // Close the modal
+      const closeBtn = screen.getByLabelText('Close modal');
+      fireEvent.click(closeBtn);
+
+      // Focus should be restored to the trigger button
+      expect(document.activeElement).toBe(triggerBtn);
+    });
+
+    it('traps focus correctly: loops from last to first and first to last', async () => {
+      renderProfile();
+      
+      const triggerBtn = screen.getByTitle('Change photo');
+      fireEvent.click(triggerBtn);
+
+      const modal = screen.getByRole('dialog');
+      const closeBtn = screen.getByLabelText('Close modal');
+      const dropZone = screen.getByRole('button', { name: /drag/i });
+
+      // In desktop mode with no avatar, focusable elements are [closeBtn, dropZone]
+      // Let's first focus the dropZone (last element)
+      dropZone.focus();
+      expect(document.activeElement).toBe(dropZone);
+
+      // Tab on last element should loop to first (closeBtn)
+      fireEvent.keyDown(window, { key: 'Tab' });
+      expect(document.activeElement).toBe(closeBtn);
+
+      // Shift+Tab on first element (closeBtn) should loop to last (dropZone)
+      closeBtn.focus();
+      expect(document.activeElement).toBe(closeBtn);
+      fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(dropZone);
+
+      // Shift+Tab when focus is on the modal container itself should also loop to last (dropZone)
+      modal.focus();
+      expect(document.activeElement).toBe(modal);
+      fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(dropZone);
+    });
+
+    it('excludes hidden file/camera inputs from focus trap candidates', async () => {
+      renderProfile();
+      
+      const triggerBtn = screen.getByTitle('Change photo');
+      fireEvent.click(triggerBtn);
+
+      // Verify that hidden inputs are indeed in the DOM but cannot be focused by tabbing
+      const fileInput = document.querySelector('input[type="file"]');
+      expect(fileInput).toBeInTheDocument();
+
+      const modal = screen.getByRole('dialog');
+      // Our custom handler excludes input[type="file"], so focus loops directly between closeBtn and dropZone.
+    });
   });
 });

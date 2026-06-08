@@ -63,8 +63,9 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
   const colors = opts.colors ?? contextColors;
   const { openDashboard, userData: contextUserData, lang } = useLogto();
 
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialUserData = opts.userData ?? contextUserData ?? null;
+  const [userData, setUserData] = useState<UserData | null>(initialUserData);
+  const [loading, setLoading] = useState(!initialUserData);
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const isMountedRef = useRef(true);
@@ -126,6 +127,23 @@ function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string;
     }}>
       <User size={isNaN(sizeNum) ? 24 : sizeNum * 0.4} />
     </div>
+  );
+}
+
+function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: string; colors: ThemeColors }) {
+  const resolvedShape = getShape(shape);
+  return (
+    <div
+      style={{
+        width: Size,
+        height: Size,
+        borderRadius: getBorderRadius(resolvedShape, '0.5rem'),
+        border: `2px solid ${colors.borderColor}`,
+        background: colors.bgTertiary,
+        opacity: 0.6,
+        animation: 'pulse 1.5s infinite ease-in-out',
+      }}
+    />
   );
 }
 
@@ -229,6 +247,11 @@ export function UserButton({
   const resolvedShape = getShape(shape);
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -242,7 +265,7 @@ export function UserButton({
   const renderAvatar = () => {
     if (loading || !userData) {
       if (showFallback) return <FallbackAvatar Size={Size} shape={shape} colors={colors} />;
-      return null;
+      return <LoadingPlaceholder Size={Size} shape={shape} colors={colors} />;
     }
     return (
       <AvatarCore
@@ -253,6 +276,9 @@ export function UserButton({
       />
     );
   };
+
+  const labelPrefix = mounted ? t.common.loggedInAs : 'Logged in as';
+  const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : ""}. Open user dashboard`;
 
   return (
     <button
@@ -266,7 +292,7 @@ export function UserButton({
         transition: 'opacity 0.15s, transform 0.1s',
       }}
       onClick={handleClick}
-      aria-label={`${t.common.loggedInAs} ${userData ? getDisplayName(userData) : ""}. Open user dashboard`}
+      aria-label={ariaLabel}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}
@@ -292,7 +318,7 @@ export function UserBadge({
   const renderAvatar = () => {
     if (loading || !userData) {
       if (showFallback) return <FallbackAvatar Size={Size} shape={shape} colors={colors} />;
-      return null;
+      return <LoadingPlaceholder Size={Size} shape={shape} colors={colors} />;
     }
     return (
       <AvatarCore
@@ -329,6 +355,11 @@ export function UserCard({
   const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -344,7 +375,7 @@ export function UserCard({
     transition: 'opacity 0.15s, transform 0.1s',
   };
 
-  const label = t.common.loggedInAs;
+  const label = mounted ? t.common.loggedInAs : 'Logged in as';
 
   const renderContent = () => {
     if (loading || !userData) {
@@ -363,7 +394,19 @@ export function UserCard({
           </>
         );
       }
-      return null;
+      return (
+        <>
+          <LoadingPlaceholder Size={Size} shape={shape} colors={colors} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', textAlign: 'left' }}>
+            <span style={{ fontFamily: 'var(--ldd-font-mono)', fontSize: 'var(--ldd-size-xs)', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              {label}
+            </span>
+            <span style={{ fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)', color: colors.textPrimary }}>
+              ...
+            </span>
+          </div>
+        </>
+      );
     }
 
     const displayName = getDisplayName(userData);

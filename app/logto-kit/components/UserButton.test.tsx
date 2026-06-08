@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
-import { UserButton } from './UserButton';
+import { UserButton, UserCard } from './UserButton';
 
 // Mock Logto provider hooks
 const mockUseLogto = vi.fn();
@@ -56,5 +55,57 @@ describe('UserButton Accessibility and Shape Props', () => {
     render(<UserButton shape="15px" />);
     const button = screen.getByRole('button');
     expect(button.style.borderRadius).toBe('15px');
+  });
+
+  it('renders LoadingPlaceholder when loading and showFallback is false', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'en-US',
+      userData: null,
+      openDashboard: vi.fn(),
+    });
+
+    render(<UserButton />);
+    const button = screen.getByRole('button');
+    const placeholder = button.firstChild as HTMLElement;
+    expect(placeholder).toBeInTheDocument();
+    expect(placeholder.style.animation).toContain('pulse');
+    expect(placeholder.style.width).toBe('6.25rem');
+  });
+
+  it('does not render LoadingPlaceholder if userData is synchronously available', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'en-US',
+      userData: { id: 'user_123', name: 'John Doe' },
+      openDashboard: vi.fn(),
+    });
+
+    render(<UserButton />);
+    const button = screen.getByRole('button');
+    const child = button.firstChild as HTMLElement;
+    expect(child).toBeInTheDocument();
+    expect(child.style.animation).not.toContain('pulse');
+  });
+
+  it('uses target translation for UserButton aria-label after mount', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'uk-UA',
+      userData: { id: 'user_123', name: 'John Doe' },
+      openDashboard: vi.fn(),
+    });
+
+    render(<UserButton />);
+    const button = screen.getByRole('button');
+    expect(button.getAttribute('aria-label')).toBe('Ви увійшли як John Doe. Open user dashboard');
+  });
+
+  it('uses target translation for UserCard label after mount', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'uk-UA',
+      userData: { id: 'user_123', name: 'John Doe' },
+      openDashboard: vi.fn(),
+    });
+
+    render(<UserCard />);
+    expect(screen.getByText('Ви увійшли як')).toBeInTheDocument();
   });
 });

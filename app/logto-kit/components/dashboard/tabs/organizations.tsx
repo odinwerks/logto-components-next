@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
+import { useState, useEffect, useRef, useCallback, startTransition, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ import { loadOrganizationPermissions } from '../../../server-actions/load-org-pe
 import { loadOrganizationUserRoles } from '../../../server-actions/load-org-roles';
 import { loadOrgPermissionDescriptions } from '../../../server-actions/load-org-permission-descriptions';
 import type { OrgRoleScope } from '../../../logic/types';
+import { getClampedTooltipPosition } from '../shared/tooltip-position';
 
 // ─── Hardcoded design tokens ───
 
@@ -38,28 +39,54 @@ interface OrgCardProps {
   handleOrgClick: (orgId: string) => Promise<void>;
   colors: ThemeColors;
   t: Translations;
+  mode: 'dark' | 'light';
 }
 
-const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgCardProps) => {
+const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }: OrgCardProps) => {
   const c = colors;
   const triggerRef = useRef<HTMLDivElement>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const showTooltip = isHovered || isFocused;
+  const tooltipId = useId();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
-  const handleMouseEnter = useCallback(() => {
+  const openTooltip = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const { left, top } = getClampedTooltipPosition({
+      left: rect.left,
+      top: rect.bottom + 6,
+      width: 288,
+      height: 96,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+
     setTooltipStyle({
       position: 'fixed',
-      bottom: `${window.innerHeight - rect.top + 6}px`,
-      right: `${window.innerWidth - rect.right}px`,
+      top: `${top}px`,
+      left: `${left}px`,
       zIndex: 9999,
     });
-    setShowTooltip(true);
   }, []);
 
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    openTooltip();
+  }, [openTooltip]);
+
   const handleMouseLeave = useCallback(() => {
-    setShowTooltip(false);
+    setIsHovered(false);
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    openTooltip();
+  }, [openTooltip]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
   }, []);
 
   return (
@@ -67,6 +94,9 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgC
       onClick={() => handleOrgClick(org.id)}
       role="radio"
       aria-checked={isSelected}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      aria-describedby={showTooltip ? tooltipId : undefined}
       style={{
         padding: '0.625rem 0.75rem',
         background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
@@ -107,6 +137,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgC
           {showTooltip &&
             createPortal(
               <div
+                id={tooltipId}
                 style={tooltipStyle}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
@@ -119,7 +150,9 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t }: OrgC
                     padding: '0.5rem 0.625rem',
                     minWidth: '14rem',
                     maxWidth: '18rem',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    boxShadow: mode === 'dark'
+                      ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                      : '0 2px 8px rgba(0, 0, 0, 0.15)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.25rem',
@@ -153,17 +186,61 @@ interface PermissionsBlockProps {
   t: Translations;
   userData: UserData;
   scrollWell?: boolean;
+  mode: 'dark' | 'light';
 }
 
-const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: PermissionsBlockProps) => {
+const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }: PermissionsBlockProps) => {
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
   const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
   const [enrichedPerms, setEnrichedPerms] = useState<Map<string, OrgRoleScope>>(new Map());
   const [permissionsLoading, setPermissionsLoading] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [hoveredPerm, setHoveredPerm] = useState<string | null>(null);
+  const [focusedPerm, setFocusedPerm] = useState<string | null>(null);
+
+  const activePerm = hoveredPerm || focusedPerm;
+  const showTooltip = !!activePerm;
+  const tooltipId = useId();
+
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [activePermissionInfo, setActivePermissionInfo] = useState<{ name: string; description?: string | null } | null>(null);
+  const activePermissionInfo = activePerm ? {
+    name: activePerm,
+    description: enrichedPerms.get(activePerm)?.description
+  } : null;
+
+  useEffect(() => {
+    if (!activePerm) return;
+
+    const element = document.getElementById(`perm-trigger-${activePerm}`);
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    const { left, top } = getClampedTooltipPosition({
+      left: rect.left,
+      top: rect.bottom + 4,
+      width: 288,
+      height: 88,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+    setTooltipPos({ x: left, y: top });
+  }, [activePerm]);
+
+  const handlePermMouseEnter = useCallback((perm: string) => {
+    setHoveredPerm(perm);
+  }, []);
+
+  const handlePermMouseLeave = useCallback(() => {
+    setHoveredPerm(null);
+  }, []);
+
+  const handlePermFocus = useCallback((perm: string) => {
+    setFocusedPerm(perm);
+  }, []);
+
+  const handlePermBlur = useCallback(() => {
+    setFocusedPerm(null);
+  }, []);
 
   const sectionLabel: React.CSSProperties = {
     fontFamily: FONT_SANS,
@@ -202,7 +279,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
     // Don't clear permissions here - show stale data until new data arrives (prevents flicker)
     setPermissionsLoading(true);
 
-    loadOrganizationPermissions(activeOrgId)
+    const permissionsRequest = loadOrganizationPermissions(activeOrgId)
       .then(r => {
         if (cancelled) return;
         if (r.ok) {
@@ -218,7 +295,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
         setLoadedPermissions([]);
       });
 
-    loadOrgPermissionDescriptions(activeOrgId)
+    const descriptionsRequest = loadOrgPermissionDescriptions(activeOrgId)
       .then(r => {
         if (cancelled) return;
         if (r.ok) {
@@ -231,7 +308,9 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
       })
       .catch(err => {
         if (!cancelled) console.error('[PermissionsBlock] Failed to load permission descriptions:', err);
-      })
+      });
+
+    Promise.allSettled([permissionsRequest, descriptionsRequest])
       .finally(() => {
         if (!cancelled) {
           setPermissionsLoading(false);
@@ -246,23 +325,16 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
 
   if (!visible) return null;
 
-  const handlePermMouseEnter = (e: React.MouseEvent, perm: string) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipPos({ x: rect.left, y: rect.bottom + 4 });
-    const info = enrichedPerms.get(perm);
-    setActivePermissionInfo({ name: perm, description: info?.description });
-    setShowTooltip(true);
-  };
-
-  const handlePermMouseLeave = () => {
-    setShowTooltip(false);
-  };
-
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
-        <RefreshButton onClick={triggerRefresh} loading={permissionsLoading} colors={colors} />
+        <RefreshButton
+          onClick={triggerRefresh}
+          loading={permissionsLoading}
+          colors={colors}
+          ariaLabel={t.organizations.refreshOrgPermissions}
+        />
       </div>
       <div style={{ ...wellStyle, ...(scrollWell ? { flex: 1, minHeight: 0, overflowY: 'auto' as const, marginBottom: 0 } : {}) }}>
         {organizationPermissions.length === 0 ? (
@@ -273,9 +345,9 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {organizationPermissions.map((permission, index) => (
+            {organizationPermissions.map((permission) => (
               <div
-                key={`${permission}-${index}`}
+                key={permission}
                 style={{
                   padding: '0.5rem 0.75rem',
                   background: c.bgPrimary,
@@ -289,20 +361,35 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
                 <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary }}>
                   {permission}
                 </span>
-                <span
-                  onMouseEnter={(e) => handlePermMouseEnter(e, permission)}
+                <button
+                  id={`perm-trigger-${permission}`}
+                  type="button"
+                  onMouseEnter={() => handlePermMouseEnter(permission)}
                   onMouseLeave={handlePermMouseLeave}
-                  style={{ cursor: 'help', color: '#666', display: 'inline-flex', alignItems: 'center' }}
+                  onFocus={() => handlePermFocus(permission)}
+                  onBlur={handlePermBlur}
+                  aria-describedby={showTooltip && activePermissionInfo?.name === permission ? tooltipId : undefined}
+                  style={{
+                    cursor: 'help',
+                    color: '#666',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    margin: 0,
+                    outline: 'none',
+                  }}
                 >
                   <Info size={14} />
-                </span>
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
       {showTooltip && activePermissionInfo && createPortal(
-        <div style={{
+        <div id={tooltipId} style={{
           position: 'fixed',
           top: tooltipPos.y,
           left: tooltipPos.x,
@@ -312,7 +399,9 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell }: Perm
           padding: '0.5rem 0.625rem',
           minWidth: '14rem',
           maxWidth: '18rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          boxShadow: mode === 'dark'
+            ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+            : '0 2px 8px rgba(0, 0, 0, 0.15)',
           zIndex: 10000,
           pointerEvents: 'none',
           display: 'flex',
@@ -352,7 +441,10 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
     return () => clearTimeout(timer);
   }, [errorMsg]);
 
-  const activeOrgId = asOrg ?? currentOrgId;
+  // NOTE: explicit null means "be yourself" mode and must NOT fall back to
+  // a stale server prop. Only fallback behavior should apply to unexpected
+  // undefined values.
+  const activeOrgId = asOrg !== null ? (asOrg ?? currentOrgId) : null;
 
   const organizations = userData.organizations || [];
   // Only show roles for the active organization (security: don't show org roles when "be yourself")
@@ -409,17 +501,28 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
     }
   };
 
-  const handleBeYourself = () => {
+  const handleBeYourself = async () => {
+    if (switchingRef.current) return;
     if (activeOrgId === null || activeOrgId === undefined) return;
+    switchingRef.current = true;
     setIsLoading('clear');
     try {
-      setAsOrg(null);
-      router.refresh();
+      const isCleared = await setActiveOrg(null);
+      if (!isCleared) {
+        setErrorMsg('Failed to switch to personal mode. Please try again.');
+        return;
+      }
+
+      startTransition(() => {
+        setAsOrg(null);
+        router.refresh();
+      });
     } catch (err) {
       console.error('[OrganizationsTab] Failed to clear organization:', err);
       setErrorMsg('Failed to switch to personal mode. Please try again.');
     } finally {
       setIsLoading(null);
+      switchingRef.current = false;
     }
   };
 
@@ -500,6 +603,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
                   handleOrgClick={handleOrgClick}
                   colors={colors}
                   t={t}
+                  mode={mode}
                 />
               ))}
             </div>
@@ -512,7 +616,12 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <p style={{ ...sectionLabel, marginBottom: 0 }}>{t.organizations.orgRoles}</p>
-            <RefreshButton onClick={() => router.refresh()} loading={false} colors={colors} />
+            <RefreshButton
+              onClick={() => router.refresh()}
+              loading={false}
+              colors={colors}
+              ariaLabel={t.organizations.refreshOrgRoles}
+            />
           </div>
           <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
             {!activeOrgId && (
@@ -530,16 +639,17 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {organizationRoles.map((role, index) => {
+                {organizationRoles.map((role) => {
                   const apiData = orgUserRoles[role.name];
                   return (
                     <RoleCard
-                      key={`${role.id}-${index}`}
+                      key={role.id}
                       name={role.name}
                       roleId={apiData?.id}
                       description={apiData?.description}
                       colors={colors}
                       t={t}
+                      mode={mode}
                     />
                   );
                 })}
@@ -551,7 +661,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
         {/* Permissions - refreshable block remounts on refresh */}
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
           {activeOrgId ? (
-            <PermissionsBlock activeOrgId={activeOrgId} colors={colors} t={t} userData={userData} scrollWell />
+            <PermissionsBlock activeOrgId={activeOrgId} colors={colors} t={t} userData={userData} scrollWell mode={mode} />
           ) : (
             <>
               <p style={sectionLabel}>{t.organizations.orgPermissions}</p>

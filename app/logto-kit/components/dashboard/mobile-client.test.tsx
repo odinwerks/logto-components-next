@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
@@ -35,7 +35,18 @@ vi.mock('../providers/logto-provider', () => ({
   useLogto: () => ({ closeDashboard: vi.fn() }),
 }));
 
-vi.mock('./tabs/profile', () => ({ ProfileTab: () => null }));
+const { shouldThrowProfileTab } = vi.hoisted(() => ({
+  shouldThrowProfileTab: { value: false },
+}));
+
+vi.mock('./tabs/profile', () => ({
+  ProfileTab: () => {
+    if (shouldThrowProfileTab.value) {
+      throw new Error('mobile profile crash');
+    }
+    return null;
+  },
+}));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
 vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
 vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
@@ -133,6 +144,10 @@ beforeAll(() => {
 });
 
 describe('MobileClient menu layout', () => {
+  beforeEach(() => {
+    shouldThrowProfileTab.value = false;
+  });
+
   it('renders sign-out in a separate dock container from the centered tab stack', () => {
     render(<MobileClient {...requiredProps} />);
 
@@ -157,5 +172,16 @@ describe('MobileClient menu layout', () => {
     const signOutDock = screen.getByTestId('mobile-signout-dock');
     expect(signOutDock.style.bottom).toContain('safe-area-inset-bottom');
     expect(signOutDock.style.bottom).toContain('6rem');
+  });
+
+  it('isolates crashing tab content with a fallback in tab view', async () => {
+    shouldThrowProfileTab.value = true;
+
+    render(<MobileClient {...requiredProps} />);
+
+    screen.getByRole('button', { name: 'Profile' }).click();
+    expect(await screen.findByText(stubTranslations.dashboard.error)).toBeInTheDocument();
+
+    shouldThrowProfileTab.value = false;
   });
 });

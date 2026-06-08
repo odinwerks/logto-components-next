@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { PhoneCountrySelect } from './PhoneCountrySelect';
 import { DARK_COLORS } from '../../themes';
 import { enUS } from '../../locales/en-US';

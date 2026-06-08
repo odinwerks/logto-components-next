@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { DashboardData, TabId } from './types';
 import type { Translations } from '../../locales';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import type { MfaVerification, LogtoSession } from '../../logic/types';
 
 // ── Hoisted mocks ──────────────────────────────────────────
-const { mockUserBadge } = vi.hoisted(() => ({
+const {
+  mockUserBadge,
+  shouldThrowProfileTab,
+} = vi.hoisted(() => ({
   mockUserBadge: vi.fn<(props: Record<string, unknown>) => null>(() => null),
+  shouldThrowProfileTab: { value: false },
 }));
 
 vi.mock('next/navigation', () => ({
@@ -50,7 +54,14 @@ vi.mock('../../logic/env', () => ({
 }));
 
 // Mock all tab sub-components to avoid deep rendering
-vi.mock('./tabs/profile', () => ({ ProfileTab: () => null }));
+vi.mock('./tabs/profile', () => ({
+  ProfileTab: () => {
+    if (shouldThrowProfileTab.value) {
+      throw new Error('profile render crash');
+    }
+    return null;
+  },
+}));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
 vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
 vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
@@ -142,6 +153,7 @@ describe('DashboardClient - userShape prop', () => {
   beforeEach(() => {
     mockUserBadge.mockClear();
     vi.mocked(readEnv).mockClear();
+    shouldThrowProfileTab.value = false;
   });
 
   it('renders with userShape prop and passes it to UserBadge', () => {
@@ -183,5 +195,69 @@ describe('DashboardClient - userShape prop', () => {
     expect(styleEl!.textContent).toContain('@keyframes fadeIn');
     expect(styleEl!.textContent).toContain('from { opacity: 0');
     expect(styleEl!.textContent).toContain('to { opacity: 1');
+  });
+
+  it('links all tabs to one stable tabpanel id with roving tabIndex', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security', 'sessions']}
+      />,
+    );
+
+    const profileTab = screen.getByRole('tab', { name: 'Profile' });
+    const securityTab = screen.getByRole('tab', { name: 'Security' });
+    const sessionsTab = screen.getByRole('tab', { name: 'Sessions' });
+
+    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+    expect(profileTab).toHaveAttribute('tabindex', '0');
+    expect(profileTab).toHaveAttribute('aria-controls', 'dashboard-tabpanel');
+
+    expect(securityTab).toHaveAttribute('aria-selected', 'false');
+    expect(securityTab).toHaveAttribute('tabindex', '-1');
+    expect(securityTab).toHaveAttribute('aria-controls', 'dashboard-tabpanel');
+
+    expect(sessionsTab).toHaveAttribute('aria-selected', 'false');
+    expect(sessionsTab).toHaveAttribute('tabindex', '-1');
+    expect(sessionsTab).toHaveAttribute('aria-controls', 'dashboard-tabpanel');
+
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAttribute('id', 'dashboard-tabpanel');
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-profile');
+  });
+
+  it('supports ArrowRight, End, and Home keyboard navigation in tabs', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security', 'sessions']}
+      />,
+    );
+
+    const profileTab = screen.getByRole('tab', { name: 'Profile' });
+    const securityTab = screen.getByRole('tab', { name: 'Security' });
+    const sessionsTab = screen.getByRole('tab', { name: 'Sessions' });
+
+    profileTab.focus();
+    fireEvent.keyDown(profileTab, { key: 'ArrowRight' });
+    expect(securityTab).toHaveAttribute('aria-selected', 'true');
+    expect(securityTab).toHaveFocus();
+
+    fireEvent.keyDown(securityTab, { key: 'End' });
+    expect(sessionsTab).toHaveAttribute('aria-selected', 'true');
+    expect(sessionsTab).toHaveFocus();
+
+    fireEvent.keyDown(sessionsTab, { key: 'Home' });
+    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+    expect(profileTab).toHaveFocus();
+  });
+
+  it('isolates crashing tab content with an in-panel fallback', () => {
+    shouldThrowProfileTab.value = true;
+
+    render(<DashboardClient {...requiredProps} />);
+
+    expect(screen.getByRole('tabpanel')).toBeInTheDocument();
+    expect(screen.getByText(stubTranslations.dashboard.error)).toBeInTheDocument();
   });
 });

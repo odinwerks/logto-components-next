@@ -81,40 +81,6 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-function getAutoDetectedTheme(): 'dark' | 'light' {
-  if (typeof window === 'undefined') {
-    return 'dark';
-  }
-
-  const html = document.documentElement;
-  const dataTheme = html.getAttribute('data-theme');
-
-  if (dataTheme === 'light') {
-    return 'light';
-  }
-  if (dataTheme === 'dark') {
-    return 'dark';
-  }
-
-  if (typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  return 'dark';
-}
-
-function getInitialTheme(serverDefault: 'dark' | 'light'): 'dark' | 'light' {
-  const stored = getStoredTheme();
-  if (stored) return stored;
-  return serverDefault;
-}
-
-function getInitialLang(serverDefault: string): string {
-  const stored = getStoredLang();
-  if (stored) return stored;
-  return serverDefault;
-}
-
 export function PreferencesProvider({
   children,
   initialTheme = 'dark',
@@ -132,18 +98,26 @@ export function PreferencesProvider({
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
 
-  const [theme, setThemeState] = useState<'dark' | 'light'>(() => getInitialTheme(initialTheme));
-  const [lang, setLangState] = useState<string>(() => getInitialLang(serverDefaultLang));
-  const [asOrg, setAsOrgState] = useState<string | null>(() => {
-    const stored = getStoredOrg();
-    if (stored) return stored;
-    return initialOrgId ?? null;
-  });
+  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme);
+  const [lang, setLangState] = useState<string>(serverDefaultLang);
+  const [asOrg, setAsOrgState] = useState<string | null>(initialOrgId ?? null);
+
+  useEffect(() => {
+    const cachedTheme = getStoredTheme();
+    if (cachedTheme && cachedTheme !== theme) setThemeState(cachedTheme);
+
+    const cachedLang = getStoredLang();
+    if (cachedLang && cachedLang !== lang) setLangState(cachedLang);
+
+    const cachedOrg = getStoredOrg();
+    if (cachedOrg && cachedOrg !== asOrg) setAsOrgState(cachedOrg);
+  }, []);
 
   // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);
   const langRef = useRef(lang);
   const asOrgRef = useRef(asOrg);
+  const asOrgPersistMutationSeqRef = useRef(0);
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { langRef.current = lang; }, [lang]);
   useEffect(() => { asOrgRef.current = asOrg; }, [asOrg]);
@@ -255,9 +229,14 @@ export function PreferencesProvider({
 
   const setAsOrg = useCallback((newOrgId: string | null) => {
     const previousOrg = asOrgRef.current;
+    const mutationSeq = ++asOrgPersistMutationSeqRef.current;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
     persistOrgToApi(newOrgId).then((ok) => {
+      if (mutationSeq !== asOrgPersistMutationSeqRef.current) {
+        return;
+      }
+
       if (!ok) {
         console.warn('[PreferencesProvider] Org persistence failed, reverting');
         setStoredOrg(previousOrg);
@@ -294,29 +273,9 @@ export function useThemeMode(): ThemeModeContextValue {
     console.warn('[useThemeMode] No PreferencesProvider found. Theme changes will not persist.');
   }
 
-  if (typeof window === 'undefined') {
-    return {
-      mode: 'dark',
-      colors: DARK_COLORS,
-      setMode: () => {},
-      toggleMode: () => {},
-    };
-  }
-
-  const storedTheme = getStoredTheme();
-  if (storedTheme) {
-    return {
-      mode: storedTheme,
-      colors: storedTheme === 'dark' ? DARK_COLORS : LIGHT_COLORS,
-      setMode: () => {},
-      toggleMode: () => {},
-    };
-  }
-
-  const autoTheme = getAutoDetectedTheme();
   return {
-    mode: autoTheme,
-    colors: autoTheme === 'dark' ? DARK_COLORS : LIGHT_COLORS,
+    mode: 'dark',
+    colors: DARK_COLORS,
     setMode: () => {},
     toggleMode: () => {},
   };
@@ -326,24 +285,11 @@ export function useLangMode(): LangModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedLang = getStoredLang();
-    return {
-      ...context.lang,
-      lang: storedLang ?? context.lang.lang,
-    };
+    return context.lang;
   }
 
-  if (typeof window === 'undefined') {
-    return {
-      lang: getDefaultLang(),
-      setLang: () => {},
-    };
-  }
-
-  const stored = getStoredLang();
   return {
-    lang: stored ?? getDefaultLang(),
+    lang: getDefaultLang(),
     setLang: () => {},
   };
 }
@@ -352,24 +298,11 @@ export function useOrgMode(): OrgModeContextValue {
   const context = useContext(PreferencesContext);
 
   if (context) {
-    // Always read current value from storage, not React state
-    const storedOrg = getStoredOrg();
-    return {
-      ...context.org,
-      asOrg: storedOrg ?? context.org.asOrg,
-    };
+    return context.org;
   }
 
-  if (typeof window === 'undefined') {
-    return {
-      asOrg: null,
-      setAsOrg: () => {},
-    };
-  }
-
-  const stored = getStoredOrg();
   return {
-    asOrg: stored,
+    asOrg: null,
     setAsOrg: () => {},
   };
 }

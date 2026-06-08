@@ -1,12 +1,19 @@
 'use client';
 
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
+
+const useHydrationSafeLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export function useIsPortrait(): boolean {
   const [portrait, setPortrait] = useState(false);
   const [narrow, setNarrow] = useState(false);
 
-  useEffect(() => {
+  useHydrationSafeLayoutEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
     const orientationMq = window.matchMedia('(orientation: portrait)');
     const widthMq = window.matchMedia('(max-width: 64rem)');
 

@@ -53,7 +53,6 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
     fontSize: '0.75rem',
     fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
     color: accent,
-    cursor: 'pointer',
     userSelect: 'none',
     transition: 'opacity 0.15s',
   });
@@ -74,14 +73,37 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
   };
 
   return (
-    <div style={toastStyle} onClick={copy} title="Click to copy">
+    <div style={toastStyle} role="status" aria-live="polite">
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         gap: '0.5rem',
       }}>
-        <span style={{ flex: 1 }}>{message.message}</span>
+        <button
+          type="button"
+          onClick={copy}
+          aria-label="Copy message"
+          title="Click to copy"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            textAlign: 'left',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            flex: 1,
+            outline: 'none',
+            alignSelf: 'stretch',
+            whiteSpace: 'inherit',
+            wordBreak: 'inherit',
+          }}
+        >
+          {message.message}
+        </button>
         <div style={{
           display: 'flex',
           gap: '0.375rem',

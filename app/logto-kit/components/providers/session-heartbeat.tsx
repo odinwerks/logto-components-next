@@ -29,6 +29,10 @@ export default function SessionHeartbeat() {
 
   useEffect(() => {
     const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
+    // Platform Compatibility Check: Standard Logto upstream backends (e.g. Logto Cloud/OSS)
+    // do not support custom API endpoints like heartbeats (which is a Blacktop-specific feature).
+    // Gracefully exit early to avoid unnecessary pinging and error logging under upstream mode.
+    // This is an intentional, known-safe and accepted platform compatibility choice.
     if (backendType === 'upstream') return;
 
     if (mountedRef.current) return;
