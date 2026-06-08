@@ -165,6 +165,8 @@ export const ukUA: Translations = {
     takePicture: 'Зробити фото',
     chooseFromGallery: 'Обрати з галереї',
     deleteHint: 'або видалити',
+    refreshPersonalPermissions: 'Оновити особисті дозволи',
+    refreshRoles: 'Оновити ролі',
   },
   
   // Verification
@@ -256,6 +258,8 @@ export const ukUA: Translations = {
     loadingPermissions: 'Завантаження дозволів...',
     noActiveOrg: 'Немає активної організації',
     noOrgPermissions: 'Немає дозволів в організаціях',
+    refreshOrgPermissions: 'Оновити дозволи в організаціях',
+    refreshOrgRoles: 'Оновити ролі в організаціях',
   },
   
   // MFA tab
@@ -394,6 +398,8 @@ export const ukUA: Translations = {
     satellite: 'Супутник',
     street: 'Вулиця',
     activeNow: 'Активно зараз',
+    locationDisclosure: 'Місцезнаходження визначається за IP і може бути приблизним.',
+    externalMapDisclosure: 'Посилання на мапи відкривають зовнішні сервіси з приблизними координатами.',
   },
   
   // Common

@@ -165,6 +165,8 @@ export const kaGE: Translations = {
     takePicture: 'სურათის გადაღება',
     chooseFromGallery: 'აირჩიეთ გალერეიდან',
     deleteHint: 'ან წაშალეთ',
+    refreshPersonalPermissions: 'პერსონალური ნებართვების განახლება',
+    refreshRoles: 'როლების განახლება',
   },
   
   // Verification
@@ -256,6 +258,8 @@ export const kaGE: Translations = {
     loadingPermissions: 'ნებართვების ჩატვირთვა...',
     noActiveOrg: 'აქტიური ორგანიზაცია არ არის',
     noOrgPermissions: 'ორგანიზაციის ნებართვები არ მოიძებნა',
+    refreshOrgPermissions: 'ორგანიზაციის ნებართვების განახლება',
+    refreshOrgRoles: 'ორგანიზაციის როლების განახლება',
   },
   
   // MFA tab
@@ -394,6 +398,8 @@ export const kaGE: Translations = {
     satellite: 'სატელიტი',
     street: 'ქუჩა',
     activeNow: 'ახლა აქტიური',
+    locationDisclosure: 'მდებარეობა დადგენილია IP-ით და შესაძლოა იყოს მიახლოებითი.',
+    externalMapDisclosure: 'რუკის ბმულები ხსნის გარე სერვისებს მიახლოებითი კოორდინატებით.',
   },
 
   // Common

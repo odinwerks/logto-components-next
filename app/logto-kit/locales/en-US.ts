@@ -165,6 +165,8 @@ export const enUS: Translations = {
     takePicture: 'Take a picture',
     chooseFromGallery: 'Choose from gallery',
     deleteHint: 'or remove it',
+    refreshPersonalPermissions: 'Refresh personal permissions',
+    refreshRoles: 'Refresh roles',
   },
   
   // Verification
@@ -256,6 +258,8 @@ export const enUS: Translations = {
     loadingPermissions: 'Loading permissions...',
     noActiveOrg: 'No active organization',
     noOrgPermissions: 'No organization permissions',
+    refreshOrgPermissions: 'Refresh organization permissions',
+    refreshOrgRoles: 'Refresh organization roles',
   },
   
   // MFA tab
@@ -394,6 +398,8 @@ loggedInAt: 'Logged on',
     satellite: 'Satellite',
     street: 'Street',
     activeNow: 'Active now',
+    locationDisclosure: 'Location is estimated from IP and may be approximate.',
+    externalMapDisclosure: 'Map links open external services with approximate coordinates.',
   },
   
   // Common

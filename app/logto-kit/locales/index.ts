@@ -180,6 +180,8 @@ export interface Translations {
     takePicture: string;
     chooseFromGallery: string;
     deleteHint: string;
+    refreshPersonalPermissions: string;
+    refreshRoles: string;
   };
   
   // Verification
@@ -271,6 +273,8 @@ export interface Translations {
     loadingPermissions: string;
     noActiveOrg: string;
     noOrgPermissions: string;
+    refreshOrgPermissions: string;
+    refreshOrgRoles: string;
   };
   
   // MFA tab
@@ -408,6 +412,8 @@ export interface Translations {
     satellite: string;
     street: string;
     activeNow: string;
+    locationDisclosure: string;
+    externalMapDisclosure: string;
   };
   
   // Common
