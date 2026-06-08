@@ -5,7 +5,7 @@ import type { UserData, UserRole, PersonalPermission } from '../../../logic/type
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image, Info } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image as ImageIcon, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { UserBadge } from '../../UserButton';
 import { readEnv } from '../../../logic/env';
@@ -740,7 +740,7 @@ export function ProfileTab({
                       color: c.textSecondary, fontFamily: ty.fontSans, fontWeight: 500, fontSize: ty.size.sm,
                     }}
                   >
-                    <Image size={16} strokeWidth={1.5} /> {t.profile.chooseFromGallery}
+                    <ImageIcon size={16} strokeWidth={1.5} /> {t.profile.chooseFromGallery}
                   </button>
                 </div>
               ) : (

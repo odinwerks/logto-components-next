@@ -530,10 +530,10 @@ describe('SessionsTab', () => {
         const macosImg2 = images.find(img => img.getAttribute('alt') === 'Mac OS');
 
         expect(macosImg).toBeDefined();
-        expect(macosImg?.getAttribute('src')).toBe('/os-icons/MacOS.svg');
+        expect(macosImg?.getAttribute('src')).toContain('/os-icons/MacOS.svg');
 
         expect(macosImg2).toBeDefined();
-        expect(macosImg2?.getAttribute('src')).toBe('/os-icons/MacOS.svg');
+        expect(macosImg2?.getAttribute('src')).toContain('/os-icons/MacOS.svg');
       });
     });
   });

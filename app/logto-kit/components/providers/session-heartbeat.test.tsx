@@ -15,7 +15,7 @@ vi.mock('../../logic/env', () => ({
 
 describe('SessionHeartbeat Component (BUG-024)', () => {
   let visibilityState: 'visible' | 'hidden' = 'visible';
-  let documentListeners: Record<string, Function[]> = {};
+  let documentListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -31,7 +31,7 @@ describe('SessionHeartbeat Component (BUG-024)', () => {
       if (!documentListeners[event]) {
         documentListeners[event] = [];
       }
-      documentListeners[event].push(cb as Function);
+      documentListeners[event].push(cb as unknown as (...args: unknown[]) => void);
     });
 
     vi.spyOn(document, 'removeEventListener').mockImplementation((event, cb) => {

@@ -105,7 +105,9 @@ export function SecurityTab({
   }, [onGetMfaVerifications, onError]);
 
   const loadMfaRef = useRef(loadMfaFn);
-  loadMfaRef.current = loadMfaFn;
+  useEffect(() => {
+    loadMfaRef.current = loadMfaFn;
+  }, [loadMfaFn]);
 
   // Load MFA list once on mount (via ref to avoid dep on unstable callbacks)
   useEffect(() => { loadMfaRef.current(); }, []);

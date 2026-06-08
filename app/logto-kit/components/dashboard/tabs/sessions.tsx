@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
@@ -43,7 +44,16 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
     : null;
 
   if (src && !imgError) {
-    return <img src={src} alt={os ?? 'OS'} width={size} height={size} style={{ display: 'block' }} onError={() => setImgError(true)} />;
+    return (
+      <Image
+        src={src}
+        alt={os ?? 'OS'}
+        width={size}
+        height={size}
+        style={{ display: 'block' }}
+        onError={() => setImgError(true)}
+      />
+    );
   }
 
   if (deviceType === 'mobile') return <Smartphone size={size} strokeWidth={1.5} />;
@@ -102,7 +112,12 @@ export function SessionsTab({
   // Persists the revoke target through failed attempts so retries send the correct session ID
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
 
-  const isVerificationValid = verificationRecordId && Date.now() < verificationExpiry;
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  useEffect(() => {
+    setCurrentTime(Date.now());
+  }, []);
+
+  const isVerificationValid = verificationRecordId && currentTime < verificationExpiry;
 
   // Auto-invalidate verification when it expires, forcing re-verification
   useEffect(() => {

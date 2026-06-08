@@ -186,9 +186,10 @@ function AvatarCore({
 
   return (
     <div style={containerStyle}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={userData.avatar!}
-        alt="Avatar"
+        alt="User avatar"
         style={{
           display: 'block',
           width: '100%',

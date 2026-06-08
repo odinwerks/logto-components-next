@@ -60,7 +60,9 @@ export function ContactRow({
   const [pwErr, setPwErr] = useState('');
   const operationTokenRef = React.useRef(0);
   const newValueRef = React.useRef(newValue);
-  newValueRef.current = newValue;
+  useEffect(() => {
+    newValueRef.current = newValue;
+  }, [newValue]);
 
   const invalidateInFlightOperations = React.useCallback(() => {
     operationTokenRef.current += 1;
@@ -166,7 +168,7 @@ export function ContactRow({
   const canContinueFromValue = React.useMemo(() => {
     if (modalKind !== 'edit') return false;
     if (isPhoneWithoutLocalDigits) return true;
-    if (!getTrimmedTarget()) return true;
+    if (!newValue.trim()) return true;
     if (type === 'phone' && !!phoneErr) return true;
     return false;
   }, [modalKind, type, phoneErr, newValue, isPhoneWithoutLocalDigits]);
