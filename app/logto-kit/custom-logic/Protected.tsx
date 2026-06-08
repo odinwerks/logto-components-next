@@ -104,10 +104,14 @@ export function Protected({
   const [isLoadingPerms, setIsLoadingPerms] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
+  const targetOrgId = orgName
+    ? userData?.organizations?.find((org) => org.name === orgName)?.id
+    : orgId;
+
   // Single combined effect for permission loading
   useEffect(() => {
     // Guard: need userData to proceed
-    if (!userData) {
+    if (!userData?.id) {
       setLoadedPerms([]);
       setLoadedRoles([]);
       setIsLoadingPerms(false);
@@ -167,10 +171,6 @@ export function Protected({
       }
     }
 
-    const targetOrgId = orgName
-      ? userData.organizations?.find((org) => org.name === orgName)?.id
-      : orgId;
-
     if (!targetOrgId || asOrg !== targetOrgId) {
       setLoadedPerms([]);
       setLoadedRoles([]);
@@ -210,7 +210,7 @@ export function Protected({
     return () => {
       cancelled = true;
     };
-  }, [userData, orgId, orgName, asOrg]);
+  }, [userData?.id, orgId, orgName, targetOrgId, asOrg]);
 
   if (!userData) {
     return <>{fallback ?? null}</>;
