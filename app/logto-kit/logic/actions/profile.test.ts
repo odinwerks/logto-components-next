@@ -669,7 +669,7 @@ describe('updateUserCustomData', () => {
     const { updateUserCustomData } = await import('./profile');
 
     // 1. Fire first 1000 updates concurrently
-    const initialPromises = Array.from({ length: 1000 }, (_, i) =>
+    const initialPromises = Array.from({ length: 1000 }, (_, _i) =>
       updateUserCustomData({ Preferences: { theme: 'dark' } })
     );
 

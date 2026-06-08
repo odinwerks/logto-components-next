@@ -106,7 +106,7 @@ interface IdentitiesTabProps {
   mobmode?: number;
 }
 
-export function IdentitiesTab({ userData, mode, colors, t, mobmode }: IdentitiesTabProps) {
+export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: IdentitiesTabProps) {
   const c = colors;
 
   // ─── Inlined component styles (replaces cs.*) ───

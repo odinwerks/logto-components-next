@@ -61,7 +61,7 @@ export function HR({ colors }: { colors: ThemeColors }) {
   }} />;
 }
 
-export function IconBox({ children, active, color, mode, colors }: { children: React.ReactNode; active?: boolean; color?: 'blue' | 'green' | 'red'; mode: 'dark' | 'light'; colors: ThemeColors }) {
+export function IconBox({ children, active: _active, color, mode, colors }: { children: React.ReactNode; active?: boolean; color?: 'blue' | 'green' | 'red'; mode: 'dark' | 'light'; colors: ThemeColors }) {
   const c = colors;
   const isDark = mode === 'dark';
 

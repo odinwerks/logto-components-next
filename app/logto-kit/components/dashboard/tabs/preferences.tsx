@@ -272,7 +272,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ThemeOption({
-  id, label, Icon, isSelected, mode, colors, onSelect, tall,
+  id, label, Icon, isSelected, mode: _mode, colors, onSelect, tall,
 }: {
   id: string;
   label: string;

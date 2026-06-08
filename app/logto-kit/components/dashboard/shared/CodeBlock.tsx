@@ -164,7 +164,7 @@ interface TruncatedTokenProps {
   t: Translations;
 }
 
-export function TruncatedToken({ token, mode, colors, t }: TruncatedTokenProps) {
+export function TruncatedToken({ token, mode: _mode, colors, t }: TruncatedTokenProps) {
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);
   const c = colors;

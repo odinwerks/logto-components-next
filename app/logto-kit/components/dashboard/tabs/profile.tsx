@@ -756,7 +756,7 @@ export function ProfileTab({
                       const f = e.dataTransfer.files?.[0];
                       if (f) handleFileSelected(f);
                     }}
-                    onClick={(e) => {
+                    onClick={(_e) => {
                       if (!isUploading) fileInputRef.current?.click();
                     }}
                     role="button"

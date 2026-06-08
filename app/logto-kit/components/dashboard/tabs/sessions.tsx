@@ -61,7 +61,7 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
 }
 
 export function SessionsTab({
-  userData,
+  userData: _userData,
   mode,
   colors,
   t,

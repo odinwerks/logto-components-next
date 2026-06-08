@@ -211,7 +211,7 @@ interface ImageCropperProps {
 }
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
-  ({ imageUrl, shape: shapeProp, userShape, outputSize = 512, displaySize = 180, mode, colors }, ref) => {
+  ({ imageUrl, shape: shapeProp, userShape, outputSize = 512, displaySize = 180, mode: _mode, colors }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [scale, setScale] = useState(1);

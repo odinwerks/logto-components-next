@@ -32,7 +32,7 @@ export function Input({
   disabled,
   maxLength,
   hasError,
-  mode,
+  mode: _mode,
   colors,
   describedby,
 }: InputProps) {

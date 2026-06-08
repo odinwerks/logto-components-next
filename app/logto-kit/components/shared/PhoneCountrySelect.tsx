@@ -25,9 +25,9 @@ export function PhoneCountrySelect({
   value,
   onChange,
   countryFilter,
-  mode,
+  mode: _mode,
   colors,
-  t,
+  t: _t,
   disabled = false,
 }: PhoneCountrySelectProps) {
   const [isOpen, setIsOpen] = useState(false);
