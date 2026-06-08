@@ -355,6 +355,48 @@ describe('updatePhoneWithVerification', () => {
       })
     );
   });
+
+  it('rejects non-string phone input (undefined)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const futureTimestamp = Date.now() + 10 * 60 * 1000;
+    const result = await updatePhoneWithVerification(
+      undefined as unknown as string,
+      'vr_identifier',
+      'vr_identity',
+      futureTimestamp,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (null)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const futureTimestamp = Date.now() + 10 * 60 * 1000;
+    const result = await updatePhoneWithVerification(
+      null as unknown as string,
+      'vr_identifier',
+      'vr_identity',
+      futureTimestamp,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (object)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const futureTimestamp = Date.now() + 10 * 60 * 1000;
+    const result = await updatePhoneWithVerification(
+      {} as unknown as string,
+      'vr_identifier',
+      'vr_identity',
+      futureTimestamp,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
 });
 
 // ============================================================================
@@ -416,6 +458,30 @@ describe('sendPhoneVerificationCode', () => {
       })
     );
   });
+
+  it('rejects non-string phone input (undefined)', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode(undefined as unknown as string);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (null)', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode(null as unknown as string);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (object)', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode({} as unknown as string);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
 });
 
 // ============================================================================
@@ -473,6 +539,45 @@ describe('verifyVerificationCode with phone', () => {
         },
       })
     );
+  });
+
+  it('rejects non-string phone input (undefined)', async () => {
+    const { verifyVerificationCode } = await import('./verification');
+    const result = await verifyVerificationCode(
+      'phone',
+      undefined as unknown as string,
+      'verif_id',
+      '123456'
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (null)', async () => {
+    const { verifyVerificationCode } = await import('./verification');
+    const result = await verifyVerificationCode(
+      'phone',
+      null as unknown as string,
+      'verif_id',
+      '123456'
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+  });
+
+  it('rejects non-string phone input (object)', async () => {
+    const { verifyVerificationCode } = await import('./verification');
+    const result = await verifyVerificationCode(
+      'phone',
+      {} as unknown as string,
+      'verif_id',
+      '123456'
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
   });
 });
 

@@ -94,10 +94,13 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     // Retrieve existingLock
     const existingLock = customDataUpdateLocks.get(userId);
 
-    // Prevent unbounded growth
-    if (customDataUpdateLocks.size >= MAX_LOCK_ENTRIES) {
-      // Clear all entries - they're stale anyway (locks should be short-lived)
-      customDataUpdateLocks.clear();
+    // Prevent unbounded growth safely using FIFO eviction
+    while (customDataUpdateLocks.size >= MAX_LOCK_ENTRIES) {
+      const oldestKey = customDataUpdateLocks.keys().next().value;
+      if (oldestKey === undefined) {
+        break;
+      }
+      customDataUpdateLocks.delete(oldestKey);
     }
 
     // Create a new lock for this user

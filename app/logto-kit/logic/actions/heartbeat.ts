@@ -16,6 +16,10 @@ import { getBackendType } from '../../config';
  * available in the correct Next.js auth context.
  */
 export async function recordHeartbeat(): Promise<void> {
+  // Platform Compatibility Check: Standard Logto upstream backends (e.g. Logto Cloud/OSS)
+  // do not support custom API endpoints like heartbeats (which is a Blacktop-specific feature).
+  // Abort early to avoid executing calls and generating unnecessary errors under upstream mode.
+  // This is an intentional, known-safe and accepted platform compatibility choice.
   if (getBackendType() === 'upstream') return;
   try {
     const token = await getTokenForServerAction().catch(() => null);

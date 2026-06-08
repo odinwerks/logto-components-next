@@ -3,7 +3,7 @@
 import type { MfaVerification, MfaVerificationPayload } from '../types';
 import { assertSafeLogtoId, assertMfaType } from '../guards';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
@@ -16,6 +16,41 @@ import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 // In-flight lock to prevent concurrent backup codes generation races
 const backupCodesGenerationLocks = new Map<string, Promise<void>>();
 const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
+
+const totpGenerationCooldowns = new Map<string, number>();
+const MAX_COOLDOWN_ENTRIES = 1000;
+
+export async function clearTotpCooldownsForTesting(): Promise<void> {
+  totpGenerationCooldowns.clear();
+}
+
+export async function getTotpCooldownsSizeForTesting(): Promise<number> {
+  return totpGenerationCooldowns.size;
+}
+
+export async function setTotpCooldownForTesting(userId: string, timestamp: number): Promise<void> {
+  totpGenerationCooldowns.set(userId, timestamp);
+}
+
+export async function hasTotpCooldownForTesting(userId: string): Promise<boolean> {
+  return totpGenerationCooldowns.has(userId);
+}
+
+export async function getBackupCodesLocksSizeForTesting(): Promise<number> {
+  return backupCodesGenerationLocks.size;
+}
+
+export async function clearBackupCodesLocksForTesting(): Promise<void> {
+  backupCodesGenerationLocks.clear();
+}
+
+export async function setBackupCodesLockForTesting(userId: string, promise: Promise<void>): Promise<void> {
+  backupCodesGenerationLocks.set(userId, promise);
+}
+
+export async function hasBackupCodesLockForTesting(userId: string): Promise<boolean> {
+  return backupCodesGenerationLocks.has(userId);
+}
 
 /**
  * Gets the user's MFA verifications.
@@ -46,6 +81,36 @@ export async function getMfaVerifications(): Promise<DataResult<MfaVerification[
  */
 export async function generateTotpSecret(): Promise<DataResult<{ secret: string }>> {
   return safeAction(async () => {
+    // Rate limit check
+    const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
+    if (!isAuthenticated || !claims?.sub) {
+      throw new Error('Cannot determine user ID for TOTP secret generation');
+    }
+    const userId = claims.sub;
+    assertSafeLogtoId(userId);
+
+    const now = Date.now();
+
+    // To prevent unbounded Map growth, execute a lazy-on-write cleanup during request check:
+    if (totpGenerationCooldowns.size >= MAX_COOLDOWN_ENTRIES) {
+      for (const [key, timestamp] of totpGenerationCooldowns.entries()) {
+        if (now >= timestamp + 10000) {
+          totpGenerationCooldowns.delete(key);
+        }
+      }
+      if (totpGenerationCooldowns.size >= MAX_COOLDOWN_ENTRIES) {
+        totpGenerationCooldowns.clear();
+      }
+    }
+
+    const lastRequestTime = totpGenerationCooldowns.get(userId);
+    if (lastRequestTime !== undefined && now < lastRequestTime + 10000) {
+      throw plainCode('MFA_ENROLL_FAILED');
+    }
+
+    // Set cooldown to the current timestamp
+    totpGenerationCooldowns.set(userId, now);
+
     const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
       method: 'POST',
     });
@@ -71,7 +136,7 @@ export async function addMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -136,7 +201,7 @@ export async function deleteMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -181,8 +246,13 @@ export async function generateBackupCodes(
     const existingLock = backupCodesGenerationLocks.get(userId);
 
     // Prevent unbounded growth
-    if (backupCodesGenerationLocks.size >= MAX_LOCK_ENTRIES) {
-      backupCodesGenerationLocks.clear();
+    while (backupCodesGenerationLocks.size >= MAX_LOCK_ENTRIES) {
+      const oldestKey = backupCodesGenerationLocks.keys().next().value;
+      if (oldestKey !== undefined) {
+        backupCodesGenerationLocks.delete(oldestKey);
+      } else {
+        break;
+      }
     }
 
     // Create a new lock for this user
@@ -278,7 +348,7 @@ export async function getBackupCodes(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 
@@ -302,7 +372,7 @@ export async function replaceTotpVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp) {
+    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
       throw new Error('VERIFICATION_EXPIRED');
     }
 

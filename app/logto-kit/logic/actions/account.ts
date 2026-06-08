@@ -87,7 +87,7 @@ export async function deleteUserAccount(
 
     // ── Mint narrowly-scoped M2M token and delete the user ─────────────────
     const mgmtToken = await getManagementApiToken();
-    const cleanEndpoint = await getCleanEndpoint();
+    const cleanEndpoint = getCleanEndpoint();
 
     const deleteRes = await fetch(`${cleanEndpoint}/api/users/${encodeURIComponent(userId)}`, {
       method: 'DELETE',

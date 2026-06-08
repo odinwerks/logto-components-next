@@ -19,7 +19,7 @@ export { getTokenForServerAction, getFreshAccessToken } from './tokens';
 export { makeRequest } from './request';
 
 // Dashboard Data Fetching
-export { fetchDashboardData, fetchUserBadgeData } from './dashboard';
+export { fetchDashboardData } from './dashboard';
 
 // Authentication
 export { signOutUser } from './auth';

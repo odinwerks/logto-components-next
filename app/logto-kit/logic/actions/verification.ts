@@ -19,7 +19,7 @@ import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
  */
 function cleanPhoneNumber(phone: string): string {
   if (typeof phone !== 'string') {
-    return phone;
+    throw new ValidationError('INVALID_INPUT', 'phone');
   }
   const trimmed = phone.trim();
   const digits = trimmed.replace(/\D/g, '');

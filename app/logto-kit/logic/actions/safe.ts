@@ -12,7 +12,7 @@ export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>
   } catch (err) {
     // Preserve pre-sanitized errors (e.g. sanitize() in errors.ts sets name='SanitizedError')
     // so intentional codes like 'UNAUTHORIZED' survive the double-wrap.
-    if (!isDev && err instanceof Error && err.name === 'SanitizedError') {
+    if (!isDev && err instanceof Error && (err.name === 'SanitizedError' || err.name === 'ValidationError')) {
       return { ok: false, error: captureMessage(err) };
     }
     // Sanitize before extracting message - prevents upstream API detail leakage

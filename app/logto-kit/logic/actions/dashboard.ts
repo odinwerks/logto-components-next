@@ -9,7 +9,7 @@ import { getCleanEndpoint } from '../utils';
 import { debugLog } from '../debug';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, isAuthError, isTransientError } from '../errors';
 import { redirect } from 'next/navigation';
 import { warn, error, log } from '../log';
 
@@ -20,35 +20,9 @@ import { warn, error, log } from '../log';
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 500;
 
-const AUTH_ERROR_PATTERNS = [
-  'Cookies can only be modified',
-  'Unauthorized',
-  '401',
-  'needsAuth',
-];
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-function isAuthError(error: unknown): boolean {
-  if (error instanceof Error) {
-    return AUTH_ERROR_PATTERNS.some(p => error.message.includes(p));
-  }
-  return false;
-}
-
-const TRANSIENT_ERROR_PATTERNS = [
-  '429', '500', '502', '503', '504',
-  'fetch failed', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET',
-];
-
-function isTransientError(error: unknown): boolean {
-  if (error instanceof Error) {
-    return TRANSIENT_ERROR_PATTERNS.some(p => error.message.includes(p));
-  }
-  return false;
-}
 
 async function fetchWithTimeout<T>(fn: () => Promise<T>, timeoutMs = 10_000): Promise<T> {
   return Promise.race([
@@ -94,9 +68,6 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
  */
 function handleAuthFetchError(err: unknown, label: string): never {
   error(`${label}:`, err);
-  const msg = err instanceof Error ? err.message : String(err);
-  // Any auth error → redirect to sign-in for fresh authentication.
-  if (msg.includes('Cookies can only be modified')) redirect('/api/auth/sign-in');
   redirect('/api/auth/sign-in');
 }
 
@@ -188,34 +159,4 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
   }
 }
 
-// ============================================================================
-// Lightweight User Data Fetch (For UserButton/UserBadge standalone usage)
-// ============================================================================
 
-/**
- * Fetches lightweight user data for UserBadge component.
- * @returns DashboardResult containing user data (no access token - kept server-side).
- */
-export async function fetchUserBadgeData(): Promise<DashboardResult> {
-  try {
-    const result = await fetchWithRetry(async (): Promise<DashboardSuccess> => {
-      const res = await makeRequest('/api/my-account');
-
-      await throwOnApiError(res, 'FETCH_FAILED', 'dashboard-fetch');
-
-      return {
-        success: true,
-        userData: await res.json() as UserData,
-      };
-    });
-
-    return result;
-  } catch (error) {
-    if (isAuthError(error)) {
-      handleAuthFetchError(error, 'UserBadge data fetch error');
-    }
-    // For non-auth errors, return a fetch error instead of redirecting
-    warn('[fetchUserBadgeData] Non-auth error:', error instanceof Error ? error.message : error);
-    return { success: false, error: 'FETCH_FAILED' };
-  }
-}
