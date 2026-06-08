@@ -317,7 +317,6 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
       });
 
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeOrgId, userData, visible]);
 
   const organizationPermissions = loadedPermissions;

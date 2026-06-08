@@ -89,7 +89,6 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   if (!visible) return null;
