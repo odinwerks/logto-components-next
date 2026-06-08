@@ -59,6 +59,7 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
     'theme': () => import('../../../demo/content/anatomy/theme'),
     'i18n': () => import('../../../demo/content/anatomy/i18n'),
     'primitives': () => import('../../../demo/content/anatomy/primitives'),
+    'async-patterns': () => import('../../../demo/content/anatomy/async-patterns'),
   },
   'security': {
     'error-handling': () => import('../../../demo/content/security/error-handling'),

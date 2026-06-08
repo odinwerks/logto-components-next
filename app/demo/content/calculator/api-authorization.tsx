@@ -66,7 +66,7 @@ export default function CalculatorApiAuthorizationDoc() {
       </p>
       <p style={styles.textStyle}>
         Authorization depends on OIDC customData token claims. The endpoint resolves the action from the registry, 
-        retrieves the active user session or bearer token, performs token introspection, and verifies organization-scoped access, roles, and permission scopes.
+        retrieves the active user session token, performs token introspection, and verifies organization-scoped access, roles, and permission scopes.
       </p>
 
       <h2 id={slugify("Authentication and Verification Flow")} style={h2Style}>Authentication and Verification Flow</h2>
@@ -91,13 +91,8 @@ export default function CalculatorApiAuthorizationDoc() {
     let token: string;
     try {
       token = await getTokenForServerAction();
-    } catch {
-      const authHeader = request.headers.get('Authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      } else {
-        return apiError('UNAUTHORIZED', 401);
-      }
+    } catch (error) {
+      return apiError('UNAUTHORIZED', 401);
     }
 
     // Step 2: Introspect token
@@ -212,7 +207,7 @@ export default function CalculatorApiAuthorizationDoc() {
             <td style={customTdPropStyle}>401</td>
             <td style={customTdPropStyle}>UNAUTHORIZED</td>
             <td style={customTdStyle}>
-              No valid session cookie or bearer token was found, or token signature validation failed.
+              No valid authenticated session token was found, or session principal verification failed.
             </td>
           </tr>
           <tr>

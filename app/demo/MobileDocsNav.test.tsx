@@ -96,4 +96,26 @@ describe('MobileDocsNav mobile layout regressions', () => {
     expect(listContainer).toHaveStyle('justify-content: flex-start');
     expect(listContainer).toHaveStyle('overflow-y: auto');
   });
+
+  it('provides accessible names and button types for all icon-only controls', () => {
+    render(<MobileDocsNav />);
+
+    // 1. Menu icon button (Open nav)
+    const openBtn = screen.getByRole('button', { name: 'Open navigation' });
+    expect(openBtn).toHaveAttribute('type', 'button');
+
+    // Open the nav
+    fireEvent.click(openBtn);
+
+    // 2. X icon button (Close nav)
+    const closeBtn = screen.getByRole('button', { name: 'Close navigation' });
+    expect(closeBtn).toHaveAttribute('type', 'button');
+
+    // Go to sections stage by clicking a topic
+    fireEvent.click(screen.getByText('Topic A'));
+
+    // 3. ArrowLeft icon button (Back-to-topics)
+    const backBtn = screen.getByRole('button', { name: 'Back to topics' });
+    expect(backBtn).toHaveAttribute('type', 'button');
+  });
 });

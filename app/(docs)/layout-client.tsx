@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { useIsPortrait } from '../logto-kit';
 import Sidebar from '../demo/Sidebar';
 import MobileDocsNav from '../demo/MobileDocsNav';
 import { NAV_ITEMS } from '../demo/nav-data';
@@ -14,7 +13,6 @@ const appStyle: React.CSSProperties = {
 };
 
 export default function DocsLayoutClient({ children }: { children: React.ReactNode }) {
-  const isPortrait = useIsPortrait();
   const pathname = usePathname();
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
@@ -39,9 +37,23 @@ export default function DocsLayoutClient({ children }: { children: React.ReactNo
             -webkit-overflow-scrolling: touch !important;
           }
         }
+
+        /* Responsive CSS classes to prevent hydration flashes */
+        @media (max-width: 64rem) or (orientation: portrait) {
+          .desktop-only-sidebar {
+            display: none !important;
+          }
+        }
+        @media (min-width: 64.0625rem) and (orientation: landscape) {
+          .mobile-only-nav {
+            display: none !important;
+          }
+        }
       `}} />
 
-      {!isPortrait && <Sidebar items={NAV_ITEMS} />}
+      <div className="desktop-only-sidebar">
+        <Sidebar items={NAV_ITEMS} />
+      </div>
       <div 
         ref={contentContainerRef}
         className="docs-content-container" 
@@ -53,7 +65,9 @@ export default function DocsLayoutClient({ children }: { children: React.ReactNo
       >
         {children}
       </div>
-      {isPortrait && <MobileDocsNav />}
+      <div className="mobile-only-nav">
+        <MobileDocsNav />
+      </div>
     </div>
   );
 }

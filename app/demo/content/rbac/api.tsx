@@ -74,9 +74,8 @@ const response = await fetch('/api/protected', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    // Authorization header fallback is checked if session cookie is missing
-    'Authorization': 'Bearer <access_token>' 
   },
+  // Same-origin requests use the authenticated session cookie automatically
   body: JSON.stringify({
     action: 'get-calculator-total', // Name of the registered action
     payload: { a: 10, b: 20 }        // Client payload passed to the action
@@ -147,7 +146,7 @@ if (result.error) {
           <tr>
             <td style={customTdPropStyle}>UNAUTHORIZED</td>
             <td style={customTdStyle}>401</td>
-            <td style={customTdStyle}>No authenticated session or bearer token was provided.</td>
+            <td style={customTdStyle}>No authenticated session token was provided.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>ACTION_NOT_FOUND</td>

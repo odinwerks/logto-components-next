@@ -45,4 +45,32 @@ describe('DocsLayoutClient scroll restoration', () => {
 
     expect(container.scrollTop).toBe(0);
   });
+
+  it('renders both sidebar and mobile nav unconditionally in the DOM to avoid layout flash', () => {
+    const { queryByTestId } = render(
+      <DocsLayoutClient>
+        <div>Content</div>
+      </DocsLayoutClient>
+    );
+
+    expect(queryByTestId('sidebar')).not.toBeNull();
+    expect(queryByTestId('mobile-nav')).not.toBeNull();
+  });
+
+  it('wraps sidebar and mobile nav in responsive layout divs', () => {
+    const { container } = render(
+      <DocsLayoutClient>
+        <div>Content</div>
+      </DocsLayoutClient>
+    );
+
+    const desktopWrapper = container.querySelector('.desktop-only-sidebar');
+    const mobileWrapper = container.querySelector('.mobile-only-nav');
+
+    expect(desktopWrapper).not.toBeNull();
+    expect(desktopWrapper!.querySelector('[data-testid="sidebar"]')).not.toBeNull();
+
+    expect(mobileWrapper).not.toBeNull();
+    expect(mobileWrapper!.querySelector('[data-testid="mobile-nav"]')).not.toBeNull();
+  });
 });

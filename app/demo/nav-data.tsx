@@ -1,4 +1,3 @@
-import React from 'react';
 import type { NavItem, SectionHint } from './types';
 
 const UserButtonIcon = () => (

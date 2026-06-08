@@ -150,7 +150,12 @@ export default function MobileDocsNav() {
     <>
       {/* Floating Hamburger Trigger (Only rendered if Nav is closed) */}
       {!isOpen && (
-        <button onClick={() => { setIsOpen(true); setStage('topics'); }} style={triggerStyle}>
+        <button
+          type="button"
+          onClick={() => { setIsOpen(true); setStage('topics'); }}
+          style={triggerStyle}
+          aria-label="Open navigation"
+        >
           <Menu size={18} />
         </button>
       )}
@@ -172,7 +177,7 @@ export default function MobileDocsNav() {
                       key={item.id}
                       type="button"
                       onClick={() => { setSelectedTopic(item); setStage('sections'); }}
-                      style={{ ...buttonResetStyle, ...itemStyle, width: '100%', border: 'none', background: 'transparent' }}
+                      style={{ ...buttonResetStyle, ...itemStyle, width: '100%', background: 'transparent' }}
                     >
                        <div style={itemLabelStyle}>{item.label}</div>
                      </button>
@@ -196,7 +201,12 @@ export default function MobileDocsNav() {
               </div>
 
               {/* X Close button positioned exactly where Hamburger is */}
-              <button onClick={() => setIsOpen(false)} style={triggerStyle}>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                style={triggerStyle}
+                aria-label="Close navigation"
+              >
                  <X size={18} />
               </button>
             </div>
@@ -215,7 +225,7 @@ export default function MobileDocsNav() {
                       key={section}
                       type="button"
                       onClick={() => handleSectionClick(selectedTopic.id, section)}
-                      style={{ ...buttonResetStyle, ...subItemStyle, width: '100%', border: 'none', background: 'transparent' }}
+                      style={{ ...buttonResetStyle, ...subItemStyle, width: '100%', background: 'transparent' }}
                     >
                       {section}
                     </button>
@@ -224,7 +234,12 @@ export default function MobileDocsNav() {
               </div>
 
               {/* Back button positioned exactly where Hamburger/X is */}
-              <button onClick={() => setStage('topics')} style={triggerStyle}>
+              <button
+                type="button"
+                onClick={() => setStage('topics')}
+                style={triggerStyle}
+                aria-label="Back to topics"
+              >
                  <ArrowLeft size={18} />
               </button>
             </div>
