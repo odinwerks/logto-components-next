@@ -101,8 +101,9 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
   );
 
   const handleClick = useCallback(() => {
-    if (typeof opts.do === 'function') {
-      opts.do();
+    const customAction = opts.do;
+    if (typeof customAction === 'function') {
+      customAction();
     } else if (openDashboard) {
       openDashboard();
     }

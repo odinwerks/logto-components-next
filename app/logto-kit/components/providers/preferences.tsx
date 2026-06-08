@@ -102,7 +102,10 @@ export function PreferencesProvider({
   const [lang, setLangState] = useState<string>(serverDefaultLang);
   const [asOrg, setAsOrgState] = useState<string | null>(initialOrgId ?? null);
 
+  const didSyncFromStorage = useRef(false);
   useEffect(() => {
+    if (didSyncFromStorage.current) return;
+    didSyncFromStorage.current = true;
     const cachedTheme = getStoredTheme();
     if (cachedTheme && cachedTheme !== theme) setThemeState(cachedTheme);
 
@@ -111,7 +114,7 @@ export function PreferencesProvider({
 
     const cachedOrg = getStoredOrg();
     if (cachedOrg && cachedOrg !== asOrg) setAsOrgState(cachedOrg);
-  }, []);
+  }, [asOrg, lang, theme]);
 
   // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef, startTransition } from 'react';
+import { useState, useEffect, useRef, startTransition, useCallback } from 'react';
 import { setActiveOrg } from './set-active-org';
 import { useOrgMode } from '../components/providers/preferences';
 import type { OrganizationData } from '../logic/types';
@@ -27,7 +27,7 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
 
   const c = colors;
 
-  const handleChange = async (newOrgId: string) => {
+  const handleChange = useCallback(async (newOrgId: string) => {
     const orgIdToSet = newOrgId || null;
     
     setIsLoading(true);
@@ -44,14 +44,14 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setAsOrg, router]);
 
   useEffect(() => {
     if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current) {
       isSwitchingRef.current = true;
       handleChange(organizations[0].id).finally(() => { isSwitchingRef.current = false; });
     }
-  }, [organizations, asOrg, currentOrgId]);
+  }, [organizations, asOrg, currentOrgId, handleChange]);
 
   if (organizations.length === 0) {
     return null;

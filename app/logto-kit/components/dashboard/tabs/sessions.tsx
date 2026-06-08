@@ -223,7 +223,7 @@ export function SessionsTab({
     setModalPurpose('revoke');
     setModalStep({ kind: 'password' });
     setModalError('');
-  }, [onRevokeAllOtherSessions, onSuccess, onError, loadSessions]);
+  }, []);
 
   const startViewVerification = () => {
     setModalPurpose('view');

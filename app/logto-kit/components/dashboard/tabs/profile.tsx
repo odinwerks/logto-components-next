@@ -488,7 +488,7 @@ export function ProfileTab({
       // upload() already called onError internally
       return;
     }
-  }, [selectedFile, upload, onError]);
+  }, [selectedFile, upload, onError, t.profile.cropFailed]);
 
   const handleCloseModal = useCallback(() => {
     if (cropPreviewUrl) {

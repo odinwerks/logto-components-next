@@ -74,7 +74,7 @@ function LogtoProviderContent({
 
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [isDashboardOpen]);
+  }, [isDashboardOpen, closeDashboard]);
 
   const contextValue: LogtoContextValue = {
     userData,
