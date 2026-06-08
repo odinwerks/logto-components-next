@@ -9,7 +9,7 @@ import { getLogtoConfig } from '../../config';
  * @throws Error if no token is available.
  */
 export async function getTokenForServerAction(): Promise<string> {
-  const token = await getAccessToken(getLogtoConfig(), '');
+  const token = await getAccessToken(getLogtoConfig());
   if (!token) throw new Error('No access token available for Account API');
   return token;
 }

@@ -3,7 +3,7 @@ import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../../logto-kit/config';
 import { error } from '../../../logto-kit/logic/log';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
 
   try {

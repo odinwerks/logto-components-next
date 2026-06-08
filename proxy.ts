@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { getLogtoConfig } from './app/logto-kit/config';
+import { isAuthError, isTransientError } from './app/logto-kit/logic/errors';
+import { error as logError, warn as logWarn } from './app/logto-kit/logic/log';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
@@ -69,9 +71,20 @@ export async function proxy(request: NextRequest) {
       return response;
     }
 
-    // Any other error - redirect to sign-in
-    console.error('[Proxy] Auth error:', errorMessage);
-    return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+    // Classification of remaining errors
+    if (isAuthError(error)) {
+      logError('[Proxy] Auth error, redirecting to sign-in:', errorMessage);
+      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+    }
+
+    if (isTransientError(error)) {
+      logWarn('[Proxy] Transient error, returning 503:', errorMessage);
+      return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 });
+    }
+
+    // Any other unexpected error
+    logError('[Proxy] Unexpected error, returning 500:', errorMessage);
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }
 

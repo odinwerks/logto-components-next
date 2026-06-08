@@ -18,6 +18,24 @@ interface ExpectedPrincipal {
 export async function getRoleDetails(roleId: string): Promise<DataResult<UserRole>> {
   return safeAction(async () => {
     assertSafeLogtoId(roleId, 'roleId');
+
+    let sessionToken: string;
+    try {
+      sessionToken = await getTokenForServerAction();
+    } catch {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    const userId = introspection.sub;
+    if (!userId) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+    assertSafeUserId(userId);
+
     const token = await getManagementApiToken();
     const endpoint = getCleanEndpoint();
     const url = `${endpoint}/api/roles/${encodeURIComponent(roleId)}`;
@@ -141,68 +159,38 @@ export async function verifyPersonalAccess(
   expectedPrincipal?: ExpectedPrincipal
 ): Promise<DataResult<PersonalAccessResult>> {
   return safeAction(async () => {
-    let userId: string;
+    let sessionToken: string;
+    try {
+      sessionToken = await getTokenForServerAction();
+    } catch (err) {
+      throw sanitize(err, { fallback: 'UNAUTHORIZED' });
+    }
+
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    const actualUserId = introspection.sub;
+    if (!actualUserId) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
 
     if (expectedPrincipal) {
-      let introspection: Awaited<ReturnType<typeof introspectToken>> | undefined;
-
-      try {
-        const sessionToken = await getTokenForServerAction();
-        introspection = await introspectToken(sessionToken);
-      } catch {
-        // Compatibility fallback mode: caller-provided principal is authoritative
-        // only when session token retrieval/introspection cannot run.
-        introspection = undefined;
-      }
-
-      if (!introspection) {
-        userId = expectedPrincipal.sub;
-      } else {
-        if (!introspection.active) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-
-        const actualUserId = introspection.sub;
-        if (!actualUserId) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-
-        if (expectedPrincipal.sub !== actualUserId) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-
-        if (
-          expectedPrincipal.sid &&
-          introspection.sid &&
-          expectedPrincipal.sid !== introspection.sid
-        ) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-
-        userId = actualUserId;
-      }
-    } else {
-      // Existing strict behavior: session is required when no expected principal is supplied.
-      let introspection: Awaited<ReturnType<typeof introspectToken>>;
-
-      try {
-        const sessionToken = await getTokenForServerAction();
-        introspection = await introspectToken(sessionToken);
-      } catch {
+      if (expectedPrincipal.sub !== actualUserId) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
 
-      if (!introspection.active) {
+      if (
+        expectedPrincipal.sid &&
+        introspection.sid &&
+        expectedPrincipal.sid !== introspection.sid
+      ) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
-
-      const actualUserId = introspection.sub;
-      if (!actualUserId) {
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-      }
-
-      userId = actualUserId;
     }
+
+    const userId = actualUserId;
 
     assertSafeUserId(userId);
 

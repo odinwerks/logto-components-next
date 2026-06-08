@@ -64,22 +64,15 @@ describe('verifyPersonalAccess compatibility fallback', () => {
     fetchSpy.mockRestore();
   });
 
-  it('falls back to expected principal when session retrieval fails', async () => {
+  it('returns UNAUTHORIZED when session retrieval fails, even if expectedPrincipal is supplied', async () => {
     vi.mocked(getTokenForServerAction).mockRejectedValueOnce(new Error('session-unavailable'));
-
-    fetchSpy
-      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
-      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders')]));
 
     const { verifyPersonalAccess } = await import('./roles');
     const result = await verifyPersonalAccess({ sub: 'user-compat-777' });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error('Expected success');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'https://auth.example.org/api/users/user-compat-777/roles',
-      expect.objectContaining({ method: 'GET' })
-    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
   });
 
   it('returns UNAUTHORIZED when expected principal is absent and session retrieval fails', async () => {
@@ -91,5 +84,52 @@ describe('verifyPersonalAccess compatibility fallback', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
+  });
+});
+
+describe('getRoleDetails session authentication', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://auth.example.org');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('rejects unauthenticated requests with UNAUTHORIZED when no active session is found', async () => {
+    vi.mocked(getTokenForServerAction).mockRejectedValueOnce(new Error('session-unavailable'));
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+  });
+
+  it('successfully fetches role details when session is valid', async () => {
+    const mockRole = makeRole('role-123', 'Admin');
+    fetchSpy.mockResolvedValueOnce(mockJsonResponse(mockRole));
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(result.data).toEqual(mockRole);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://auth.example.org/api/roles/role-123',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Authorization: 'Bearer mock-m2m-token' },
+      })
+    );
   });
 });

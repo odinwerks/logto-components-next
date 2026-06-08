@@ -13,6 +13,7 @@ function makeWipeRequest(
   origin?: string,
   nonce?: string,
   nonceCookie?: string,
+  referer?: string,
 ): NextRequest {
   const search = new URLSearchParams();
   if (force) search.set('force', 'true');
@@ -21,6 +22,7 @@ function makeWipeRequest(
   const url = `http://localhost:3000/api/wipe${qs ? `?${qs}` : ''}`;
   const headers: Record<string, string> = {};
   if (method === 'POST' && origin) headers.origin = origin;
+  if (referer) headers.referer = referer;
 
   const req = new NextRequest(url, {
     method,
@@ -161,5 +163,39 @@ describe('GET /api/wipe', () => {
     expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
     expect(setCookies.some(c => c.includes('logto_refresh') && c.includes('Max-Age=0'))).toBe(true);
     expect(setCookies.some(c => c.includes('logto-wipe-nonce') && c.includes('Max-Age=0'))).toBe(true);
+  });
+
+  it('succeeds with force=true when the referer header is same-origin', async () => {
+    signOutMockFn.mockResolvedValue(undefined);
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', true, undefined, undefined, undefined, 'http://localhost:3000/some-page');
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    const setCookies = getSetCookies(res);
+    expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
+  });
+
+  it('fails with 403 Forbidden with force=true when referer is cross-origin', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', true, undefined, undefined, undefined, 'https://evil.com/some-page');
+    const res = await GET(req);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('fails with 403 Forbidden with force=true when referer is malicious, empty or absent', async () => {
+    const { GET } = await import('./route');
+    const req1 = makeWipeRequest('GET', true, undefined, undefined, undefined, '');
+    const res1 = await GET(req1);
+    expect(res1.status).toBe(403);
+
+    const req2 = makeWipeRequest('GET', true, undefined, undefined, undefined, 'invalid-url');
+    const res2 = await GET(req2);
+    expect(res2.status).toBe(403);
+
+    const req3 = makeWipeRequest('GET', true);
+    const res3 = await GET(req3);
+    expect(res3.status).toBe(403);
   });
 });

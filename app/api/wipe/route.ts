@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
-import type { signOut as SignOutType } from '@logto/next/server-actions';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
@@ -48,22 +48,13 @@ export async function GET(request: NextRequest) {
   ));
 
   if (force) {
-    let signOutFn: typeof SignOutType | undefined;
     try {
-      const mod = await import('@logto/next/server-actions');
-      signOutFn = mod.signOut;
-    } catch {
-      // signOut module unavailable - still clears cookies, which is the main goal
-    }
-    if (signOutFn) {
-      try {
-        await signOutFn(getLogtoConfig());
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
-          return response;
-        }
-        error('[wipe] GET force signOut failed:', err instanceof Error ? err.message : err);
+      await signOut(getLogtoConfig());
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
+        return response;
       }
+      error('[wipe] GET force signOut failed:', err instanceof Error ? err.message : err);
     }
   }
   return response;
@@ -83,25 +74,15 @@ export async function POST(request: NextRequest) {
   );
 
   if (force) {
-    let signOutFn: typeof SignOutType | undefined;
     try {
-      const mod = await import('@logto/next/server-actions');
-      signOutFn = mod.signOut;
-    } catch (importError) {
-      error('[wipe] force: failed to import @logto/next:',
-        importError instanceof Error ? importError.message : importError);
-    }
-    if (signOutFn) {
-      try {
-        await signOutFn(getLogtoConfig());
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
-          // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
-          // our cookie-cleared response is lost. Return our response instead - // the server-side signOut has already completed.
-          return response;
-        }
-        error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
+      await signOut(getLogtoConfig());
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
+        // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
+        // our cookie-cleared response is lost. Return our response instead - // the server-side signOut has already completed.
+        return response;
       }
+      error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
     }
   }
   return response;

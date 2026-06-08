@@ -243,28 +243,36 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     fetchSpy.mockRestore();
   });
 
-  it('uses expected principal fallback when session token retrieval fails', async () => {
+  it('fails closed with UNAUTHORIZED when session token retrieval fails, even with expected principal', async () => {
     vi.mocked(getTokenForServerAction).mockRejectedValueOnce(new Error('session-unavailable'));
-
-    fetchSpy
-      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
-      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
 
     const { verifyOrgAccess } = await import('./organizations');
     const result = await verifyOrgAccess('org-123', { sub: 'user-compat-777' });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error('Expected success');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'https://auth.example.org/api/organizations/org-123/users/user-compat-777/roles',
-      expect.objectContaining({ method: 'GET' })
-    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fails closed with UNAUTHORIZED when token introspection fails, even with expected principal', async () => {
+    vi.mocked(introspectToken).mockRejectedValueOnce(new Error('introspection-unavailable'));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-test-123' });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails closed with UNAUTHORIZED when expected sub differs', async () => {
-    fetchSpy
-      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
-      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
 
     const { verifyOrgAccess } = await import('./organizations');
     const result = await verifyOrgAccess('org-123', { sub: 'user-other-999' });
@@ -272,14 +280,13 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails closed with UNAUTHORIZED when expected sid differs and both sides include sid', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123', sid: 'sid-actual-123' } as never);
-
-    fetchSpy
-      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
-      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders', 'Can read orders')]));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
 
     const { verifyOrgAccess } = await import('./organizations');
     const result = await verifyOrgAccess('org-123', {
@@ -290,5 +297,7 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

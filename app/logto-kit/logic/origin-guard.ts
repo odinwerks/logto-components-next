@@ -28,7 +28,17 @@ export function checkSameOrigin(request: NextRequest): NextResponse | null {
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
 
-  const origin = request.headers.get('origin');
+  let origin = request.headers.get('origin');
+
+  if (!origin && request.method === 'GET') {
+    const referer = request.headers.get('referer');
+    if (referer) {
+      try {
+        origin = new URL(referer).origin;
+      } catch {}
+    }
+  }
+
   if (!origin) {
     return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
