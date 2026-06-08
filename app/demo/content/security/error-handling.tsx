@@ -105,7 +105,7 @@ export default function SecurityErrorHandlingDoc() {
           </tr>
           <tr>
             <td style={customTdPropStyle}>UPLOAD_INVALID_TYPE</td>
-            <td style={customTdStyle}>The uploaded file's MIME type or magic bytes did not match the allowed profile.</td>
+            <td style={customTdStyle}>The uploaded file&apos;s MIME type or magic bytes did not match the allowed profile.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>UPLOAD_RATE_LIMITED</td>
@@ -141,15 +141,15 @@ export default function SecurityErrorHandlingDoc() {
           </tr>
           <tr>
             <td style={customTdPropStyle}>PASSWORD_UPDATE_FAILED</td>
-            <td style={customTdStyle}>Updating the user's password failed validation or upstream checks.</td>
+            <td style={customTdStyle}>Updating the user&apos;s password failed validation or upstream checks.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>EMAIL_UPDATE_FAILED</td>
-            <td style={customTdStyle}>Updating the user's email address failed validation or upstream checks.</td>
+            <td style={customTdStyle}>Updating the user&apos;s email address failed validation or upstream checks.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>PHONE_UPDATE_FAILED</td>
-            <td style={customTdStyle}>Updating the user's phone number failed validation or upstream checks.</td>
+            <td style={customTdStyle}>Updating the user&apos;s phone number failed validation or upstream checks.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>INVALID_INPUT</td>

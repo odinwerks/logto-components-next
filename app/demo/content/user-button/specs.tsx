@@ -106,30 +106,30 @@ export default function UserButtonSpecs() {
           <tr>
             <td style={customTdPropStyle}>Canvas</td>
             <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
-            <td style={customTdTypeStyle}>'Avatar' | 'Initials'</td>
-            <td style={customTdStyle}>'Avatar' (effective)</td>
-            <td style={customTdStyle}>Controls rendering mode. Unless explicitly set to <code style={styles.codeSmStyle}>'Initials'</code>, the component uses Avatar mode and shows initials only when avatar is missing/failed.</td>
+            <td style={customTdTypeStyle}>{"'Avatar' | 'Initials'"}</td>
+            <td style={customTdStyle}>{"'Avatar' (effective)"}</td>
+            <td style={customTdStyle}>Controls rendering mode. Unless explicitly set to <code style={styles.codeSmStyle}>{"'Initials'"}</code>, the component uses Avatar mode and shows initials only when avatar is missing/failed.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>Size</td>
             <td style={customTdStyle}>UserButton, UserBadge</td>
             <td style={customTdTypeStyle}>string</td>
-            <td style={customTdStyle}>'6.25rem'</td>
-            <td style={customTdStyle}>CSS size string (for example <code style={styles.codeSmStyle}>'80px'</code>, <code style={styles.codeSmStyle}>'4rem'</code>).</td>
+            <td style={customTdStyle}>{"'6.25rem'"}</td>
+            <td style={customTdStyle}>CSS size string (for example <code style={styles.codeSmStyle}>{"'80px'"}</code>, <code style={styles.codeSmStyle}>{"'4rem'"}</code>).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>Size</td>
             <td style={customTdStyle}>UserCard</td>
             <td style={customTdTypeStyle}>string</td>
-            <td style={customTdStyle}>'2.5rem'</td>
+            <td style={customTdStyle}>{"'2.5rem'"}</td>
             <td style={customTdStyle}>Avatar size inside the card layout. Smaller default than UserButton/UserBadge.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>shape</td>
             <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
-            <td style={customTdTypeStyle}>'circle' | 'sq' | 'rsq' | string</td>
-            <td style={customTdStyle}>prop → USER_SHAPE → 'circle'</td>
-            <td style={customTdStyle}>Border radius strategy. Custom CSS radius strings are supported (for example <code style={styles.codeSmStyle}>'8px'</code>, <code style={styles.codeSmStyle}>'1rem'</code>).</td>
+            <td style={customTdTypeStyle}>{"'circle' | 'sq' | 'rsq' | string"}</td>
+            <td style={customTdStyle}>{"prop → USER_SHAPE → 'circle'"}</td>
+            <td style={customTdStyle}>Border radius strategy. Custom CSS radius strings are supported (for example <code style={styles.codeSmStyle}>{"'8px'"}</code>, <code style={styles.codeSmStyle}>{"'1rem'"}</code>).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>userData</td>
@@ -196,9 +196,9 @@ export default function UserButtonSpecs() {
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Shape configuration:</strong>{' '}
-        1. Custom prop <code style={styles.codeSmStyle}>shape</code> value ('circle', 'sq', 'rsq', or custom CSS value like '8px', '1rem').
+        1. Custom prop <code style={styles.codeSmStyle}>shape</code> value {"('circle', 'sq', 'rsq', or custom CSS value like '8px', '1rem')"}.
         2. Fallback to <code style={styles.codeSmStyle}>USER_SHAPE</code> environment variable.
-        3. Default fallback value of 'circle'.
+        3. Default fallback value of {"'circle'"}.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Display name resolution hierarchy:</strong>{' '}
@@ -207,18 +207,18 @@ export default function UserButtonSpecs() {
         3. <code style={styles.codeSmStyle}>username</code>
         4. <code style={styles.codeSmStyle}>primaryEmail</code>
         5. <code style={styles.codeSmStyle}>primaryPhone</code>
-        6. Fallback value 'User'.
+        6. Fallback value {"'User'"}.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Initials generation logic:</strong>{' '}
         1. If <code style={styles.codeSmStyle}>profile.givenName</code> and <code style={styles.codeSmStyle}>profile.familyName</code> exist: uppercase first letters of each.
         2. If <code style={styles.codeSmStyle}>name</code> exists: split by space. Use first letter of first two words, or first letter of first word if single-word name.
         3. If <code style={styles.codeSmStyle}>username</code> exists: first letter of username.
-        4. Fallback value '?'.
+        4. Fallback value {"'?'"}.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Localization (i18n):</strong>{' '}
-        Automatic language resolution from <code style={styles.codeSmStyle}>useLogto()</code>. The label 'Logged in as' translated without a manual translation prop.
+        Automatic language resolution from <code style={styles.codeSmStyle}>useLogto()</code>. The label {"'Logged in as'"} translated without a manual translation prop.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Image fallback:</strong>{' '}

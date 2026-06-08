@@ -122,7 +122,7 @@ export default function PreRequisites() {
               <td style={customTdStyle}>MPL-2.0 (Free)</td>
             </tr>
             <tr>
-              <td style={customTdPropStyle}>"Bring Your UI" ZIP Upload</td>
+              <td style={customTdPropStyle}>&quot;Bring Your UI&quot; ZIP Upload</td>
               <td style={customTdStyle}>❌ Stripped from Console</td>
               <td style={customTdStyle}>Available (Cloud Managed)</td>
               <td style={customTdStyle}><strong>Available (In-Process AdmZip)</strong></td>
@@ -351,7 +351,7 @@ networks:
 }`} />
       
       <p style={styles.textStyle}>
-        Applying this custom stylesheet is functionally identical to toggling the paid "Remove branding" feature inside Logto.
+        Applying this custom stylesheet is functionally identical to toggling the paid &quot;Remove branding&quot; feature inside Logto.
       </p>
 
       <div style={{ ...styles.noteStyle, marginTop: '24px' }}>

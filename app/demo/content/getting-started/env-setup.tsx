@@ -105,7 +105,7 @@ export default function EnvSetup() {
           <tr>
             <td style={customTdPathStyle}>BASE_URL</td>
             <td style={customTdStyle}>
-              Your application's root URL (e.g., <code style={styles.codeSmStyle}>http://localhost:3000</code>). Used to validate redirect URIs.
+              Your application&apos;s root URL (e.g., <code style={styles.codeSmStyle}>http://localhost:3000</code>). Used to validate redirect URIs.
             </td>
           </tr>
           <tr>
@@ -130,7 +130,7 @@ export default function EnvSetup() {
           <tr>
             <td style={customTdPathStyle}>LOGTO_M2M_RESOURCE</td>
             <td style={customTdStyle}>
-              Audience resource indicator for the Machine-to-Machine client credentials grant. Defaults to 'https://default.logto.app/api' for Logto OSS.
+              Audience resource indicator for the Machine-to-Machine client credentials grant. Defaults to &apos;https://default.logto.app/api&apos; for Logto OSS.
             </td>
           </tr>
           <tr>

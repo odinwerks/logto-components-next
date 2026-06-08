@@ -98,7 +98,7 @@ export default function CalculatorRbacDesignDoc() {
       </p>
       <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>
-          <strong>Token Scope Update:</strong> The active token scope changes to reflect the selected organization's context, including corresponding organizational roles and permissions.
+          <strong>Token Scope Update:</strong> The active token scope changes to reflect the selected organization&apos;s context, including corresponding organizational roles and permissions.
         </li>
         <li>
           <strong>Frontend Adaptability:</strong> The client detects the change in active organization permissions and restricts or enables calculator buttons dynamically.

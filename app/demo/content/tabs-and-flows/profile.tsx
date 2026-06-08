@@ -87,7 +87,7 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>mode</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>'dark' | 'light'</code></td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>{"'dark' | 'light'"}</code></td>
               <td style={customTdStyle}>Theme rendering mode (dark or light theme)</td>
             </tr>
             <tr>
@@ -238,7 +238,7 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
           <strong>Upload Hook Server Lifecycle:</strong>
         </p>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>1. Safe Envelope Transport:</span> The hook receives a raw File object and packs it in a FormData object using the key 'file'. It calls the uploadAvatar Server Action. Next.js enforces same-origin validation automatically. No access tokens or S3 keys are transmitted from the browser.
+          <span style={styles.strongNoteStyle}>1. Safe Envelope Transport:</span> The hook receives a raw File object and packs it in a FormData object using the key {"'file'"}. It calls the uploadAvatar Server Action. Next.js enforces same-origin validation automatically. No access tokens or S3 keys are transmitted from the browser.
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>2. Authorization and Rate Limiting:</span> The Server Action extracts and validates the session cookie to identify the user ID. It enforces a strict rate limit of up to 5 uploads per user per minute. Stale rate-limiting timestamps in memory are cleaned up every 5 minutes.
@@ -249,7 +249,7 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>4. Storage Backend Selection:</span>
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>If the PFP_BACKEND environment variable is set to 'logto', the server issues an authorized POST request directly to the Logto Management API endpoint (/api/my-account/avatar) to persist the avatar.</li>
+            <li>If the PFP_BACKEND environment variable is set to {"'logto'"}, the server issues an authorized POST request directly to the Logto Management API endpoint (/api/my-account/avatar) to persist the avatar.</li>
             <li>Otherwise, it defaults to S3-compatible storage. It uploads the buffer using the target path structure {"{userId}/you.{ext}"} to the bucket specified in S3_BUCKET_NAME.</li>
             <li>If SUPABASE_SERVICE_ROLE_KEY is defined, it routes requests via Supabase Storage REST API. Otherwise, it establishes a connection using the MinIO client to put the object.</li>
             <li>Upon successful S3 upload, the server executes a delete operation to clean up obsolete files of different image formats under the user folder, publishes a server audit event (avatar.upload), and appends a query string cache buster (?v=timestamp) to bypass aggressive browser caching.</li>
@@ -262,10 +262,10 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
         <div style={styles.noteStyle}>
           When a user has no avatar set or the image failing callback is triggered, the UserBadge displays fallback text computed via getInitials(userData):
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>If givenName and familyName exist, it extracts and capitalizes their first characters (e.g., "John Doe" becomes "JD").</li>
+            <li>If givenName and familyName exist, it extracts and capitalizes their first characters (e.g., &quot;John Doe&quot; becomes &quot;JD&quot;).</li>
             <li>If givenName and familyName are missing, but the name field is present, it splits the name by spaces and takes the first character of the first two words capitalized.</li>
             <li>If only a username exists, it capitalizes the first character of the username.</li>
-            <li>If none of those fields are available, it displays "?".</li>
+            <li>If none of those fields are available, it displays &quot;?&quot;.</li>
           </ul>
         </div>
       </div>
@@ -365,8 +365,8 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           <span style={styles.strongNoteStyle}>4. Custom Crop Viewport Masks:</span> The component paints the view using Canvas 2D composite operations:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
             <li>It fills the 512x512 canvas with a semi-transparent black layer (rgba(0, 0, 0, 0.6)).</li>
-            <li>Sets globalCompositeOperation to 'destination-out' and draws the shape mask, cutting out the inner window.</li>
-            <li>Reverts globalCompositeOperation to 'source-over', strokes a solid border (rgba(255, 255, 255, 0.7)), and draws dashed rule-of-thirds alignment lines.</li>
+            <li>Sets globalCompositeOperation to {"'destination-out'"} and draws the shape mask, cutting out the inner window.</li>
+            <li>Reverts globalCompositeOperation to {"'source-over'"}, strokes a solid border (rgba(255, 255, 255, 0.7)), and draws dashed rule-of-thirds alignment lines.</li>
             <li>Supported masks: Circle (arc at 256, 256 with radius 230), Square (rect at 26, 26 with size 460x460), or Rounded Square (roundRect at 26, 26 with corner radius 92).</li>
           </ul>
         </div>
@@ -399,7 +399,7 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           </ul>
           Component state includes:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>`modalKind`: Tracks the operation ('edit' to update or add, 'remove' to delete, or null).</li>
+            <li>`modalKind`: Tracks the operation ({"'edit'"} to update or add, {"'remove'"} to delete, or null).</li>
             <li>`newValue`: Stores the text input for the email address or phone number.</li>
             <li>`step`: Active modal step.</li>
             <li>`pwErr`: Captures and displays password challenge validation errors.</li>

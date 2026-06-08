@@ -134,7 +134,7 @@ docker compose up -d`} />
         <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The callback route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which handles both OAuth callback completion and sign-in initiation when callback params are absent.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client's <code style={styles.codeSmStyle}>LogtoProvider</code> context.
+        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 5-minute intervals to silently refresh authentication states.

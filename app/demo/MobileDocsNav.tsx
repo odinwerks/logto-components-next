@@ -36,6 +36,8 @@ export default function MobileDocsNav() {
     color: 'inherit',
     textAlign: 'inherit',
     background: 'none',
+    border: 'none',
+    outline: 'none',
   };
 
   const triggerStyle: React.CSSProperties = {
@@ -119,7 +121,6 @@ export default function MobileDocsNav() {
     alignItems: 'center',
     justifyContent: 'center', // Center align text horizontally
     padding: '0.95rem 1rem',
-    borderBottom: `1px solid ${colors.borderColor}50`,
     cursor: 'pointer',
     color: colors.textPrimary,
     transition: 'background 0.15s ease',
@@ -137,7 +138,6 @@ export default function MobileDocsNav() {
     alignItems: 'center',
     justifyContent: 'center', // Center align subtopics horizontally
     padding: '0.95rem 1rem',
-    borderBottom: `1px solid ${colors.borderColor}35`,
     cursor: 'pointer',
     fontSize: '0.95rem',
     fontFamily: 'inherit',

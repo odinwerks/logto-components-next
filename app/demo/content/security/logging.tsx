@@ -172,7 +172,7 @@ function getPinoLogger(): TypedLogger {
 }`}
       />
       <p style={styles.textStyle}>
-        When writing messages in "both" mode, unstructured calls are routed to console, formatted into structured models, and subsequently fed into Pino, whereas structured <code style={styles.codeStyle}>logEvent</code> calls print formatted prefixes to the console and pass raw objects directly to Pino.
+        When writing messages in &quot;both&quot; mode, unstructured calls are routed to console, formatted into structured models, and subsequently fed into Pino, whereas structured <code style={styles.codeStyle}>logEvent</code> calls print formatted prefixes to the console and pass raw objects directly to Pino.
       </p>
 
       <h2 id={slugify("Production Webhook Transport")} style={h2Style}>Production Webhook Transport</h2>

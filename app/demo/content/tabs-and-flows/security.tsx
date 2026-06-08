@@ -247,7 +247,7 @@ export default function SecuritySection() {
             <strong>Secret Generation:</strong> The client triggers <code>onGenerateTotpSecret</code>, instructing the server to query the Logto Management API. The server returns a secure base32-encoded cryptographic secret.
           </li>
           <li>
-            <strong>QR Code Construction:</strong> The client reads the <code>MFA_ISSUER</code> environment variable (defaulting to "Logto") to construct a standard Key URI format. This URI is rendered as a vector-based graphic via <code>QRCodeSVG</code> inside a 152px white canvas frame:
+            <strong>QR Code Construction:</strong> The client reads the <code>MFA_ISSUER</code> environment variable (defaulting to &quot;Logto&quot;) to construct a standard Key URI format. This URI is rendered as a vector-based graphic via <code>QRCodeSVG</code> inside a 152px white canvas frame:
             <br />
             <code>otpauth://totp/ISSUER:ACCOUNT?secret=SECRET&issuer=ISSUER</code>
           </li>
@@ -255,7 +255,7 @@ export default function SecuritySection() {
             <strong>Interval Verification:</strong> The user scans the QR code or copies the blurred cryptographic secret key (which is hidden for privacy until toggled), generating 6-digit verification codes at 30-second intervals on their authenticator device.
           </li>
           <li>
-            <strong>Atomic Activation:</strong> The user enters the code. If a TOTP factor already exists, the client calls <code>onReplaceTotpVerification</code>, leveraging Logto's atomic PUT endpoint. This atomic swap replaces the secret without a period where MFA is disabled, avoiding security vulnerabilities. If no factor exists, the client registers it using <code>onAddMfaVerification</code>.
+            <strong>Atomic Activation:</strong> The user enters the code. If a TOTP factor already exists, the client calls <code>onReplaceTotpVerification</code>, leveraging Logto&apos;s atomic PUT endpoint. This atomic swap replaces the secret without a period where MFA is disabled, avoiding security vulnerabilities. If no factor exists, the client registers it using <code>onAddMfaVerification</code>.
           </li>
         </ol>
 
@@ -294,7 +294,7 @@ if (r.ok) {
               <li>User completes the initial password check.</li>
               <li>The client calls <code>onRequestWebAuthnRegistration</code>, receiving a set of server-derived <code>PublicKeyCredentialCreationOptions</code> and a verification ID.</li>
               <li>The browser launches the native system prompt via <code>{"startRegistration({ optionsJSON: registrationOptions })"}</code>.</li>
-              <li>If the user cancels the prompt, the system catches the browser-level <code>NotAllowedError</code> or "not allowed" exception and dismisses the modal silently, preventing false-positive error toasts.</li>
+              <li>If the user cancels the prompt, the system catches the browser-level <code>NotAllowedError</code> or &quot;not allowed&quot; exception and dismisses the modal silently, preventing false-positive error toasts.</li>
             </ol>
           </li>
           <li>
@@ -342,20 +342,20 @@ try {
             <strong>Password Verification:</strong> The user completes the password challenge. The backend returns a <code>verificationRecordId</code> alongside a <code>verificationTimestamp</code>.
           </li>
           <li>
-            <strong>Expiration Guards:</strong> The server action <code>onDeleteAccount</code> verifies that the verification token is still valid. It checks the current time against the <code>verificationTimestamp</code> (mapping to Logto's internal <code>expiresAt</code> threshold) to confirm that the operation is executed within a secure, short-lived window.
+            <strong>Expiration Guards:</strong> The server action <code>onDeleteAccount</code> verifies that the verification token is still valid. It checks the current time against the <code>verificationTimestamp</code> (mapping to Logto&apos;s internal <code>expiresAt</code> threshold) to confirm that the operation is executed within a secure, short-lived window.
           </li>
           <li>
             <strong>customData Whitelisting and Merging:</strong>
             To defend against mass-assignment vulnerabilities where malicious payloads overwrite configuration parameters, the utility <code>pickPreferences()</code> validates and whitelists incoming <code>customData</code>:
             <ul style={{ margin: '8px 0 0 16px', paddingLeft: '10px' }}>
               <li><code>asOrg</code>: Whitelists active organization selections, validating values against a safe OIDC identifier regex.</li>
-              <li><code>theme</code>: Validates that values are strictly equal to "light" or "dark".</li>
+              <li><code>theme</code>: Validates that values are strictly equal to &quot;light&quot; or &quot;dark&quot;.</li>
               <li><code>lang</code>: Restricts language strings to standard format tags matching <code>{"/^[A-Za-z0-9_-]{1,16}$/"}</code>.</li>
             </ul>
-            During updates, the system uses <code>updateUserCustomData</code> with a locking mechanism (<code>customDataUpdateLocks</code> capped at 1000 records to prevent memory leaks) to perform a shallow merge under the <code>Preferences</code> key. This preserves other applications' top-level customData keys on the same Logto tenant.
+             During updates, the system uses <code>updateUserCustomData</code> with a locking mechanism (<code>customDataUpdateLocks</code> capped at 1000 records to prevent memory leaks) to perform a shallow merge under the <code>Preferences</code> key. This preserves other applications&apos; top-level customData keys on the same Logto tenant.
           </li>
           <li>
-            <strong>Session Redirection:</strong> After successfully deleting the account, the dashboard avoids Next.js router loops or stale state bugs by executing a full-page redirection via <code>window.location.href = '/'</code> (instead of <code>router.push</code>) after a configurable cooldown period (read from the <code>DELETE_REDIRECT_DELAY</code> environment variable, falling back to 3000ms). This cleanly purges browser memory and terminates active sessions.
+            <strong>Session Redirection:</strong> After successfully deleting the account, the dashboard avoids Next.js router loops or stale state bugs by executing a full-page redirection via <code>window.location.href = &apos;/&apos;</code> (instead of <code>router.push</code>) after a configurable cooldown period (read from the <code>DELETE_REDIRECT_DELAY</code> environment variable, falling back to 3000ms). This cleanly purges browser memory and terminates active sessions.
           </li>
         </ol>
 

@@ -40,7 +40,7 @@ export default function CalculatorLiveDemoDoc() {
           <strong>Switch Organization:</strong> Use the workspace selector in the sidebar to change your active organization context.
         </li>
         <li>
-          <strong>Observe Role and Scope Mapping:</strong> Switching the organization changes your current user's role and permission mapping in Logto.
+          <strong>Observe Role and Scope Mapping:</strong> Switching the organization changes your current user&apos;s role and permission mapping in Logto.
         </li>
         <li>
           <strong>Observe Interface Changes:</strong> The client application detects scope changes, dynamically enabling or disabling buttons on the calculator keypad in real time.

@@ -1,11 +1,10 @@
 'use client';
 
-import React from 'react';
+import type { ReactNode } from 'react';
 import { useIsPortrait } from '../../../logto-kit';
 import { UserButton, UserBadge, UserCard } from '../../../logto-kit/components/UserButton';
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
-import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
 
 interface ExampleCardProps {
   label: string;
@@ -13,7 +12,7 @@ interface ExampleCardProps {
   code: string;
   note?: string;
   isMobile: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function ExampleCard({ label, subLabel, code, note, isMobile, children }: ExampleCardProps) {
@@ -65,9 +64,6 @@ function ExampleCard({ label, subLabel, code, note, isMobile, children }: Exampl
 }
 
 export default function UserButtonExamples() {
-  const styles = useDocStyles();
-  const { mode } = useThemeMode();
-  const isDark = mode === 'dark';
   const isMobile = useIsPortrait();
 
   return (

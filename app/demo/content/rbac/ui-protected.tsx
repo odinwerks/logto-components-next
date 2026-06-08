@@ -129,13 +129,13 @@ export default function UiProtectedDoc() {
             <td style={customTdPropStyle}>perm</td>
             <td style={customTdTypeStyle}>string | string[]</td>
             <td style={customTdStyle}>-</td>
-            <td style={customTdStyle}>Required permission keys to render children. Bypassed in Self Mode (<code style={styles.codeStyle}>orgId="self"</code>), but checked alongside roles in Organization Mode. If omitted in organization mode, only organization membership is verified.</td>
+            <td style={customTdStyle}>Required permission keys to render children. Bypassed in Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>), but checked alongside roles in Organization Mode. If omitted in organization mode, only organization membership is verified.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>roleId</td>
             <td style={customTdTypeStyle}>string | string[]</td>
             <td style={customTdStyle}>-</td>
-            <td style={customTdStyle}>Required role IDs to render children. Used in Self Mode (<code style={styles.codeStyle}>orgId="self"</code>) as the exclusive gating boundary, and in Organization Mode as an additional check alongside permissions.</td>
+            <td style={customTdStyle}>Required role IDs to render children. Used in Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>) as the exclusive gating boundary, and in Organization Mode as an additional check alongside permissions.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>requireAll</td>
@@ -147,7 +147,7 @@ export default function UiProtectedDoc() {
             <td style={customTdPropStyle}>orgId</td>
             <td style={customTdTypeStyle}>string | null</td>
             <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Targets the scope of RBAC checks. Set to <code style={styles.codeStyle}>"self"</code> for user-level (personal) RBAC, which loads personal roles and gates strictly on <code style={styles.codeStyle}>roleId</code>, completely bypassing permission checks. Set to an organization ID for organization-scoped RBAC, which strictly matches the target ID against <code style={styles.codeStyle}>asOrg</code> (breaking immediately on mismatch) and checks BOTH roles and permissions. If omitted, no organization checks are performed, and any permission check (<code style={styles.codeStyle}>perm</code>) will fail-closed (default-deny).</td>
+            <td style={customTdStyle}>Targets the scope of RBAC checks. Set to <code style={styles.codeStyle}>&quot;self&quot;</code> for user-level (personal) RBAC, which loads personal roles and gates strictly on <code style={styles.codeStyle}>roleId</code>, completely bypassing permission checks. Set to an organization ID for organization-scoped RBAC, which strictly matches the target ID against <code style={styles.codeStyle}>asOrg</code> (breaking immediately on mismatch) and checks BOTH roles and permissions. If omitted, no organization checks are performed, and any permission check (<code style={styles.codeStyle}>perm</code>) will fail-closed (default-deny).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>orgName</td>
@@ -171,7 +171,7 @@ export default function UiProtectedDoc() {
         The permission resolution process runs client-side inside a single React hook effect, switching between two distinct execution modes:
       </p>
       <p style={styles.textStyle}>
-        1. **Self Mode (<code style={styles.codeStyle}>orgId="self"</code>)**:
+        1. **Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>)**:
         Shifts the component to user RBAC (personal/global scope). In this mode, the component fetches personal roles using <code style={styles.codeStyle}>loadPersonalRoles()</code> and gates strictly on required roles (<code style={styles.codeStyle}>roleId</code>), completely bypassing permission checks.
       </p>
       <p style={styles.textStyle}>
@@ -185,7 +185,7 @@ export default function UiProtectedDoc() {
         4. **Organization Matching**: If <code style={styles.codeStyle}>orgName</code> is provided, it resolves the corresponding ID from the user organization list. It verifies that the active organization (asOrg) matches the target organization.
       </p>
       <p style={styles.textStyle}>
-        5. **Permission Fetching**: It fetches active organization permission keys via a client-side effect. For organization scopes, it uses <code style={styles.codeStyle}>loadOrganizationPermissions(orgId)</code>. For personal scopes (orgId="self"), it uses <code style={styles.codeStyle}>loadPersonalPermissions()</code>.
+        5. **Permission Fetching**: It fetches active organization permission keys via a client-side effect. For organization scopes, it uses <code style={styles.codeStyle}>loadOrganizationPermissions(orgId)</code>. For personal scopes (orgId=&quot;self&quot;), it uses <code style={styles.codeStyle}>loadPersonalPermissions()</code>.
       </p>
       <p style={styles.textStyle}>
         6. **Array Searching**: Once retrieved, permission keys are stored in client-side state. The component performs array search checks (using <code style={styles.codeStyle}>includes</code>, <code style={styles.codeStyle}>every</code>, or <code style={styles.codeStyle}>some</code>) to match required permissions against active scopes.

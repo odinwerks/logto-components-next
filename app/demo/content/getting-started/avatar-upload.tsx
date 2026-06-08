@@ -43,7 +43,7 @@ export default function AvatarUpload() {
       <h3 id={slugify("Option A: Supabase Storage REST API (Recommended)")} style={h3Style}>Option A: Supabase Storage REST API (Recommended)</h3>
       
       <p style={styles.textStyle}>
-        This is the simplest option. It uses Supabase's direct REST API, bypassing standard S3 SDK overhead.
+        This is the simplest option. It uses Supabase&apos;s direct REST API, bypassing standard S3 SDK overhead.
         You must create a public bucket named <code style={styles.codeSmStyle}>avatars</code> in your Supabase project.
       </p>
       

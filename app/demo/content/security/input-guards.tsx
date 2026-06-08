@@ -88,10 +88,10 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
         <li>
-          <code style={styles.codeStyle}>assertRevokeGrantsTarget(value)</code>: Rejects any input that does not match "all" or "firstParty".
+          <code style={styles.codeStyle}>assertRevokeGrantsTarget(value)</code>: Rejects any input that does not match &quot;all&quot; or &quot;firstParty&quot;.
         </li>
         <li>
-          <code style={styles.codeStyle}>assertMfaType(value)</code>: Restricts inputs to valid Multi-Factor Authentication types: "Totp", "WebAuthn", or "BackupCode".
+          <code style={styles.codeStyle}>assertMfaType(value)</code>: Restricts inputs to valid Multi-Factor Authentication types: &quot;Totp&quot;, &quot;WebAuthn&quot;, or &quot;BackupCode&quot;.
         </li>
       </ul>
 

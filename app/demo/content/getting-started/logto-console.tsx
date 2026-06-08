@@ -65,7 +65,7 @@ export default function LogtoConsole() {
           <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
             <strong style={styles.strongNoteStyle}>Required Toggle</strong>
             <br />
-            Enable <strong>"Account API"</strong> in the application settings. This is crucial for enabling the user dashboard to modify user profiles or password credentials directly.
+            Enable <strong>&quot;Account API&quot;</strong> in the application settings. This is crucial for enabling the user dashboard to modify user profiles or password credentials directly.
           </div>
         </div>
 
