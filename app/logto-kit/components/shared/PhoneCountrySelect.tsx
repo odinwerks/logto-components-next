@@ -344,7 +344,6 @@ export function PhoneCountrySelect({
                 aria-label="Search countries"
                 aria-autocomplete="list"
                 aria-controls={listboxId}
-                aria-expanded={isOpen}
                 aria-activedescendant={activeOptionId}
               />
             </div>
