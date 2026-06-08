@@ -9,14 +9,14 @@ vi.mock('next/navigation', () => ({
   redirect: (url: string) => {
     mockRedirect(url);
     const err = new Error('NEXT_REDIRECT');
-    (err as any).digest = `NEXT_REDIRECT;${url}`;
+    (err as { digest?: string }).digest = `NEXT_REDIRECT;${url}`;
     throw err;
   },
 }));
 
 const mockGetLogtoContext = vi.fn();
 vi.mock('@logto/next/server-actions', () => ({
-  getLogtoContext: (...args: any[]) => mockGetLogtoContext(...args),
+  getLogtoContext: (...args: unknown[]) => mockGetLogtoContext(...args),
 }));
 
 vi.mock('../../config', () => ({

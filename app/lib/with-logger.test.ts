@@ -56,7 +56,7 @@ describe('with-logger', () => {
       .filter(Boolean);
 
     const requestLogs = parsedLines.filter(
-      (p: any) => p.event === 'API_REQUEST'
+      (p: Record<string, unknown>) => p.event === 'API_REQUEST'
     );
     expect(requestLogs.length).toBeGreaterThanOrEqual(1);
 
@@ -92,7 +92,7 @@ describe('with-logger', () => {
       .filter(Boolean);
 
     const errorLogs = parsedLines.filter(
-      (p: any) => p.event === 'API_ERROR'
+      (p: Record<string, unknown>) => p.event === 'API_ERROR'
     );
     expect(errorLogs.length).toBeGreaterThanOrEqual(1);
   });
@@ -128,10 +128,10 @@ describe('with-logger', () => {
 
     // Find a log that has duration
     const logWithDuration = parsedLines.find(
-      (p: any) => typeof p.duration === 'number'
+      (p: Record<string, unknown>) => typeof p.duration === 'number'
     );
     expect(logWithDuration).toBeDefined();
-    expect((logWithDuration as any).duration).toBeGreaterThan(0);
+    expect((logWithDuration as Record<string, unknown>).duration).toBeGreaterThan(0);
   });
 
   it('attaches request ID to child logger used by handler', async () => {
@@ -140,7 +140,7 @@ describe('with-logger', () => {
 
     // Handler that uses the injected logger
     const handler = vi.fn().mockImplementation(async (_req: NextRequest, logger: ReturnType<typeof createLogger>) => {
-      logger.info('TEST_EVENT' as any, 'Handler log message');
+      logger.info('TEST_EVENT' as unknown as never, 'Handler log message');
       return NextResponse.json({ ok: true }, { status: 200 });
     });
 
@@ -166,9 +166,9 @@ describe('with-logger', () => {
       .filter(Boolean);
 
     const handlerLog = parsedLines.find(
-      (p: any) => p.msg === 'Handler log message'
+      (p: Record<string, unknown>) => p.msg === 'Handler log message'
     );
     expect(handlerLog).toBeDefined();
-    expect((handlerLog as any).requestId).toBeDefined();
+    expect((handlerLog as Record<string, unknown>).requestId).toBeDefined();
   });
 });

@@ -132,7 +132,7 @@ describe('updateUserCustomData', () => {
     vi.mocked(getLogtoContext).mockResolvedValue({
       claims: { sub: 'user-test-123' },
       isAuthenticated: true,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
   });
 
   it('issues a GET then a PATCH to the Management API custom-data endpoint', async () => {
@@ -386,7 +386,7 @@ describe('updateUserCustomData', () => {
     vi.mocked(getLogtoContext).mockResolvedValueOnce({
       claims: { sub: 'user-test-123' },
       isAuthenticated: false,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     vi.stubGlobal('fetch', vi.fn());
 
@@ -404,7 +404,7 @@ describe('updateUserCustomData', () => {
     vi.mocked(getLogtoContext).mockResolvedValueOnce({
       claims: {},
       isAuthenticated: true,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     vi.stubGlobal('fetch', vi.fn());
 
@@ -472,8 +472,8 @@ describe('updateUserCustomData', () => {
 
     let secondCallStarted = false;
     vi.mocked(getLogtoContext)
-      .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as any)
-      .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as any);
+      .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>)
+      .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     vi.stubGlobal('fetch', vi.fn()
       // user-A GET - blocks
@@ -514,7 +514,7 @@ describe('updateUserCustomData', () => {
 
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
-    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as any);
+    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     const { updateUserCustomData } = await import('./profile');
 
@@ -571,7 +571,7 @@ describe('updateUserCustomData', () => {
   it('serializes multiple rapid updates from the same user in sequence, ensuring all succeed', async () => {
     vi.resetModules();
 
-    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as any);
+    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
 
@@ -635,7 +635,7 @@ describe('updateUserCustomData', () => {
       return {
         claims: { sub },
         isAuthenticated: true,
-      } as any;
+      } as unknown as Awaited<ReturnType<typeof getLogtoContext>>;
     });
 
     const activeGets = new Map<string, number>();

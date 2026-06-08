@@ -99,8 +99,8 @@ describe('logger', () => {
         .filter((l) => l.trim())
         .map((l) => JSON.parse(l));
 
-      const debugLines = parsedLines.filter((p: any) => p.level === 'debug');
-      const warnLines = parsedLines.filter((p: any) => p.level === 'warn');
+      const debugLines = parsedLines.filter((p: Record<string, unknown>) => p.level === 'debug');
+      const warnLines = parsedLines.filter((p: Record<string, unknown>) => p.level === 'warn');
 
       expect(debugLines.length).toBe(0);
       expect(warnLines.length).toBeGreaterThanOrEqual(1);

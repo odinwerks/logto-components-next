@@ -57,9 +57,9 @@ describe('assertSafeUserId', () => {
   });
 
   it('rejects non-string types', () => {
-    expect(() => assertSafeUserId(null as any)).toThrow(ValidationError);
-    expect(() => assertSafeUserId(undefined as any)).toThrow(ValidationError);
-    expect(() => assertSafeUserId(123 as any)).toThrow(ValidationError);
+    expect(() => assertSafeUserId(null as unknown as string)).toThrow(ValidationError);
+    expect(() => assertSafeUserId(undefined as unknown as string)).toThrow(ValidationError);
+    expect(() => assertSafeUserId(123 as unknown as string)).toThrow(ValidationError);
   });
 });
 
@@ -150,8 +150,8 @@ describe('decodeLogtoAccessToken', () => {
   });
 
   it('throws ValidationError for non-string input', () => {
-    expect(() => decodeLogtoAccessToken(null as any)).toThrow(ValidationError);
-    expect(() => decodeLogtoAccessToken('' as any)).toThrow(ValidationError);
+    expect(() => decodeLogtoAccessToken(null as unknown as string)).toThrow(ValidationError);
+    expect(() => decodeLogtoAccessToken('' as unknown as string)).toThrow(ValidationError);
   });
 
   it('throws ValidationError for a malformed token', () => {
@@ -305,10 +305,11 @@ describe('assertUsername', () => {
     try {
       assertUsername('ab');
       expect.fail('Should have thrown ValidationError');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(ValidationError);
-      expect(e.message).toBe('FIELD_TOO_SHORT');
-      expect(e.field).toBe('username');
+    } catch (e: unknown) {
+      const err = e as ValidationError;
+      expect(err).toBeInstanceOf(ValidationError);
+      expect(err.message).toBe('FIELD_TOO_SHORT');
+      expect(err.field).toBe('username');
     }
   });
 
@@ -316,10 +317,11 @@ describe('assertUsername', () => {
     try {
       assertUsername('a'.repeat(33));
       expect.fail('Should have thrown ValidationError');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(ValidationError);
-      expect(e.message).toBe('FIELD_TOO_LONG');
-      expect(e.field).toBe('username');
+    } catch (e: unknown) {
+      const err = e as ValidationError;
+      expect(err).toBeInstanceOf(ValidationError);
+      expect(err.message).toBe('FIELD_TOO_LONG');
+      expect(err.field).toBe('username');
     }
   });
 
