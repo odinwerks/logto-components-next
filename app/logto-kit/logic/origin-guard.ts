@@ -12,10 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { warn } from './log';
 
-export function checkSameOrigin(
-  request: NextRequest,
-  extraOrigins?: string[]
-): NextResponse | null {
+export function checkSameOrigin(request: NextRequest): NextResponse | null {
   const baseUrl = process.env.BASE_URL || process.env.APP_URL;
   if (!baseUrl) {
     warn('[origin-guard] BASE_URL is not configured, rejecting request');
@@ -54,25 +51,8 @@ export function checkSameOrigin(
   }
 
   if (requestOrigin !== expectedOrigin) {
-    // Also allow any additionally configured origins (e.g. Logto ENDPOINT)
-    const allowed = extraOrigins ?? [];
-    if (!allowed.some((o) => requestOrigin === safelyParseOrigin(o))) {
-      return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
-    }
+    return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
   }
 
-  return null; // same-origin (or allowed extra origin) - allow
-}
-
-/**
- * Safely extract the origin from a URL string.
- * Returns undefined for malformed / non-absolute URLs
- * so callers can silently skip them.
- */
-function safelyParseOrigin(raw: string): string | undefined {
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return undefined;
-  }
+  return null; // same-origin - allow
 }
