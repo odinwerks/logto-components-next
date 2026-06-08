@@ -6,8 +6,14 @@ const useHydrationSafeLayoutEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export function useIsPortrait(): boolean {
-  const [portrait, setPortrait] = useState(false);
-  const [narrow, setNarrow] = useState(false);
+  const [portrait, setPortrait] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(orientation: portrait)').matches;
+  });
+  const [narrow, setNarrow] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 64rem)').matches;
+  });
 
   useHydrationSafeLayoutEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {

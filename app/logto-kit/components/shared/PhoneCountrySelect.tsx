@@ -340,7 +340,7 @@ export function PhoneCountrySelect({
                 placeholder="Search..."
                 style={searchInputStyle}
                 onKeyDown={handleSearchKeyDown}
-                role="combobox"
+                role="searchbox"
                 aria-label="Search countries"
                 aria-autocomplete="list"
                 aria-controls={listboxId}

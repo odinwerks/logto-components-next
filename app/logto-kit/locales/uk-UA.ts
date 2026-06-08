@@ -260,6 +260,8 @@ export const ukUA: Translations = {
     noOrgPermissions: 'Немає дозволів в організаціях',
     refreshOrgPermissions: 'Оновити дозволи в організаціях',
     refreshOrgRoles: 'Оновити ролі в організаціях',
+    switchFailed: 'Не вдалося переключити організацію. Спробуйте ще раз.',
+    clearOrgFailed: 'Не вдалося перейти в особистий режим. Спробуйте ще раз.',
   },
   
   // MFA tab

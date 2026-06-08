@@ -4,6 +4,7 @@ import { UAParser } from 'ua-parser-js';
 import type { LogtoSession, SessionMeta } from '../types';
 import { introspectToken } from '../utils';
 import { debugLog } from '../debug';
+import { warn } from '../log';
 import { assertSafeLogtoId, assertRevokeGrantsTarget } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
@@ -91,7 +92,8 @@ export async function getSessionsWithDeviceMeta(
       const token = await getTokenForServerAction();
       const introspection = await introspectToken(token);
       userId = introspection.sub || '';
-    } catch {
+    } catch (err) {
+      warn('[getSessionsWithDeviceMeta] Introspection failed, using empty userId:', err instanceof Error ? err.message : String(err));
       // Introspection failed; use empty userId as fallback
     }
 
@@ -219,7 +221,8 @@ export async function revokeAllOtherSessions(
     // Revoke sessions sequentially with a small delay to avoid hitting
     // Logto API rate limits (429) when many sessions are revoked at once.
     const results: PromiseSettledResult<void>[] = [];
-    for (const s of othersToRevoke) {
+    for (let i = 0; i < othersToRevoke.length; i++) {
+      const s = othersToRevoke[i];
       const result = await Promise.race([
         revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty')  // uid, not jti
           .then(r => { if (!r.ok) throw new Error(r.error); })
@@ -231,7 +234,7 @@ export async function revokeAllOtherSessions(
       ]);
       results.push(result);
       // Small delay between revocations to avoid rate limiting
-      if (othersToRevoke.indexOf(s) < othersToRevoke.length - 1) {
+      if (i < othersToRevoke.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }

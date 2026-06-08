@@ -10,8 +10,8 @@
 export function captureMessage(err: unknown): string {
   if (err instanceof Error) {
     const base = err.message || String(err);
-    const digest = (err as Error & { digest?: string }).digest;
-    return digest && digest !== base ? `${base}\ndigest: ${digest}` : base;
+    // Never leak Next.js internal digest hash to client responses.
+    return base;
   }
   if (typeof err === 'string') return err;
   if (err && typeof err === 'object' && 'message' in err) {

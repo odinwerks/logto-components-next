@@ -41,7 +41,7 @@ export const DARK_COLORS: ThemeColors = {
   bgTertiary: '#171c2a',
   textPrimary: '#f3f4f6',
   textSecondary: '#9ca3af',
-  textTertiary: '#656a73',
+  textTertiary: '#90959e',
   borderColor: '#2a2d32',
   accentGreen: '#059669',
   accentRed: '#dc2626',

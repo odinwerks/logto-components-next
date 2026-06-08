@@ -147,7 +147,7 @@ describe('PhoneCountrySelect', () => {
     const trigger = screen.getByRole('combobox');
     fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' });
 
-    const searchInput = screen.getByRole('combobox', { name: /search countries/i });
+    const searchInput = screen.getByRole('searchbox', { name: /search countries/i });
     expect(searchInput).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.keyDown(searchInput, { key: 'ArrowDown', code: 'ArrowDown' });
@@ -165,7 +165,7 @@ describe('PhoneCountrySelect', () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: 'Enter', code: 'Enter' });
 
-    const searchInput = screen.getByRole('combobox', { name: /search countries/i });
+    const searchInput = screen.getByRole('searchbox', { name: /search countries/i });
     fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();

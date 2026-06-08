@@ -8,7 +8,6 @@ import type { UserData } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { CodeBlock } from '../shared/CodeBlock';
 import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { setActiveOrg } from '../../../custom-logic/set-active-org';
@@ -485,7 +484,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
     try {
       const isValid = await setActiveOrg(orgId);
       if (!isValid) {
-        setErrorMsg('You are not a member of this organization.');
+        setErrorMsg(t.organizations.noOrganizations);
         return;
       }
       startTransition(() => {
@@ -494,7 +493,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
       });
     } catch (err) {
       console.error('[OrganizationsTab] Failed to switch organization:', err);
-      setErrorMsg('Failed to switch organization. Please try again.');
+      setErrorMsg(t.organizations.switchFailed || 'Failed to switch organization. Please try again.');
     } finally {
       setIsLoading(null);
       switchingRef.current = false;
@@ -509,7 +508,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
     try {
       const isCleared = await setActiveOrg(null);
       if (!isCleared) {
-        setErrorMsg('Failed to switch to personal mode. Please try again.');
+        setErrorMsg(t.organizations.clearOrgFailed || 'Failed to switch to personal mode. Please try again.');
         return;
       }
 
@@ -519,7 +518,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
       });
     } catch (err) {
       console.error('[OrganizationsTab] Failed to clear organization:', err);
-      setErrorMsg('Failed to switch to personal mode. Please try again.');
+      setErrorMsg(t.organizations.clearOrgFailed || 'Failed to switch to personal mode. Please try again.');
     } finally {
       setIsLoading(null);
       switchingRef.current = false;

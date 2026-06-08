@@ -40,8 +40,8 @@ export default function ErrorPage({
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0d1117',
-      color: '#f87171',
+      background: 'var(--ldd-bg-primary)',
+      color: 'var(--ldd-accent-red)',
       fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
       display: 'flex',
       alignItems: 'center',
@@ -52,13 +52,13 @@ export default function ErrorPage({
         maxWidth: '36rem',
         width: '100%',
         padding: '1.5rem',
-        border: '1px solid #f87171',
+        border: '1px solid var(--ldd-accent-red)',
         borderRadius: '0.25rem',
-        background: '#f871710f',
+        background: 'var(--ldd-error-bg)',
       }}>
         <div style={{
           fontSize: '0.7rem',
-          color: '#f87171aa',
+          color: 'var(--ldd-text-tertiary)',
           marginBottom: '0.75rem',
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
@@ -72,7 +72,7 @@ export default function ErrorPage({
           lineHeight: 1.6,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          color: '#fca5a5',
+          color: 'var(--ldd-text-primary)',
           fontFamily: 'inherit',
         }}>
           {msg}
@@ -86,9 +86,9 @@ export default function ErrorPage({
           <button
             onClick={copy}
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid #f87171',
-              color: copied ? '#4ade80' : '#f87171',
+              background: 'var(--ldd-bg-tertiary)',
+              border: '1px solid var(--ldd-accent-red)',
+              color: copied ? 'var(--ldd-accent-green)' : 'var(--ldd-accent-red)',
               cursor: 'pointer',
               fontSize: '0.75rem',
               padding: '0.375rem 0.875rem',
@@ -103,9 +103,9 @@ export default function ErrorPage({
           <button
             onClick={reset}
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid #f87171',
-              color: '#f87171',
+              background: 'var(--ldd-bg-tertiary)',
+              border: '1px solid var(--ldd-accent-red)',
+              color: 'var(--ldd-accent-red)',
               cursor: 'pointer',
               fontSize: '0.75rem',
               padding: '0.375rem 0.875rem',

@@ -162,8 +162,8 @@ export function Protected({
     }
 
     // Organization scope
-    if (orgId && orgId !== 'self') {
-      if (asOrg !== orgId) {
+    if (targetOrgId && targetOrgId !== 'self') {
+      if (asOrg !== targetOrgId) {
         setLoadedPerms([]);
         setLoadedRoles([]);
         setIsLoadingPerms(false);

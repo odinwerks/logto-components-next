@@ -128,13 +128,6 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode }: Identities
     marginBottom: '1.625rem',
   };
 
-  const wellStyle: React.CSSProperties = {
-    background: c.bgSecondary,
-    border: `1px solid ${c.borderColor}`,
-    padding: '1rem 1.25rem',
-    marginBottom: '1rem',
-  };
-
   const cardStyle: React.CSSProperties = {
     background: c.bgSecondary,
     border: `1px solid ${c.borderColor}`,

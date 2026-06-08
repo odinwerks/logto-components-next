@@ -96,6 +96,7 @@ export async function MobileDashboard() {
           }}
           currentOrgId={resolvedOrg ?? undefined}
           userShape={(process.env.NEXT_PUBLIC_USER_SHAPE as 'circle' | 'sq' | 'rsq') ?? 'circle'}
+          nameType={process.env.NEXT_PUBLIC_NAME_TYPE}
           translations={translations}
           allTranslations={allTranslations}
           supportedLangs={supportedLangs}

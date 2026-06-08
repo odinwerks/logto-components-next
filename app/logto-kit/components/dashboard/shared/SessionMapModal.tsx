@@ -154,7 +154,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
         style={{
           width: '100%',
           maxWidth: '26rem',
-          background: isDark ? '#0e0e14' : '#ffffff',
+          background: c.bgSecondary,
           border: `1px solid ${c.borderColor}`,
           borderRadius: '0',
           boxShadow: isDark

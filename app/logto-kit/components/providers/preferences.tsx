@@ -182,20 +182,22 @@ export function PreferencesProvider({
     [theme]
   );
 
-  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light') => {
-    if (!onUpdateCustomData) return;
+  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light'): Promise<boolean> => {
+    if (!onUpdateCustomData) return true;
     const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: langRef.current, asOrg: asOrgRef.current } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist theme:', r.error);
     }
+    return r.ok;
   }, [onUpdateCustomData]);
 
-  const persistLangToApi = useCallback(async (newLang: string) => {
-    if (!onUpdateCustomData) return;
+  const persistLangToApi = useCallback(async (newLang: string): Promise<boolean> => {
+    if (!onUpdateCustomData) return true;
     const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist lang:', r.error);
     }
+    return r.ok;
   }, [onUpdateCustomData]);
 
   const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
@@ -208,9 +210,16 @@ export function PreferencesProvider({
   }, [onUpdateCustomData]);
 
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
+    const prev = themeRef.current;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    persistThemeToApi(newTheme);
+    persistThemeToApi(newTheme).then((ok) => {
+      if (!ok) {
+        // Revert to previous on API failure
+        setStoredTheme(prev);
+        setThemeState(prev);
+      }
+    });
     window.dispatchEvent(new Event('theme-changed'));
   }, [persistThemeToApi]);
 
@@ -220,9 +229,16 @@ export function PreferencesProvider({
   }, [theme, setMode]);
 
   const setLang = useCallback((newLang: string) => {
+    const prev = langRef.current;
     setStoredLang(newLang);
     setLangState(newLang);
-    persistLangToApi(newLang);
+    persistLangToApi(newLang).then((ok) => {
+      if (!ok) {
+        // Revert to previous on API failure
+        setStoredLang(prev);
+        setLangState(prev);
+      }
+    });
     window.dispatchEvent(new Event('preferences-changed'));
     onLangChange?.();
   }, [persistLangToApi, onLangChange]);

@@ -102,7 +102,6 @@ function ThemeSVG({ mode, tall }: { mode: 'light' | 'dark'; tall?: boolean }) {
     );
   }
 
-  const h = 100;
   const tabYs = [16, 22, 28, 34, 40];
 
   return (

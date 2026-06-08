@@ -7,7 +7,7 @@ import { formatPhone } from '../../../logic/formatting';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import type { ModalStep } from './FlowModal';
 import { FlowModal } from './FlowModal';
-import { Plus, Mail, Phone as PhoneIcon, LucideIcon, Pencil } from 'lucide-react';
+import { Plus, LucideIcon, Pencil } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
 import { Lbl, SL, Card, HR, IconBox } from './primitives';

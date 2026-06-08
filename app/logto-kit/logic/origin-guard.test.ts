@@ -116,3 +116,98 @@ describe('checkSameOrigin', () => {
     expect(res?.status).toBe(403);
   });
 });
+
+// ── Extra origins (optional second parameter) ─────────────────────────────
+describe('checkSameOrigin with extraOrigins', () => {
+  it('returns null (allows) when origin matches an extra origin but not BASE_URL', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://auth.logto.app' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).toBeNull();
+  });
+
+  it('returns 403 when origin matches neither BASE_URL nor any extra origin', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://evil.com' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
+  });
+
+  it('returns null (allows) when origin matches BASE_URL (extra origins irrelevant)', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3000' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).toBeNull();
+  });
+
+  it('returns null (allows) when origin matches any of multiple extra origins', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://other.logto.app' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app', 'https://other.logto.app']);
+    expect(res).toBeNull();
+  });
+
+  it('returns 403 when Origin header is missing even with extra origins', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', { method: 'POST' });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
+  });
+
+  it('returns 403 for null-origin header even with extra origins', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'null' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(403);
+  });
+
+  it('still works normally (backward-compat) when extraOrigins is not provided', () => {
+    // Existing callers pass only one arg — must still work
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/wipe', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3000' },
+    });
+    const res = checkSameOrigin(req);
+    expect(res).toBeNull();
+  });
+
+  it('returns null (allows) for ENDPOINT origin when BASE_URL is remote', () => {
+    process.env.BASE_URL = 'https://beta.example.org';
+    const req = new NextRequest('http://beta.example.org/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://auth.logto.app' },
+    });
+    const res = checkSameOrigin(req, ['https://auth.logto.app']);
+    expect(res).toBeNull();
+  });
+
+  it('returns 403 when extraOrigins contains malformed URLs then falls back to valid ones', () => {
+    process.env.BASE_URL = 'http://localhost:3000';
+    const req = new NextRequest('http://localhost:3000/api/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://auth.logto.app' },
+    });
+    // Extra origins with invalid URLs should be skipped (not crash)
+    const res = checkSameOrigin(req, ['not-a-valid-url', 'https://auth.logto.app']);
+    expect(res).toBeNull();
+  });
+});

@@ -17,6 +17,7 @@ export type InputProps = {
   hasError?: boolean;
   mode: 'dark' | 'light';
   colors: ThemeColors;
+  describedby?: string;
 };
 
 export function Input({
@@ -33,6 +34,7 @@ export function Input({
   hasError,
   mode,
   colors,
+  describedby,
 }: InputProps) {
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -62,6 +64,7 @@ export function Input({
       autoFocus={autoFocus}
       onKeyDown={onKeyDown}
       aria-invalid={hasError ? 'true' : undefined}
+      aria-describedby={describedby}
       disabled={disabled}
       maxLength={maxLength}
       style={{

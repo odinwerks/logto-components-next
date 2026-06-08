@@ -327,13 +327,14 @@ export function assertHttpUrl(value: unknown, field: string): asserts value is s
   if (typeof value !== 'string' || value.length > MAX_URL_LEN) {
     throw new ValidationError('INVALID_URL', field);
   }
+  let parsed: URL;
   try {
-    const u = new URL(value);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-      throw new ValidationError('INVALID_URL_PROTOCOL', field);
-    }
+    parsed = new URL(value);
   } catch {
     throw new ValidationError('INVALID_URL', field);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError('INVALID_URL_PROTOCOL', field);
   }
 }
 

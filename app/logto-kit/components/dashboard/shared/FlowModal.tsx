@@ -157,6 +157,7 @@ export function PasswordVerifyModal({
   const [hidePwErrorWhileTyping, setHidePwErrorWhileTyping] = useState(false);
   const titleId = useId();
   const descriptionId = useId();
+  const pwdErrorId = useId();
   const dangerColor = c.accentRed;
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogA11y(dialogRef, onClose);
@@ -205,6 +206,7 @@ export function PasswordVerifyModal({
         onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
         mode={mode}
         colors={colors}
+                describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showPw ? 'Hide password' : 'Show password'}
@@ -216,7 +218,7 @@ export function PasswordVerifyModal({
                 }
               />
               {passwordError && !hidePwErrorWhileTyping && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
+                <div id={pwdErrorId} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
                   <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
               )}
@@ -310,6 +312,7 @@ export function FlowModal({
   const [renameVal, setRenameVal] = useState('');
   const titleId = useId();
   const descriptionId = useId();
+  const pwdErrorId = useId();
 
   const dangerColor = c.accentRed;
 
@@ -398,6 +401,7 @@ export function FlowModal({
                 hasError={!!passwordError}
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
                 mode={mode} colors={colors}
+        describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showPw ? 'Hide password' : 'Show password'}
@@ -409,7 +413,7 @@ export function FlowModal({
                 }
               />
               {passwordError && !hidePwErrorWhileTyping && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
+                <div id={pwdErrorId} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
                   <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
                 </div>
               )}

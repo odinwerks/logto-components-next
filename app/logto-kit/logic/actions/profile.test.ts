@@ -229,27 +229,17 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
-  it('handles GET returning non-ok (proceeds with empty existingPrefs)', async () => {
+  it('handles GET returning non-ok (throws UPDATE_FAILED to prevent silent data loss)', async () => {
     const { updateUserCustomData } = await import('./profile');
 
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(mockErrorResponse(503))  // GET fails
-      .mockResolvedValueOnce(mockOkResponse({}))      // PATCH succeeds
     );
 
     const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
 
-    // Should still succeed - falls back to empty existingPrefs
-    expect(result).toEqual({ ok: true });
-
-    const fetchMock = vi.mocked(fetch);
-    const patchCall = fetchMock.mock.calls[1];
-    const patchBody = JSON.parse(patchCall[1]!.body as string) as { customData: Record<string, unknown> };
-
-    // No existing prefs to merge, just the new ones
-    expect(patchBody.customData).toEqual({
-      Preferences: { theme: 'dark' },
-    });
+    // Should fail closed — never silently wipe prefs
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
 
     vi.unstubAllGlobals();
   });

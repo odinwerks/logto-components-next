@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Check, X, ChevronRight, AlertTriangle, Key, Trash2, Plus, Eye, EyeOff, RefreshCw, Lock, Shield, Fingerprint, Pencil } from 'lucide-react';
+import { Check, Key, Plus, RefreshCw, Lock, Shield, Fingerprint, Pencil } from 'lucide-react';
 import { Button } from '../../shared/Button';
-import { Input } from '../../shared/Input';
 import { FlowModal, BackupCodesModal, type ModalStep } from '../shared/FlowModal';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
 import { readEnv } from '../../../logic/env';
@@ -36,10 +35,7 @@ interface SecurityTabProps {
   onError: (message: string) => void;
 }
 
-// NOTE: This var is evaluated at module scope in a client component.
-// Server uses MFA_ISSUER; browser uses NEXT_PUBLIC_MFA_ISSUER.
-// They MUST be set to the same value to avoid SSR/client hydration mismatch.
-const ISSUER = readEnv('MFA_ISSUER') || 'Logto';
+const ISSUER = process.env.NEXT_PUBLIC_MFA_ISSUER || 'Logto';
 
 export function SecurityTab({
   userData, mode, colors, t, mobmode,
@@ -155,7 +151,7 @@ export function SecurityTab({
     const identityResult = await onVerifyPassword(pw);
     if (totpAbortRef.current) return;
     if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
-    setTotpStep({ kind: 'loading', message: 'Generating secret…' });
+    setTotpStep({ kind: 'loading', message: t.mfa.generatingSecret });
     const secretResult = await onGenerateTotpSecret();
     if (totpAbortRef.current) return;
     if (!secretResult.ok) { onError(secretResult.error); closeTotp(); return; }
@@ -166,7 +162,7 @@ export function SecurityTab({
   };
 
   const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => {
-    setTotpStep({ kind: 'loading', message: 'Activating…' });
+    setTotpStep({ kind: 'loading', message: t.mfa.activating });
     let r: ActionResult;
     if (totpFactor) {
       r = await onReplaceTotpVerification(secret, code, identityVerificationId, verificationTimestamp);
@@ -191,7 +187,7 @@ export function SecurityTab({
 
   const handleBackupPw = async (pw: string) => {
     setBackupPwErr('');
-    setBackupStep({ kind: 'loading', message: 'Generating codes…' });
+    setBackupStep({ kind: 'loading', message: t.mfa.generatingCodes });
     const identityResult = await onVerifyPassword(pw);
     if (backupAbortRef.current) return;
     if (!identityResult.ok) { setBackupPwErr(identityResult.error); setBackupStep({ kind: 'password' }); return; }

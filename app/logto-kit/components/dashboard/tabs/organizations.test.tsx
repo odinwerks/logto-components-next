@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { UserData } from '../../../logic/types';
 import { DARK_COLORS } from '../../../themes';
@@ -257,6 +257,69 @@ describe('OrganizationsTab - BUG-008 permissions loading synchronization', () =>
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+});
+
+describe('OrganizationsTab - error message semantic correctness', () => {
+  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockClear();
+  });
+
+  afterAll(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('shows switchFailed message when handleOrgClick catches an error', async () => {
+    mockSetActiveOrg.mockRejectedValueOnce(new Error('network error'));
+
+    renderOrganizations({ asOrg: null, currentOrgId: 'org-1' });
+
+    const orgOneCard = screen.getByRole('radio', { name: /Org One/i });
+    await act(async () => {
+      fireEvent.click(orgOneCard);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(enUS.organizations.switchFailed!)).toBeInTheDocument();
+    });
+  });
+
+  it('shows clearOrgFailed message when handleBeYourself setActiveOrg returns false', async () => {
+    mockSetActiveOrg.mockResolvedValueOnce(false);
+
+    renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
+
+    const beYourselfButton = screen.getByRole('button', { name: /be yourself/i });
+    await act(async () => {
+      fireEvent.click(beYourselfButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(enUS.organizations.clearOrgFailed!)).toBeInTheDocument();
+    });
+  });
+
+  it('shows clearOrgFailed message when handleBeYourself catches an error', async () => {
+    mockSetActiveOrg.mockRejectedValueOnce(new Error('network error'));
+
+    renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
+
+    const beYourselfButton = screen.getByRole('button', { name: /be yourself/i });
+    await act(async () => {
+      fireEvent.click(beYourselfButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(enUS.organizations.clearOrgFailed!)).toBeInTheDocument();
+    });
   });
 });
 

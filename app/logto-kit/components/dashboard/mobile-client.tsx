@@ -29,6 +29,7 @@ interface MobileClientProps {
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
   userShape?: 'circle' | 'sq' | 'rsq';
+  nameType?: string;
   translations: Translations;
   allTranslations: Record<string, Translations>;
   supportedLangs: string[];
@@ -69,6 +70,7 @@ export function MobileClient({
   countryFilter,
   currentOrgId,
   userShape = 'circle',
+  nameType,
   translations: serverTranslations,
   allTranslations,
   supportedLangs,
@@ -338,6 +340,7 @@ export function MobileClient({
               t={t}
               mobmode={1}
             countryFilter={countryFilter}
+            nameType={nameType}
             onUpdateBasicInfo={onUpdateBasicInfo}
             onUpdateAvatarUrl={onUpdateAvatarUrl}
             onUpdateProfile={onUpdateProfile}

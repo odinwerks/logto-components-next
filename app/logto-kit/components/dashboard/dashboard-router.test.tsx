@@ -58,7 +58,7 @@ describe('DashboardRouter', () => {
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 
-  it('keeps initial render deterministic regardless of matchMedia availability', () => {
+  it('server render shows desktop (SSR-safe); client render follows matchMedia', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -73,6 +73,7 @@ describe('DashboardRouter', () => {
       })),
     });
 
+    // Client render: window exists, matchMedia returns matches:true → mobile
     const clientMarkup = renderToString(
       <DashboardRouter
         desktop={<div>desktop-dashboard</div>}
@@ -88,6 +89,7 @@ describe('DashboardRouter', () => {
     });
 
     try {
+      // Server render: window is undefined → lazy initializer returns false → desktop (SSR-safe default)
       const serverLikeMarkup = renderToString(
         <DashboardRouter
           desktop={<div>desktop-dashboard</div>}
@@ -95,9 +97,9 @@ describe('DashboardRouter', () => {
         />,
       );
 
-      expect(clientMarkup).toContain('desktop-dashboard');
+      // Client follows matchMedia (mobile); server always defaults to desktop for SSR safety
+      expect(clientMarkup).toContain('mobile-dashboard');
       expect(serverLikeMarkup).toContain('desktop-dashboard');
-      expect(clientMarkup).toBe(serverLikeMarkup);
     } finally {
       Object.defineProperty(globalThis, 'window', {
         configurable: true,

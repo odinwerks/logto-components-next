@@ -5,7 +5,7 @@ import type { UserData, UserRole, PersonalPermission } from '../../../logic/type
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Pencil, X, Mail, Phone, Shield, Check, Camera, Trash2, Image as ImageIcon, Info } from 'lucide-react';
+import { Pencil, X, Mail, Phone, Check, Camera, Trash2, Image as ImageIcon, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { UserBadge } from '../../UserButton';
 import { readEnv } from '../../../logic/env';
@@ -229,6 +229,7 @@ interface ProfileTabProps {
   t:                 Translations;
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   mobmode?: number;
+  nameType?: string;
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
@@ -246,7 +247,7 @@ interface ProfileTabProps {
 }
 
 export function ProfileTab({
-  userData, mode, colors, t, countryFilter, mobmode,
+  userData, mode, colors, t, countryFilter, mobmode, nameType: nameTypeProp,
   onUpdateBasicInfo, onUpdateAvatarUrl, onUpdateProfile,
   onVerifyPassword, onSendEmailVerification, onSendPhoneVerification,
   onVerifyCode, onUpdateEmail, onUpdatePhone, onRemoveEmail, onRemovePhone,
@@ -274,7 +275,7 @@ export function ProfileTab({
     },
   };
 
-  const _rawNameType = readEnv('NAME_TYPE') ?? 'given_family';
+  const _rawNameType = nameTypeProp ?? 'given_family';
   const nameType: 'given_family' | 'username' | 'full' =
     (_rawNameType === 'given_family' || _rawNameType === 'username' || _rawNameType === 'full')
       ? _rawNameType
@@ -805,6 +806,7 @@ export function ProfileTab({
                   ref={cropperRef}
                   imageUrl={cropPreviewUrl!}
                   displaySize={380}
+                  userShape={avatarShape}
                   mode={mode} colors={colors}
                 />
 
@@ -816,7 +818,7 @@ export function ProfileTab({
                     mode={mode} colors={colors}
                   >
                     {isUploading ? (
-                      <><SpinnerIcon size={0.8125} color={c.contrastText} /> Uploading…</>
+                      <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.loading}</>
                     ) : (
                       <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.applyCrop}</>
                     )}

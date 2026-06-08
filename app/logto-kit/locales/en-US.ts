@@ -260,6 +260,8 @@ export const enUS: Translations = {
     noOrgPermissions: 'No organization permissions',
     refreshOrgPermissions: 'Refresh organization permissions',
     refreshOrgRoles: 'Refresh organization roles',
+    switchFailed: 'Failed to switch organization. Please try again.',
+    clearOrgFailed: 'Failed to switch to personal mode. Please try again.',
   },
   
   // MFA tab

@@ -2,7 +2,6 @@
 
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import type { ThemeColors } from '../../../themes';
-import { readEnv } from '../../../logic/env';
 
 const CANVAS_SIZE = 512;
 const CROP_SIZE = 460;
@@ -204,6 +203,7 @@ export interface ImageCropperRef {
 interface ImageCropperProps {
   imageUrl: string;
   shape?: 'circle' | 'sq' | 'rsq';
+  userShape?: 'circle' | 'sq' | 'rsq';
   outputSize?: number;
   displaySize?: number;
   mode: 'dark' | 'light';
@@ -211,7 +211,7 @@ interface ImageCropperProps {
 }
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
-  ({ imageUrl, shape: shapeProp, outputSize = 512, displaySize = 180, mode, colors }, ref) => {
+  ({ imageUrl, shape: shapeProp, userShape, outputSize = 512, displaySize = 180, mode, colors }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [scale, setScale] = useState(1);
@@ -229,7 +229,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
   useEffect(() => { offsetRef.current = offset; }, [offset]);
   useEffect(() => { imageRef.current = image; }, [image]);
 
-  const shape = shapeProp ?? (readEnv('USER_SHAPE') as 'circle' | 'sq' | 'rsq') ?? 'circle';
+  const shape = shapeProp ?? userShape ?? 'circle';
 
   useEffect(() => {
     return () => {

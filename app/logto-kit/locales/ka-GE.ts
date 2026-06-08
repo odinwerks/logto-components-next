@@ -260,6 +260,8 @@ export const kaGE: Translations = {
     noOrgPermissions: 'ორგანიზაციის ნებართვები არ მოიძებნა',
     refreshOrgPermissions: 'ორგანიზაციის ნებართვების განახლება',
     refreshOrgRoles: 'ორგანიზაციის როლების განახლება',
+    switchFailed: 'ორგანიზაციის გადართვა ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    clearOrgFailed: 'პირად რეჟიმზე გადართვა ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
   },
   
   // MFA tab

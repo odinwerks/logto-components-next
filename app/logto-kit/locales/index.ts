@@ -275,6 +275,8 @@ export interface Translations {
     noOrgPermissions: string;
     refreshOrgPermissions: string;
     refreshOrgRoles: string;
+    switchFailed?: string;
+    clearOrgFailed?: string;
   };
   
   // MFA tab

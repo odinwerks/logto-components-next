@@ -129,11 +129,13 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
           cache: 'no-store',
         },
       );
-      let existingPrefs: Record<string, unknown> = {};
-      if (getRes.ok) {
-        const existingCustomData = (await getRes.json()) as Record<string, unknown>;
-        existingPrefs = (existingCustomData.Preferences as Record<string, unknown>) ?? {};
+      if (!getRes.ok) {
+        const errBody = await getRes.text().catch(() => getRes.statusText);
+        warn(`[updateUserCustomData] GET custom-data failed ${getRes.status}: ${errBody.substring(0, 200)}`);
+        throw new Error('UPDATE_FAILED');
       }
+      const existingCustomData = (await getRes.json()) as Record<string, unknown>;
+      const existingPrefs = (existingCustomData.Preferences as Record<string, unknown>) ?? {};
 
       // Merge only the inner Preferences sub-object keys.
       const mergedPrefs = { ...existingPrefs, ...safePrefs };

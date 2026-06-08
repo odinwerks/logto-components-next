@@ -27,11 +27,14 @@ const PRIVATE_ENV_VARS = new Set([
   'COUNTRY_CODE_ALLOW_LIST', 'COUNTRY_CODE_BLOCK_LIST',
 ]);
 
+const isNextBuild = process.env.npm_lifecycle_event === 'build'
+  || process.env.NEXT_BUILD_ID !== undefined
+  || process.argv.includes('build');
+
 function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
 
-  const isNextBuild = process.env.npm_lifecycle_event === 'build';
   const isBuildTime = (isNextBuild && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
   if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
@@ -41,6 +44,10 @@ function getEnvVar(name: string, required = true): string {
   const value = name === 'SCOPES'
     ? (valueRaw?.toString().trim() || '')
     : (valueRaw?.toString().replace(/\s+/g, '').trim() || '');
+
+  if (valueRaw && value !== valueRaw.toString().trim() && name !== 'SCOPES') {
+    warn(`[Logto Config] ${name} contained whitespace which was stripped. Check your env file for accidental spaces/newlines.`);
+  }
 
   if (required && !value && !isBuildTime) {
     throw new Error(`Environment variable ${name} is empty after aggressive trimming`);
@@ -73,7 +80,6 @@ export const logtoConfig = (() => {
   const allowList = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
   const blockList = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
   if (allowList.length > 0 && blockList.length > 0) {
-    const isNextBuild = process.env.npm_lifecycle_event === 'build';
     const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
     if (isNextBuild) {
       warn(`[Logto Config] ${msg} Falling back to allow list.`);
@@ -109,7 +115,6 @@ export const logtoConfig = (() => {
   // Runtime guard: prevent serving with placeholder secrets in production.
   // During `next build` (esp. Docker), env files are excluded from the build
   // context, so placeholders are expected. The guard re-runs at server start.
-  const isNextBuild = process.env.npm_lifecycle_event === 'build';
   if (config.appSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
     throw new Error(
       'FATAL: appSecret is still "build-placeholder" at runtime in production. ' +
@@ -124,8 +129,7 @@ export const logtoConfig = (() => {
   }
 
   // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
-  const isNextBuildForHttps = process.env.npm_lifecycle_event === 'build';
-  if (nodeEnv === 'production' && !isNextBuildForHttps) {
+  if (nodeEnv === 'production' && !isNextBuild) {
     function assertHttpsInProduction(url: string | undefined, name: string): void {
       if (!url) return; // Let existing required checks handle missing values
       try {
@@ -153,6 +157,11 @@ export const logtoConfig = (() => {
 
     // Validate LOGTO_M2M_RESOURCE if set
     assertHttpsInProduction(process.env.LOGTO_M2M_RESOURCE, 'LOGTO_M2M_RESOURCE');
+
+    // Validate BASE_URL (skip localhost default)
+    if (config.baseUrl && config.baseUrl !== 'http://localhost:3000') {
+      assertHttpsInProduction(config.baseUrl, 'BASE_URL');
+    }
   }
 
   return config;
@@ -175,7 +184,17 @@ export const getLogtoConfig = () => logtoConfig;
  * The M2M app must have the "User data" → Write permission assigned under
  * Management API access in the Logto Console.
  */
+// In-memory M2M token cache to avoid hitting the token endpoint on every request.
+// Tokens typically expire in 60 minutes; we refresh at 50 minutes to have a buffer.
+let _cachedM2mToken: { token: string; expiresAt: number } | null = null;
+const M2M_TOKEN_TTL_MS = 50 * 60 * 1000; // 50 minutes
+
 export async function getManagementApiToken(): Promise<string> {
+  // Return cached token if still valid
+  if (_cachedM2mToken && Date.now() < _cachedM2mToken.expiresAt) {
+    return _cachedM2mToken.token;
+  }
+
   const appId = process.env.LOGTO_M2M_APP_ID?.trim();
   const appSecret = process.env.LOGTO_M2M_APP_SECRET?.trim();
 
@@ -224,7 +243,9 @@ export async function getManagementApiToken(): Promise<string> {
     );
   }
 
-  return data.access_token as string;
+  const token = data.access_token as string;
+  _cachedM2mToken = { token, expiresAt: Date.now() + M2M_TOKEN_TTL_MS };
+  return token;
 }
 
 // ============================================================================
@@ -281,10 +302,6 @@ export function getCountryFilter(): { mode: 'allow' | 'block' | 'none'; codes: s
   const allow = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
   const block = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
 
-  if (allow.length > 0 && block.length > 0) {
-    warn('[config] Both COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive. Falling back to allow list.');
-    return { mode: 'allow', codes: allow };
-  }
   if (allow.length > 0) {
     return { mode: 'allow', codes: allow };
   }

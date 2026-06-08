@@ -26,6 +26,10 @@ vi.mock('../debug', () => ({
   debugLog: vi.fn(),
 }));
 
+vi.mock('../log', () => ({
+  warn: vi.fn(),
+}));
+
 vi.mock('../guards', () => ({
   assertSafeLogtoId: vi.fn(),
   assertRevokeGrantsTarget: vi.fn(),
@@ -39,6 +43,7 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import { warn } from '../log';
 
 // ============================================================================
 // Test Helpers
@@ -158,6 +163,11 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data).toHaveLength(1);
     // userId should be empty string as fallback
     expect(result.data[0].meta?.userId).toBe('');
+    // BUG-003: Should log a warning so operators can detect misconfiguration
+    expect(warn).toHaveBeenCalledWith(
+      '[getSessionsWithDeviceMeta] Introspection failed, using empty userId:',
+      'Logto introspection not configured'
+    );
   });
 });
 
