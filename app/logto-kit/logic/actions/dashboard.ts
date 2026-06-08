@@ -3,13 +3,9 @@
 import 'server-only';
 
 import { getLogtoContext } from '@logto/next/server-actions';
-import type { DashboardResult, DashboardSuccess, UserData } from '../types';
+import type { DashboardResult, UserData } from '../types';
 import { getLogtoConfig } from '../../config';
-import { getCleanEndpoint } from '../utils';
-import { debugLog } from '../debug';
-import { getTokenForServerAction } from './tokens';
-import { makeRequest } from './request';
-import { throwOnApiError, isAuthError, isTransientError } from '../errors';
+import { isAuthError, isTransientError } from '../errors';
 import { redirect } from 'next/navigation';
 import { warn, error, log } from '../log';
 

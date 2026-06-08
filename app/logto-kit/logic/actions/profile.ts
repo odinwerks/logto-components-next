@@ -10,7 +10,7 @@ import {
   assertSafeUserId,
   pickPreferences,
 } from '../guards';
-import { safeAction, type ActionResult, type DataResult } from './safe';
+import { safeAction, type ActionResult } from './safe';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
