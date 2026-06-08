@@ -60,7 +60,7 @@ export function Button({
     };
   }
 
-  const BUTTONS: Record<string, any> = {
+  const BUTTONS: Record<string, { base: React.CSSProperties; hover: React.CSSProperties; disabled: React.CSSProperties }> = {
     primary: mkBtn(colors.accentBlue, '#fff', colors.accentBlue, isDark ? '#1d4ed8' : '#3b82f6'),
     secondary: mkBtn(colors.bgTertiary, colors.textSecondary, colors.borderColor, colors.bgPrimary, colors.textPrimary),
     ghost: {

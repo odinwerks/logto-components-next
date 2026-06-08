@@ -18,9 +18,10 @@ function drawRoundedRect(
   h: number,
   r: number,
 ) {
-  if (typeof (ctx as any).roundRect === 'function') {
-    (ctx as any).beginPath();
-    (ctx as any).roundRect(x, y, w, h, r);
+  const ctxWithRoundRect = ctx as CanvasRenderingContext2D & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void };
+  if (typeof ctxWithRoundRect.roundRect === 'function') {
+    ctx.beginPath();
+    ctxWithRoundRect.roundRect(x, y, w, h, r);
   } else {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
