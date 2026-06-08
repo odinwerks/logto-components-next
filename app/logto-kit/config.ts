@@ -70,13 +70,25 @@ export const logtoConfig = (() => {
   const cookieSecret = getEnvVar('COOKIE_SECRET', false);
   const scopeString = getEnvVar('SCOPES', false);
 
+  const allowList = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
+  const blockList = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
+  if (allowList.length > 0 && blockList.length > 0) {
+    const isNextBuild = process.env.npm_lifecycle_event === 'build';
+    const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
+    if (isNextBuild) {
+      warn(`[Logto Config] ${msg} Falling back to allow list.`);
+    } else {
+      throw new Error(`Configuration Error: ${msg}`);
+    }
+  }
+
   if (!appId || !appSecret || !endpoint || !baseUrl || !cookieSecret) {
     warn('[Logto Config] Missing required environment variables. Build will continue but runtime will fail if not configured.');
   }
 
   const nodeEnv = process.env.NODE_ENV || 'development';
 
-  // NOTE: Account API tokens use getAccessToken(config, '').
+  // NOTE: Account API tokens use the canonical getAccessToken(config) call.
   // urn:logto:resource:organizations helps the auth server track org scopes
   // so refreshed org tokens include the user's current organization permissions.
   const resources: string[] = ['urn:logto:resource:organizations'];
@@ -265,9 +277,7 @@ export function getAvatarBackend(): AvatarBackend {
   return configured;
 }
 
-const DEFAULT_FALLBACK_CODES = ['1', '995']; // US, Georgia
-
-export function getCountryFilter(): { mode: 'allow' | 'block' | 'allow'; codes: string[] } {
+export function getCountryFilter(): { mode: 'allow' | 'block' | 'none'; codes: string[] } {
   const allow = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
   const block = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
 
@@ -281,6 +291,5 @@ export function getCountryFilter(): { mode: 'allow' | 'block' | 'allow'; codes: 
   if (block.length > 0) {
     return { mode: 'block', codes: block };
   }
-  // Fallback: US (+1) and Georgia (+995) are auto-allowed when no explicit configuration is provided.
-  return { mode: 'allow', codes: DEFAULT_FALLBACK_CODES };
+  return { mode: 'none', codes: [] };
 }

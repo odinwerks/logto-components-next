@@ -16,7 +16,7 @@ export function getCleanEndpoint(): string {
         'Check your .env file and logto.ts configuration.'
     );
   }
-  return endpoint.replace(/\/$/, '');
+  return endpoint.replace(/\/+$/, '');
 }
 
 /**

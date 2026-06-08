@@ -94,4 +94,10 @@ describe('assertPhoneCountryAllowed', () => {
   it('should throw ValidationError if mode is block and country is blocked', () => {
     expect(() => assertPhoneCountryAllowed('+995599123456', { mode: 'block', codes: ['995'] })).toThrow();
   });
+
+  it('should allow any phone if mode is none and codes is empty', () => {
+    expect(() => assertPhoneCountryAllowed('+995599123456', { mode: 'none', codes: [] })).not.toThrow();
+    expect(() => assertPhoneCountryAllowed('+14155552671', { mode: 'none', codes: [] })).not.toThrow();
+    expect(() => assertPhoneCountryAllowed('+380501234567', { mode: 'none', codes: [] })).not.toThrow();
+  });
 });

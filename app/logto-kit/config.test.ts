@@ -229,13 +229,13 @@ describe('config resolution', () => {
   });
 
   describe('countryFilter', () => {
-    it('should set fallback allow list when no country lists are provided', async () => {
+    it('should default to mode none when no country lists are provided', async () => {
       delete process.env.COUNTRY_CODE_ALLOW_LIST;
       delete process.env.COUNTRY_CODE_BLOCK_LIST;
       const { getCountryFilter } = await import('./config');
       const filter = getCountryFilter();
-      expect(filter.mode).toBe('allow');
-      expect(filter.codes).toEqual(['1', '995']);
+      expect(filter.mode).toBe('none');
+      expect(filter.codes).toEqual([]);
     });
 
     it('should parse allow list when COUNTRY_CODE_ALLOW_LIST is provided', async () => {
@@ -256,13 +256,31 @@ describe('config resolution', () => {
       expect(filter.codes).toEqual(['380', '995']);
     });
 
-    it('should fall back to allow list and warn when both are provided', async () => {
+    it('should throw a descriptive Configuration Error at runtime if both are provided', async () => {
+      process.env.COUNTRY_CODE_ALLOW_LIST = '1';
+      process.env.COUNTRY_CODE_BLOCK_LIST = '44';
+      await expect(import('./config')).rejects.toThrow(
+        /COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set/i
+      );
+    });
+
+    it('should not throw and should fall back to allow list during build time if both are provided', async () => {
+      vi.stubEnv('npm_lifecycle_event', 'build');
       process.env.COUNTRY_CODE_ALLOW_LIST = '1';
       process.env.COUNTRY_CODE_BLOCK_LIST = '44';
       const { getCountryFilter } = await import('./config');
       const filter = getCountryFilter();
       expect(filter.mode).toBe('allow');
       expect(filter.codes).toEqual(['1']);
+    });
+
+    it('should not throw if both are set but one or both parse to empty lists', async () => {
+      process.env.COUNTRY_CODE_ALLOW_LIST = 'abc'; // empty list of digits
+      process.env.COUNTRY_CODE_BLOCK_LIST = '44';
+      const { getCountryFilter } = await import('./config');
+      const filter = getCountryFilter();
+      expect(filter.mode).toBe('block');
+      expect(filter.codes).toEqual(['44']);
     });
   });
 });

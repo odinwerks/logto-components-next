@@ -69,3 +69,35 @@ describe('Logto Config Scopes', () => {
     expect(config.scopes).toEqual(['openid', 'offline_access', 'profile']);
   });
 });
+
+describe('getCleanEndpoint', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('cleans endpoint with a single trailing slash', async () => {
+    vi.stubEnv('ENDPOINT', 'https://test.logto.app/');
+    vi.stubEnv('APP_SECRET', 'test-app-secret');
+    const { getCleanEndpoint } = await import('./utils');
+    expect(getCleanEndpoint()).toBe('https://test.logto.app');
+  });
+
+  it('cleans endpoint with multiple trailing slashes', async () => {
+    vi.stubEnv('ENDPOINT', 'https://test.logto.app///');
+    vi.stubEnv('APP_SECRET', 'test-app-secret');
+    const { getCleanEndpoint } = await import('./utils');
+    expect(getCleanEndpoint()).toBe('https://test.logto.app');
+  });
+
+  it('leaves endpoint without trailing slash as-is', async () => {
+    vi.stubEnv('ENDPOINT', 'https://test.logto.app');
+    vi.stubEnv('APP_SECRET', 'test-app-secret');
+    const { getCleanEndpoint } = await import('./utils');
+    expect(getCleanEndpoint()).toBe('https://test.logto.app');
+  });
+});
