@@ -332,22 +332,6 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
     };
   }, []);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDragging || !dragStartRef.current || !imageRef.current) return;
-      e.preventDefault();
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const dx = (e.clientX - dragStartRef.current.x) * (CANVAS_SIZE / rect.width);
-      const dy = (e.clientY - dragStartRef.current.y) * (CANVAS_SIZE / rect.height);
-      const rawX = dragStartRef.current.ox + dx;
-      const rawY = dragStartRef.current.oy + dy;
-      const result = applyOverscroll(imageRef.current, scaleRef.current, rawX, rawY);
-      setOffset(result);
-    },
-    [isDragging],
-  );
-
   const endDrag = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);

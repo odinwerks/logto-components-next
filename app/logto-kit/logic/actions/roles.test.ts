@@ -37,17 +37,6 @@ const makeRole = (id: string, name: string) => ({
   type: 'User' as const,
 });
 
-const makeScope = (id: string, name: string) => ({
-  id,
-  name,
-  description: null,
-  resource: {
-    id: 'resource-id',
-    name: 'Resource',
-    indicator: 'https://resource.example.org',
-  },
-});
-
 describe('verifyPersonalAccess compatibility fallback', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 

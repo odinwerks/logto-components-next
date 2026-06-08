@@ -22,9 +22,6 @@ vi.mock('../../../logic/geo-cache', () => ({
 import { SessionsTab } from './sessions';
 
 // ── Stubs ────────────────────────────────────────────────────
-const noop = () => undefined;
-const resolvedActionResult = () => Promise.resolve({ ok: true } as ActionResult);
-
 const createdSessions: LogtoSession[] = [
   {
     payload: {

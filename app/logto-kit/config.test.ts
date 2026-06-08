@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 describe('config resolution', () => {
-  const originalEnv = { ...process.env };
-
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();

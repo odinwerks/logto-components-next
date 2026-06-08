@@ -84,12 +84,9 @@ vi.mock('../utils', () => ({
 // Imports of mocked modules
 // ============================================================================
 
-import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
-import { getTokenForServerAction } from './tokens';
 import { getLogtoContext } from '@logto/next/server-actions';
-import { decodeLogtoAccessToken, pickPreferences } from '../guards';
-import { getManagementApiToken, getLogtoConfig } from '../../config';
+import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint } from '../utils';
 
 // ============================================================================
@@ -473,11 +470,7 @@ describe('updateUserCustomData', () => {
     let resolveFirst: () => void;
     const firstCall = new Promise<void>(r => { resolveFirst = r; });
 
-    let firstCallStarted = false;
     let secondCallStarted = false;
-
-    // First user's GET - will block
-    // Second user's GET - should NOT wait for first user
     vi.mocked(getLogtoContext)
       .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as any)
       .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as any);
@@ -485,7 +478,6 @@ describe('updateUserCustomData', () => {
     vi.stubGlobal('fetch', vi.fn()
       // user-A GET - blocks
       .mockImplementationOnce(async () => {
-        firstCallStarted = true;
         await firstCall;
         return mockOkResponse({});
       })

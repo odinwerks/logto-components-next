@@ -539,7 +539,7 @@ describe('ProfileTab - behavioral', () => {
       const fileInput = document.querySelector('input[type="file"]');
       expect(fileInput).toBeInTheDocument();
 
-      const modal = screen.getByRole('dialog');
+      screen.getByRole('dialog');
       // Our custom handler excludes input[type="file"], so focus loops directly between closeBtn and dropZone.
     });
   });

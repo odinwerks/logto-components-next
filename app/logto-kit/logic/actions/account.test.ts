@@ -53,7 +53,6 @@ vi.mock('../audit', () => ({
 // Imports of mocked modules (for vi.mocked usage)
 // ============================================================================
 
-import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';

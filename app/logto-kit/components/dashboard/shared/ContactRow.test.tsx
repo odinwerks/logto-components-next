@@ -43,7 +43,6 @@ vi.mock('./FlowModal', () => ({
 import { ContactRow } from './ContactRow';
 import type { ContactRowProps } from './ContactRow';
 
-const noop = vi.fn();
 const buildDefaults = () => ({
   label: 'Email',
   Icon: Mail,

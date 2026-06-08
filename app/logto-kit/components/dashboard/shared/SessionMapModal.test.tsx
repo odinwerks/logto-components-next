@@ -409,7 +409,6 @@ describe('SessionMapModal', () => {
 
     const closeBtn = screen.getByRole('button', { name: /close dialog/i });
     const links = screen.getAllByRole('link');
-    const osmLink = links[0];
     const googleMapsLink = links[1];
 
     // Starts on close button
