@@ -344,9 +344,9 @@ describe('generateBackupCodes', () => {
     // Mock the user ID for this request to be 'user-new'
     const { getLogtoContext } = await import('@logto/next/server-actions');
     vi.mocked(getLogtoContext).mockResolvedValueOnce({
-      claims: { sub: 'user-new' } as unknown as Record<string, unknown>,
+      claims: { sub: 'user-new' },
       isAuthenticated: true,
-    } as unknown as Record<string, unknown>);
+    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(true);

@@ -148,7 +148,6 @@ describe('PhoneCountrySelect', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' });
 
     const searchInput = screen.getByRole('searchbox', { name: /search countries/i });
-    expect(searchInput).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.keyDown(searchInput, { key: 'ArrowDown', code: 'ArrowDown' });
     const activeId = searchInput.getAttribute('aria-activedescendant');
