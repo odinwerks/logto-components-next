@@ -58,9 +58,8 @@ function parseScopes(scopeString: string): string[] {
     .filter(Boolean)
     .map((s) => {
       const mapped = SCOPE_MAP[s];
-      if (!mapped && s !== 'openid' && s !== 'offline_access') {
-        warn(`[config] Unknown scope in SCOPES: "${s}"`);
-      }
+      // Custom scopes (e.g., calc:basic) pass through unchanged — they are
+      // valid resource-specific scopes defined in Logto Console.
       return mapped || s;
     })
     .filter(Boolean);
