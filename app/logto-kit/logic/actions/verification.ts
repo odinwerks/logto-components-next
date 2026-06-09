@@ -14,18 +14,16 @@ import { getCountryFilter } from '../../config';
 import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 
 /**
- * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, etc.
- * Preserves a leading '+' if present for E.164 compliance.
- * Returns only digits if no '+' prefix exists.
+ * Normalizes phone numbers by stripping all non-digit characters.
+ * Logto's Account API accepts digit-only format (no + prefix required).
  */
 function cleanPhoneNumber(phone: string): string {
   if (typeof phone !== 'string') {
     throw new ValidationError('INVALID_INPUT', 'phone');
   }
   const trimmed = phone.trim();
-  const hasPlus = trimmed.startsWith('+');
   const digits = trimmed.replace(/\D/g, '');
-  return hasPlus ? `+${digits}` : digits;
+  return digits;
 }
 
 // ============================================================================
