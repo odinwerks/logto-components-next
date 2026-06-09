@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
+import type { TypedLogger } from './logger';
 
 describe('with-logger', () => {
   let capturedLines: string[] = [];
@@ -136,10 +137,9 @@ describe('with-logger', () => {
 
   it('attaches request ID to child logger used by handler', async () => {
     const { withLogger } = await import('./with-logger');
-    const { createLogger } = await import('./logger');
 
     // Handler that uses the injected logger
-    const handler = vi.fn().mockImplementation(async (_req: NextRequest, logger: ReturnType<typeof createLogger>) => {
+    const handler = vi.fn().mockImplementation(async (_req: NextRequest, logger: TypedLogger) => {
       logger.info('TEST_EVENT' as unknown as never, 'Handler log message');
       return NextResponse.json({ ok: true }, { status: 200 });
     });

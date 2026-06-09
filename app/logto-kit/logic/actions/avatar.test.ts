@@ -30,7 +30,7 @@ vi.mock('../audit', () => ({
   audit: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { mockPutObject, mockRemoveObject: _mockRemoveObject, MockMinioClient } = vi.hoisted(() => {
+const { mockPutObject, MockMinioClient } = vi.hoisted(() => {
   const putObject = vi.fn().mockResolvedValue(undefined);
   const removeObject = vi.fn().mockResolvedValue(undefined);
   class Client {
