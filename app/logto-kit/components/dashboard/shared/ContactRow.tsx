@@ -316,6 +316,7 @@ export function ContactRow({
             </button>
           ) : undefined}
           hideFooterClose={true}
+          mobmode={mobmode}
         />
       )}
 

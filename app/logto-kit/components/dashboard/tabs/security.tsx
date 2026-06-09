@@ -410,6 +410,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -433,6 +434,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -480,6 +482,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -497,6 +500,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -513,6 +517,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -530,6 +535,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -547,6 +553,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 
@@ -579,6 +586,7 @@ export function SecurityTab({
           mode={mode}
           colors={colors}
           t={t}
+          mobmode={mobmode}
         />
       )}
 

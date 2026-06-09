@@ -260,7 +260,7 @@ export function PasswordVerifyModal({
 
 export function FlowModal({
   title, subtitle, step, onValueSubmit, valueSubmitDisabled, valueSubmitLabel, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
-  passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger,
+  passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger, mobmode,
 }: {
   title: string;
   subtitle: string;
@@ -282,8 +282,10 @@ export function FlowModal({
   colors: ThemeColors;
   t: Translations;
   danger?: boolean;
+  mobmode?: number;
 }) {
   const c = colors;
+  const isMobile = mobmode === 1;
   const T = {
     surface: c.bgSecondary,
     bg: c.bgPrimary,
@@ -485,14 +487,16 @@ export function FlowModal({
 
           {step.kind === 'totp-scan' && (
               <>
-                <div style={{ display: 'flex', gap: '1.25rem' }}>
-                  <div style={{ background: '#fff', padding: '0.375rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: 'flex-start' }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '1rem' : '1.25rem' }}>
+                  <div style={{ background: '#fff', padding: '0.375rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: isMobile ? 'center' : 'flex-start' }}>
                     <QRCodeSVG value={step.totpUri} size={152} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.6, marginBottom: '0.75rem' }}>
-                      {t.mfa.scanQrCode}
-                    </p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                    {!isMobile && (
+                      <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.6, marginBottom: '0.75rem' }}>
+                        {t.mfa.scanQrCode}
+                      </p>
+                    )}
                     <p style={{ fontFamily: T.font, fontSize: '0.6875rem', color: T.muted, marginBottom: '0.3125rem' }}>
                       {t.mfa.cantScan} {t.mfa.enterManually}
                     </p>
@@ -540,7 +544,7 @@ export function FlowModal({
                       maxLength={6}
                       autoFocus
                       mode={mode} colors={colors}
-                      style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
+                      style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: isMobile ? '1.5rem' : '1.125rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                       {!hideFooterClose && (
