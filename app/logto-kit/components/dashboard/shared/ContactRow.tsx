@@ -60,9 +60,6 @@ export function ContactRow({
   const [pwErr, setPwErr] = useState('');
   const operationTokenRef = React.useRef(0);
   const newValueRef = React.useRef(newValue);
-  useEffect(() => {
-    newValueRef.current = newValue;
-  }, [newValue]);
 
   const invalidateInFlightOperations = React.useCallback(() => {
     operationTokenRef.current += 1;
@@ -70,7 +67,6 @@ export function ContactRow({
 
   const [selectedCountry, setSelectedCountry] = useState('995');
   const [localPhone, setLocalPhone] = useState('');
-  const [phoneErr, setPhoneErr] = useState<string | null>(null);
 
   const defaultCountryCode = React.useMemo(() => {
     const filter = countryFilter ?? { mode: 'none' as const, codes: [] };
@@ -108,40 +104,30 @@ export function ContactRow({
     };
   }, [defaultCountryCode]);
 
-  useEffect(() => {
-    if (modalKind === 'edit' && type === 'phone') {
-      const { countryCode, localDigits } = getPhoneParts(currentValue);
-      setSelectedCountry(countryCode);
-      setLocalPhone(localDigits);
-    }
-  }, [modalKind, type, currentValue, getPhoneParts]);
+  const assembledPhone = React.useMemo(
+    () => `+${selectedCountry}${localPhone}`,
+    [selectedCountry, localPhone]
+  );
+
+  const phoneErr = React.useMemo<string | null>(() => {
+    if (type !== 'phone' || modalKind !== 'edit') return null;
+    if (localPhone.length === 0 || !countryFilter || countryFilter.mode === 'none') return null;
+    const digits = assembledPhone.replace(/\D/g, '');
+    const ccIso = detectCountryFromE164(digits);
+    const cc = ccIso
+      ? COUNTRY_CODES.find(c => c.iso === ccIso)?.code || null
+      : null;
+    const isBlocked = countryFilter.mode === 'allow'
+      ? !cc || !isCountryAllowed(cc, countryFilter)
+      : !!cc && !isCountryAllowed(cc, countryFilter);
+    return isBlocked ? t.validation.phoneCountryNotAllowed : null;
+  }, [type, modalKind, localPhone, assembledPhone, countryFilter, t]);
+
+  const valueForSubmit = type === 'phone' ? assembledPhone : newValue;
 
   useEffect(() => {
-    if (type === 'phone' && modalKind === 'edit') {
-      const assembled = `+${selectedCountry}${localPhone}`;
-      setNewValue(assembled);
-
-      // Sanitize: validate assembled E.164 against country filter
-      if (localPhone.length > 0 && countryFilter && countryFilter.mode !== 'none') {
-        const digits = assembled.replace(/\D/g, '');
-        const ccIso = detectCountryFromE164(digits);
-        const cc = ccIso
-          ? COUNTRY_CODES.find(c => c.iso === ccIso)?.code || null
-          : null;
-        const isBlocked = countryFilter.mode === 'allow'
-          ? !cc || !isCountryAllowed(cc, countryFilter)
-          : !!cc && !isCountryAllowed(cc, countryFilter);
-
-        if (isBlocked) {
-          setPhoneErr(t.validation.phoneCountryNotAllowed);
-        } else {
-          setPhoneErr(null);
-        }
-      } else {
-        setPhoneErr(null);
-      }
-    }
-  }, [selectedCountry, localPhone, type, modalKind, countryFilter, setNewValue, t]);
+    newValueRef.current = valueForSubmit;
+  }, [valueForSubmit]);
 
   const isMobile = mobmode === 1;
   const displayValue = type === 'phone' && currentValue
@@ -150,9 +136,14 @@ export function ContactRow({
 
   const openEdit = () => {
     invalidateInFlightOperations();
-    setNewValue(type === 'email' ? '' : '');
+    setNewValue('');
     setPwErr('');
     setStep({ kind: 'value' });
+    if (type === 'phone') {
+      const { countryCode, localDigits } = getPhoneParts(currentValue);
+      setSelectedCountry(countryCode);
+      setLocalPhone(localDigits);
+    }
     setModalKind('edit');
   };
   const close = () => {
@@ -168,10 +159,10 @@ export function ContactRow({
   const canContinueFromValue = React.useMemo(() => {
     if (modalKind !== 'edit') return false;
     if (isPhoneWithoutLocalDigits) return true;
-    if (!newValue.trim()) return true;
+    if (!valueForSubmit.trim()) return true;
     if (type === 'phone' && !!phoneErr) return true;
     return false;
-  }, [modalKind, type, phoneErr, newValue, isPhoneWithoutLocalDigits]);
+  }, [modalKind, type, phoneErr, valueForSubmit, isPhoneWithoutLocalDigits]);
 
   const handleValueSubmit = () => {
     if (isPhoneWithoutLocalDigits) { setPwErr(t.security.enterValueFirst); return; }
