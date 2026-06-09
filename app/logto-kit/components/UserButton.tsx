@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, useSyncExternalStore } from 'react';
 import type { UserData } from '../logic/types';
 import type { ThemeColors } from '../themes';
 import locales from '../locales';
@@ -50,6 +50,18 @@ function getDisplayName(data: UserData): string {
   return 'User';
 }
 
+// ─── useMounted (SSR-safe hydration guard) ───────────────────────────────────
+
+const emptySubscribe = () => () => {};
+
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
+
 // ─── Shared hook ─────────────────────────────────────────────────────────────
 
 interface UseUserDisplayOptions {
@@ -63,9 +75,6 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
   const colors = opts.colors ?? contextColors;
   const { openDashboard, userData: contextUserData, lang } = useLogto();
 
-  const initialUserData = opts.userData ?? contextUserData ?? null;
-  const [userData, setUserData] = useState<UserData | null>(initialUserData);
-  const [loading, setLoading] = useState(!initialUserData);
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const isMountedRef = useRef(true);
@@ -75,25 +84,23 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
     return () => { isMountedRef.current = false; };
   }, []);
 
+  // Derive userData and loading during render — no state sync needed
+  const userData = opts.userData ?? contextUserData ?? null;
+
+  // Derive showFallback at render: suppress fallback once userData is available
+  const effectiveShowFallback = userData ? false : showFallback;
+  const loading = !userData && !effectiveShowFallback;
+
+  // Timeout-only effect — only starts the timer; never calls setState with a derived value
   useEffect(() => {
-    if (opts.userData) {
-      setUserData(opts.userData);
-      setLoading(false);
-      return;
-    }
-    if (contextUserData) {
-      setUserData(contextUserData);
-      setLoading(false);
-      return;
-    }
+    if (userData) return; // timer is irrelevant once data arrives
     const timeout = setTimeout(() => {
       if (isMountedRef.current) {
         setShowFallback(true);
-        setLoading(false);
       }
     }, 1500);
     return () => clearTimeout(timeout);
-  }, [opts.userData, contextUserData]);
+  }, [userData]);
 
   const t = useMemo(
     () => locales[lang as keyof typeof locales] ?? locales['en-US'],
@@ -109,7 +116,7 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
     }
   }, [opts.do, openDashboard]);
 
-  return { userData, loading, showFallback, imageFailed, setImageFailed, colors, t, handleClick };
+  return { userData, loading, showFallback: effectiveShowFallback, imageFailed, setImageFailed, colors, t, handleClick };
 }
 
 // ─── Fallback avatar ─────────────────────────────────────────────────────────
@@ -249,11 +256,7 @@ export function UserButton({
   const resolvedShape = getShape(shape);
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -357,11 +360,7 @@ export function UserCard({
   const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   const wrapperStyle: React.CSSProperties = {
     display: 'inline-flex',

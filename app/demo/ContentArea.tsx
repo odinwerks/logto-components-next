@@ -1,9 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useSyncExternalStore } from 'react';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
+
+const useIsClient = () =>
+  useSyncExternalStore(
+    () => () => {},               // subscribe: no-op (value never changes)
+    () => true,                    // getSnapshot: client → true
+    () => false,                   // getServerSnapshot: server → false
+  );
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
 };
@@ -146,14 +153,13 @@ const footDotStyle: React.CSSProperties = {
 
 export default function ContentArea({ item }: ContentAreaProps) {
   const { mode } = useThemeMode();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
+    // Intentional: clear stale DocContent before async load for new item.id.
+    // This is a "reset before fetch" pattern, not prop→state sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDocContent(null);
     const loader = DOC_REGISTRY[item.id];
     if (loader) {

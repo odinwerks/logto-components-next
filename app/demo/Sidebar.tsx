@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserCard } from '../logto-kit/components/UserButton';
@@ -181,17 +181,12 @@ const footerStyle: React.CSSProperties = {
 
 export default function Sidebar({ items, activeId: propActiveId, onSelect }: SidebarProps) {
   const { mode } = useThemeMode();
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname() || '';
   const segments = pathname.split('/').filter(Boolean);
   const activeId = propActiveId || segments[0] || 'getting-started';
   const activeSection = segments[1] || '';
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const colors = mounted ? (mode === 'dark'
+  const colors = mode === 'dark'
     ? {
         bg: '#050608',
         border: 'rgba(255,255,255,0.055)',
@@ -231,26 +226,6 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
         typeActive: '#374151',
         codeActive: '#111827',
         code: '#6b7280',
-      })
-    : {
-        bg: '#050608',
-        border: 'rgba(255,255,255,0.055)',
-        borderLight: 'rgba(255,255,255,0.05)',
-        textMuted: 'rgba(255,255,255,0.4)',
-        text: 'rgba(255,255,255,0.52)',
-        textSubtle: 'rgba(255,255,255,0.18)',
-        borderSubtle: 'rgba(255,255,255,0.09)',
-        navActive: 'rgba(255,255,255,0.038)',
-        navHover: 'rgba(255,255,255,0.022)',
-        navIndicator: 'rgba(255,255,255,0.42)',
-        icon: 'rgba(255,255,255,0.22)',
-        iconActive: 'rgba(255,255,255,0.6)',
-        label: 'rgba(255,255,255,0.35)',
-        labelActive: 'rgba(255,255,255,0.84)',
-        typeText: 'rgba(255,255,255,0.15)',
-        typeActive: 'rgba(255,255,255,0.28)',
-        codeActive: 'rgba(255,255,255,0.74)',
-        code: 'rgba(255,255,255,0.28)',
       };
 
   const themedSidebarStyle = { ...sidebarStyle, background: colors.bg, borderRight: `1px solid ${colors.border}` };
