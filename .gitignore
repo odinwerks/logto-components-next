@@ -95,3 +95,9 @@ Desktop.ini
 *.tempopencode.json
 opencode.json
 .opencode/
+
+# Orchestrator artifacts
+.orch-artifacts/
+
+# Session files
+session-ses_*.md
