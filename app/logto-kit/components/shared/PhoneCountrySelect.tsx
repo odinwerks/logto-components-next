@@ -34,7 +34,7 @@ export function PhoneCountrySelect({
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const [mounted, setMounted] = useState(false);
+  const mountedRef = useRef(false);
 
   const triggerId = useId();
   const listboxId = useId();
@@ -45,7 +45,7 @@ export function PhoneCountrySelect({
   const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    setMounted(true);
+    mountedRef.current = true;
   }, []);
 
   const activeCountries = useMemo(() => {
@@ -129,6 +129,7 @@ export function PhoneCountrySelect({
 
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- CANNOT_FIX_SAFELY: multi-trigger sync for highlightedIndex (open/close, search, selection)
       setHighlightedIndex(0);
       return;
     }
@@ -318,7 +319,8 @@ export function PhoneCountrySelect({
       </button>
 
       {isOpen &&
-        mounted &&
+        // eslint-disable-next-line react-hooks/refs -- Portal gate: one-way hydration guard, never reverts, no reactive dependency
+        mountedRef.current &&
         typeof document !== 'undefined' &&
         createPortal(
           <div ref={dropdownRef} style={dropdownStyle}>
