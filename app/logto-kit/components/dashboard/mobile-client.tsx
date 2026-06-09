@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
@@ -69,7 +69,6 @@ export function MobileClient({
   initialData,
   countryFilter,
   currentOrgId,
-  userShape = 'circle',
   nameType,
   translations: serverTranslations,
   allTranslations,
@@ -117,17 +116,17 @@ export function MobileClient({
 
   const [view, setView] = useState<'menu' | 'tab'>('menu');
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
-  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const isNarrowViewport = useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(max-width: 26rem)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(max-width: 26rem)').matches,
+    () => false
+  );
 
   const { toasts, showToast, dismissToast, mapErrorToast } = useDashboardToasts(t);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 26rem)');
-    setIsNarrowViewport(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsNarrowViewport(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   const router = useRouter();
   const refreshData = useCallback(() => {

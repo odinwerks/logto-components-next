@@ -112,10 +112,7 @@ export function SessionsTab({
   // Persists the revoke target through failed attempts so retries send the correct session ID
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
 
-  const [currentTime, setCurrentTime] = useState(() => Date.now());
-  useEffect(() => {
-    setCurrentTime(Date.now());
-  }, []);
+  const [currentTime] = useState(() => Date.now());
 
   const isVerificationValid = verificationRecordId && currentTime < verificationExpiry;
 
@@ -333,13 +330,6 @@ export function SessionsTab({
     return '';
   };
 
-  const getDeviceLabel = (session: LogtoSession): string => {
-    if (session.meta?.deviceType === 'mobile') return t.sessions.mobile;
-    if (session.meta?.deviceType === 'tablet') return t.sessions.tablet;
-    if (session.meta?.deviceType) return t.sessions.desktop;
-    return '';
-  };
-
   if (viewState === 'unverified') {
     return (
       <div>
@@ -503,7 +493,6 @@ export function SessionsTab({
             const os = meta?.os ?? null;
             const deviceType = meta?.deviceType ?? null;
             const title = getSessionTitle(session);
-            const deviceLabel = getDeviceLabel(session);
             const ip = meta?.ip ?? null;
 
             return (

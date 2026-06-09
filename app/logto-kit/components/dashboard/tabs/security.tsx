@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -76,7 +75,6 @@ export function SecurityTab({
     amberDim: c.warningBg,
     amberText: c.accentYellow,
   };
-  const router = useRouter();
 
   // ── Abort refs (prevent reopened modals after close during loading) ──
   const totpAbortRef = useRef(false);

@@ -28,44 +28,6 @@ const ProtectedIcon = () => (
   </svg>
 );
 
-const OrgSwitcherIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="4" r="1.8" stroke="currentColor" strokeWidth="1.3" />
-    <circle cx="3" cy="12" r="1.8" stroke="currentColor" strokeWidth="1.3" />
-    <circle cx="13" cy="12" r="1.8" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M8 5.8V9M8 9L3 10.2M8 9l5 1.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const ProvidersIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <path d="M2 10l6 3 6-3M2 6l6 3 6-3M2 6l6-3 6 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const ThemeIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M8 4v4l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const I18nIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M8 2.5S5.5 5 5.5 8s2.5 5.5 2.5 5.5M8 2.5S10.5 5 10.5 8 8 13.5 8 13.5M2.5 8h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const SessionsIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-    <circle cx="5.5" cy="8" r="1.2" fill="currentColor" />
-    <circle cx="8" cy="8" r="1.2" fill="currentColor" />
-    <circle cx="10.5" cy="8" r="1.2" fill="currentColor" />
-  </svg>
-);
-
 const CalculatorIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
     <rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" />

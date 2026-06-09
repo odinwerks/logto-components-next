@@ -545,10 +545,6 @@ export function ProfileTab({
     setAvatarModalOpen(false);
   }, [cropPreviewUrl]);
 
-  const handleCancelCrop = useCallback(() => {
-    handleCloseModal();
-  }, [handleCloseModal]);
-
   // Focus management: mount focus & focus restoration
   useEffect(() => {
     if (avatarModalOpen) {

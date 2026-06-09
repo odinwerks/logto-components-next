@@ -3,12 +3,11 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
-import type { DashboardData, TabId, UserData, MfaVerificationPayload, ThemeColors } from './types';
+import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { ToastContainer } from './shared/Toast';
-import { TruncatedToken } from './shared/CodeBlock';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -588,7 +587,7 @@ function NavButton({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SignOutButton({
-  label, colors, themeMode, onClick,
+  label, colors: _colors, themeMode, onClick,
 }: {
   label: string;
   colors: ThemeColors;
