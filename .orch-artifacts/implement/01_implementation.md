@@ -1,22 +1,26 @@
 ## Status: DONE
 
 ## Summary
-Fixed the `lint` script in `package.json` to use `eslint .` directly instead of the removed `next lint` CLI command. Next.js 16.2.7 removed the `lint` command, causing it to fail with "Invalid project directory".
+Fixed 5 failing tests in `verification.test.ts` to match the new `cleanPhoneNumber` behavior that preserves the `+` prefix for E.164 compliance.
 
 ## Files Modified
-- `package.json` - Changed `"lint": "next lint"` to `"lint": "eslint ."` on line 29
+- `app/logto-kit/logic/actions/verification.test.ts` - Updated test expectations for phone numbers with `+` prefix
+
+## Test Changes
+1. **updatePhoneWithVerification** - "accepts when verificationTimestamp is in the future": Changed expected `phone: '1234567890'` → `phone: '+1234567890'`
+2. **updatePhoneWithVerification** - "normalizes formatted phone number": Changed expected `phone: '12345678901'` → `phone: '+12345678901'`
+3. **sendPhoneVerificationCode** - "accepts a clean phone number": Changed expected `value: '15555555555'` → `value: '+15555555555'`
+4. **sendPhoneVerificationCode** - "normalizes spaces, hyphens, and parentheses": Changed expected `value: '15555555555'` → `value: '+15555555555'`
+5. **verifyVerificationCode** - "normalizes and verifies a formatted phone number": Changed expected `value: '15555555555'` → `value: '+15555555555'`
 
 ## Tests
-- No tests needed for this change
+- **Total tests**: 54
+- **Result**: 54/54 passing
 
 ## Commands Run
-- `npm run lint` — **Result**: Works correctly. Returns 133 problems (57 errors, 76 warnings). This is expected behavior with the existing ESLint config.
+- `npx vitest run app/logto-kit/logic/actions/verification.test.ts` - All tests pass
 
 ## Self-Review Findings
-- ✅ Single line change, minimal scope
-- ✅ Uses direct ESLint command as specified in the spec
-- ✅ Verified lint runs successfully with expected output
-- ✅ No other files modified
-
-## Notes
-The 133 problems are pre-existing linting issues in the codebase, not caused by this change. The lint command now works as intended.
+- ✅ All 5 tests with `+` prefix now correctly expect the `+` to be preserved
+- ✅ Tests with phone numbers without `+` prefix still work correctly (e.g., '511147839')
+- ✅ The test file follows the existing conventions and patterns

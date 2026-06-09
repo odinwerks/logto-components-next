@@ -68,10 +68,10 @@ export async function POST(request: NextRequest) {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
-  const response = clearLogtoCookies(
+  const response = clearWipeNonce(clearLogtoCookies(
     request,
     NextResponse.redirect(new URL('/', baseUrl)),
-  );
+  ));
 
   if (force) {
     try {

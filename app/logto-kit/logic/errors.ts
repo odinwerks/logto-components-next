@@ -105,17 +105,23 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  * Behavior:
  * - Parses upstream JSON payload for code + message.
  * - Logs only HTTP status and upstream code to server logs (never the message).
- * - Passes Logto's human-readable `message` to the client verbatim.
  * - Falls back to the deterministic error code when no upstream message exists.
+ * - By default, upstream `message` is NOT exposed (safeCode used instead).
+ *   Pass `exposeMessage = true` to opt-in (e.g. for Account API user-facing
+ *   error messages that are safe to show to end users).
  *
- * @param res       The fetch Response.
- * @param fallback  Error code used for non-auth failures.
- * @param operation Label for server-side logging.
+ * @param res            The fetch Response.
+ * @param fallback       Error code used for non-auth failures.
+ * @param operation      Label for server-side logging.
+ * @param exposeMessage  If true, pass Logto's human-readable `message` to
+ *                       the client verbatim. Default false for safety —
+ *                       prevents Management API internals from leaking.
  */
 export async function throwOnApiError(
   res: Response,
   fallback: ErrorCode,
   operation = 'logto-api',
+  exposeMessage = false,
 ): Promise<void> {
   if (res.ok) return;
 
@@ -150,10 +156,10 @@ export async function throwOnApiError(
     ? 'UNAUTHORIZED'
     : fallback;
 
-  // Pass Logto's human-readable message to the client.
-  // Logto's Account API responses are user-facing and safe to expose.
-  // Fall back to safeCode only when no upstream message is available.
-  const errorMessage = upstreamMessage ?? safeCode;
+  // When exposeMessage is true (e.g. Account API), pass Logto's human-readable
+  // message to the client. When false (default), use the safeCode to prevent
+  // Management API internals from leaking.
+  const errorMessage = exposeMessage ? (upstreamMessage ?? safeCode) : safeCode;
 
   const safe = new Error(errorMessage);
   safe.name = 'SanitizedError';
@@ -195,6 +201,11 @@ export function isAuthError(error: unknown): boolean {
     if (error.name === 'SanitizedError' && error.message === 'UNAUTHORIZED') {
       return true;
     }
+    // Check by error name first (more reliable than message matching)
+    if (error.name === 'LogtoClientError' || error.name === 'AuthError') {
+      return true;
+    }
+    // Fallback string matching for legacy/sdk errors
     if (error.message === 'needsAuth' || error.message === 'No access token available for Account API') {
       return true;
     }

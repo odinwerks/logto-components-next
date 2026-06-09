@@ -5,7 +5,7 @@ import { getCleanEndpoint, introspectToken } from '../utils';
 import { debugLog } from '../debug';
 import { assertSafeUserId, assertSafeLogtoId } from '../guards';
 import { safeAction, type DataResult } from './safe';
-import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult } from '../types';
+import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult, OidcIntrospectionResponse } from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize } from '../errors';
@@ -156,17 +156,25 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
  *   4. Union scope names → effective personal permissions
  */
 export async function verifyPersonalAccess(
-  expectedPrincipal?: ExpectedPrincipal
+  expectedPrincipal?: ExpectedPrincipal,
+  existingIntrospection?: OidcIntrospectionResponse
 ): Promise<DataResult<PersonalAccessResult>> {
   return safeAction(async () => {
     let sessionToken: string;
-    try {
-      sessionToken = await getTokenForServerAction();
-    } catch (err) {
-      throw sanitize(err, { fallback: 'UNAUTHORIZED' });
+    let introspection: OidcIntrospectionResponse;
+
+    if (existingIntrospection) {
+      introspection = existingIntrospection;
+    } else {
+      try {
+        sessionToken = await getTokenForServerAction();
+      } catch (err) {
+        throw sanitize(err, { fallback: 'UNAUTHORIZED' });
+      }
+
+      introspection = await introspectToken(sessionToken);
     }
 
-    const introspection = await introspectToken(sessionToken);
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }

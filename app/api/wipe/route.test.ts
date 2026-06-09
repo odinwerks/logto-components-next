@@ -21,7 +21,7 @@ function makeWipeRequest(
   const qs = search.toString();
   const url = `http://localhost:3000/api/wipe${qs ? `?${qs}` : ''}`;
   const headers: Record<string, string> = {};
-  if (method === 'POST' && origin) headers.origin = origin;
+  if (origin) headers.origin = origin;
   if (referer) headers.referer = referer;
 
   const req = new NextRequest(url, {
@@ -104,6 +104,17 @@ describe('POST /api/wipe', () => {
     expect(setCookies.some(c => c.includes('logto_active_org') && c.includes('Max-Age=0'))).toBe(true);
   });
 
+  it('BUG-007: clears wipe nonce cookie on POST', async () => {
+    const { POST } = await import('./route');
+    const req = makeWipeRequest('POST', false, 'http://localhost:3000', undefined, 'some-nonce');
+    const res = await POST(req);
+
+    expect(res.status).toBe(307);
+
+    const setCookies = getSetCookies(res);
+    expect(setCookies.some(c => c.includes('logto-wipe-nonce') && c.includes('Max-Age=0'))).toBe(true);
+  });
+
   it('clears all Logto cookies even when force=true and signOut throws NEXT_REDIRECT', async () => {
     const nextRedirectError = new Error('NEXT_REDIRECT; destination=/');
     signOutMockFn.mockRejectedValue(nextRedirectError);
@@ -165,10 +176,10 @@ describe('GET /api/wipe', () => {
     expect(setCookies.some(c => c.includes('logto-wipe-nonce') && c.includes('Max-Age=0'))).toBe(true);
   });
 
-  it('succeeds with force=true when the referer header is same-origin', async () => {
+  it('succeeds with force=true when the Origin header is same-origin', async () => {
     signOutMockFn.mockResolvedValue(undefined);
     const { GET } = await import('./route');
-    const req = makeWipeRequest('GET', true, undefined, undefined, undefined, 'http://localhost:3000/some-page');
+    const req = makeWipeRequest('GET', true, 'http://localhost:3000');
     const res = await GET(req);
 
     expect(res.status).toBe(307);
@@ -176,26 +187,18 @@ describe('GET /api/wipe', () => {
     expect(setCookies.some(c => c.includes('logto_token') && c.includes('Max-Age=0'))).toBe(true);
   });
 
-  it('fails with 403 Forbidden with force=true when referer is cross-origin', async () => {
+  it('fails with 403 Forbidden with force=true when Origin is cross-origin', async () => {
     const { GET } = await import('./route');
-    const req = makeWipeRequest('GET', true, undefined, undefined, undefined, 'https://evil.com/some-page');
+    const req = makeWipeRequest('GET', true, 'https://evil.com');
     const res = await GET(req);
 
     expect(res.status).toBe(403);
   });
 
-  it('fails with 403 Forbidden with force=true when referer is malicious, empty or absent', async () => {
+  it('fails with 403 Forbidden with force=true when Origin is absent', async () => {
     const { GET } = await import('./route');
-    const req1 = makeWipeRequest('GET', true, undefined, undefined, undefined, '');
-    const res1 = await GET(req1);
-    expect(res1.status).toBe(403);
-
-    const req2 = makeWipeRequest('GET', true, undefined, undefined, undefined, 'invalid-url');
-    const res2 = await GET(req2);
-    expect(res2.status).toBe(403);
-
-    const req3 = makeWipeRequest('GET', true);
-    const res3 = await GET(req3);
-    expect(res3.status).toBe(403);
+    const req = makeWipeRequest('GET', true);
+    const res = await GET(req);
+    expect(res.status).toBe(403);
   });
 });

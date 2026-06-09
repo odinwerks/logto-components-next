@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/action-registry';
+import { validateActionConfig } from '../../logto-kit/action-registry/validate-action-config';
 import { introspectToken, getCleanEndpoint } from '../../logto-kit/logic/utils';
 import { assertSafeUserId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
-import { getManagementApiToken } from '../../logto-kit/config';
+import { getManagementApiToken, getLogtoConfig } from '../../logto-kit/config';
 import { verifyPersonalAccess, verifyOrgAccess } from '../../logto-kit/logic/actions';
 
 async function fetchUserAsOrg(userId: string): Promise<string | null> {
   try {
     const mgmtToken = await getManagementApiToken();
     const endpoint = getCleanEndpoint();
-    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}`;
+    // BUG-015: Only request customData field to reduce response payload size.
+    // We only need customData.Preferences.asOrg — fetching the full user object
+    // is wasteful when the Management API supports field selection.
+    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}?fields=customData`;
 
     debugLog(`[Protected API] Fetching user ${userId} details from Management API`);
     const res = await fetch(url, {
@@ -58,11 +62,22 @@ export async function POST(request: NextRequest) {
   if (originError) return originError;
 
   try {
+    // BUG-001: Reject oversized request bodies before parsing JSON.
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 1_048_576) {
+      return apiError('PAYLOAD_TOO_LARGE', 413);
+    }
+
     const body: ProtectedRequestBody = await request.json();
 
     const { action, payload } = body;
 
     if (!action) {
+      return apiError('MISSING_FIELDS', 400);
+    }
+
+    // BUG-008: Validate action name format and length.
+    if (typeof action !== 'string' || action.length === 0 || action.length > 128) {
       return apiError('MISSING_FIELDS', 400);
     }
 
@@ -94,6 +109,12 @@ export async function POST(request: NextRequest) {
       return apiError('TOKEN_INVALID', 401);
     }
 
+    // BUG-009: Verify token audience matches this application's client_id.
+    const logtoConfig = getLogtoConfig();
+    if (introspection.client_id && introspection.client_id !== logtoConfig.appId) {
+      return apiError('TOKEN_INVALID', 401);
+    }
+
     const expectedPrincipal = introspection.sid
       ? { sub: id, sid: introspection.sid }
       : { sub: id };
@@ -113,24 +134,10 @@ export async function POST(request: NextRequest) {
 
     // ── Validate action configuration ─────────────────────────────────────────
     // Every protected action MUST define all three check categories.
-    const missingFields: string[] = [];
-    if (!actionConfig.requiredOrgId || typeof actionConfig.requiredOrgId !== 'string' || actionConfig.requiredOrgId.length === 0) {
-      missingFields.push('requiredOrgId');
-    }
-    const hasRole = Array.isArray(actionConfig.requiredRoleId)
-      ? actionConfig.requiredRoleId.length > 0
-      : typeof actionConfig.requiredRoleId === 'string' && actionConfig.requiredRoleId.length > 0;
-    if (!hasRole) {
-      missingFields.push('requiredRoleId');
-    }
-    const hasPerm = Array.isArray(actionConfig.requiredPermId)
-      ? actionConfig.requiredPermId.length > 0
-      : typeof actionConfig.requiredPermId === 'string' && actionConfig.requiredPermId.length > 0;
-    if (!hasPerm) {
-      missingFields.push('requiredPermId');
-    }
-    if (missingFields.length > 0) {
-      debugError(`[Protected API] IMPROPER_SETUP_ERROR for action "${action}": missing ${missingFields.join(', ')}`);
+    try {
+      validateActionConfig(actionConfig, action);
+    } catch (validationError) {
+      debugError(`[Protected API] IMPROPER_SETUP_ERROR for action "${action}": ${validationError instanceof Error ? validationError.message : String(validationError)}`);
       return apiError('IMPROPER_SETUP_ERROR', 500);
     }
 
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Branch: "self" bypass checks personal roles.
     // Otherwise, check custom data asOrg first, then load org roles/permissions and verify both.
     if (actionConfig.requiredOrgId === 'self') {
-      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal);
+      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal, introspection);
       if (!personalAccessResult.ok) {
         debugLog('[Protected API] Personal access verification failed:', personalAccessResult.error);
         return apiError('UNAUTHORIZED', 401);
@@ -177,7 +184,7 @@ export async function POST(request: NextRequest) {
         return apiError('ORG_NOT_MEMBER', 403);
       }
 
-      const result = await verifyOrgAccess(orgId, expectedPrincipal);
+      const result = await verifyOrgAccess(orgId, expectedPrincipal, introspection);
       if (!result.ok) {
         debugLog('[Protected API] Org access verification failed:', result.error);
         if (result.error === 'UNAUTHORIZED') {

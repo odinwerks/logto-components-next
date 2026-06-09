@@ -58,7 +58,7 @@ describe('DashboardRouter', () => {
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 
-  it('server render shows desktop (SSR-safe); client render follows matchMedia', () => {
+  it('renderToString always uses SSR snapshot (desktop); client render follows matchMedia', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -73,39 +73,25 @@ describe('DashboardRouter', () => {
       })),
     });
 
-    // Client render: window exists, matchMedia returns matches:true → mobile
-    const clientMarkup = renderToString(
+    // renderToString always uses useSyncExternalStore's SSR snapshot (third arg = false),
+    // so it always renders desktop regardless of matchMedia
+    const ssrMarkup = renderToString(
       <DashboardRouter
         desktop={<div>desktop-dashboard</div>}
         mobile={<div>mobile-dashboard</div>}
       />,
     );
 
-    const originalWindow = globalThis.window;
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      writable: true,
-      value: undefined,
-    });
+    // Client render with render() picks up matchMedia → mobile
+    render(
+      <DashboardRouter
+        desktop={<div>desktop-dashboard</div>}
+        mobile={<div>mobile-dashboard</div>}
+      />,
+    );
 
-    try {
-      // Server render: window is undefined → lazy initializer returns false → desktop (SSR-safe default)
-      const serverLikeMarkup = renderToString(
-        <DashboardRouter
-          desktop={<div>desktop-dashboard</div>}
-          mobile={<div>mobile-dashboard</div>}
-        />,
-      );
-
-      // Client follows matchMedia (mobile); server always defaults to desktop for SSR safety
-      expect(clientMarkup).toContain('mobile-dashboard');
-      expect(serverLikeMarkup).toContain('desktop-dashboard');
-    } finally {
-      Object.defineProperty(globalThis, 'window', {
-        configurable: true,
-        writable: true,
-        value: originalWindow,
-      });
-    }
+    // SSR snapshot always returns false → desktop; client follows matchMedia → mobile
+    expect(ssrMarkup).toContain('desktop-dashboard');
+    expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 });

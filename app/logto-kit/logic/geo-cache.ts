@@ -41,6 +41,12 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   if (typeof window === 'undefined') return null;
   if (!ip) return null;
 
+  // Check user consent before geolocation lookup
+  const consent = sessionStorage.getItem('geo-consent');
+  if (consent !== 'true') {
+    return null; // No consent, skip geolocation
+  }
+
   const cached = getCachedGeo(ip);
   if (cached) return cached;
 

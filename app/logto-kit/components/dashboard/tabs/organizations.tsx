@@ -410,7 +410,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
                   aria-describedby={showTooltip && activePermissionInfo?.name === permission ? tooltipId : undefined}
                   style={{
                     cursor: 'help',
-                    color: '#666',
+                    color: c.textTertiary,
                     display: 'inline-flex',
                     alignItems: 'center',
                     background: 'none',

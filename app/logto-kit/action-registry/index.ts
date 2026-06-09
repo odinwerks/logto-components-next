@@ -1,6 +1,7 @@
 'use server';
 
 import type { ActionConfig, ActionRegistry } from '../logic/types';
+import { validateActionConfig } from './validate-action-config';
 
 import {
   getCalcAdd,
@@ -105,28 +106,7 @@ async function loadActions(): Promise<ActionRegistry> {
   // Strict validation: every action MUST define all three check categories.
   // Missing any field is a fatal setup error - the registry is unusable.
   for (const [name, config] of Object.entries(_actionsCache)) {
-    const missing: string[] = [];
-    if (!config.requiredOrgId || typeof config.requiredOrgId !== 'string' || config.requiredOrgId.length === 0) {
-      missing.push('requiredOrgId');
-    }
-    const hasRole = Array.isArray(config.requiredRoleId)
-      ? config.requiredRoleId.length > 0
-      : typeof config.requiredRoleId === 'string' && config.requiredRoleId.length > 0;
-    if (!hasRole) {
-      missing.push('requiredRoleId');
-    }
-    const hasPerm = Array.isArray(config.requiredPermId)
-      ? config.requiredPermId.length > 0
-      : typeof config.requiredPermId === 'string' && config.requiredPermId.length > 0;
-    if (!hasPerm) {
-      missing.push('requiredPermId');
-    }
-    if (missing.length > 0) {
-      throw new Error(
-        `IMPROPER_SETUP_ERROR: Action "${name}" is missing required fields: ${missing.join(', ')}. ` +
-        'Every protected action MUST define requiredOrgId, requiredRoleId, and requiredPermId.'
-      );
-    }
+    validateActionConfig(config, name);
   }
 
   return _actionsCache;

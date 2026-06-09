@@ -116,7 +116,7 @@ describe('proxy error classification and logging', () => {
     );
   });
 
-  it('handles unexpected errors by returning 500 and logging error', async () => {
+  it('handles unexpected errors by redirecting to sign-in and logging error', async () => {
     const unexpectedError = new Error('Database connection lost');
     getLogtoContextMock.mockRejectedValue(unexpectedError);
 
@@ -124,12 +124,12 @@ describe('proxy error classification and logging', () => {
     const req = new NextRequest('https://example.com/protected');
     const res = await proxy(req);
 
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body).toEqual({ error: 'INTERNAL_ERROR' });
+    expect(res.status).toBe(307);
+    const location = res.headers.get('location');
+    expect(location).toContain('/api/auth/sign-in');
 
     expect(errorMock).toHaveBeenCalledWith(
-      '[Proxy] Unexpected error, returning 500:',
+      '[Proxy] Unexpected error, redirecting to sign-in:',
       'Database connection lost',
     );
   });

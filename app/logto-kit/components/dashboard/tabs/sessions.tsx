@@ -533,7 +533,7 @@ export function SessionsTab({
                       }}>
                         {meta.lastActive === 'now' ? (
                           <span style={{
-                            color: mode === 'dark' ? '#34c759' : '#1a7a2e',
+                            color: c.accentGreen,
                             fontWeight: 600,
                           }}>
                             {t.sessions.activeNow}
@@ -558,7 +558,7 @@ export function SessionsTab({
                       <span style={{ color: T.sub }}>{t.sessions.lastActive}: </span>
                       {meta.lastActive === 'now' ? (
                         <span style={{
-                          color: mode === 'dark' ? '#34c759' : '#1a7a2e',
+                          color: c.accentGreen,
                           fontWeight: 600,
                         }}>
                           {t.sessions.activeNow}
@@ -582,9 +582,9 @@ export function SessionsTab({
                       padding: isMobile ? '0.25rem 0.5rem' : '0.3125rem 0.75rem',
                       borderRadius: '0.25rem',
                       whiteSpace: 'nowrap',
-                      border: mode === 'dark' ? '1px solid #34c759' : '1px solid #2ea843',
-                      background: mode === 'dark' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(52, 199, 89, 0.15)',
-                      color: mode === 'dark' ? '#34c759' : '#1a7a2e',
+                      border: `1px solid ${c.accentGreen}`,
+                      background: `${c.accentGreen}33`,
+                      color: c.accentGreen,
                     }}>
                       {!isMobile && (
                         <span style={{

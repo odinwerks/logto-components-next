@@ -311,7 +311,6 @@ export const ukUA: Translations = {
     loadFailed: 'Не вдалося завантажити MFA',
     verificationFailed: 'Помилка перевірки',
     totpVerificationFailed: 'Помилка перевірки TOTP',
-    confirmRemoveFactor: 'Видалити фактор MFA ${mfa.type}?',
     verifyPasswordToRemoveFactor: 'Підтвердьте пароль для видалення фактора MFA',
     verifyPasswordToGenerateTotp: 'Підтвердьте пароль для створення секрету TOTP',
     verifyPasswordToGenerateBackupCodes: 'Підтвердьте пароль для генерації резервних кодів',

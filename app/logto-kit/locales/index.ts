@@ -326,7 +326,6 @@ export interface Translations {
     loadFailed: string;
     verificationFailed: string;
     totpVerificationFailed: string;
-    confirmRemoveFactor: string;
     verifyPasswordToRemoveFactor: string;
     verifyPasswordToGenerateTotp: string;
     verifyPasswordToGenerateBackupCodes: string;

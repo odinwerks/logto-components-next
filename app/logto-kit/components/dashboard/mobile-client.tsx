@@ -28,7 +28,6 @@ interface MobileClientProps {
   initialData: { userData: UserData };
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
-  userShape?: 'circle' | 'sq' | 'rsq';
   nameType?: string;
   translations: Translations;
   allTranslations: Record<string, Translations>;
@@ -480,6 +479,16 @@ function MobileMenuEntry({
 
   const isLast = index === total - 1;
 
+  const prefersReducedMotion = useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false
+  );
+
   return (
     <button
       onClick={onClick}
@@ -510,9 +519,11 @@ function MobileMenuEntry({
         cursor: 'pointer',
         textAlign: 'center',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        animation: `mStagger 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
-        animationDelay: `${index * 0.08}s`,
-        opacity: 0,
+        animation: prefersReducedMotion
+          ? 'none'
+          : `mStagger 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
+        animationDelay: prefersReducedMotion ? '0ms' : `${index * 0.08}s`,
+        opacity: prefersReducedMotion ? 1 : 0,
         textShadow: pressed
           ? (mode === 'dark' ? '0 0 1rem rgba(255,255,255,0.15)' : '0 0 1rem rgba(0,0,0,0.1)')
           : 'none',

@@ -65,7 +65,6 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
 
   const toastStyle: React.CSSProperties = {
     ...styleMap[message.type],
-    zIndex: 9999,
     maxWidth: '25rem',
     animation: 'slideIn 0.2s ease-out',
     whiteSpace: 'pre-wrap',
@@ -133,6 +132,7 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onDismiss(message.id); }}
+            aria-label="Dismiss notification"
             style={{
               background: 'transparent',
               border: 'none',

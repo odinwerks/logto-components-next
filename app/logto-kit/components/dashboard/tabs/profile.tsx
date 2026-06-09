@@ -183,7 +183,7 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
                     <span
                       onMouseEnter={(e) => handlePermMouseEnter(e, perm)}
                       onMouseLeave={handlePermMouseLeave}
-                      style={{ cursor: 'help', color: '#666', display: 'inline-flex', alignItems: 'center' }}
+                      style={{ cursor: 'help', color: c.textTertiary, display: 'inline-flex', alignItems: 'center' }}
                     >
                       <Info size={14} />
                     </span>

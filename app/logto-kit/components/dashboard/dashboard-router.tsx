@@ -1,42 +1,27 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
-
-const useHydrationSafeLayoutEffect =
-  typeof window === 'undefined' ? useEffect : useLayoutEffect;
+import { useSyncExternalStore, type ReactNode } from 'react';
 
 export function useIsPortrait(): boolean {
-  const [portrait, setPortrait] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(orientation: portrait)').matches;
-  });
-  const [narrow, setNarrow] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(max-width: 64rem)').matches;
-  });
+  const portrait = useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(orientation: portrait)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(orientation: portrait)').matches,
+    () => false // SSR fallback
+  );
 
-  useHydrationSafeLayoutEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
-    }
-
-    const orientationMq = window.matchMedia('(orientation: portrait)');
-    const widthMq = window.matchMedia('(max-width: 64rem)');
-
-    setPortrait(orientationMq.matches);
-    setNarrow(widthMq.matches);
-
-    const handleOrientationChange = (e: MediaQueryListEvent) => setPortrait(e.matches);
-    const handleWidthChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
-
-    orientationMq.addEventListener('change', handleOrientationChange);
-    widthMq.addEventListener('change', handleWidthChange);
-
-    return () => {
-      orientationMq.removeEventListener('change', handleOrientationChange);
-      widthMq.removeEventListener('change', handleWidthChange);
-    };
-  }, []);
+  const narrow = useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(max-width: 64rem)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(max-width: 64rem)').matches,
+    () => false // SSR fallback
+  );
 
   return portrait || narrow;
 }

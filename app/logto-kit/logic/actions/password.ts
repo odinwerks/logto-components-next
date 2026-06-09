@@ -33,7 +33,7 @@ export async function updateUserPassword(
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
 
-    await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED', 'Update password');
+    await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED', 'Update password', true);
 
     // Audit (best-effort - failure must not break the main action)
     try {

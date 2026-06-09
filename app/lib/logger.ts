@@ -37,6 +37,38 @@ export function getDefaultLevel(): LevelWithSilent {
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // ============================================================================
+// Sensitive Key Redaction
+// ============================================================================
+
+// IMPORTANT: Sensitive keys (token, password, secret, key, authorization,
+// apiKey) are automatically redacted. Do NOT log credentials in any form.
+const SENSITIVE_KEYS =
+  /^(token|password|secret|key|authorization|apiKey|api_key|accessToken|refreshToken|idToken|m2mToken)$/i;
+
+/**
+ * Recursively redacts sensitive keys in an object before serialization.
+ * Returns the object with matching keys replaced by '[REDACTED]'.
+ */
+function redactSensitive(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(redactSensitive);
+  if (typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (SENSITIVE_KEYS.test(key)) {
+        result[key] = '[REDACTED]';
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = redactSensitive(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  return obj;
+}
+
+// ============================================================================
 // Webhook Transport
 // ============================================================================
 
@@ -62,7 +94,7 @@ function createWebhookDestination(webhookUrl: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batch.map((line) => {
           try {
-            return JSON.parse(line);
+            return redactSensitive(JSON.parse(line));
           } catch {
             return { raw: line };
           }

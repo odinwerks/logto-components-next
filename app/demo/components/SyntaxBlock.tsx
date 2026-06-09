@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, AlertCircle } from 'lucide-react';
 
 // ─── Token types ────────────────────────────────────────────────────────────
 
@@ -183,16 +183,32 @@ interface CodeBlockProps {
 
 export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
     } catch {
-      console.error('Copy failed');
+      // Fallback for older browsers / non-HTTPS
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = code;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch {
+        setCopyFailed(true);
+        setTimeout(() => setCopyFailed(false), 1500);
+        return;
+      }
     }
+    setCopied(true);
+    setCopyFailed(false);
+    setTimeout(() => setCopied(false), 1500);
   }, [code]);
 
   const trimmedCode = code.trim();
@@ -242,7 +258,7 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
 
         <button
           onClick={handleCopy}
-          title={copied ? 'Copied!' : 'Copy'}
+          title={copyFailed ? 'Copy failed' : copied ? 'Copied!' : 'Copy'}
           style={{
             position: 'absolute',
             top: '8px',
@@ -256,16 +272,18 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
             border: '1px solid #3c3c3c',
             borderRadius: '4px',
             cursor: 'pointer',
-            color: copied ? '#4ec9b0' : '#808080',
-            opacity: hovered || copied ? 1 : 0,
-            transform: `scale(${hovered || copied ? 1 : 0.9})`,
+            color: copyFailed ? '#dc2626' : copied ? '#4ec9b0' : '#808080',
+            opacity: hovered || copied || copyFailed ? 1 : 0,
+            transform: `scale(${hovered || copied || copyFailed ? 1 : 0.9})`,
             transition: 'opacity 0.15s ease, transform 0.15s ease, color 0.15s ease',
-            pointerEvents: hovered || copied ? 'auto' : 'none',
+            pointerEvents: hovered || copied || copyFailed ? 'auto' : 'none',
           }}
         >
-          {copied
-            ? <Check size={13} strokeWidth={2.5} />
-            : <Copy size={13} strokeWidth={2} />
+          {copyFailed
+            ? <AlertCircle size={13} strokeWidth={2} />
+            : copied
+              ? <Check size={13} strokeWidth={2.5} />
+              : <Copy size={13} strokeWidth={2} />
           }
         </button>
       </div>

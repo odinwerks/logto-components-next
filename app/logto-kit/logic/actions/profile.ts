@@ -46,7 +46,7 @@ export async function updateUserProfile(profile: {
       method: 'PATCH',
       body: profile,
     });
-    await throwOnApiError(res, 'UPDATE_FAILED', 'profile-update');
+    await throwOnApiError(res, 'UPDATE_FAILED', 'profile-update', true);
   });
 }
 

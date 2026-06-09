@@ -311,7 +311,6 @@ export const enUS: Translations = {
     loadFailed: 'Failed to load MFA',
     verificationFailed: 'Verification failed',
     totpVerificationFailed: 'TOTP verification failed',
-    confirmRemoveFactor: 'Remove ${mfa.type} MFA factor?',
     verifyPasswordToRemoveFactor: 'Verify your password to remove MFA factor',
     verifyPasswordToGenerateTotp: 'Verify your password to generate TOTP secret',
     verifyPasswordToGenerateBackupCodes: 'Verify your password to generate backup codes',

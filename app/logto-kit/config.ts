@@ -31,7 +31,7 @@ function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
 
-  const isNextBuild = process.env.npm_lifecycle_event === 'build';
+  const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
   const isBuildTime = (isNextBuild && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
   if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
@@ -56,7 +56,13 @@ function parseScopes(scopeString: string): string[] {
     .split(/[,\s]+/)
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((s) => SCOPE_MAP[s] || s)
+    .map((s) => {
+      const mapped = SCOPE_MAP[s];
+      if (!mapped && s !== 'openid' && s !== 'offline_access') {
+        warn(`[config] Unknown scope in SCOPES: "${s}"`);
+      }
+      return mapped || s;
+    })
     .filter(Boolean);
 
   return scopes;
@@ -73,7 +79,7 @@ export const logtoConfig = (() => {
   const allowList = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
   const blockList = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
   if (allowList.length > 0 && blockList.length > 0) {
-    const isNextBuild = process.env.npm_lifecycle_event === 'build';
+    const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
     const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
     if (isNextBuild) {
       warn(`[Logto Config] ${msg} Falling back to allow list.`);
@@ -109,7 +115,7 @@ export const logtoConfig = (() => {
   // Runtime guard: prevent serving with placeholder secrets in production.
   // During `next build` (esp. Docker), env files are excluded from the build
   // context, so placeholders are expected. The guard re-runs at server start.
-  const isNextBuild = process.env.npm_lifecycle_event === 'build';
+  const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
   if (config.appSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
     throw new Error(
       'FATAL: appSecret is still "build-placeholder" at runtime in production. ' +
@@ -124,7 +130,7 @@ export const logtoConfig = (() => {
   }
 
   // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
-  const isNextBuildForHttps = process.env.npm_lifecycle_event === 'build';
+  const isNextBuildForHttps = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
   if (nodeEnv === 'production' && !isNextBuildForHttps) {
     function assertHttpsInProduction(url: string | undefined, name: string): void {
       if (!url) return; // Let existing required checks handle missing values
@@ -220,9 +226,8 @@ export async function getManagementApiToken(): Promise<string> {
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(
-      `Management API token request failed ${res.status}: ${errorText.substring(0, 200)}`
-    );
+    warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
+    throw new Error('Management API token request failed');
   }
 
   const data = await res.json();

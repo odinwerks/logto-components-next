@@ -76,6 +76,74 @@ describe('verifyPersonalAccess compatibility fallback', () => {
   });
 });
 
+describe('verifyPersonalAccess - existingIntrospection optimization', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://auth.example.org');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('skips introspectToken when existingIntrospection is provided', async () => {
+    const existingIntrospection = { active: true, sub: 'user-test-123' };
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([{ id: 's1', name: 'read:data' }]));
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess(undefined, existingIntrospection);
+
+    expect(result.ok).toBe(true);
+    expect(introspectToken).not.toHaveBeenCalled();
+    expect(getTokenForServerAction).not.toHaveBeenCalled();
+  });
+
+  it('calls introspectToken when existingIntrospection is not provided', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([{ id: 's1', name: 'read:data' }]));
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess();
+
+    expect(result.ok).toBe(true);
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+  });
+
+  it('validates expectedPrincipal against existingIntrospection', async () => {
+    const existingIntrospection = { active: true, sub: 'user-other-999' };
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess({ sub: 'user-test-123' }, existingIntrospection);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(introspectToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects inactive existingIntrospection', async () => {
+    const existingIntrospection = { active: false };
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess(undefined, existingIntrospection);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(introspectToken).not.toHaveBeenCalled();
+  });
+});
+
 describe('getRoleDetails session authentication', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 

@@ -81,7 +81,7 @@ describe('throwOnApiError from errors.ts', () => {
   });
 
   it.each(['production', 'development', 'test'] as const)(
-    'passes upstream message verbatim in %s',
+    'passes upstream message verbatim when exposeMessage=true in %s',
     async nodeEnv => {
       vi.stubEnv('NODE_ENV', nodeEnv);
       const { throwOnApiError } = await import('./errors');
@@ -91,13 +91,13 @@ describe('throwOnApiError from errors.ts', () => {
         { status: 400 },
       );
 
-      const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED').then(
+      const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED', 'logto-api', true).then(
         () => {
           throw new Error('Expected throwOnApiError to reject for non-OK response');
         },
         err => err as Error,
       );
-      // Upstream `message` field is now passed through verbatim
+      // Upstream `message` field is passed through only when exposeMessage=true
       expect(thrown).toMatchObject({
         name: 'SanitizedError',
         message: upstreamMessage,
@@ -155,6 +155,59 @@ describe('throwOnApiError from errors.ts', () => {
     expect(thrown).toMatchObject({
       name: 'SanitizedError',
       message: 'VERIFICATION_FAILED',
+    });
+  });
+
+  it('does NOT expose upstream message by default (exposeMessage=false)', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response(
+      JSON.stringify({ code: 'user.invalid_password', message: 'Password too short' }),
+      { status: 400 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED').then(
+      () => { throw new Error('Expected throwOnApiError to reject'); },
+      err => err as Error,
+    );
+    // Default: upstream message is NOT exposed; safeCode is used instead
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'UPDATE_FAILED',
+    });
+  });
+
+  it('exposes upstream message when exposeMessage=true', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response(
+      JSON.stringify({ code: 'user.invalid_password', message: 'Password too short' }),
+      { status: 400 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED', 'test-op', true).then(
+      () => { throw new Error('Expected throwOnApiError to reject'); },
+      err => err as Error,
+    );
+    // exposeMessage=true: upstream message IS exposed
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'Password too short',
+    });
+  });
+
+  it('exposeMessage=false still maps 401 to UNAUTHORIZED', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response(
+      JSON.stringify({ code: 'auth.unauthorized', message: 'Token expired' }),
+      { status: 401 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'FETCH_FAILED').then(
+      () => { throw new Error('Expected throwOnApiError to reject'); },
+      err => err as Error,
+    );
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'UNAUTHORIZED',
     });
   });
 });
@@ -226,6 +279,22 @@ describe('isAuthError', () => {
     expect(isAuthError(new Error('No access token available for Account API'))).toBe(true);
     expect(isAuthError(new Error('Cookies can only be modified in a Server Action or Route Handler'))).toBe(true);
     expect(isAuthError(new Error('Generic Error'))).toBe(false);
+  });
+
+  it('detects auth errors by error.name (LogtoClientError / AuthError)', async () => {
+    const { isAuthError } = await import('./errors');
+
+    const logtoErr = new Error('some logto message');
+    logtoErr.name = 'LogtoClientError';
+    expect(isAuthError(logtoErr)).toBe(true);
+
+    const authErr = new Error('some auth message');
+    authErr.name = 'AuthError';
+    expect(isAuthError(authErr)).toBe(true);
+
+    const otherErr = new Error('some other message');
+    otherErr.name = 'OtherError';
+    expect(isAuthError(otherErr)).toBe(false);
   });
 });
 

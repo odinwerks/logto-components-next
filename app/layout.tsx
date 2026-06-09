@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import AuthWatcher from './logto-kit/components/providers/auth-watcher';
 import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
+import { LangSync } from './logto-kit/components/LangSync';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -35,15 +36,22 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        {/*
+          Theme flash prevention: reads theme from sessionStorage and applies it
+          before React hydrates. Any DOM change here causes a hydration mismatch,
+          which is why suppressHydrationWarning is on <html>. This is the ONLY
+          expected source of mismatch.
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const stored = window.sessionStorage.getItem('theme-mode');
-                if (stored) {
-                  document.documentElement.setAttribute('data-theme', stored);
+                var stored = window.sessionStorage.getItem('theme-mode');
+                var valid = stored === 'dark' || stored === 'light' ? stored : null;
+                if (valid) {
+                  document.documentElement.setAttribute('data-theme', valid);
                 } else {
-                  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
                 }
               } catch (e) {}
@@ -55,6 +63,7 @@ export default function RootLayout({
         <AuthWatcher />
         <SessionHeartbeat />
         {children}
+        <LangSync />
       </body>
     </html>
   );

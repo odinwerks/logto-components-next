@@ -83,7 +83,7 @@ export async function deleteUserAccount(
 
     // ── Sanity-check the account session before destructive work ───────────
     const accountCheck = await makeRequest('/api/my-account');
-    await throwOnApiError(accountCheck, 'UNAUTHORIZED', 'Account verification check');
+    await throwOnApiError(accountCheck, 'UNAUTHORIZED', 'Account verification check', true);
 
     // ── Mint narrowly-scoped M2M token and delete the user ─────────────────
     const mgmtToken = await getManagementApiToken();

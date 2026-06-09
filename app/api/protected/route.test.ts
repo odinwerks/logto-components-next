@@ -508,3 +508,128 @@ describe('POST /api/protected - handler errors', () => {
     expect(body.error).toBe('INVALID_PAYLOAD');
   });
 });
+
+// ── BUG-001: Content-length check ─────────────────────────────────────────
+describe('POST /api/protected - BUG-001 content-length check', () => {
+  it('returns 413 PAYLOAD_TOO_LARGE when content-length exceeds 1MB', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '2000000',
+      },
+      body: JSON.stringify({ action: 'test' }),
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(413);
+    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
+  });
+
+  it('allows request when content-length is under 1MB', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '100',
+      },
+      body: JSON.stringify({ action: 'test' }),
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    // Should not be 413 (may be other errors like missing token, but not payload too large)
+    expect(res.status).not.toBe(413);
+  });
+});
+
+// ── BUG-008: Action name validation ───────────────────────────────────────
+describe('POST /api/protected - BUG-008 action name validation', () => {
+  it('returns 400 MISSING_FIELDS when action is empty string', async () => {
+    const req = makeRequest({ action: '' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('MISSING_FIELDS');
+  });
+
+  it('returns 400 MISSING_FIELDS when action exceeds 128 characters', async () => {
+    const req = makeRequest({ action: 'a'.repeat(129) });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('MISSING_FIELDS');
+  });
+
+  it('allows action names up to 128 characters', async () => {
+    const req = makeRequest({ action: 'a'.repeat(128) });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    // Should not be 400 for action length (may fail for other reasons)
+    expect(res.status).not.toBe(400);
+  });
+});
+
+// ── BUG-009: Token audience verification ─────────────────────────────────
+describe('POST /api/protected - BUG-009 token audience verification', () => {
+  it('returns 401 TOKEN_INVALID when client_id does not match appId', async () => {
+    const { introspectToken } = await import('../../logto-kit/logic/utils');
+    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: true,
+      sub: 'mock-user-id',
+      client_id: 'wrong-client-id',
+    });
+
+    const req = makeRequest({ action: 'test' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('TOKEN_INVALID');
+  });
+
+  it('allows request when client_id matches appId', async () => {
+    const { introspectToken } = await import('../../logto-kit/logic/utils');
+    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: true,
+      sub: 'mock-user-id',
+      client_id: 'test-app-id',
+    });
+
+    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+
+    const req = makeRequest({ action: 'test' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    // Should not be 401 for audience (may be 404 for missing action)
+    expect(res.status).not.toBe(401);
+  });
+
+  it('allows request when client_id is not present in introspection', async () => {
+    const { introspectToken } = await import('../../logto-kit/logic/utils');
+    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: true,
+      sub: 'mock-user-id',
+    });
+
+    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+
+    const req = makeRequest({ action: 'test' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    // Should not be 401 for audience
+    expect(res.status).not.toBe(401);
+  });
+});

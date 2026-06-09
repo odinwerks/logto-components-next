@@ -106,6 +106,8 @@ export function PreferencesProvider({
   const themeRef = useRef(theme);
   const langRef = useRef(lang);
   const asOrgRef = useRef(asOrg);
+  const themePersistMutationSeqRef = useRef(0);
+  const langPersistMutationSeqRef = useRef(0);
   const asOrgPersistMutationSeqRef = useRef(0);
 
   const didSyncFromStorage = useRef(false);
@@ -186,27 +188,27 @@ export function PreferencesProvider({
     [theme]
   );
 
-  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light'): Promise<boolean> => {
+  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light', currentLang: string, currentAsOrg: string | null): Promise<boolean> => {
     if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: langRef.current, asOrg: asOrgRef.current } });
+    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: currentLang, asOrg: currentAsOrg } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist theme:', r.error);
     }
     return r.ok;
   }, [onUpdateCustomData]);
 
-  const persistLangToApi = useCallback(async (newLang: string): Promise<boolean> => {
+  const persistLangToApi = useCallback(async (newLang: string, currentTheme: 'dark' | 'light', currentAsOrg: string | null): Promise<boolean> => {
     if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current } });
+    const r = await onUpdateCustomData({ Preferences: { theme: currentTheme, lang: newLang, asOrg: currentAsOrg } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist lang:', r.error);
     }
     return r.ok;
   }, [onUpdateCustomData]);
 
-  const persistOrgToApi = useCallback(async (newOrgId: string | null) => {
+  const persistOrgToApi = useCallback(async (newOrgId: string | null, currentTheme: 'dark' | 'light', currentLang: string) => {
     if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: themeRef.current, lang: langRef.current, asOrg: newOrgId } });
+    const r = await onUpdateCustomData({ Preferences: { theme: currentTheme, lang: currentLang, asOrg: newOrgId } });
     if (!r.ok) {
       console.error('[PreferencesProvider] Failed to persist org:', r.error);
     }
@@ -215,11 +217,16 @@ export function PreferencesProvider({
 
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
     const prev = themeRef.current;
+    const mutationSeq = ++themePersistMutationSeqRef.current;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    persistThemeToApi(newTheme).then((ok) => {
+    persistThemeToApi(newTheme, langRef.current, asOrgRef.current).then((ok) => {
+      if (mutationSeq !== themePersistMutationSeqRef.current) {
+        return;
+      }
+
       if (!ok) {
-        // Revert to previous on API failure
+        console.warn('[PreferencesProvider] Theme persistence failed, reverting');
         setStoredTheme(prev);
         setThemeState(prev);
       }
@@ -234,11 +241,16 @@ export function PreferencesProvider({
 
   const setLang = useCallback((newLang: string) => {
     const prev = langRef.current;
+    const mutationSeq = ++langPersistMutationSeqRef.current;
     setStoredLang(newLang);
     setLangState(newLang);
-    persistLangToApi(newLang).then((ok) => {
+    persistLangToApi(newLang, themeRef.current, asOrgRef.current).then((ok) => {
+      if (mutationSeq !== langPersistMutationSeqRef.current) {
+        return;
+      }
+
       if (!ok) {
-        // Revert to previous on API failure
+        console.warn('[PreferencesProvider] Lang persistence failed, reverting');
         setStoredLang(prev);
         setLangState(prev);
       }
@@ -252,7 +264,7 @@ export function PreferencesProvider({
     const mutationSeq = ++asOrgPersistMutationSeqRef.current;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    persistOrgToApi(newOrgId).then((ok) => {
+    persistOrgToApi(newOrgId, themeRef.current, langRef.current).then((ok) => {
       if (mutationSeq !== asOrgPersistMutationSeqRef.current) {
         return;
       }

@@ -284,6 +284,57 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('skips introspectToken when existingIntrospection is provided', async () => {
+    const existingIntrospection = { active: true, sub: 'user-test-123' };
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:data')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', undefined, existingIntrospection);
+
+    expect(result.ok).toBe(true);
+    expect(introspectToken).not.toHaveBeenCalled();
+    expect(getTokenForServerAction).not.toHaveBeenCalled();
+  });
+
+  it('calls introspectToken when existingIntrospection is not provided', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:data')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123');
+
+    expect(result.ok).toBe(true);
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+  });
+
+  it('validates expectedPrincipal against existingIntrospection', async () => {
+    const existingIntrospection = { active: true, sub: 'user-other-999' };
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-test-123' }, existingIntrospection);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(introspectToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects inactive existingIntrospection', async () => {
+    const existingIntrospection = { active: false };
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', undefined, existingIntrospection);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(introspectToken).not.toHaveBeenCalled();
+  });
+
   it('fails closed with UNAUTHORIZED when expected sid differs and both sides include sid', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123', sid: 'sid-actual-123' } as never);
     fetchSpy.mockRejectedValue(new Error('fetch should not be called'));

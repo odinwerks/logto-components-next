@@ -311,7 +311,6 @@ export const kaGE: Translations = {
     loadFailed: 'MFA-ს ჩატვირთვა ვერ მოხერხდა',
     verificationFailed: 'ვერიფიკაცია ვერ მოხერხდა',
     totpVerificationFailed: 'TOTP ვერიფიკაცია ვერ მოხერხდა',
-    confirmRemoveFactor: 'წაშალოთ ${mfa.type} MFA ფაქტორი?',
     verifyPasswordToRemoveFactor: 'დაადასტურეთ პაროლი MFA ფაქტორის წასაშლელად',
     verifyPasswordToGenerateTotp: 'დაადასტურეთ პაროლი TOTP საიდუმლოს გენერაციისთვის',
     verifyPasswordToGenerateBackupCodes: 'დაადასტურეთ პაროლი სარეზერვო კოდების გენერაციისთვის',

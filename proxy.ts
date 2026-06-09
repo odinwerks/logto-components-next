@@ -83,8 +83,8 @@ export async function proxy(request: NextRequest) {
     }
 
     // Any other unexpected error
-    logError('[Proxy] Unexpected error, returning 500:', errorMessage);
-    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
+    logError('[Proxy] Unexpected error, redirecting to sign-in:', errorMessage);
+    return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
   }
 }
 

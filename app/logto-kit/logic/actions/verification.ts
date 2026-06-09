@@ -14,16 +14,18 @@ import { getCountryFilter } from '../../config';
 import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 
 /**
- * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, etc.,
- * keeping the leading "+" and digits.
+ * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, etc.
+ * Preserves a leading '+' if present for E.164 compliance.
+ * Returns only digits if no '+' prefix exists.
  */
 function cleanPhoneNumber(phone: string): string {
   if (typeof phone !== 'string') {
     throw new ValidationError('INVALID_INPUT', 'phone');
   }
   const trimmed = phone.trim();
+  const hasPlus = trimmed.startsWith('+');
   const digits = trimmed.replace(/\D/g, '');
-  return digits;
+  return hasPlus ? `+${digits}` : digits;
 }
 
 // ============================================================================
@@ -44,7 +46,7 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
       method: 'POST',
       body: { password },
     });
-    await throwOnApiError(res, 'VERIFICATION_FAILED', 'password-verify');
+    await throwOnApiError(res, 'VERIFICATION_FAILED', 'password-verify', true);
     const parsed = await res.json();
     if (!parsed.verificationRecordId) {
       throw plainCode('VERIFICATION_FAILED');
@@ -90,7 +92,7 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
       method: 'POST',
       body: { identifier: { type: 'email', value: email } },
     });
-    await throwOnApiError(res, 'VERIFICATION_FAILED', 'email-verify-send');
+    await throwOnApiError(res, 'VERIFICATION_FAILED', 'email-verify-send', true);
     const parsed = await res.json();
     if (!parsed.verificationRecordId) {
       throw plainCode('VERIFICATION_FAILED');
@@ -115,7 +117,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<DataResu
       method: 'POST',
       body: { identifier: { type: 'phone', value: cleanedPhone } },
     });
-    await throwOnApiError(res, 'VERIFICATION_FAILED', 'phone-verify-send');
+    await throwOnApiError(res, 'VERIFICATION_FAILED', 'phone-verify-send', true);
     const parsed = await res.json();
     if (!parsed.verificationRecordId) {
       throw plainCode('VERIFICATION_FAILED');
@@ -166,7 +168,7 @@ export async function verifyVerificationCode(
       method: 'POST',
       body: { identifier: { type, value: cleanedValue }, verificationId, code },
     });
-    await throwOnApiError(res, 'VERIFICATION_FAILED', 'verify-code');
+    await throwOnApiError(res, 'VERIFICATION_FAILED', 'verify-code', true);
     const parsed = await res.json();
     if (!parsed.verificationRecordId) {
       throw plainCode('VERIFICATION_FAILED');
@@ -203,7 +205,7 @@ export async function updateEmailWithVerification(
       body: { email, newIdentifierVerificationRecordId },
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
-    await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-update');
+    await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-update', true);
   });
 }
 
@@ -235,7 +237,7 @@ export async function updatePhoneWithVerification(
       body: { phone: cleanedPhone, newIdentifierVerificationRecordId },
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
-    await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-update');
+    await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-update', true);
   });
 }
 
@@ -258,7 +260,7 @@ export async function removeUserEmail(
       method: 'DELETE',
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
-    await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-remove');
+    await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-remove', true);
   });
 }
 
@@ -281,6 +283,6 @@ export async function removeUserPhone(
       method: 'DELETE',
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
-    await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-remove');
+    await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-remove', true);
   });
 }

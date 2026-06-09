@@ -330,7 +330,7 @@ describe('updatePhoneWithVerification', () => {
       '/api/my-account/primary-phone',
       expect.objectContaining({
         method: 'POST',
-        body: { phone: '1234567890', newIdentifierVerificationRecordId: 'vr_identifier' },
+        body: { phone: '+1234567890', newIdentifierVerificationRecordId: 'vr_identifier' },
         extraHeaders: { 'logto-verification-id': 'vr_identity' },
       })
     );
@@ -350,7 +350,7 @@ describe('updatePhoneWithVerification', () => {
       '/api/my-account/primary-phone',
       expect.objectContaining({
         method: 'POST',
-        body: { phone: '12345678901', newIdentifierVerificationRecordId: 'vr_identifier' },
+        body: { phone: '+12345678901', newIdentifierVerificationRecordId: 'vr_identifier' },
         extraHeaders: { 'logto-verification-id': 'vr_identity' },
       })
     );
@@ -420,7 +420,7 @@ describe('sendPhoneVerificationCode', () => {
       '/api/verifications/verification-code',
       expect.objectContaining({
         method: 'POST',
-        body: { identifier: { type: 'phone', value: '15555555555' } },
+        body: { identifier: { type: 'phone', value: '+15555555555' } },
       })
     );
   });
@@ -433,7 +433,7 @@ describe('sendPhoneVerificationCode', () => {
       '/api/verifications/verification-code',
       expect.objectContaining({
         method: 'POST',
-        body: { identifier: { type: 'phone', value: '15555555555' } },
+        body: { identifier: { type: 'phone', value: '+15555555555' } },
       })
     );
   });
@@ -511,7 +511,7 @@ describe('verifyVerificationCode with phone', () => {
       expect.objectContaining({
         method: 'POST',
         body: {
-          identifier: { type: 'phone', value: '15555555555' },
+          identifier: { type: 'phone', value: '+15555555555' },
           verificationId: 'verif_id',
           code: '123456',
         },

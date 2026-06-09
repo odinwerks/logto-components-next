@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { fetchDashboardData } from '../logto-kit/logic/actions';
 import { Dashboard } from '../logto-kit/components/dashboard';
@@ -9,7 +9,9 @@ import { LogtoProvider } from '../logto-kit/components/providers/logto-provider'
 import { getDefaultThemeMode } from '../logto-kit/themes';
 import { getPreferencesFromUserData } from '../logto-kit/logic/preferences';
 import { getMainLocale } from '../logto-kit/locales';
+import { AuthErrorBanner } from '../logto-kit/components/auth-error-banner';
 import DocsLayoutClient from './layout-client';
+import { DocsErrorFallback } from './docs-error-fallback';
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
   const result = await fetchDashboardData();
@@ -18,7 +20,8 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
     if ('needsAuth' in result && result.needsAuth) {
       redirect('/callback');
     }
-    return <div>Failed to load user data</div>;
+    const errorMessage = 'error' in result ? String(result.error) : 'Failed to load user data';
+    return <DocsErrorFallback message={errorMessage} />;
   }
 
   const defaultThemeMode = getDefaultThemeMode();
@@ -36,6 +39,9 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
       initialLang={resolvedLang}
       initialOrgId={resolvedOrg}
     >
+      <Suspense fallback={null}>
+        <AuthErrorBanner />
+      </Suspense>
       <DocsLayoutClient>
         {children}
       </DocsLayoutClient>

@@ -9,7 +9,7 @@ import { warn } from '../log';
 import { sanitize } from '../errors';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
-import type { UserRole, OrgRoleScope } from '../types';
+import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
 
 /**
  * Gets the user's permissions for a specific organization.
@@ -128,22 +128,27 @@ interface ExpectedPrincipal {
  */
 export async function verifyOrgAccess(
   orgId: string,
-  expectedPrincipal?: ExpectedPrincipal
+  expectedPrincipal?: ExpectedPrincipal,
+  existingIntrospection?: OidcIntrospectionResponse
 ): Promise<DataResult<OrgAccessResult>> {
   return safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
 
     let userId: string;
 
-    if (expectedPrincipal) {
-      let introspection: Awaited<ReturnType<typeof introspectToken>>;
+    if (expectedPrincipal || existingIntrospection) {
+      let introspection: OidcIntrospectionResponse;
 
-      try {
-        const sessionToken = await getTokenForServerAction();
-        introspection = await introspectToken(sessionToken);
-      } catch {
-        // Fail closed: expectedPrincipal is never authoritative identity.
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      if (existingIntrospection) {
+        introspection = existingIntrospection;
+      } else {
+        try {
+          const sessionToken = await getTokenForServerAction();
+          introspection = await introspectToken(sessionToken);
+        } catch {
+          // Fail closed: expectedPrincipal is never authoritative identity.
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
       }
 
       if (!introspection.active) {
@@ -155,16 +160,18 @@ export async function verifyOrgAccess(
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
 
-      if (expectedPrincipal.sub !== actualUserId) {
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-      }
+      if (expectedPrincipal) {
+        if (expectedPrincipal.sub !== actualUserId) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
 
-      if (
-        expectedPrincipal.sid &&
-        introspection.sid &&
-        expectedPrincipal.sid !== introspection.sid
-      ) {
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        if (
+          expectedPrincipal.sid &&
+          introspection.sid &&
+          expectedPrincipal.sid !== introspection.sid
+        ) {
+          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+        }
       }
 
       userId = actualUserId;
@@ -201,9 +208,10 @@ export async function verifyOrgAccess(
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyOrgAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
-      // Non-200 from the org-user-roles endpoint means the user is not a
-      // member of this org (or the org doesn't exist).
-      throw new Error('ORG_NOT_MEMBER');
+      if (rolesRes.status === 403 || rolesRes.status === 404) {
+        throw new Error('ORG_NOT_MEMBER');
+      }
+      throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 
     const roles = (await rolesRes.json()) as UserRole[];
@@ -295,7 +303,8 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
       warn(`[getOrgPermissionsWithDescriptions] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
-      return [];
+      if (rolesRes.status === 403 || rolesRes.status === 404) return [];
+      throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 
     const roles = (await rolesRes.json()) as UserRole[];

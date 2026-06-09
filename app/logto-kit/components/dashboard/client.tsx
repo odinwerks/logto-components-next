@@ -406,7 +406,6 @@ export function DashboardClient({
           role="tabpanel"
           id={tabPanelId}
           aria-labelledby={`tab-${activeTab}`}
-          tabIndex={0}
           style={{
             flex: 1,
             padding: '1.75rem 2rem',

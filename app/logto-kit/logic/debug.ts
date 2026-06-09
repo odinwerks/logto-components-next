@@ -4,7 +4,7 @@
  * that should not appear in production logs.
  */
 import { isDev } from './dev-mode';
-import { warn, error } from './log';
+import { debug as logDebug, warn, error } from './log';
 
 const DEBUG = isDev && process.env.DEBUG === 'true';
 
@@ -21,7 +21,7 @@ function formatArgs(args: unknown[]): string {
 
 export function debugLog(...args: unknown[]): void {
   if (DEBUG) {
-    console.log('[DEBUG]', formatArgs(args));
+    logDebug('[DEBUG]', formatArgs(args));
   }
 }
 
