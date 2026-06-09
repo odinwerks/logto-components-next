@@ -162,7 +162,9 @@ export function PasswordVerifyModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogA11y(dialogRef, onClose);
 
+  // Reset "hide while typing" when error prop or step changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on prop change
     setHidePwErrorWhileTyping(false);
   }, [passwordError, step.kind]);
 
@@ -319,7 +321,9 @@ export function FlowModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogA11y(dialogRef, onClose);
 
+  // Reset "hide while typing" when error prop or step changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on prop change
     setHidePwErrorWhileTyping(false);
   }, [passwordError, step.kind]);
 
@@ -401,7 +405,7 @@ export function FlowModal({
                 hasError={!!passwordError}
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
                 mode={mode} colors={colors}
-        describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
+                describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showPw ? 'Hide password' : 'Show password'}

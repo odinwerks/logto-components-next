@@ -31,7 +31,7 @@ interface SectionProps {
   children: ReactNode;
 }
 
-export function Section({ id, children }: SectionProps) {
+export function Section({ id: _id, children }: SectionProps) {
   return (
     <div style={{
       width: '100%',
