@@ -58,9 +58,9 @@ describe('throwOnApiError from errors.ts', () => {
     });
   });
 
-  it('maps 401 responses to UNAUTHORIZED', async () => {
+  it('maps 401 responses to UNAUTHORIZED when no upstream message', async () => {
     const { throwOnApiError } = await import('./errors');
-    const res = new Response(JSON.stringify({ code: 'auth.unauthorized', message: 'Unauthorized request details' }), {
+    const res = new Response(JSON.stringify({ code: 'auth.unauthorized' }), {
       status: 401,
     });
     await expect(throwOnApiError(res, 'FETCH_FAILED')).rejects.toMatchObject({
@@ -69,9 +69,9 @@ describe('throwOnApiError from errors.ts', () => {
     });
   });
 
-  it('maps 403 responses to UNAUTHORIZED', async () => {
+  it('maps 403 responses to UNAUTHORIZED when no upstream message', async () => {
     const { throwOnApiError } = await import('./errors');
-    const res = new Response(JSON.stringify({ code: 'auth.forbidden', message: 'Forbidden details' }), {
+    const res = new Response(JSON.stringify({ code: 'auth.forbidden' }), {
       status: 403,
     });
     await expect(throwOnApiError(res, 'FETCH_FAILED')).rejects.toMatchObject({
@@ -81,7 +81,7 @@ describe('throwOnApiError from errors.ts', () => {
   });
 
   it.each(['production', 'development', 'test'] as const)(
-    'never leaks upstream details in %s',
+    'passes upstream message verbatim in %s',
     async nodeEnv => {
       vi.stubEnv('NODE_ENV', nodeEnv);
       const { throwOnApiError } = await import('./errors');
@@ -97,11 +97,11 @@ describe('throwOnApiError from errors.ts', () => {
         },
         err => err as Error,
       );
+      // Upstream `message` field is now passed through verbatim
       expect(thrown).toMatchObject({
         name: 'SanitizedError',
-        message: 'UPDATE_FAILED',
+        message: upstreamMessage,
       });
-      expect(thrown.message).not.toContain(upstreamMessage);
     },
   );
 
@@ -121,6 +121,41 @@ describe('throwOnApiError from errors.ts', () => {
       message: 'INTERNAL_ERROR',
     });
     expect(thrown.message).not.toContain(upstreamDetail);
+  });
+
+  it('falls back to safeCode when upstream response has no message field', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response(
+      JSON.stringify({ code: 'some.unknown_code' }),
+      { status: 400 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED').then(
+      () => {
+        throw new Error('Expected throwOnApiError to reject');
+      },
+      err => err as Error,
+    );
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'UPDATE_FAILED',
+    });
+  });
+
+  it('falls back to safeCode for non-JSON upstream responses', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const res = new Response('plain text error', { status: 400 });
+
+    const thrown: Error = await throwOnApiError(res, 'VERIFICATION_FAILED').then(
+      () => {
+        throw new Error('Expected throwOnApiError to reject');
+      },
+      err => err as Error,
+    );
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'VERIFICATION_FAILED',
+    });
   });
 });
 

@@ -3,13 +3,12 @@
  * Error types and sanitisation helpers
  * ============================================================================
  *
- * By default, errors returned to the client are fixed codes - never raw
- * upstream text, never user-controlled values. This prevents:
+ * Errors returned to the client use Logto's human-readable `message` field
+ * when available (safe to expose — Account API responses are user-facing).
+ * When no upstream message exists, deterministic error codes are used instead.
  *
- *   - User enumeration via differentiated error messages ("unknown email"
- *     vs "already verified").
- *   - Internal detail disclosure (DB constraint names, upstream service
- *     URLs, request IDs).
+ * Raw upstream text outside the `message` field (DB constraint names, upstream
+ * service URLs, request IDs) is never exposed to clients.
  *
  * Usage pattern in server actions:
  *
@@ -104,10 +103,10 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  * Throws a client-safe Error if the response is not OK.
  *
  * Behavior:
- * - Always logs full upstream detail to server logs.
- * - Parses upstream payload for diagnostics/logging only.
- * - Never returns upstream `message` text to clients.
- * - Throws deterministic code-style errors only.
+ * - Parses upstream JSON payload for code + message.
+ * - Logs only HTTP status and upstream code to server logs (never the message).
+ * - Passes Logto's human-readable `message` to the client verbatim.
+ * - Falls back to the deterministic error code when no upstream message exists.
  *
  * @param res       The fetch Response.
  * @param fallback  Error code used for non-auth failures.
@@ -127,12 +126,7 @@ export async function throwOnApiError(
     detail = res.statusText;
   }
 
-  // Always log server-side with full detail.
-  if (typeof console !== 'undefined') {
-    warn(`[${operation}] HTTP ${res.status}: ${detail}`);
-  }
-
-  // Parse Logto payload for diagnostics only. Never propagate this text to clients.
+  // Parse Logto payload first so we can log only the code (not the message).
   let upstreamCode: string | undefined;
   let upstreamMessage: string | undefined;
   try {
@@ -147,18 +141,21 @@ export async function throwOnApiError(
     // Non-JSON payloads are expected for some upstream failures.
   }
 
-  if (upstreamCode || upstreamMessage) {
-    warn(`[${operation}] parsed upstream diagnostics`, {
-      code: upstreamCode,
-      message: upstreamMessage,
-    });
+  // Log only status + code to server logs. Never log the upstream message.
+  if (typeof console !== 'undefined') {
+    warn(`[${operation}] HTTP ${res.status}${upstreamCode ? ` (${upstreamCode})` : ''}`);
   }
 
   const safeCode: ErrorCode = AUTH_HTTP_STATUSES.has(res.status)
     ? 'UNAUTHORIZED'
     : fallback;
 
-  const safe = new Error(safeCode);
+  // Pass Logto's human-readable message to the client.
+  // Logto's Account API responses are user-facing and safe to expose.
+  // Fall back to safeCode only when no upstream message is available.
+  const errorMessage = upstreamMessage ?? safeCode;
+
+  const safe = new Error(errorMessage);
   safe.name = 'SanitizedError';
   throw safe;
 }
