@@ -281,6 +281,9 @@ export function CalculatorClient() {
 
   useEffect(() => {
     if (!userData) {
+      // Intentional synchronous reset: must clear stale permission before UI
+      // re-renders. See .orch-artifacts/plan/CalculatorClient.tsx.md
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasScientific(false);
       return;
     }
