@@ -102,25 +102,26 @@ export function PreferencesProvider({
   const [lang, setLangState] = useState<string>(serverDefaultLang);
   const [asOrg, setAsOrgState] = useState<string | null>(initialOrgId ?? null);
 
-  const didSyncFromStorage = useRef(false);
-  useEffect(() => {
-    if (didSyncFromStorage.current) return;
-    didSyncFromStorage.current = true;
-    const cachedTheme = getStoredTheme();
-    if (cachedTheme && cachedTheme !== theme) setThemeState(cachedTheme);
-
-    const cachedLang = getStoredLang();
-    if (cachedLang && cachedLang !== lang) setLangState(cachedLang);
-
-    const cachedOrg = getStoredOrg();
-    if (cachedOrg && cachedOrg !== asOrg) setAsOrgState(cachedOrg);
-  }, [asOrg, lang, theme]);
-
   // Refs for preference values to avoid stale closures in persist callbacks
   const themeRef = useRef(theme);
   const langRef = useRef(lang);
   const asOrgRef = useRef(asOrg);
   const asOrgPersistMutationSeqRef = useRef(0);
+
+  const didSyncFromStorage = useRef(false);
+  useEffect(() => {
+    if (didSyncFromStorage.current) return;
+    didSyncFromStorage.current = true;
+    const cachedTheme = getStoredTheme();
+    if (cachedTheme && cachedTheme !== themeRef.current) setThemeState(cachedTheme);
+
+    const cachedLang = getStoredLang();
+    if (cachedLang && cachedLang !== langRef.current) setLangState(cachedLang);
+
+    const cachedOrg = getStoredOrg();
+    if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
+  }, []);
+
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { langRef.current = lang; }, [lang]);
   useEffect(() => { asOrgRef.current = asOrg; }, [asOrg]);
