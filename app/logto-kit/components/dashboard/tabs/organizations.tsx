@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, startTransition, useId } from 'react';
+import { useState, useEffect, useLayoutEffect, useReducer, useRef, useCallback, startTransition, useId } from 'react';
+
+// SSR-safe useLayoutEffect (suppresses React warning during SSR)
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -188,12 +191,48 @@ interface PermissionsBlockProps {
   mode: 'dark' | 'light';
 }
 
+// ── Reducer types ──
+type PermsState = {
+  loading: boolean;
+  permissions: string[];
+  descriptions: Map<string, OrgRoleScope>;
+};
+
+type PermsAction =
+  | { type: 'fetchStart' }
+  | { type: 'fetchPermissionsDone'; permissions: string[] }
+  | { type: 'fetchDescriptionsDone'; descriptions: Map<string, OrgRoleScope> }
+  | { type: 'fetchDescriptionsError' }
+  | { type: 'fetchDone' }
+  | { type: 'fetchError' };
+
+const initialPermsState: PermsState = {
+  loading: false,
+  permissions: [],
+  descriptions: new Map(),
+};
+
+function permsReducer(state: PermsState, action: PermsAction): PermsState {
+  switch (action.type) {
+    case 'fetchStart':
+      return { ...state, loading: true };
+    case 'fetchPermissionsDone':
+      return { ...state, permissions: action.permissions };
+    case 'fetchDescriptionsDone':
+      return { ...state, descriptions: action.descriptions };
+    case 'fetchDescriptionsError':
+      return { ...state, descriptions: new Map() };
+    case 'fetchDone':
+      return { ...state, loading: false };
+    case 'fetchError':
+      return { loading: false, permissions: [], descriptions: new Map() };
+  }
+}
+
 const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }: PermissionsBlockProps) => {
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
-  const [loadedPermissions, setLoadedPermissions] = useState<string[]>([]);
-  const [enrichedPerms, setEnrichedPerms] = useState<Map<string, OrgRoleScope>>(new Map());
-  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [permsState, dispatchPerms] = useReducer(permsReducer, initialPermsState);
   const [hoveredPerm, setHoveredPerm] = useState<string | null>(null);
   const [focusedPerm, setFocusedPerm] = useState<string | null>(null);
 
@@ -204,10 +243,10 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const activePermissionInfo = activePerm ? {
     name: activePerm,
-    description: enrichedPerms.get(activePerm)?.description
+    description: permsState.descriptions.get(activePerm)?.description
   } : null;
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!activePerm) return;
 
     const element = document.getElementById(`perm-trigger-${activePerm}`);
@@ -258,13 +297,6 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
     marginBottom: '1rem',
   };
 
-  const mutedMonoStyle: React.CSSProperties = {
-    fontFamily: FONT_MONO,
-    fontSize: '0.625rem',
-    color: c.textTertiary,
-    lineHeight: 1.5,
-  };
-
   const emptyStateStyle: React.CSSProperties = {
     padding: '2rem 1rem',
     textAlign: 'center' as const,
@@ -274,52 +306,61 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
-
-    // Don't clear permissions here - show stale data until new data arrives (prevents flicker)
-    setPermissionsLoading(true);
+    dispatchPerms({ type: 'fetchStart' });
 
     const permissionsRequest = loadOrganizationPermissions(activeOrgId)
       .then(r => {
-        if (cancelled) return;
-        if (r.ok) {
-          setLoadedPermissions(r.data);
-        } else {
+        if (cancelled) return r;
+        if (!r.ok) {
           console.error('[PermissionsBlock] Failed to load permissions:', r.error);
-          setLoadedPermissions([]);
+          return r;
         }
+        dispatchPerms({ type: 'fetchPermissionsDone', permissions: r.data });
+        return r;
       })
       .catch(error => {
-        if (cancelled) return;
+        if (cancelled) return null;
         console.error('[PermissionsBlock] Failed to load permissions:', error);
-        setLoadedPermissions([]);
+        return null;
       });
 
     const descriptionsRequest = loadOrgPermissionDescriptions(activeOrgId)
       .then(r => {
-        if (cancelled) return;
-        if (r.ok) {
-          const map = new Map<string, OrgRoleScope>();
-          for (const scope of r.data) {
-            if (scope.name) map.set(scope.name, scope);
-          }
-          setEnrichedPerms(map);
+        if (cancelled) return r;
+        if (!r.ok) {
+          console.error('[PermissionsBlock] Failed to load permission descriptions:', r.error);
+          return r;
         }
+        const descriptions = new Map<string, OrgRoleScope>();
+        for (const scope of r.data) {
+          if (scope.name) descriptions.set(scope.name, scope);
+        }
+        dispatchPerms({ type: 'fetchDescriptionsDone', descriptions });
+        return r;
       })
       .catch(err => {
-        if (!cancelled) console.error('[PermissionsBlock] Failed to load permission descriptions:', err);
+        if (!cancelled) {
+          console.error('[PermissionsBlock] Failed to load permission descriptions:', err);
+          dispatchPerms({ type: 'fetchDescriptionsError' });
+        }
+        return null;
       });
 
     Promise.allSettled([permissionsRequest, descriptionsRequest])
-      .finally(() => {
-        if (!cancelled) {
-          setPermissionsLoading(false);
+      .then(([permResult]) => {
+        if (cancelled) return;
+
+        const permOk = permResult.status === 'fulfilled' && permResult.value?.ok;
+
+        if (!permOk) {
+          dispatchPerms({ type: 'fetchError' });
+        } else {
+          dispatchPerms({ type: 'fetchDone' });
         }
       });
 
     return () => { cancelled = true; };
   }, [activeOrgId, userData, visible]);
-
-  const organizationPermissions = loadedPermissions;
 
   if (!visible) return null;
 
@@ -329,21 +370,21 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
         <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
         <RefreshButton
           onClick={triggerRefresh}
-          loading={permissionsLoading}
+          loading={permsState.loading}
           colors={colors}
           ariaLabel={t.organizations.refreshOrgPermissions}
         />
       </div>
       <div style={{ ...wellStyle, ...(scrollWell ? { flex: 1, minHeight: 0, overflowY: 'auto' as const, marginBottom: 0 } : {}) }}>
-        {organizationPermissions.length === 0 ? (
+        {permsState.permissions.length === 0 ? (
           <div style={emptyStateStyle}>
-            {permissionsLoading
+            {permsState.loading
               ? t.organizations.loadingPermissions
               : t.organizations.noOrgPermissions}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {organizationPermissions.map((permission) => (
+            {permsState.permissions.map((permission) => (
               <div
                 key={permission}
                 style={{
@@ -453,7 +494,6 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
 
   useEffect(() => {
     let cancelled = false;
-    setOrgUserRoles({});
 
     if (!activeOrgId || organizationRoles.length === 0) return;
 

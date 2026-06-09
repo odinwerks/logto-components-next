@@ -55,7 +55,7 @@
  * // any user could call it directly via the browser console
  */
 
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useReducer, useEffect } from 'react';
 import { useOrgMode } from '../components/providers/preferences';
 import { useLogto } from '../components/providers/logto-provider';
 import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
@@ -63,6 +63,43 @@ import { loadPersonalRoles } from '../server-actions/load-personal-roles';
 import { loadPersonalPermissions } from '../server-actions/load-personal-permissions';
 import { loadOrganizationUserRoles } from '../server-actions/load-org-roles';
 import { debugLog } from '../logic/debug';
+
+/**
+ * Reducer state for permission/role loading.
+ * Consolidates 4 useState calls into a single atomic state object.
+ */
+interface PermState {
+  loadedPerms: string[];
+  loadedRoles: string[];
+  isLoadingPerms: boolean;
+  loadError: boolean;
+}
+
+type PermAction =
+  | { type: 'reset' }
+  | { type: 'loading' }
+  | { type: 'success'; perms: string[]; roles: string[] }
+  | { type: 'error' };
+
+const initialPermState: PermState = {
+  loadedPerms: [],
+  loadedRoles: [],
+  isLoadingPerms: false,
+  loadError: false,
+};
+
+function permReducer(state: PermState, action: PermAction): PermState {
+  switch (action.type) {
+    case 'reset':
+      return { loadedPerms: [], loadedRoles: [], isLoadingPerms: false, loadError: false };
+    case 'loading':
+      return { ...state, isLoadingPerms: true, loadError: false };
+    case 'success':
+      return { loadedPerms: action.perms, loadedRoles: action.roles, isLoadingPerms: false, loadError: false };
+    case 'error':
+      return { ...state, loadedPerms: [], loadedRoles: [], isLoadingPerms: false, loadError: true };
+  }
+}
 
 /**
  * Props for the Protected component.
@@ -99,10 +136,8 @@ export function Protected({
 }: ProtectedProps) {
   const { asOrg } = useOrgMode();
   const { userData } = useLogto();
-  const [loadedPerms, setLoadedPerms] = useState<string[]>([]);
-  const [loadedRoles, setLoadedRoles] = useState<string[]>([]);
-  const [isLoadingPerms, setIsLoadingPerms] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  const [state, dispatch] = useReducer(permReducer, initialPermState);
+  const { loadedPerms, loadedRoles, isLoadingPerms, loadError } = state;
 
   const targetOrgId = orgName
     ? userData?.organizations?.find((org) => org.name === orgName)?.id
@@ -112,9 +147,7 @@ export function Protected({
   useEffect(() => {
     // Guard: need userData to proceed
     if (!userData?.id) {
-      setLoadedPerms([]);
-      setLoadedRoles([]);
-      setIsLoadingPerms(false);
+      dispatch({ type: 'reset' });
       return;
     }
 
@@ -122,8 +155,7 @@ export function Protected({
     const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
     if (isPersonalScope) {
       let cancelled = false;
-      setIsLoadingPerms(true);
-      setLoadError(false);
+      dispatch({ type: 'loading' });
 
       Promise.all([
         loadPersonalPermissions(),
@@ -131,28 +163,18 @@ export function Protected({
       ])
         .then(([permsRes, rolesRes]) => {
           if (!cancelled) {
-            if (!permsRes.ok) {
-              console.error(permsRes.error);
-              setLoadedPerms([]);
-            } else {
-              setLoadedPerms(permsRes.data.map((p) => p.scope));
-            }
-
-            if (!rolesRes.ok) {
-              console.error(rolesRes.error);
-              setLoadedRoles([]);
-            } else {
-              setLoadedRoles(rolesRes.data.map((r) => r.id));
-            }
-            setIsLoadingPerms(false);
+            const perms = permsRes.ok
+              ? permsRes.data.map((p) => p.scope)
+              : (console.error(permsRes.error), []);
+            const roles = rolesRes.ok
+              ? rolesRes.data.map((r) => r.id)
+              : (console.error(rolesRes.error), []);
+            dispatch({ type: 'success', perms, roles });
           }
         })
         .catch(() => {
           if (!cancelled) {
-            setLoadedPerms([]);
-            setLoadedRoles([]);
-            setLoadError(true);
-            setIsLoadingPerms(false);
+            dispatch({ type: 'error' });
           }
         });
 
@@ -164,24 +186,19 @@ export function Protected({
     // Organization scope
     if (targetOrgId && targetOrgId !== 'self') {
       if (asOrg !== targetOrgId) {
-        setLoadedPerms([]);
-        setLoadedRoles([]);
-        setIsLoadingPerms(false);
+        dispatch({ type: 'reset' });
         return;
       }
     }
 
     if (!targetOrgId || asOrg !== targetOrgId) {
-      setLoadedPerms([]);
-      setLoadedRoles([]);
-      setIsLoadingPerms(false);
+      dispatch({ type: 'reset' });
       return;
     }
 
     // Start loading
     let cancelled = false;
-    setIsLoadingPerms(true);
-    setLoadError(false);
+    dispatch({ type: 'loading' });
 
     Promise.all([
       loadOrganizationPermissions(targetOrgId),
@@ -189,21 +206,18 @@ export function Protected({
     ])
       .then(([permsRes, rolesRes]) => {
         if (!cancelled) {
-          if (!permsRes.ok) { console.error(permsRes.error); setLoadedPerms([]); }
-          else { setLoadedPerms(permsRes.data); }
-
-          if (!rolesRes.ok) { console.error(rolesRes.error); setLoadedRoles([]); }
-          else { setLoadedRoles(rolesRes.data.map((r) => r.id)); }
-
-          setIsLoadingPerms(false);
+          const perms = permsRes.ok
+            ? permsRes.data
+            : (console.error(permsRes.error), []);
+          const roles = rolesRes.ok
+            ? rolesRes.data.map((r) => r.id)
+            : (console.error(rolesRes.error), []);
+          dispatch({ type: 'success', perms, roles });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setLoadedPerms([]);
-          setLoadedRoles([]);
-          setLoadError(true);
-          setIsLoadingPerms(false);
+          dispatch({ type: 'error' });
         }
       });
 
