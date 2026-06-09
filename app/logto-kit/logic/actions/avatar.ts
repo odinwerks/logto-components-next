@@ -36,16 +36,60 @@ const MAGIC_BYTES: Record<string, [number[], number[]]> = {
 
 const uploadTimestamps = new Map<string, number[]>();
 const MAX_UPLOADS_PER_MINUTE = 5;
+const UPLOAD_RATE_LIMIT_WINDOW_MS = 60_000;
+const UPLOAD_MAP_CLEANUP_THRESHOLD = 1000;
+
+// Test helpers for rate limiter internals
+export async function getUploadTimestampsSizeForTesting(): Promise<number> {
+  return uploadTimestamps.size;
+}
+
+export async function clearUploadTimestampsForTesting(): Promise<void> {
+  uploadTimestamps.clear();
+}
+
+export async function setUploadTimestampsForTesting(userId: string, timestamps: number[]): Promise<void> {
+  uploadTimestamps.set(userId, timestamps);
+}
+
+export async function hasUploadTimestampsForTesting(userId: string): Promise<boolean> {
+  return uploadTimestamps.has(userId);
+}
+
+export async function triggerRateLimiterCleanupForTesting(): Promise<void> {
+  cleanupStaleEntries();
+}
+
+/**
+ * Removes entries from the uploadTimestamps map where ALL timestamps
+ * are older than the rate limit window. Called when the map exceeds
+ * the cleanup threshold to prevent unbounded memory growth.
+ */
+function cleanupStaleEntries(): void {
+  const now = Date.now();
+  for (const [key, timestamps] of uploadTimestamps) {
+    if (timestamps.every(t => now - t > UPLOAD_RATE_LIMIT_WINDOW_MS)) {
+      uploadTimestamps.delete(key);
+    }
+  }
+}
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
   const timestamps = uploadTimestamps.get(userId) || [];
   // Lazy cleanup: filter stale entries ON READ
-  const recent = timestamps.filter(t => now - t < 60_000);
+  const recent = timestamps.filter(t => now - t < UPLOAD_RATE_LIMIT_WINDOW_MS);
   
   if (recent.length >= MAX_UPLOADS_PER_MINUTE) return false;
   recent.push(now);
   uploadTimestamps.set(userId, recent);
+
+  // Periodic cleanup: when the map exceeds the threshold, remove entries
+  // where ALL timestamps are older than the rate limit window.
+  if (uploadTimestamps.size > UPLOAD_MAP_CLEANUP_THRESHOLD) {
+    cleanupStaleEntries();
+  }
+
   return true;
 }
 

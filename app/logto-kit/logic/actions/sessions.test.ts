@@ -304,6 +304,34 @@ describe('revokeAllOtherSessions', () => {
     if (result.ok) throw new Error('Expected error result');
     expect(result.error).toContain('Cannot identify current session');
   });
+
+  // BUG-019: Session revocation timeout should abort the HTTP request
+  it('passes an AbortSignal to makeRequest for each session revocation', async () => {
+    const currentSession = mockSession('current-uid', true);
+    const otherSession = mockSession('other-uid', false);
+
+    const capturedSignals: AbortSignal[] = [];
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: [currentSession, otherSession] });
+      }
+      if (opts.method === 'DELETE') {
+        // Capture the signal for assertion
+        if (opts.signal) capturedSignals.push(opts.signal);
+        return mockJsonResponse({}, 204);
+      }
+      return mockJsonResponse({}, 200);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    // The DELETE call should have received an AbortSignal
+    expect(capturedSignals).toHaveLength(1);
+    expect(capturedSignals[0]).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe('verificationTimestamp staleness checks', () => {

@@ -282,3 +282,70 @@ describe('config resolution', () => {
     });
   });
 });
+
+// BUG-020: M2M token not cached
+describe('getManagementApiToken caching', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('APP_SECRET', 'dummy-app-secret');
+    vi.stubEnv('APP_ID', 'test-app-id');
+    vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+    vi.stubEnv('LOGTO_M2M_APP_ID', 'm2m-app-id');
+    vi.stubEnv('LOGTO_M2M_APP_SECRET', 'm2m-app-secret');
+    vi.stubEnv('NODE_ENV', 'development');
+
+    fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'test-token-abc', expires_in: 3600 }),
+    } as Response);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('returns cached token on second call without making another HTTP request', async () => {
+    const { getManagementApiToken } = await import('./config');
+
+    const token1 = await getManagementApiToken();
+    expect(token1).toBe('test-token-abc');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    const token2 = await getManagementApiToken();
+    expect(token2).toBe('test-token-abc');
+    // Should NOT have made another fetch call - token is cached
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches a new token after the cache TTL expires', async () => {
+    const { getManagementApiToken } = await import('./config');
+
+    // First call - fetches and caches
+    const token1 = await getManagementApiToken();
+    expect(token1).toBe('test-token-abc');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // Advance time past the 50-minute TTL
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(50 * 60 * 1000 + 1);
+
+    // Update the mock to return a different token for the second fetch
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: 'new-token-xyz', expires_in: 3600 }),
+    } as Response);
+
+    const token2 = await getManagementApiToken();
+    expect(token2).toBe('new-token-xyz');
+    // Should have made another fetch call because cache expired
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+});

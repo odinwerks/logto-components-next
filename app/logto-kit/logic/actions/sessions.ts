@@ -139,6 +139,7 @@ export async function revokeUserSession(
   identityVerificationRecordId: string,
   verificationTimestamp: number,
   revokeGrantsTarget?: 'all' | 'firstParty',
+  signal?: AbortSignal,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     assertSafeLogtoId(sessionId, 'sessionId');
@@ -162,6 +163,7 @@ export async function revokeUserSession(
       method: 'DELETE',
       extraHeaders,
       ...(revokeGrantsTarget && { query: { revokeGrantsTarget } }),
+      signal,
     });
 
     debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
@@ -223,16 +225,17 @@ export async function revokeAllOtherSessions(
     const results: PromiseSettledResult<void>[] = [];
     for (let i = 0; i < othersToRevoke.length; i++) {
       const s = othersToRevoke[i];
-      const result = await Promise.race([
-        revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty')  // uid, not jti
-          .then(r => { if (!r.ok) throw new Error(r.error); })
-          .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
-          .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),
-        new Promise<PromiseSettledResult<void>>(resolve =>
-          setTimeout(() => resolve({ status: 'rejected', reason: new Error('Timeout') }), 10_000)
-        ),
-      ]);
-      results.push(result);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+      try {
+        const r = await revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty', controller.signal);
+        if (!r.ok) throw new Error(r.error);
+        results.push({ status: 'fulfilled', value: undefined });
+      } catch (reason) {
+        results.push({ status: 'rejected', reason });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       // Small delay between revocations to avoid rate limiting
       if (i < othersToRevoke.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 100));

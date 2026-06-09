@@ -175,7 +175,15 @@ export const getLogtoConfig = () => logtoConfig;
  * The M2M app must have the "User data" → Write permission assigned under
  * Management API access in the Logto Console.
  */
+// In-memory cache for the M2M token (serverless-safe: per-process, no shared state)
+let cachedM2MToken: { token: string; expiresAt: number } | null = null;
+
 export async function getManagementApiToken(): Promise<string> {
+  // Return cached token if still valid (with 10-minute buffer before expiry)
+  if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt) {
+    return cachedM2MToken.token;
+  }
+
   const appId = process.env.LOGTO_M2M_APP_ID?.trim();
   const appSecret = process.env.LOGTO_M2M_APP_SECRET?.trim();
 
@@ -224,7 +232,13 @@ export async function getManagementApiToken(): Promise<string> {
     );
   }
 
-  return data.access_token as string;
+  // Cache the token with a 50-minute TTL (tokens typically last 1 hour)
+  cachedM2MToken = {
+    token: data.access_token as string,
+    expiresAt: Date.now() + 50 * 60 * 1000,
+  };
+
+  return cachedM2MToken.token;
 }
 
 // ============================================================================

@@ -241,6 +241,45 @@ describe('addMfaVerification', () => {
       }),
     );
   });
+
+  // BUG-017: MFA payload spreads unknown fields
+  it('does NOT spread unknown payload fields for Totp type', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'Totp',
+        payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' } as unknown as { code: string; secret: string; __proto__?: object; constructor?: object },
+      },
+      validIdentityVrecId, validTimestamp,
+    );
+    expect(r.ok).toBe(true);
+
+    const callBody = vi.mocked(makeRequest).mock.calls[0]?.[1]?.body as Record<string, unknown>;
+    // Should only have type, code, secret - no prototype pollution vectors
+    expect(Object.keys(callBody).sort()).toEqual(['code', 'secret', 'type']);
+  });
+
+  it('does NOT spread unknown payload fields for WebAuthn type', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          unknownField: 'should-not-be-forwarded',
+          anotherGarbage: 42,
+        },
+      },
+      validIdentityVrecId, validTimestamp,
+    );
+    expect(r.ok).toBe(true);
+
+    const callBody = vi.mocked(makeRequest).mock.calls[0]?.[1]?.body as Record<string, unknown>;
+    // unknownField and anotherGarbage must NOT appear in the body
+    expect(callBody).not.toHaveProperty('unknownField');
+    expect(callBody).not.toHaveProperty('anotherGarbage');
+    // Only known WebAuthn fields should be present
+    expect(callBody).toHaveProperty('type', 'WebAuthn');
+    expect(callBody).toHaveProperty('newIdentifierVerificationRecordId', 'vrec-abc123');
+  });
 });
 
 describe('generateBackupCodes', () => {

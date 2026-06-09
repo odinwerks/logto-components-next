@@ -168,9 +168,33 @@ export async function addMfaVerification(
       }
     }
 
+    // Build request body explicitly per MFA type to avoid leaking unknown fields
+    // from index-signature payloads (WebAuthn, BackupCode).
+    let body: Record<string, unknown>;
+    if (type === 'Totp') {
+      body = { type, code: payload.code, secret: payload.secret };
+    } else if (type === 'BackupCode') {
+      const bcPayload = payload as Record<string, unknown>;
+      body = { type };
+      if (bcPayload.codes !== undefined) body.codes = bcPayload.codes;
+    } else {
+      // WebAuthn: only forward known fields, not the entire index-signature payload
+      const waPayload = payload as Record<string, unknown>;
+      body = { type };
+      if (waPayload.newIdentifierVerificationRecordId !== undefined) {
+        body.newIdentifierVerificationRecordId = waPayload.newIdentifierVerificationRecordId;
+      }
+      // Forward standard WebAuthn credential fields (from browser WebAuthn API)
+      if (waPayload.id !== undefined) body.id = waPayload.id;
+      if (waPayload.rawId !== undefined) body.rawId = waPayload.rawId;
+      if (waPayload.response !== undefined) body.response = waPayload.response;
+      if (waPayload.authenticatorAttachment !== undefined) body.authenticatorAttachment = waPayload.authenticatorAttachment;
+      if (waPayload.clientExtensionResults !== undefined) body.clientExtensionResults = waPayload.clientExtensionResults;
+    }
+
     const res = await makeRequest('/api/my-account/mfa-verifications', {
       method: 'POST',
-      body: { type, ...payload },
+      body,
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     
