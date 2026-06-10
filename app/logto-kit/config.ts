@@ -183,10 +183,20 @@ export const getLogtoConfig = () => logtoConfig;
 // In-memory cache for the M2M token (serverless-safe: per-process, no shared state)
 let cachedM2MToken: { token: string; expiresAt: number } | null = null;
 
+// Promise-based deduplication: if a token fetch is already in flight,
+// concurrent callers await the same promise instead of spawning duplicate
+// network requests (BUG-016).
+let pendingTokenPromise: Promise<string> | null = null;
+
 export async function getManagementApiToken(): Promise<string> {
   // Return cached token if still valid (with 10-minute buffer before expiry)
   if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt) {
     return cachedM2MToken.token;
+  }
+
+  // If a fetch is already in flight, coalesce onto it
+  if (pendingTokenPromise) {
+    return pendingTokenPromise;
   }
 
   const appId = process.env.LOGTO_M2M_APP_ID?.trim();
@@ -199,50 +209,59 @@ export async function getManagementApiToken(): Promise<string> {
     );
   }
 
-  const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
-  const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
-  const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
+  // Wrap the actual fetch in a shared promise so concurrent callers coalesce
+  pendingTokenPromise = (async () => {
+    const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
+    const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
+    const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    resource,
-    // 'all' here requests every management scope granted to this M2M app in the
-    // Logto Console. The actual blast radius is determined by Console permissions,
-    // NOT this string. To minimise risk, ensure the M2M app in Console has ONLY
-    // the "User data → Delete user" permission assigned.
-    // See SECURITY.md for setup instructions.
-    scope: 'all',
-  });
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+      resource,
+      // 'all' here requests every management scope granted to this M2M app in the
+      // Logto Console. The actual blast radius is determined by Console permissions,
+      // NOT this string. To minimise risk, ensure the M2M app in Console has ONLY
+      // the "User data \u2192 Delete user" permission assigned.
+      // See SECURITY.md for setup instructions.
+      scope: 'all',
+    });
 
-  const res = await fetch(tokenEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
-    },
-    body: body.toString(),
-  });
+    const res = await fetch(tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
+      },
+      body: body.toString(),
+    });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
-    throw new Error('Management API token request failed');
+    if (!res.ok) {
+      const errorText = await res.text();
+      warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
+      throw new Error('Management API token request failed');
+    }
+
+    const data = await res.json();
+    if (!data.access_token) {
+      throw new Error(
+        `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
+      );
+    }
+
+    // Cache the token with a 50-minute TTL (tokens typically last 1 hour)
+    cachedM2MToken = {
+      token: data.access_token as string,
+      expiresAt: Date.now() + 50 * 60 * 1000,
+    };
+
+    return cachedM2MToken.token;
+  })();
+
+  try {
+    return await pendingTokenPromise;
+  } finally {
+    pendingTokenPromise = null;
   }
-
-  const data = await res.json();
-  if (!data.access_token) {
-    throw new Error(
-      `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
-    );
-  }
-
-  // Cache the token with a 50-minute TTL (tokens typically last 1 hour)
-  cachedM2MToken = {
-    token: data.access_token as string,
-    expiresAt: Date.now() + 50 * 60 * 1000,
-  };
-
-  return cachedM2MToken.token;
 }
 
 // ============================================================================
