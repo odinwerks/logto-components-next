@@ -217,6 +217,33 @@ export function isAuthError(error: unknown): boolean {
   return false;
 }
 
+/**
+ * Detects OIDC `invalid_grant` errors from Logto's token endpoint.
+ *
+ * When Logto invalidates a grant server-side (e.g., session revoked from another
+ * device), the SDK's token refresh returns an error with `code: 'oidc.invalid_grant'`
+ * and message "Grant request is invalid." This detector catches those errors so the
+ * proxy can redirect to a clean wipe rather than a generic sign-in.
+ */
+export function isInvalidGrantError(error: unknown): boolean {
+  if (!error) return false;
+
+  if (typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    if (typeof obj.code === 'string' && obj.code.includes('invalid_grant')) {
+      return true;
+    }
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('invalid_grant')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function isTransientError(error: unknown): boolean {
   if (!error) return false;
 

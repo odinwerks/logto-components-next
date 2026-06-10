@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { getLogtoConfig } from './app/logto-kit/config';
-import { isAuthError, isTransientError } from './app/logto-kit/logic/errors';
+import { isAuthError, isInvalidGrantError, isTransientError } from './app/logto-kit/logic/errors';
 import { error as logError, warn as logWarn } from './app/logto-kit/logic/log';
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
@@ -57,6 +57,23 @@ export async function proxy(request: NextRequest) {
       console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
       // Nonce is required so only this middleware-triggered flow can wipe via GET.
+      const nonce = crypto.randomUUID();
+      const wipeUrl = new URL('/api/wipe', request.url);
+      wipeUrl.searchParams.set('nonce', nonce);
+      const response = NextResponse.redirect(wipeUrl);
+      response.cookies.set(WIPE_NONCE_COOKIE, nonce, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: request.nextUrl.protocol === 'https:',
+        path: '/',
+        maxAge: WIPE_NONCE_TTL_SECONDS,
+      });
+      return response;
+    }
+
+    // Handle invalid_grant (server-side grant revocation, e.g. session revoked elsewhere)
+    if (isInvalidGrantError(error)) {
+      logWarn(`[Proxy] invalid_grant detected, redirecting to wipe: ${errorMessage}`);
       const nonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
       wipeUrl.searchParams.set('nonce', nonce);

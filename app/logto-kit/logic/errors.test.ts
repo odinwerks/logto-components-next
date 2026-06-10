@@ -298,6 +298,42 @@ describe('isAuthError', () => {
   });
 });
 
+describe('isInvalidGrantError', () => {
+  it('handles falsy inputs', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    expect(isInvalidGrantError(undefined)).toBe(false);
+    expect(isInvalidGrantError(null)).toBe(false);
+    expect(isInvalidGrantError('')).toBe(false);
+  });
+
+  it('returns true for object with code containing invalid_grant', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    expect(isInvalidGrantError({ code: 'oidc.invalid_grant' })).toBe(true);
+    expect(isInvalidGrantError({ code: 'some.invalid_grant.other' })).toBe(true);
+  });
+
+  it('returns true for Error with message containing invalid_grant', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    // The fallback message check catches any Error whose message literally contains 'invalid_grant'
+    expect(isInvalidGrantError(new Error('oidc.invalid_grant error'))).toBe(true);
+    // "Grant request is invalid." does NOT contain 'invalid_grant' — detection relies on the code property
+    expect(isInvalidGrantError(new Error('Grant request is invalid.'))).toBe(false);
+  });
+
+  it('returns false for non-Grant errors', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    expect(isInvalidGrantError(new Error('Generic failure'))).toBe(false);
+    expect(isInvalidGrantError({ code: 'oidc.other_error' })).toBe(false);
+    expect(isInvalidGrantError({ status: 401 })).toBe(false);
+  });
+
+  it('returns false for non-object/non-Error types', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    expect(isInvalidGrantError(42)).toBe(false);
+    expect(isInvalidGrantError(true)).toBe(false);
+  });
+});
+
 describe('isTransientError', () => {
   it('handles falsy or empty inputs', async () => {
     const { isTransientError } = await import('./errors');

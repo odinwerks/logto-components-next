@@ -73,6 +73,49 @@ describe('proxy stale-cookie recovery', () => {
   });
 });
 
+describe('proxy invalid_grant recovery', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+    warnMock.mockReset();
+    errorMock.mockReset();
+  });
+
+  it('issues nonce contract for invalid_grant redirect', async () => {
+    getLogtoContextMock.mockRejectedValue({
+      code: 'oidc.invalid_grant',
+      message: 'Grant request is invalid.',
+    });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+
+    const location = res.headers.get('location');
+    expect(location).toBeTruthy();
+    const redirectUrl = new URL(location!, req.url);
+    expect(redirectUrl.pathname).toBe('/api/wipe');
+    const nonce = redirectUrl.searchParams.get('nonce');
+    expect(nonce).toBeTruthy();
+
+    const setCookies = getSetCookies(res);
+    const nonceCookie = setCookies.find(cookie => cookie.includes('logto-wipe-nonce='));
+    expect(nonceCookie).toBeTruthy();
+    const nonceCookieHeader = nonceCookie!;
+    expect(nonceCookieHeader).toContain(`logto-wipe-nonce=${nonce}`);
+    expect(nonceCookieHeader).toContain('HttpOnly');
+    expect(nonceCookieHeader).toMatch(/SameSite=lax/i);
+    expect(nonceCookieHeader).toContain('Path=/');
+    expect(nonceCookieHeader).toContain('Max-Age=60');
+    expect(nonceCookieHeader).toContain('Secure');
+
+    expect(warnMock).toHaveBeenCalledWith(
+      '[Proxy] invalid_grant detected, redirecting to wipe: [object Object]',
+    );
+  });
+});
+
 describe('proxy error classification and logging', () => {
   beforeEach(() => {
     getLogtoContextMock.mockReset();
