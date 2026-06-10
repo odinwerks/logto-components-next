@@ -8,7 +8,7 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { assertVerificationNotExpired, auditSafe } from './helpers';
 /**
  * Step 1 of WebAuthn registration: requests registration options from Logto.
  * @returns Registration options (for @simplewebauthn/browser) and a verificationRecordId.
@@ -57,9 +57,7 @@ export async function verifyAndLinkWebAuthn(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     if (!payload || typeof payload !== 'object') {
       throw new ValidationError('INVALID_INPUT', 'payload');
@@ -83,12 +81,9 @@ export async function verifyAndLinkWebAuthn(
     await throwOnApiError(linkRes, 'MFA_ENROLL_FAILED', 'webauthn-link');
 
     // Audit (best-effort - failure must not break the main action)
-    try {
-      const { audit } = await import('../audit');
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.webauthn.enroll' });
-    } catch { /* audit is best-effort; never surface to caller */ }
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    auditSafe(_intro.sub ?? 'unknown', 'mfa.webauthn.enroll');
   });
 }
 
@@ -110,9 +105,7 @@ export async function renamePasskey(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
     const trimmedName = typeof name === 'string' ? name.trim() : name;
     assertPasskeyName(trimmedName);
 
@@ -128,11 +121,8 @@ export async function renamePasskey(
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'webauthn-rename');
 
     // Audit (best-effort - failure must not break the main action)
-    try {
-      const { audit } = await import('../audit');
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.webauthn.rename', resource: verificationId });
-    } catch { /* audit is best-effort; never surface to caller */ }
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    auditSafe(_intro.sub ?? 'unknown', 'mfa.webauthn.rename', verificationId);
   });
 }

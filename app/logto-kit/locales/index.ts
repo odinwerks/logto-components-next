@@ -29,9 +29,6 @@ export interface Translations {
     refreshFailed: string;
     signOutFailed: string;
     loadFailed: string;
-    signInPrompt: string;
-    signInButton: string;
-    jwtToken: string;
     opaqueToken: string;
     defaultUserName: string;
     account: string;
@@ -50,13 +47,9 @@ export interface Translations {
   
   // Security tab
   security: {
-    title: string;
     email: string;
     phone: string;
     password: string;
-    passwordLastChanged: string;
-    verified: string;
-    unverified: string;
     changePassword: string;
     deleteAccount: string;
     deleteAccountDescription: string;
@@ -87,33 +80,18 @@ export interface Translations {
     passwordChanged: string;
     confirmDeleteAccount: string;
     accountDeleted: string;
-    deletingAccount: string;    passwordChangeFailed: string;
+    deletingAccount: string;
+    passwordChangeFailed: string;
     reconfigure: string;
     searchCountry: string;
     noCountryFound: string;
   };
 
-  // Sidebar
-  sidebar: {
-    profileAvatar: string;
-    noAvatar: string;
-    token: string;
-    userId: string;
-    lastLogin: string;
-    lightMode: string;
-    darkMode: string;
-    active: string;
-    jwtToken: string;
-    opaqueToken: string;
-  };
-  
   // Profile tab
   profile: {
     userProfile: string;
     basicInfo: string;
     editingProfile: string;
-    givenName: string;
-    familyName: string;
     firstName: string;
     lastName: string;
     firstNamePlaceholder: string;
@@ -125,16 +103,16 @@ export interface Translations {
     changeName: string;
     editProfile: string;
     saveProfile: string;
-    saveChanges: string;
-    saving: string;
-    discard: string;
-    cancel: string;
-    add: string;
     edit: string;
+    cancel: string;
+    saving: string;
+    avatarRemoved: string;
+    removeAvatar: string;
+    saveChanges: string;
+    discard: string;
+    add: string;
     remove: string;
-    null: string;
     notSet: string;
-    avatarUrl: string;
     editAvatarUrl: string;
     profilePhoto: string;
     dragDrop: string;
@@ -143,12 +121,10 @@ export interface Translations {
     changePhoto: string;
     adjustPhoto: string;
     applyCrop: string;
-    removeAvatar: string;
     deletePfpPrefix: string;
     deletePfpHighlight: string;
     deletePfpSuffix: string;
     avatarUpdated: string;
-    avatarRemoved: string;
     cropFailed: string;
     avatarInvalidType: string;
     avatarTooLarge: string;
@@ -209,25 +185,8 @@ export interface Translations {
     urlInvalidProtocol: string;
     urlInvalidFormat: string;
     jsonMustBeObject: string;
-    invalidJson: string;
     unknownError: string;
     phoneCountryNotAllowed: string;
-  };
-  
-  // Preferences tab
-  preferences: {
-    title: string;
-    editing: string;
-    jsonData: string;
-    editCustomData: string;
-    save: string;
-    empty: string;
-    noCustomData: string;
-    invalidJson: string;
-    mustBeObject: string;
-    description: string;
-    success: string;
-    error: string;
   };
   
   // Identities tab
@@ -273,23 +232,22 @@ export interface Translations {
     loadingPermissions: string;
     noActiveOrg: string;
     noOrgPermissions: string;
+    switchFailed: string;
+    clearOrgFailed: string;
     refreshOrgPermissions: string;
     refreshOrgRoles: string;
-    switchFailed?: string;
-    clearOrgFailed?: string;
   };
   
   // MFA tab
   mfa: {
-    title: string;
-    enrolledFactors: string;
-    noFactors: string;
+    scanQrCode: string;
+    registerPasskey: string;
+    factorRemoved: string;
     enrollNewFactor: string;
     totp: string;
     totpDescription: string;
     authenticatorApp: string;
     generateTotpSecret: string;
-    scanQrCode: string;
     cantScan: string;
     enterManually: string;
     enterCodeFromApp: string;
@@ -302,7 +260,6 @@ export interface Translations {
     viewExisting: string;
     saveTheseCodes: string;
     existingCodes: string;
-    codesLeft: string;
     downloadTxt: string;
     downloadHtml: string;
     finishAndSave: string;
@@ -315,7 +272,6 @@ export interface Translations {
     lastUsed: string;
     passwordRequired: string;
     backupCodesGenerated: string;
-    factorRemoved: string;
     missingVerification: string;
     totpEnrolled: string;
     backupCodesDownloaded: string;
@@ -349,7 +305,6 @@ export interface Translations {
     passkeyDescription: string;
     passkey: string;
     addPasskey: string;
-    registerPasskey: string;
     registerPasskeyDesc: string;
     checkDevice: string;
     linkingPasskey: string;
@@ -370,16 +325,11 @@ export interface Translations {
     title: string;
     description: string;
     activeSessions: string;
-    currentSession: string;
     loggedInAt: string;
     lastActive: string;
     expires: string;
     authMethod: string;
     deviceId: string;
-    browser: string;
-    os: string;
-    device: string;
-    ip: string;
     unknown: string;
     revoke: string;
     revokeSession: string;
@@ -392,13 +342,9 @@ export interface Translations {
     noSessions: string;
     password: string;
     social: string;
-    enterpriseSso: string;
     webauthn: string;
     totp: string;
     backupCode: string;
-    desktop: string;
-    tablet: string;
-    mobile: string;
     thisDevice: string;
     verifyToView: string;
     verifyToViewDesc: string;
@@ -410,8 +356,6 @@ export interface Translations {
     viewOnOpenStreetMap: string;
     viewOnGoogleMaps: string;
     refreshData: string;
-    satellite: string;
-    street: string;
     activeNow: string;
     locationDisclosure: string;
     externalMapDisclosure: string;

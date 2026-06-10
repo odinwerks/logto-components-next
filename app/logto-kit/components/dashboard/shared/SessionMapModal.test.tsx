@@ -109,7 +109,7 @@ const mockTranslations: Translations = {
     locationDisclosure: 'Location is estimated from IP and may be approximate.',
     externalMapDisclosure: 'Map links open external services with approximate coordinates.',
   },
-} as Translations;
+} as unknown as Translations;
 
 describe('SessionMapModal', () => {
   const mockOnClose = vi.fn();

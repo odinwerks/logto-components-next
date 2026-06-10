@@ -124,9 +124,11 @@ export function PreferencesProvider({
     if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
   }, []);
 
-  useEffect(() => { themeRef.current = theme; }, [theme]);
-  useEffect(() => { langRef.current = lang; }, [lang]);
-  useEffect(() => { asOrgRef.current = asOrg; }, [asOrg]);
+  useEffect(() => {
+    themeRef.current = theme;
+    langRef.current = lang;
+    asOrgRef.current = asOrg;
+  }, [theme, lang, asOrg]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -188,51 +190,51 @@ export function PreferencesProvider({
     [theme]
   );
 
-  const persistThemeToApi = useCallback(async (newTheme: 'dark' | 'light', currentLang: string, currentAsOrg: string | null): Promise<boolean> => {
-    if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: newTheme, lang: currentLang, asOrg: currentAsOrg } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist theme:', r.error);
-    }
-    return r.ok;
-  }, [onUpdateCustomData]);
+   
+  function createPersister<T>(
+    label: string,
+    seqRef: React.MutableRefObject<number>,
+    revertStorage: (val: T) => void,
+    revertState: React.Dispatch<React.SetStateAction<T>>,
+  ) {
+    return async (
+      update: Partial<{ theme: 'dark' | 'light'; lang: string; asOrg: string | null }>,
+      prev: T,
+    ) => {
+      if (!onUpdateCustomData) return;
+      const seq = ++seqRef.current;
+      try {
+        /* eslint-disable react-hooks/refs */
+        const currentPrefs = { theme: themeRef.current, lang: langRef.current, asOrg: asOrgRef.current };
+        const r = await onUpdateCustomData({ Preferences: { ...currentPrefs, ...update } });
+        if (seq !== seqRef.current) return; // stale
+        if (!r.ok) {
+          console.error(`[PreferencesProvider] Failed to persist ${label}:`, r.error);
+          revertStorage(prev);
+          revertState(prev);
+        }
+      } catch {
+        if (seq !== seqRef.current) return;
+        revertStorage(prev);
+        revertState(prev);
+      }
+    };
+        /* eslint-enable react-hooks/refs */
+  }
 
-  const persistLangToApi = useCallback(async (newLang: string, currentTheme: 'dark' | 'light', currentAsOrg: string | null): Promise<boolean> => {
-    if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: currentTheme, lang: newLang, asOrg: currentAsOrg } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist lang:', r.error);
-    }
-    return r.ok;
-  }, [onUpdateCustomData]);
-
-  const persistOrgToApi = useCallback(async (newOrgId: string | null, currentTheme: 'dark' | 'light', currentLang: string) => {
-    if (!onUpdateCustomData) return true;
-    const r = await onUpdateCustomData({ Preferences: { theme: currentTheme, lang: currentLang, asOrg: newOrgId } });
-    if (!r.ok) {
-      console.error('[PreferencesProvider] Failed to persist org:', r.error);
-    }
-    return r.ok;
-  }, [onUpdateCustomData]);
+  const persistTheme = createPersister('theme', themePersistMutationSeqRef, (v) => setStoredTheme(v), setThemeState);
+   
+  const persistLang = createPersister('lang', langPersistMutationSeqRef, (v) => setStoredLang(v), setLangState);
+   
+  const persistOrg = createPersister('org', asOrgPersistMutationSeqRef, (v) => setStoredOrg(v), setAsOrgState);
 
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
     const prev = themeRef.current;
-    const mutationSeq = ++themePersistMutationSeqRef.current;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    persistThemeToApi(newTheme, langRef.current, asOrgRef.current).then((ok) => {
-      if (mutationSeq !== themePersistMutationSeqRef.current) {
-        return;
-      }
-
-      if (!ok) {
-        console.warn('[PreferencesProvider] Theme persistence failed, reverting');
-        setStoredTheme(prev);
-        setThemeState(prev);
-      }
-    });
+    persistTheme({ theme: newTheme, lang: langRef.current, asOrg: asOrgRef.current }, prev);
     window.dispatchEvent(new Event('theme-changed'));
-  }, [persistThemeToApi]);
+  }, [persistTheme]);
 
   const toggleMode = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -241,42 +243,20 @@ export function PreferencesProvider({
 
   const setLang = useCallback((newLang: string) => {
     const prev = langRef.current;
-    const mutationSeq = ++langPersistMutationSeqRef.current;
     setStoredLang(newLang);
     setLangState(newLang);
-    persistLangToApi(newLang, themeRef.current, asOrgRef.current).then((ok) => {
-      if (mutationSeq !== langPersistMutationSeqRef.current) {
-        return;
-      }
-
-      if (!ok) {
-        console.warn('[PreferencesProvider] Lang persistence failed, reverting');
-        setStoredLang(prev);
-        setLangState(prev);
-      }
-    });
+    persistLang({ theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current }, prev);
     window.dispatchEvent(new Event('preferences-changed'));
     onLangChange?.();
-  }, [persistLangToApi, onLangChange]);
+  }, [persistLang, onLangChange]);
 
   const setAsOrg = useCallback((newOrgId: string | null) => {
-    const previousOrg = asOrgRef.current;
-    const mutationSeq = ++asOrgPersistMutationSeqRef.current;
+    const prev = asOrgRef.current;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    persistOrgToApi(newOrgId, themeRef.current, langRef.current).then((ok) => {
-      if (mutationSeq !== asOrgPersistMutationSeqRef.current) {
-        return;
-      }
-
-      if (!ok) {
-        console.warn('[PreferencesProvider] Org persistence failed, reverting');
-        setStoredOrg(previousOrg);
-        setAsOrgState(previousOrg); // also revert React state
-      }
-    });
+    persistOrg({ theme: themeRef.current, lang: langRef.current, asOrg: newOrgId }, prev);
     window.dispatchEvent(new Event('preferences-changed'));
-  }, [persistOrgToApi]);
+  }, [persistOrg]);
 
   const value = useMemo(
     () => ({

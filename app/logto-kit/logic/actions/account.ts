@@ -3,13 +3,13 @@
 import { cookies } from 'next/headers';
 import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
-import { assertSafeUserId, assertSafeLogtoId } from '../guards';
+import { assertSafeLogtoId } from '../guards';
 import { makeRequest } from './request';
 import { throwOnApiError, sanitize } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { safeAction, type ActionResult } from './safe';
 
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { assertVerificationNotExpired } from './helpers';
 /**
  * Permanently deletes the currently authenticated user's account.
  *
@@ -61,9 +61,7 @@ export async function deleteUserAccount(
     // in verification.ts). We just check Date.now() > expiresAt - no hardcoded
     // TTL. If Logto changes its TTL this check automatically adapts.
     // BUG-SEC-003: This check is mandatory - never skip it.
-    if (Date.now() > verificationRecordTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationRecordTimestamp);
 
     // ── Derive token + userId server-side (never trust the client) ─────────
     const sessionToken = await getTokenForServerAction();
@@ -79,7 +77,7 @@ export async function deleteUserAccount(
     }
 
     // Defense in depth: reject if the subject has an unexpected shape.
-    assertSafeUserId(userId);
+    assertSafeLogtoId(userId, 'userId');
 
     // ── Sanity-check the account session before destructive work ───────────
     const accountCheck = await makeRequest('/api/my-account');

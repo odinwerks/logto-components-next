@@ -16,9 +16,11 @@ import { RefreshButton } from '../shared/RefreshButton';
 import { setActiveOrg } from '../../../custom-logic/set-active-org';
 import { useOrgMode } from '../../providers/preferences';
 import { useRefreshable } from '../../../hooks/use-refreshable';
-import { loadOrganizationPermissions } from '../../../server-actions/load-org-permissions';
-import { loadOrganizationUserRoles } from '../../../server-actions/load-org-roles';
-import { loadOrgPermissionDescriptions } from '../../../server-actions/load-org-permission-descriptions';
+import {
+  loadOrganizationPermissions,
+  loadOrganizationUserRoles,
+  loadOrgPermissionDescriptions,
+} from '../../../server-actions';
 import type { OrgRoleScope } from '../../../logic/types';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockUseOrgMode = vi.fn().mockReturnValue({ asOrg: '5b6sw6p5uzti' });
-const mockUseLogto = vi.fn().mockReturnValue({
-  userData: { id: 'user_123', organizations: [] },
+const mockUseUserDataContext = vi.fn().mockReturnValue({
+  id: 'user_123', organizations: [],
 });
 const mockLoadOrganizationPermissions = vi.fn().mockResolvedValue({
   ok: true,
@@ -12,10 +12,10 @@ const mockLoadOrganizationPermissions = vi.fn().mockResolvedValue({
 
 vi.mock('../../../logto-kit', () => ({
   useOrgMode: () => mockUseOrgMode(),
-  useLogto: () => mockUseLogto(),
+  useUserDataContext: () => mockUseUserDataContext(),
 }));
 
-vi.mock('../../../logto-kit/server-actions/load-org-permissions', () => ({
+vi.mock('../../../logto-kit/server-actions', () => ({
   loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
 }));
 
@@ -25,9 +25,7 @@ describe('CalculatorClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockUseOrgMode.mockReturnValue({ asOrg: '5b6sw6p5uzti' });
-    mockUseLogto.mockReturnValue({
-      userData: { id: 'user_123', organizations: [] },
-    });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', organizations: [] });
     mockLoadOrganizationPermissions.mockResolvedValue({
       ok: true,
       data: ['calc:basic', 'calc:scientific'],

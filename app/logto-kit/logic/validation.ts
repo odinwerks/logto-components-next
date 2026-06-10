@@ -84,7 +84,7 @@ export function validateJsonObject(value: string, t: Translations['validation'],
   } catch (e) {
     if (e instanceof ValidationError) throw e;
     throw new ValidationError(
-      `${t.invalidJson}${isDev && e instanceof Error ? ': ' + e.message : ''}`,
+      `${t.unknownError}${isDev && e instanceof Error ? ': ' + e.message : ''}`,
       field
     );
   }

@@ -11,11 +11,10 @@ import { ValidationError } from '../validation';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../config';
 
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { assertVerificationNotExpired, auditSafe, createLockManager } from './helpers';
 
 // In-flight lock to prevent concurrent backup codes generation races
-const backupCodesGenerationLocks = new Map<string, Promise<void>>();
-const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
+const backupCodesLockManager = createLockManager();
 
 const totpGenerationCooldowns = new Map<string, number>();
 const MAX_COOLDOWN_ENTRIES = 1000;
@@ -37,19 +36,19 @@ export async function hasTotpCooldownForTesting(userId: string): Promise<boolean
 }
 
 export async function getBackupCodesLocksSizeForTesting(): Promise<number> {
-  return backupCodesGenerationLocks.size;
+  return backupCodesLockManager.locks.size;
 }
 
 export async function clearBackupCodesLocksForTesting(): Promise<void> {
-  backupCodesGenerationLocks.clear();
+  backupCodesLockManager.locks.clear();
 }
 
 export async function setBackupCodesLockForTesting(userId: string, promise: Promise<void>): Promise<void> {
-  backupCodesGenerationLocks.set(userId, promise);
+  backupCodesLockManager.locks.set(userId, promise);
 }
 
 export async function hasBackupCodesLockForTesting(userId: string): Promise<boolean> {
-  return backupCodesGenerationLocks.has(userId);
+  return backupCodesLockManager.locks.has(userId);
 }
 
 /**
@@ -136,9 +135,7 @@ export async function addMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const { type, payload } = verification;
 
@@ -201,12 +198,9 @@ export async function addMfaVerification(
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'mfa-add');
 
     // Audit (best-effort - failure must not break the main action)
-    try {
-      const { audit } = await import('../audit');
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      await audit({ actor: _intro.sub ?? 'unknown', action: `mfa.${verification.type.toLowerCase()}.enroll` });
-    } catch { /* audit is best-effort; never surface to caller */ }
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    auditSafe(_intro.sub ?? 'unknown', `mfa.${verification.type.toLowerCase()}.enroll`);
   });
 }
 
@@ -225,9 +219,7 @@ export async function deleteMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(verificationId)}`, {
       method: 'DELETE',
@@ -237,12 +229,9 @@ export async function deleteMfaVerification(
     await throwOnApiError(res, 'MFA_REMOVE_FAILED', 'mfa-remove');
 
     // Audit (best-effort - failure must not break the main action)
-    try {
-      const { audit } = await import('../audit');
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.remove', resource: verificationId });
-    } catch { /* audit is best-effort; never surface to caller */ }
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    auditSafe(_intro.sub ?? 'unknown', 'mfa.remove', verificationId);
   });
 }
 
@@ -266,35 +255,12 @@ export async function generateBackupCodes(
     const userId = claims.sub;
     assertSafeLogtoId(userId);
 
-    // Retrieve existing lock
-    const existingLock = backupCodesGenerationLocks.get(userId);
-
-    // Prevent unbounded growth
-    while (backupCodesGenerationLocks.size >= MAX_LOCK_ENTRIES) {
-      const oldestKey = backupCodesGenerationLocks.keys().next().value;
-      if (oldestKey !== undefined) {
-        backupCodesGenerationLocks.delete(oldestKey);
-      } else {
-        break;
-      }
-    }
-
-    // Create a new lock for this user
-    let releaseLock: () => void;
-    const lockPromise = new Promise<void>((resolve) => {
-      releaseLock = resolve;
-    });
-    backupCodesGenerationLocks.set(userId, lockPromise);
+    const releaseLock = await backupCodesLockManager.acquire(userId);
 
     try {
-      if (existingLock) {
-        await existingLock.catch(() => {}); // absorb failures
-      }
 
       // ── Staleness check (defense in depth) ────────────────────────────────
-      if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-        throw new Error('VERIFICATION_EXPIRED');
-      }
+      assertVerificationNotExpired(verificationTimestamp);
 
       // Step 1: Remove existing backup-code factors so old codes are invalidated.
       const listRes = await makeRequest('/api/my-account/mfa-verifications', {
@@ -342,19 +308,13 @@ export async function generateBackupCodes(
       await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
       // Audit (best-effort - failure must not break the main action)
-      try {
-        const { audit } = await import('../audit');
-        const _token = await getTokenForServerAction();
-        const _intro = await introspectToken(_token);
-        await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.backup_codes.generate' });
-      } catch { /* audit is best-effort; never surface to caller */ }
+      const _token = await getTokenForServerAction();
+      const _intro = await introspectToken(_token);
+      auditSafe(_intro.sub ?? 'unknown', 'mfa.backup_codes.generate');
 
       return { codes };
     } finally {
-      if (backupCodesGenerationLocks.get(userId) === lockPromise) {
-        backupCodesGenerationLocks.delete(userId);
-      }
-      releaseLock!();
+      releaseLock();
     }
   });
 }
@@ -372,9 +332,7 @@ export async function getBackupCodes(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
@@ -396,9 +354,7 @@ export async function replaceTotpVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
       method: 'PUT',
@@ -408,11 +364,8 @@ export async function replaceTotpVerification(
 
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-replace');
 
-    try {
-      const { audit } = await import('../audit');
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      await audit({ actor: _intro.sub ?? 'unknown', action: 'mfa.totp.replace' });
-    } catch { }
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    auditSafe(_intro.sub ?? 'unknown', 'mfa.totp.replace');
   });
 }

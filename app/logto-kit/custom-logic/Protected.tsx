@@ -57,11 +57,13 @@
 
 import { ReactNode, useReducer, useEffect } from 'react';
 import { useOrgMode } from '../components/providers/preferences';
-import { useLogto } from '../components/providers/logto-provider';
-import { loadOrganizationPermissions } from '../server-actions/load-org-permissions';
-import { loadPersonalRoles } from '../server-actions/load-personal-roles';
-import { loadPersonalPermissions } from '../server-actions/load-personal-permissions';
-import { loadOrganizationUserRoles } from '../server-actions/load-org-roles';
+import { useUserDataContext } from '../components/providers/user-data-context';
+import {
+  loadOrganizationPermissions,
+  loadPersonalRoles,
+  loadPersonalPermissions,
+  loadOrganizationUserRoles,
+} from '../server-actions';
 import { debugLog } from '../logic/debug';
 
 /**
@@ -135,7 +137,7 @@ export function Protected({
   fallback,
 }: ProtectedProps) {
   const { asOrg } = useOrgMode();
-  const { userData } = useLogto();
+  const userData = useUserDataContext();
   const [state, dispatch] = useReducer(permReducer, initialPermState);
   const { loadedPerms, loadedRoles, isLoadingPerms, loadError } = state;
 

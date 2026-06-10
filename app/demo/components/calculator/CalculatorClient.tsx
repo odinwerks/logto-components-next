@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useOrgMode, useLogto } from '../../../logto-kit';
-import { loadOrganizationPermissions } from '../../../logto-kit/server-actions/load-org-permissions';
+import { useOrgMode, useUserDataContext } from '../../../logto-kit';
+import { loadOrganizationPermissions } from '../../../logto-kit/server-actions';
 
 interface CalcState {
   expr: string;
@@ -276,7 +276,7 @@ export function CalculatorClient() {
   const isLongPressRef = useRef(false);
 
   const { asOrg } = useOrgMode();
-  const { userData } = useLogto();
+  const userData = useUserDataContext();
   const [hasScientific, setHasScientific] = useState<boolean | null>(null);
 
   useEffect(() => {

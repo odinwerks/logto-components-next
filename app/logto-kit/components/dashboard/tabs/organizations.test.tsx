@@ -41,15 +41,9 @@ vi.mock('../../../custom-logic/set-active-org', () => ({
   setActiveOrg: (...args: [string | null]) => mockSetActiveOrg(...args),
 }));
 
-vi.mock('../../../server-actions/load-org-permissions', () => ({
+vi.mock('../../../server-actions', () => ({
   loadOrganizationPermissions: (...args: unknown[]) => mockLoadOrganizationPermissions(...args),
-}));
-
-vi.mock('../../../server-actions/load-org-roles', () => ({
   loadOrganizationUserRoles: (...args: unknown[]) => mockLoadOrganizationUserRoles(...args),
-}));
-
-vi.mock('../../../server-actions/load-org-permission-descriptions', () => ({
   loadOrgPermissionDescriptions: (...args: unknown[]) => mockLoadOrgPermissionDescriptions(...args),
 }));
 

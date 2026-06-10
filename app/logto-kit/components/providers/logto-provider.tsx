@@ -10,7 +10,6 @@ import { UserDataProvider } from './user-data-context';
 import { DashboardRouter, useIsPortrait } from '../dashboard/dashboard-router';
 
 interface LogtoContextValue {
-  userData: UserData;
   mode: 'dark' | 'light';
   colors: ThemeColors;
   setMode: (mode: 'dark' | 'light') => void;
@@ -77,7 +76,6 @@ function LogtoProviderContent({
   }, [isDashboardOpen, closeDashboard]);
 
   const contextValue: LogtoContextValue = {
-    userData,
     mode,
     colors,
     setMode,

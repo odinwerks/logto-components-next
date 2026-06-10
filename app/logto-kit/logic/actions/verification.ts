@@ -11,7 +11,7 @@ import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
 import { getCountryFilter } from '../../config';
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { assertVerificationNotExpired } from './helpers';
 
 /**
  * Normalizes phone numbers by stripping all non-digit characters.
@@ -194,9 +194,7 @@ export async function updateEmailWithVerification(
     // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
     // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
     // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'POST',
@@ -223,9 +221,7 @@ export async function updatePhoneWithVerification(
     // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
     // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
     // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const cleanedPhone = cleanPhoneNumber(phone);
     assertPhoneCountryAllowed(cleanedPhone, countryFilter);
@@ -250,9 +246,7 @@ export async function removeUserEmail(
     // verificationTimestamp is Logto's expiresAt (server-derived from
     // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
     // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'DELETE',
@@ -273,9 +267,7 @@ export async function removeUserPhone(
     // verificationTimestamp is Logto's expiresAt (server-derived from
     // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
     // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    if (Date.now() > verificationTimestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-      throw new Error('VERIFICATION_EXPIRED');
-    }
+    assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/primary-phone', {
       method: 'DELETE',

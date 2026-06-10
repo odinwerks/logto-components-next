@@ -73,7 +73,8 @@ describe('FlowModal - localization', () => {
     );
 
     // Uses mfa.scanQrCode instead of hardcoded "Scan this QR code..."
-    expect(screen.getByText(enUS.mfa.scanQrCode)).toBeInTheDocument();
+    const scanElements = screen.getAllByText(enUS.mfa.scanQrCode);
+    expect(scanElements.length).toBeGreaterThanOrEqual(2);
     // Uses mfa.cantScan and mfa.enterManually instead of hardcoded text
     // Both values are in the same p element, so use exact: false
     expect(screen.getByText(enUS.mfa.cantScan, { exact: false })).toBeInTheDocument();

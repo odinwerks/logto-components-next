@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 // Mock helpers/hoisted values if needed, or simply mock using standard vi.mock
 const mockUseOrgMode = vi.fn();
-const mockUseLogto = vi.fn();
+const mockUseUserDataContext = vi.fn();
 const mockLoadPersonalPermissions = vi.fn();
 const mockLoadPersonalRoles = vi.fn();
 const mockLoadOrganizationUserRoles = vi.fn();
@@ -13,23 +13,14 @@ vi.mock('../components/providers/preferences', () => ({
   useOrgMode: () => mockUseOrgMode(),
 }));
 
-vi.mock('../components/providers/logto-provider', () => ({
-  useLogto: () => mockUseLogto(),
+vi.mock('../components/providers/user-data-context', () => ({
+  useUserDataContext: () => mockUseUserDataContext(),
 }));
 
-vi.mock('../server-actions/load-personal-permissions', () => ({
+vi.mock('../server-actions', () => ({
   loadPersonalPermissions: () => mockLoadPersonalPermissions(),
-}));
-
-vi.mock('../server-actions/load-personal-roles', () => ({
   loadPersonalRoles: () => mockLoadPersonalRoles(),
-}));
-
-vi.mock('../server-actions/load-org-roles', () => ({
   loadOrganizationUserRoles: (orgId: string) => mockLoadOrganizationUserRoles(orgId),
-}));
-
-vi.mock('../server-actions/load-org-permissions', () => ({
   loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
 }));
 
@@ -43,8 +34,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
   describe('When orgId === "self" (Self/User RBAC mode)', () => {
     it('calls both loadPersonalRoles and loadPersonalPermissions concurrently', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [] });
@@ -65,8 +57,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('denies access if the user does not have the required roleId', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_user' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [] });
@@ -85,8 +78,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('validates permission (perm) check in personal scope', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
@@ -106,8 +100,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('denies access if the user lacks the required personal permission', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'other_perm' }] });
@@ -126,8 +121,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('supports personal roles and personal permissions when orgId is omitted', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_admin' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
@@ -148,8 +144,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('denies access when orgId is omitted and user lacks required personal roles or permissions', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: null });
-      mockUseLogto.mockReturnValue({
-        userData: { id: 'user_123', organizations: [] },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [],
       });
       mockLoadPersonalRoles.mockResolvedValue({ ok: true, data: [{ id: 'role_user' }] });
       mockLoadPersonalPermissions.mockResolvedValue({ ok: true, data: [{ scope: 'some_perm' }] });
@@ -170,11 +167,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
   describe('When orgId !== "self" (Organization RBAC mode)', () => {
     it('breaks immediately and fetches nothing if asOrg !== orgId', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_different' });
-      mockUseLogto.mockReturnValue({
-        userData: {
-          id: 'user_123',
-          organizations: [{ id: 'org_123', name: 'Org 123' }],
-        },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [{ id: 'org_123', name: 'Org 123' }],
       });
 
       render(
@@ -193,11 +188,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('fetches both organization roles and permissions in parallel if asOrg === orgId', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_123' });
-      mockUseLogto.mockReturnValue({
-        userData: {
-          id: 'user_123',
-          organizations: [{ id: 'org_123', name: 'Org 123' }],
-        },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [{ id: 'org_123', name: 'Org 123' }],
       });
       mockLoadOrganizationUserRoles.mockResolvedValue({ ok: true, data: [{ id: 'org_role_admin' }] });
       mockLoadOrganizationPermissions.mockResolvedValue({ ok: true, data: ['org_perm_edit'] });
@@ -218,11 +211,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('denies access if user has correct role but incorrect permission', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_123' });
-      mockUseLogto.mockReturnValue({
-        userData: {
-          id: 'user_123',
-          organizations: [{ id: 'org_123', name: 'Org 123' }],
-        },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [{ id: 'org_123', name: 'Org 123' }],
       });
       
       mockLoadOrganizationUserRoles.mockResolvedValue({ ok: true, data: [{ id: 'org_role_admin' }] });
@@ -241,11 +232,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('denies access if user has correct permission but incorrect role', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_123' });
-      mockUseLogto.mockReturnValue({
-        userData: {
-          id: 'user_123',
-          organizations: [{ id: 'org_123', name: 'Org 123' }],
-        },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [{ id: 'org_123', name: 'Org 123' }],
       });
 
       mockLoadOrganizationUserRoles.mockResolvedValue({ ok: true, data: [] });
@@ -264,11 +253,9 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
     it('allows access if user has both the correct role and permission', async () => {
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_123' });
-      mockUseLogto.mockReturnValue({
-        userData: {
-          id: 'user_123',
-          organizations: [{ id: 'org_123', name: 'Org 123' }],
-        },
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        organizations: [{ id: 'org_123', name: 'Org 123' }],
       });
 
       mockLoadOrganizationUserRoles.mockResolvedValue({ ok: true, data: [{ id: 'org_role_admin' }] });

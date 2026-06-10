@@ -20,8 +20,7 @@ import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
-import { loadPersonalRoles } from '../../../server-actions/load-personal-roles';
-import { loadPersonalPermissions } from '../../../server-actions/load-personal-permissions';
+import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
 
 const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
   <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"

@@ -6,6 +6,7 @@ import type { ThemeColors } from '../themes';
 import locales from '../locales';
 import { useThemeMode } from './providers/preferences';
 import { useLogto } from './providers/logto-provider';
+import { useUserDataContext } from './providers/user-data-context';
 import { User } from 'lucide-react';
 import { readEnv } from '../logic/env';
 
@@ -73,7 +74,8 @@ interface UseUserDisplayOptions {
 function useUserDisplay(opts: UseUserDisplayOptions) {
   const { colors: contextColors } = useThemeMode();
   const colors = opts.colors ?? contextColors;
-  const { openDashboard, userData: contextUserData, lang } = useLogto();
+  const { openDashboard, lang } = useLogto();
+  const contextUserData = useUserDataContext();
 
   const [showFallback, setShowFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);

@@ -15,6 +15,7 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { warn } from '../log';
+import { createLockManager } from './helpers';
 
 export async function updateUserBasicInfo(updates: {
   name?: string;
@@ -53,8 +54,7 @@ export async function updateUserProfile(profile: {
 // In-flight lock to prevent concurrent GET-PATCH races when
 // PreferencesProvider calls updateUserCustomData in rapid succession.
 // Per-user Map keyed by user ID to avoid blocking different users.
-const customDataUpdateLocks = new Map<string, Promise<void>>();
-const MAX_LOCK_ENTRIES = 1000; // Prevent unbounded growth
+const customDataLockManager = createLockManager();
 
 /**
  * Updates the user's custom data Preferences via the Logto Management API.
@@ -91,30 +91,9 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const userId = claims.sub;
     assertSafeUserId(userId);
 
-    // Retrieve existingLock
-    const existingLock = customDataUpdateLocks.get(userId);
-
-    // Prevent unbounded growth safely using FIFO eviction
-    while (customDataUpdateLocks.size >= MAX_LOCK_ENTRIES) {
-      const oldestKey = customDataUpdateLocks.keys().next().value;
-      if (oldestKey === undefined) {
-        break;
-      }
-      customDataUpdateLocks.delete(oldestKey);
-    }
-
-    // Create a new lock for this user
-    let releaseLock: () => void;
-    const lockPromise = new Promise<void>((resolve) => {
-      releaseLock = resolve;
-    });
-    customDataUpdateLocks.set(userId, lockPromise);
+    const releaseLock = await customDataLockManager.acquire(userId);
 
     try {
-      if (existingLock) {
-        await existingLock.catch(() => {}); // absorb failures
-      }
-
       const mgmtToken = await getManagementApiToken();
       const endpoint = getCleanEndpoint();
 
@@ -163,10 +142,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
         throw new Error('UPDATE_FAILED');
       }
     } finally {
-      if (customDataUpdateLocks.get(userId) === lockPromise) {
-        customDataUpdateLocks.delete(userId);
-      }
-      releaseLock!();
+      releaseLock();
     }
   });
 }

@@ -8,6 +8,12 @@ vi.mock('./providers/logto-provider', () => ({
   useLogto: () => mockUseLogto(),
 }));
 
+// Mock UserDataProvider hook
+const mockUseUserDataContext = vi.fn();
+vi.mock('./providers/user-data-context', () => ({
+  useUserDataContext: () => mockUseUserDataContext(),
+}));
+
 // Mock Preferences provider hooks
 vi.mock('./providers/preferences', () => ({
   useThemeMode: () => ({
@@ -35,9 +41,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('sets accessibility aria-label on UserButton button including user display name', () => {
     mockUseLogto.mockReturnValue({
       lang: 'en-US',
-      userData: { id: 'user_123', name: 'John Doe', avatar: 'https://example.com/avatar.png' },
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe', avatar: 'https://example.com/avatar.png' });
 
     render(<UserButton />);
     const button = screen.getByRole('button');
@@ -48,9 +54,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('renders custom border radius when custom shape is passed to UserButton', () => {
     mockUseLogto.mockReturnValue({
       lang: 'en-US',
-      userData: { id: 'user_123', name: 'John Doe' },
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
 
     render(<UserButton shape="15px" />);
     const button = screen.getByRole('button');
@@ -60,9 +66,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('renders LoadingPlaceholder when loading and showFallback is false', () => {
     mockUseLogto.mockReturnValue({
       lang: 'en-US',
-      userData: null,
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue(null);
 
     render(<UserButton />);
     const button = screen.getByRole('button');
@@ -75,9 +81,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('does not render LoadingPlaceholder if userData is synchronously available', () => {
     mockUseLogto.mockReturnValue({
       lang: 'en-US',
-      userData: { id: 'user_123', name: 'John Doe' },
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
 
     render(<UserButton />);
     const button = screen.getByRole('button');
@@ -89,9 +95,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('uses target translation for UserButton aria-label after mount', () => {
     mockUseLogto.mockReturnValue({
       lang: 'uk-UA',
-      userData: { id: 'user_123', name: 'John Doe' },
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
 
     render(<UserButton />);
     const button = screen.getByRole('button');
@@ -101,9 +107,9 @@ describe('UserButton Accessibility and Shape Props', () => {
   it('uses target translation for UserCard label after mount', () => {
     mockUseLogto.mockReturnValue({
       lang: 'uk-UA',
-      userData: { id: 'user_123', name: 'John Doe' },
       openDashboard: vi.fn(),
     });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
 
     render(<UserCard />);
     expect(screen.getByText('Ви увійшли як')).toBeInTheDocument();

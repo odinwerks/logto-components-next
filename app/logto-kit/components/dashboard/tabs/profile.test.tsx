@@ -42,11 +42,8 @@ const {
   };
 });
 
-vi.mock('../../../server-actions/load-personal-permissions', () => ({
+vi.mock('../../../server-actions', () => ({
   loadPersonalPermissions: () => mockLoadPersonalPermissions(),
-}));
-
-vi.mock('../../../server-actions/load-personal-roles', () => ({
   loadPersonalRoles: () => mockLoadPersonalRoles(),
 }));
 
