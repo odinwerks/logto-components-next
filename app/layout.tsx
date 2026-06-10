@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, Instrument_Serif } from 'next/font/google';
+import { IBM_Plex_Mono, Instrument_Serif, DM_Sans } from 'next/font/google';
 import './globals.css';
 import AuthWatcher from './logto-kit/components/providers/auth-watcher';
 import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
@@ -16,6 +16,12 @@ const instrumentSerif = Instrument_Serif({
   weight: '400',
   style: 'italic',
   variable: '--font-instrument-serif',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-dm-sans',
 });
 
 export const metadata: Metadata = {
@@ -59,7 +65,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable}`}>
+      <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable} ${dmSans.variable}`}>
         <AuthWatcher />
         <SessionHeartbeat />
         {children}

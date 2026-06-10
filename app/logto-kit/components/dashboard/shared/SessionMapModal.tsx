@@ -15,20 +15,7 @@ interface SessionMapModalProps {
   onClose: () => void;
 }
 
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
-
-function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
-    return !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.getAttribute('aria-hidden') !== 'true';
-  });
-}
+import { useFocusTrap } from './focus-trap';
 
 export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMapModalProps) {
   const c = colors;
@@ -38,77 +25,17 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
   const osmLink = `https://www.openstreetmap.org/?mlat=${geo.lat}&mlon=${geo.lon}#map=14/${geo.lat}/${geo.lon}`;
   const googleMapsLink = `https://www.google.com/maps?q=${geo.lat},${geo.lon}`;
 
-  // Focus management (Mount focus, Trap focus, Restore focus) and Escape listener
+  // Focus management via shared focus trap
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
 
+  useFocusTrap(dialogRef, onClose);
+
+  // Focus the close button on mount (supplements the focus trap's initial focus)
   useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    // Restore focus to the element that had focus before the modal opened
-    const previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    // Focus the close button on mount
     if (closeBtnRef.current) {
       closeBtnRef.current.focus();
-    } else {
-      const focusable = getFocusableElements(dialog);
-      const initial = focusable[0] ?? dialog;
-      initial.focus();
     }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCloseRef.current?.();
-        return;
-      }
-
-      if (e.key !== 'Tab') return;
-
-      const currentDialog = dialogRef.current;
-      if (!currentDialog) return;
-
-      const nodes = getFocusableElements(currentDialog);
-      if (nodes.length === 0) {
-        e.preventDefault();
-        currentDialog.focus();
-        return;
-      }
-
-      const first = nodes[0];
-      const last = nodes[nodes.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      const outsideDialog = !active || !currentDialog.contains(active);
-
-      if (e.shiftKey) {
-        if (outsideDialog || active === first) {
-          e.preventDefault();
-          last.focus();
-        }
-        return;
-      }
-
-      if (outsideDialog || active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      if (previousActiveElement && document.contains(previousActiveElement)) {
-        previousActiveElement.focus();
-      }
-    };
   }, []);
 
   const btnStyle: React.CSSProperties = {

@@ -6,6 +6,7 @@ import { getCleanEndpoint, introspectToken } from '../utils';
 import { assertSafeLogtoId } from '../guards';
 import { makeRequest } from './request';
 import { throwOnApiError, sanitize } from '../errors';
+import { auditSafe } from './helpers';
 import { getTokenForServerAction } from './tokens';
 import { safeAction, type ActionResult } from './safe';
 
@@ -97,16 +98,25 @@ export async function deleteUserAccount(
 
     await throwOnApiError(deleteRes, 'DELETE_FAILED', 'account-delete');
 
-    // Audit the deletion - this is the last thing we do before returning.
-    const { audit } = await import('../audit');
-    await audit({ actor: userId, action: 'account.delete', resource: userId });
+    // Audit and cookie cleanup are best-effort: if they fail, the account
+    // deletion itself has already succeeded. Don't let post-deletion
+    // bookkeeping failures mask the successful deletion.
+    try {
+      auditSafe(userId, 'account.delete', userId);
+    } catch {
+      // auditSafe already swallows errors; this is defense in depth
+    }
 
     // Clear all local logto_ and logto-active-org cookies on path / (BUG-003)
-    const cookieStore = await cookies();
-    for (const cookie of cookieStore.getAll()) {
-      if (cookie.name.startsWith('logto_') || cookie.name === 'logto-active-org') {
-        cookieStore.set(cookie.name, '', { maxAge: 0, path: '/' });
+    try {
+      const cookieStore = await cookies();
+      for (const cookie of cookieStore.getAll()) {
+        if (cookie.name.startsWith('logto_') || cookie.name === 'logto-active-org') {
+          cookieStore.set(cookie.name, '', { maxAge: 0, path: '/' });
+        }
       }
+    } catch {
+      // Best-effort cookie cleanup — deletion already succeeded
     }
 
     // Client navigates away after this resolves (window.location.href).

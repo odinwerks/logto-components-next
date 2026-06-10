@@ -43,8 +43,10 @@ export function validateVerificationCode(code: string, t: Translations['validati
   }
 }
 
+const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
+
 export function validateVerificationId(id: string, t: Translations['validation'], field = 'verificationId'): void {
-  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+  if (!id || typeof id !== 'string' || !SAFE_ID_REGEX.test(id)) {
     throw new ValidationError(t.verificationIdRequired, field);
   }
 }

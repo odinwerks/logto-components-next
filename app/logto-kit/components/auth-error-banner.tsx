@@ -5,6 +5,25 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 
 /**
+ * Known OAuth2/OIDC error codes that are safe to display verbatim.
+ * Any error not in this set is replaced with a generic fallback to prevent
+ * social engineering attacks that inject attacker-controlled messages via
+ * the auth_error query parameter.
+ */
+const KNOWN_OAUTH_ERRORS = new Set([
+  'access_denied',
+  'login_required',
+  'interaction_required',
+  'consent_required',
+  'invalid_request',
+  'unauthorized_client',
+  'unsupported_response_type',
+  'invalid_scope',
+  'server_error',
+  'temporarily_unavailable',
+]);
+
+/**
  * Displays an OAuth authentication error banner when `auth_error` is present in the URL.
  *
  * OAuth2 error codes are standardized enum values (e.g., access_denied, login_required,
@@ -19,9 +38,12 @@ export function AuthErrorBanner() {
     return null;
   }
 
-  // key={authError} forces remount (resetting local state) when the error changes,
+  // Validate against known OAuth error codes to prevent social engineering
+  const safeError = KNOWN_OAUTH_ERRORS.has(authError) ? authError : 'authentication_error';
+
+  // key={safeError} forces remount (resetting local state) when the error changes,
   // avoiding the need for a useEffect that calls setState.
-  return <AuthErrorBannerInner key={authError} authError={authError} />;
+  return <AuthErrorBannerInner key={safeError} authError={safeError} />;
 }
 
 function AuthErrorBannerInner({ authError }: { authError: string }) {

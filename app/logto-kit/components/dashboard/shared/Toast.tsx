@@ -15,7 +15,7 @@ interface ToastProps {
   colors: ThemeColors;
 }
 
-export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
+export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -43,8 +43,6 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
     }
   }, [message.message]);
 
-  const isDark = mode === 'dark';
-
   const mkToast = (accent: string, bg: string): React.CSSProperties => ({
     padding: '0.625rem',
     background: bg,
@@ -60,7 +58,7 @@ export function Toast({ message, onDismiss, mode, colors }: ToastProps) {
   const styleMap = {
     success: mkToast(colors.accentGreen, colors.successBg),
     error: mkToast(colors.accentRed, colors.errorBg),
-    info: mkToast(colors.accentBlue, isDark ? '#3b82f61f' : '#2563eb1f'),
+    info: mkToast(colors.accentBlue, `${colors.accentBlue}1f`),
   } as const;
 
   const toastStyle: React.CSSProperties = {
@@ -173,7 +171,7 @@ export function ToastContainer({ messages, onDismiss, mode, colors }: ToastConta
             position: 'fixed',
             top: `${1.25 + index * 4.375}rem`,
             right: '1.25rem',
-            zIndex: 9999,
+            zIndex: 3000,
           }}
         >
           <Toast message={message} onDismiss={onDismiss} mode={mode} colors={colors} />

@@ -22,14 +22,12 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({
-  title, badge, data, mode, colors, t, maxHeight = '25rem',
+  title, badge, data, mode: _mode, colors, t, maxHeight = '25rem',
   copyKey = 'default', onCopy,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);
   const c = colors;
-  const isDark = mode === 'dark';
-
   const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
   const handleCopy = async () => {
@@ -106,7 +104,7 @@ export function CodeBlock({
   };
 
   const badgeInfoStyle: React.CSSProperties = {
-    background: isDark ? '#3b82f61f' : '#2563eb1f',
+    background: `${c.accentBlue}1f`,
     color: c.accentBlue,
     borderRadius: '0.1875rem',
   };

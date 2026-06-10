@@ -112,7 +112,11 @@ export function SessionsTab({
   // Persists the revoke target through failed attempts so retries send the correct session ID
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
 
-  const [currentTime] = useState(() => Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isVerificationValid = verificationRecordId && currentTime < verificationExpiry;
 

@@ -19,9 +19,8 @@ interface RoleCardProps {
 }
 
 
-const descriptionCache = new Map<string, string | null>();
-
 export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }: RoleCardProps) {
+  const descriptionCacheRef = useRef(new Map<string, string | null>());
   const c = colors;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -40,7 +39,7 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
     if (description !== undefined) return;
     if (fetchedRef.current) return;
 
-    const cached = descriptionCache.get(roleId);
+    const cached = descriptionCacheRef.current.get(roleId);
     if (cached !== undefined) {
       setResolvedDescription(cached);
       fetchedRef.current = true;
@@ -53,14 +52,14 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
       const result = await getRoleDetails(roleId);
       if (result.ok) {
         const desc = result.data.description || null;
-        descriptionCache.set(roleId, desc);
+        descriptionCacheRef.current.set(roleId, desc);
         setResolvedDescription(desc);
       } else {
-        descriptionCache.set(roleId, null);
+        descriptionCacheRef.current.set(roleId, null);
         setResolvedDescription(null);
       }
     } catch {
-      descriptionCache.set(roleId, null);
+      descriptionCacheRef.current.set(roleId, null);
       setResolvedDescription(null);
     } finally {
       setLoadingDesc(false);
@@ -82,7 +81,7 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
       position: 'fixed',
       top: `${top}px`,
       left: `${left}px`,
-      zIndex: 9999,
+      zIndex: 4000,
     });
     fetchDescription();
   }, [fetchDescription]);

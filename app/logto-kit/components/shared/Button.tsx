@@ -12,6 +12,7 @@ export type ButtonProps = {
   children: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  type?: 'button' | 'submit' | 'reset';
   onClick?: () => void;
   disabled?: boolean;
   style?: CSSProperties;
@@ -23,6 +24,7 @@ export function Button({
   children,
   variant = 'secondary',
   size = 'md',
+  type = 'button',
   onClick,
   disabled = false,
   style,
@@ -61,15 +63,15 @@ export function Button({
   }
 
   const BUTTONS: Record<string, { base: React.CSSProperties; hover: React.CSSProperties; disabled: React.CSSProperties }> = {
-    primary: mkBtn(colors.accentBlue, '#fff', colors.accentBlue, isDark ? '#1d4ed8' : '#3b82f6'),
+    primary: mkBtn(colors.accentBlue, '#fff', colors.accentBlue, isDark ? 'color-mix(in srgb, ' + colors.accentBlue + ' 80%, #fff)' : 'color-mix(in srgb, ' + colors.accentBlue + ' 80%, #000)'),
     secondary: mkBtn(colors.bgTertiary, colors.textSecondary, colors.borderColor, colors.bgPrimary, colors.textPrimary),
     ghost: {
       base: { ...btnBase, background: 'transparent', color: colors.textTertiary, borderColor: 'transparent' },
       hover: { background: colors.bgTertiary, color: colors.textSecondary },
       disabled: { opacity: 0.45, cursor: 'not-allowed' },
     },
-    danger: mkBtn(colors.errorBg, colors.accentRed, isDark ? '#ef444459' : '#dc262659', isDark ? '#ef444433' : '#dc262633'),
-    dangerSolid: mkBtn(colors.accentRed, '#fff', isDark ? '#d1362e' : '#b91c1c', isDark ? '#d94443' : '#c62828'),
+    danger: mkBtn(colors.errorBg, colors.accentRed, isDark ? colors.accentRed + '38' : colors.accentRed + '38', isDark ? colors.accentRed + '22' : colors.accentRed + '22'),
+    dangerSolid: mkBtn(colors.accentRed, '#fff', colors.accentRed, isDark ? 'color-mix(in srgb, ' + colors.accentRed + ' 80%, #fff)' : 'color-mix(in srgb, ' + colors.accentRed + ' 80%, #000)'),
   };
 
   const s = BUTTONS[variant];
@@ -80,7 +82,7 @@ export function Button({
 
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       onMouseEnter={() => setHovered(true)}

@@ -1,3 +1,5 @@
+'use client';
+
 export interface GeoLocation {
   lat: number;
   lon: number;

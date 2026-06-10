@@ -60,6 +60,8 @@ export function auditSafe(
  *
  * @param maxEntries - Maximum lock entries before FIFO eviction (default 1000).
  */
+const DEFAULT_LOCK_TIMEOUT_MS = 30_000;
+
 export function createLockManager(maxEntries = 1000) {
   const locks = new Map<string, Promise<void>>();
 
@@ -69,8 +71,12 @@ export function createLockManager(maxEntries = 1000) {
    * If the key is already locked, this waits for the existing lock to
    * release before returning. When the map exceeds `maxEntries`, the
    * oldest entry is evicted (FIFO).
+   *
+   * @param key - The lock key.
+   * @param timeoutMs - Maximum time to wait for the lock (default 30s).
+   * @throws If the lock cannot be acquired within the timeout.
    */
-  async function acquire(key: string): Promise<() => void> {
+  async function acquire(key: string, timeoutMs = DEFAULT_LOCK_TIMEOUT_MS): Promise<() => void> {
     // Evict oldest if at capacity
     while (locks.size >= maxEntries) {
       const oldest = locks.keys().next().value;
@@ -78,11 +84,16 @@ export function createLockManager(maxEntries = 1000) {
       locks.delete(oldest);
     }
 
-    // Wait for existing lock on this key
+    // Wait for existing lock on this key with timeout
     while (true) {
       const existing = locks.get(key);
       if (!existing) break;
-      await existing.catch(() => {}); // absorb failures
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Lock acquisition timed out for key '${key}' after ${timeoutMs}ms`)), timeoutMs);
+      });
+
+      await Promise.race([existing.catch(() => {}), timeoutPromise]);
     }
 
     let release!: () => void;

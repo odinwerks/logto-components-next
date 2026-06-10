@@ -222,6 +222,7 @@ export function PreferencesProvider({
         /* eslint-enable react-hooks/refs */
   }
 
+   
   const persistTheme = createPersister('theme', themePersistMutationSeqRef, (v) => setStoredTheme(v), setThemeState);
    
   const persistLang = createPersister('lang', langPersistMutationSeqRef, (v) => setStoredLang(v), setLangState);

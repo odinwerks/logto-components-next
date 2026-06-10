@@ -68,7 +68,6 @@ export {
   getOrganizationUserPermissions,
   getUserRoles,
   getUserScopes,
-  introspectTokenWithOrg,
 } from './actions/index';
 
 export { LogtoApiError } from './errors';

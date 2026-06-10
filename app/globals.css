@@ -99,6 +99,11 @@ select:focus {
   50%       { opacity: 0.5; }
 }
 
+@keyframes mStagger {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 0.5rem;
@@ -158,4 +163,14 @@ select:focus {
 [data-theme="dark"] .docs-content-container ::-webkit-scrollbar-track,
 :root[data-theme="dark"] .docs-content-container ::-webkit-scrollbar-track {
   background: var(--ldd-bg-page);
+}
+
+
+/* Dashboard responsive layout (BUG-008: CSS-based mobile/desktop split) */
+.ldd-desktop { display: block; }
+.ldd-mobile  { display: none; }
+
+@media (orientation: portrait), (max-width: 64rem) {
+  .ldd-desktop { display: none; }
+  .ldd-mobile  { display: block; }
 }

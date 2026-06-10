@@ -94,6 +94,5 @@ export {
   revokeUserGrant,
 } from './sessions';
 
-// Token Introspection (for RBAC)
-export { introspectTokenWithOrg } from './introspection';
+// Token Introspection - removed: introspectTokenWithOrg was dead code (zero callers)
 

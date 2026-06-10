@@ -186,7 +186,6 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
     boxSizing: 'border-box',
     borderRadius: '0.25rem',
     transition: 'border-color 0.15s ease, background 0.15s ease',
-    appearance: 'none',
     cursor: 'pointer',
   };
 

@@ -63,8 +63,9 @@ const PROVIDER_ICONS: Record<string, (textColor: string) => React.ReactNode> = {
 };
 
 function providerName(t: Translations, target: string): string {
-  const key = `provider${target.charAt(0).toUpperCase() + target.slice(1)}` as keyof Translations['identities'];
-  return (t.identities as Record<string, string>)[key] ?? target.charAt(0).toUpperCase() + target.slice(1);
+  const key = `provider${target.charAt(0).toUpperCase() + target.slice(1)}`;
+  const translated = (t.identities as Record<string, string | undefined>)[key];
+  return typeof translated === 'string' ? translated : target.charAt(0).toUpperCase() + target.slice(1);
 }
 
 function identityDetail(t: Translations, identity: {

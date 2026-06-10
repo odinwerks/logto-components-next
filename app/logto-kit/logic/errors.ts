@@ -230,7 +230,9 @@ export function isInvalidGrantError(error: unknown): boolean {
 
   if (typeof error === 'object') {
     const obj = error as Record<string, unknown>;
-    if (typeof obj.code === 'string' && obj.code.includes('invalid_grant')) {
+    // Tight match: exact 'oidc.invalid_grant' or any '*.invalid_grant' suffix.
+    // Avoids false positives from unrelated codes that happen to contain the substring.
+    if (obj.code === 'oidc.invalid_grant' || (typeof obj.code === 'string' && obj.code.endsWith('.invalid_grant'))) {
       return true;
     }
   }

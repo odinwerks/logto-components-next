@@ -369,10 +369,8 @@ export function ProfileTab({
         }
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
-          // Don't refreshData() here - Step 1 (name) already succeeded server-side,
-          // but Step 2 (givenName/familyName) failed. Resetting local state would
-          // discard the user's edits with no way to retry. Show the error and let
-          // them correct and try again.
+          // Attempt rollback of name update since profile update failed
+          try { await onUpdateBasicInfo({ name: userData.name ?? '' }); } catch { /* rollback best-effort */ }
           onError(profileResult.error);
           return;
         }
@@ -391,8 +389,8 @@ export function ProfileTab({
         if (nameFieldsChanged) {
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) {
-            // Same rationale as given_family branch: Step 1 succeeded, don't
-            // wipe local state on Step 2 failure - preserve edits for retry.
+            // Attempt rollback of name/username update since profile update failed
+            try { await onUpdateBasicInfo({ name: userData.name ?? '', username: userData.username ?? '' }); } catch { /* rollback best-effort */ }
             onError(profileResult.error);
             return;
           }

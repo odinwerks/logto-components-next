@@ -306,10 +306,13 @@ describe('isInvalidGrantError', () => {
     expect(isInvalidGrantError('')).toBe(false);
   });
 
-  it('returns true for object with code containing invalid_grant', async () => {
+  it('returns true for object with code matching oidc.invalid_grant or *.invalid_grant', async () => {
     const { isInvalidGrantError } = await import('./errors');
     expect(isInvalidGrantError({ code: 'oidc.invalid_grant' })).toBe(true);
-    expect(isInvalidGrantError({ code: 'some.invalid_grant.other' })).toBe(true);
+    // endsWith('.invalid_grant') — rejects codes with extra segments after invalid_grant
+    expect(isInvalidGrantError({ code: 'some.invalid_grant.other' })).toBe(false);
+    // but accepts any prefix ending in .invalid_grant
+    expect(isInvalidGrantError({ code: 'oauth.invalid_grant' })).toBe(true);
   });
 
   it('returns true for Error with message containing invalid_grant', async () => {

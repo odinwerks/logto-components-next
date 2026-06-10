@@ -40,8 +40,8 @@ export default function ErrorPage({
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--ldd-bg-primary)',
-      color: 'var(--ldd-accent-red)',
+      background: 'var(--ldd-bg-primary, #111620)',
+      color: 'var(--ldd-accent-red, #dc2626)',
       fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
       display: 'flex',
       alignItems: 'center',
@@ -52,13 +52,13 @@ export default function ErrorPage({
         maxWidth: '36rem',
         width: '100%',
         padding: '1.5rem',
-        border: '1px solid var(--ldd-accent-red)',
+        border: '1px solid var(--ldd-accent-red, #dc2626)',
         borderRadius: '0.25rem',
-        background: 'var(--ldd-error-bg)',
+        background: 'var(--ldd-error-bg, #1a0505)',
       }}>
         <div style={{
           fontSize: '0.7rem',
-          color: 'var(--ldd-text-tertiary)',
+          color: 'var(--ldd-text-tertiary, #90959e)',
           marginBottom: '0.75rem',
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
@@ -72,7 +72,7 @@ export default function ErrorPage({
           lineHeight: 1.6,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          color: 'var(--ldd-text-primary)',
+          color: 'var(--ldd-text-primary, #f3f4f6)',
           fontFamily: 'inherit',
         }}>
           {msg}
@@ -86,9 +86,9 @@ export default function ErrorPage({
           <button
             onClick={copy}
             style={{
-              background: 'var(--ldd-bg-tertiary)',
-              border: '1px solid var(--ldd-accent-red)',
-              color: copied ? 'var(--ldd-accent-green)' : 'var(--ldd-accent-red)',
+              background: 'var(--ldd-bg-tertiary, #171c2a)',
+              border: '1px solid var(--ldd-accent-red, #dc2626)',
+              color: copied ? 'var(--ldd-accent-green, #059669)' : 'var(--ldd-accent-red, #dc2626)',
               cursor: 'pointer',
               fontSize: '0.75rem',
               padding: '0.375rem 0.875rem',
@@ -103,9 +103,9 @@ export default function ErrorPage({
           <button
             onClick={reset}
             style={{
-              background: 'var(--ldd-bg-tertiary)',
-              border: '1px solid var(--ldd-accent-red)',
-              color: 'var(--ldd-accent-red)',
+              background: 'var(--ldd-bg-tertiary, #171c2a)',
+              border: '1px solid var(--ldd-accent-red, #dc2626)',
+              color: 'var(--ldd-accent-red, #dc2626)',
               cursor: 'pointer',
               fontSize: '0.75rem',
               padding: '0.375rem 0.875rem',

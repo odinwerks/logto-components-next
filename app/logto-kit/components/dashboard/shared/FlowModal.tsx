@@ -25,89 +25,7 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
   );
 }
 
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
-
-function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
-    return !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.getAttribute('aria-hidden') !== 'true';
-  });
-}
-
-function useDialogA11y(dialogRef: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
-  const onCloseRef = useRef(onClose);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    const focusable = getFocusableElements(dialog);
-    const autoFocused = focusable.find((el) => el.hasAttribute('autofocus'));
-    const initial = autoFocused ?? focusable[0] ?? dialog;
-    initial.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCloseRef.current?.();
-        return;
-      }
-
-      if (e.key !== 'Tab') return;
-
-      const currentDialog = dialogRef.current;
-      if (!currentDialog) return;
-
-      const nodes = getFocusableElements(currentDialog);
-      if (nodes.length === 0) {
-        e.preventDefault();
-        currentDialog.focus();
-        return;
-      }
-
-      const first = nodes[0];
-      const last = nodes[nodes.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      const outsideDialog = !active || !currentDialog.contains(active);
-
-      if (e.shiftKey) {
-        if (outsideDialog || active === first) {
-          e.preventDefault();
-          last.focus();
-        }
-        return;
-      }
-
-      if (outsideDialog || active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      const previous = restoreFocusRef.current;
-      if (previous && document.contains(previous)) {
-        previous.focus();
-      }
-    };
-  }, [dialogRef]);
-}
+import { useFocusTrap } from './focus-trap';
 
 export type PasswordModalStep =
   | { kind: 'password' }
@@ -160,7 +78,7 @@ export function PasswordVerifyModal({
   const pwdErrorId = useId();
   const dangerColor = c.accentRed;
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogA11y(dialogRef, onClose);
+  useFocusTrap(dialogRef, onClose);
 
   // Reset "hide while typing" when error prop or step changes
   useEffect(() => {
@@ -321,7 +239,7 @@ export function FlowModal({
   const dangerColor = c.accentRed;
 
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogA11y(dialogRef, onClose);
+  useFocusTrap(dialogRef, onClose);
 
   // Reset "hide while typing" when error prop or step changes
   useEffect(() => {
@@ -638,7 +556,7 @@ export function BackupCodesModal({
   colors: ThemeColors;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogA11y(dialogRef, onDone);
+  useFocusTrap(dialogRef, onDone);
 
   const c = colors;
   const T = {
@@ -686,7 +604,7 @@ export function BackupCodesModal({
         border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6)',
         overflow: 'hidden',
-      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')}>
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')} aria-describedby="backup-codes-desc">
         <div style={{
           padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',

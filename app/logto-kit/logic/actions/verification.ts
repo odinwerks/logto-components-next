@@ -63,12 +63,24 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
           verificationTimestamp = parsed.expiresAt;
         }
       } else if (typeof parsed.expiresAt === 'string') {
-        verificationTimestamp = new Date(parsed.expiresAt).getTime();
+        const parsedDate = new Date(parsed.expiresAt).getTime();
+        if (!Number.isFinite(parsedDate)) {
+          throw plainCode('VERIFICATION_FAILED');
+        }
+        verificationTimestamp = parsedDate;
       } else {
-        verificationTimestamp = new Date(parsed.expiresAt).getTime();
+        const parsedDate = new Date(parsed.expiresAt).getTime();
+        if (!Number.isFinite(parsedDate)) {
+          throw plainCode('VERIFICATION_FAILED');
+        }
+        verificationTimestamp = parsedDate;
       }
     } else {
       verificationTimestamp = Date.now() + 10 * 60 * 1000;
+    }
+    // Guard: reject NaN/Infinity timestamps that would bypass staleness check
+    if (!Number.isFinite(verificationTimestamp)) {
+      throw plainCode('VERIFICATION_FAILED');
     }
     return {
       verificationRecordId: parsed.verificationRecordId,

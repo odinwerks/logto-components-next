@@ -170,13 +170,6 @@ export function MobileClient({
           boxSizing: 'border-box',
         }}
       >
-        <style>{`
-          @keyframes mStagger {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-
         {/* Ambient glow at top */}
         <div
           style={{

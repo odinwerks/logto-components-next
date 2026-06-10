@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 import type { Translations } from '../../../locales';
 import type { ToastMessage } from '../types';
 
+let toastCounter = 0;
+
 export function useDashboardToasts(t: Translations) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     const toast: ToastMessage = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: `toast-${Date.now()}-${++toastCounter}`,
       type,
       message,
       duration: type === 'success' ? 3000 : 8000,

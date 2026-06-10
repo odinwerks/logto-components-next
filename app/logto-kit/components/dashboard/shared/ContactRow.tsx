@@ -156,8 +156,8 @@ export function ContactRow({
   const getTrimmedTarget = () => newValueRef.current.trim();
   const isPhoneWithoutLocalDigits = type === 'phone' && modalKind === 'edit' && localPhone.length === 0;
 
-  const canContinueFromValue = React.useMemo(() => {
-    if (modalKind !== 'edit') return false;
+  const isContinueDisabled = React.useMemo(() => {
+    if (modalKind !== 'edit') return true;
     if (isPhoneWithoutLocalDigits) return true;
     if (!valueForSubmit.trim()) return true;
     if (type === 'phone' && !!phoneErr) return true;
@@ -231,7 +231,7 @@ export function ContactRow({
             : (type === 'email' ? t.security.updateEmailConfirm : t.security.updatePhoneConfirm)}
           step={step}
           onValueSubmit={handleValueSubmit}
-          valueSubmitDisabled={canContinueFromValue}
+          valueSubmitDisabled={isContinueDisabled}
           onPasswordSubmit={handlePassword}
           onCodeSubmit={handleCode}
           onClose={close}

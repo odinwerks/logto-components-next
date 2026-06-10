@@ -234,8 +234,8 @@ export function PhoneCountrySelect({
     background: colors.bgSecondary,
     border: `1px solid ${colors.borderColor}`,
     borderRadius: '0.25rem',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-    zIndex: 9999,
+    boxShadow: _mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)',
+    zIndex: 1000,
     display: 'flex',
     flexDirection: 'column',
   };

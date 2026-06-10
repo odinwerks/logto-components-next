@@ -91,12 +91,14 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const userId = claims.sub;
     assertSafeUserId(userId);
 
+    // Fetch M2M token and endpoint BEFORE acquiring the lock to avoid
+    // holding the lock during network I/O (BUG-010).
+    const mgmtToken = await getManagementApiToken();
+    const endpoint = getCleanEndpoint();
+
     const releaseLock = await customDataLockManager.acquire(userId);
 
     try {
-      const mgmtToken = await getManagementApiToken();
-      const endpoint = getCleanEndpoint();
-
       // GET current Preferences via Management API.
       // Using the Management API's custom-data endpoint avoids the Account API's
       // full-replace PATCH, which would wipe top-level customData keys written by

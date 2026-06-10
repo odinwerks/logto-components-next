@@ -28,7 +28,8 @@ export async function makeRequest(
 
   const token = await getTokenForServerAction();
   const cleanEndpoint = getCleanEndpoint();
-  const base = `${cleanEndpoint}${path.startsWith('/') ? '' : '/'}${path}`;
+  // path always starts with '/' because of the validation guard above
+  const base = `${cleanEndpoint}${path}`;
 
   // Use URL + URLSearchParams so query values are encoded correctly and
   // can never bleed into the path segment.

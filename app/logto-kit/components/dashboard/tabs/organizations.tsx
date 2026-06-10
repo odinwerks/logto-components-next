@@ -71,7 +71,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
       position: 'fixed',
       top: `${top}px`,
       left: `${left}px`,
-      zIndex: 9999,
+      zIndex: 4000,
     });
   }, []);
 
@@ -443,7 +443,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
           boxShadow: mode === 'dark'
             ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
             : '0 2px 8px rgba(0, 0, 0, 0.15)',
-          zIndex: 10000,
+          zIndex: 4000,
           pointerEvents: 'none',
           display: 'flex',
           flexDirection: 'column',
@@ -485,7 +485,8 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
   // NOTE: explicit null means "be yourself" mode and must NOT fall back to
   // a stale server prop. Only fallback behavior should apply to unexpected
   // undefined values.
-  const activeOrgId = asOrg !== null ? (asOrg ?? currentOrgId) : null;
+  const normalizedAsOrg = asOrg || null;
+  const activeOrgId = normalizedAsOrg !== null ? (normalizedAsOrg ?? (currentOrgId || null)) : null;
 
   const organizations = userData.organizations || [];
   // Only show roles for the active organization (security: don't show org roles when "be yourself")

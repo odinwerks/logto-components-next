@@ -24,9 +24,12 @@ vi.mock('./app/logto-kit/config', () => ({
   }),
 }));
 
+const logMock = vi.fn();
+
 vi.mock('./app/logto-kit/logic/log', () => ({
   warn: warnMock,
   error: errorMock,
+  log: logMock,
 }));
 
 function getSetCookies(res: Response): string[] {
@@ -42,6 +45,7 @@ describe('proxy stale-cookie recovery', () => {
     getLogtoContextMock.mockReset();
     warnMock.mockReset();
     errorMock.mockReset();
+    logMock.mockReset();
   });
 
   it('issues nonce contract for stale-cookie branch redirect', async () => {
@@ -111,7 +115,8 @@ describe('proxy invalid_grant recovery', () => {
     expect(nonceCookieHeader).toContain('Secure');
 
     expect(warnMock).toHaveBeenCalledWith(
-      '[Proxy] invalid_grant detected, redirecting to wipe: [object Object]',
+      '[Proxy] invalid_grant detected, redirecting to wipe:',
+      expect.any(String),
     );
   });
 });

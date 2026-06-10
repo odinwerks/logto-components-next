@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { getLogtoConfig } from './app/logto-kit/config';
 import { isAuthError, isInvalidGrantError, isTransientError } from './app/logto-kit/logic/errors';
-import { error as logError, warn as logWarn } from './app/logto-kit/logic/log';
+import { error as logError, warn as logWarn, log } from './app/logto-kit/logic/log';
+
+/**
+ * Sanitizes an error for safe logging: truncates to 200 chars, replaces newlines.
+ */
+function safeLogMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.substring(0, 200).replace(/\n/g, ' ');
+}
 
 const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
@@ -50,11 +58,11 @@ export async function proxy(request: NextRequest) {
     // Authenticated - proceed
     return NextResponse.next();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = safeLogMessage(error);
 
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
-      console.log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
+      log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
       // Nonce is required so only this middleware-triggered flow can wipe via GET.
       const nonce = crypto.randomUUID();
@@ -73,7 +81,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle invalid_grant (server-side grant revocation, e.g. session revoked elsewhere)
     if (isInvalidGrantError(error)) {
-      logWarn(`[Proxy] invalid_grant detected, redirecting to wipe: ${errorMessage}`);
+      logWarn('[Proxy] invalid_grant detected, redirecting to wipe:', errorMessage);
       const nonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
       wipeUrl.searchParams.set('nonce', nonce);

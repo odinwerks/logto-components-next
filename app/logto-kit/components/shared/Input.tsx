@@ -15,7 +15,7 @@ export type InputProps = {
   disabled?: boolean;
   maxLength?: number;
   hasError?: boolean;
-  mode: 'dark' | 'light';
+  mode?: 'dark' | 'light';
   colors: ThemeColors;
   describedby?: string;
 };
@@ -49,7 +49,7 @@ export function Input({
     boxSizing: 'border-box',
     borderRadius: '0.25rem',
     transition: 'border-color 0.15s ease, background 0.15s ease',
-    boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.2)',
+    boxShadow: _mode === 'dark' ? 'inset 0 1px 4px rgba(0,0,0,0.5)' : 'inset 0 1px 4px rgba(0,0,0,0.15)',
   };
   const errorStyle = hasError
     ? { borderColor: colors.accentRed, background: colors.errorBg }
