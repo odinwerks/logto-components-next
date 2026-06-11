@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Translations } from '../../../locales';
 import type { ToastMessage } from '../types';
 
@@ -6,8 +6,18 @@ let toastCounter = 0;
 
 export function useDashboardToasts(t: Translations) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [suppressAll, setSuppressAll] = useState(false);
+  // Use a ref so showToast can read the latest value without changing identity
+  const suppressRef = useRef(false);
+
+  const setSuppress = useCallback((value: boolean) => {
+    suppressRef.current = value;
+    setSuppressAll(value);
+  }, []);
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
+    if (suppressRef.current) return;
+
     const toast: ToastMessage = {
       id: `toast-${Date.now()}-${++toastCounter}`,
       type,
@@ -31,6 +41,8 @@ export function useDashboardToasts(t: Translations) {
 
   return {
     toasts,
+    suppressAll,
+    setSuppressAll: setSuppress,
     showToast,
     dismissToast,
     mapErrorToast,

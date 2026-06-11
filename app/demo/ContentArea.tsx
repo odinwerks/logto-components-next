@@ -1,16 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
-
-const useIsClient = () =>
-  useSyncExternalStore(
-    () => () => {},               // subscribe: no-op (value never changes)
-    () => true,                    // getSnapshot: client → true
-    () => false,                   // getServerSnapshot: server → false
-  );
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
 };
@@ -153,7 +146,8 @@ const footDotStyle: React.CSSProperties = {
 
 export default function ContentArea({ item }: ContentAreaProps) {
   const { mode } = useThemeMode();
-  const mounted = useIsClient();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {

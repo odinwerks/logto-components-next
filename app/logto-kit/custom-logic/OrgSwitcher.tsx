@@ -41,6 +41,8 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
         setAsOrg(orgIdToSet);
         router.refresh();
       });
+    } catch (error) {
+      console.error('[OrgSwitcher] Failed to switch organization:', error);
     } finally {
       setIsLoading(false);
     }

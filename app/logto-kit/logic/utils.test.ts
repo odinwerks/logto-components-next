@@ -10,6 +10,27 @@ describe('introspectToken', () => {
     vi.unstubAllEnvs();
   });
 
+  it('passes an AbortSignal.timeout signal to the fetch call', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    const result = await introspectToken('some-token');
+
+    expect(result).toEqual({ active: true });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://example.com/introspect',
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
   describe('missing configuration', () => {
     it('throws when LOGTO_INTROSPECTION_URL is missing', async () => {
       vi.stubEnv('APP_ID', 'client-id-123');

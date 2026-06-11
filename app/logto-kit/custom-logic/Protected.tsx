@@ -141,9 +141,16 @@ export function Protected({
   const [state, dispatch] = useReducer(permReducer, initialPermState);
   const { loadedPerms, loadedRoles, isLoadingPerms, loadError } = state;
 
-  const targetOrgId = orgName
-    ? userData?.organizations?.find((org) => org.name === orgName)?.id
-    : orgId;
+  /** Resolve orgId from props, preferring explicit id over name lookup. */
+  function resolveTargetOrgId(): string | undefined {
+    if (orgId && orgId !== 'self') return orgId;
+    if (orgName && userData?.organizations) {
+      return userData.organizations.find((o) => o.name === orgName)?.id;
+    }
+    return undefined;
+  }
+
+  const targetOrgId = resolveTargetOrgId();
 
   // Single combined effect for permission loading
   useEffect(() => {
@@ -279,33 +286,29 @@ export function Protected({
       return false;
     }
 
-    let targetOrgId: string;
-    if (orgId) {
-      targetOrgId = orgId;
-    } else if (orgName) {
-      const orgWithName = userData.organizations.find((org) => org.name === orgName);
-      if (orgWithName) {
-        targetOrgId = orgWithName.id;
-      } else {
+    const resolvedOrgId = resolveTargetOrgId();
+    if (resolvedOrgId === undefined) {
+      // orgName was specified but not found in user's orgs
+      if (orgName) {
         debugLog('[Protected] Organization with name not found:', orgName);
         return false;
       }
-    } else {
+      // No org scope — pass through
       return true;
     }
 
-    // Verify that asOrg === targetOrgId / orgId (strict asOrg check)
-    if (asOrg !== targetOrgId) {
+    // Verify that asOrg === resolvedOrgId / orgId (strict asOrg check)
+    if (asOrg !== resolvedOrgId) {
       debugLog('[Protected] Organization not selected as active:', {
-        required: targetOrgId,
+        required: resolvedOrgId,
         current: asOrg,
       });
       return false;
     }
 
-    const hasOrg = userData.organizations.some((org) => org.id === targetOrgId);
+    const hasOrg = userData.organizations.some((org) => org.id === resolvedOrgId);
     if (!hasOrg) {
-      debugLog('[Protected] User does not have required organization:', targetOrgId);
+      debugLog('[Protected] User does not have required organization:', resolvedOrgId);
       return false;
     }
 
@@ -315,18 +318,18 @@ export function Protected({
         ? requiredRoles.every((r) => loadedRoles.includes(r))
         : requiredRoles.some((r) => loadedRoles.includes(r));
       if (!hasRoles) {
-        debugLog('[Protected] User lacks required roles in organization:', targetOrgId);
+        debugLog('[Protected] User lacks required roles in organization:', resolvedOrgId);
         return false;
       }
     }
 
-    const hasRequiredPerms = checkPermissions(targetOrgId, effectivePerms);
+    const hasRequiredPerms = checkPermissions(resolvedOrgId, effectivePerms);
     if (!hasRequiredPerms) {
-      debugLog('[Protected] User lacks required permissions in organization:', targetOrgId);
+      debugLog('[Protected] User lacks required permissions in organization:', resolvedOrgId);
       return false;
     }
 
-    debugLog('[Protected] Access granted for org:', targetOrgId);
+    debugLog('[Protected] Access granted for org:', resolvedOrgId);
 
     return true;
   };

@@ -50,6 +50,6 @@ export async function makeRequest(
     method: options.method || 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    signal: options.signal,
+    signal: options.signal ?? AbortSignal.timeout(15000),
   });
 }

@@ -495,6 +495,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
             flexShrink: 0, padding: 0, fontSize: '1rem', lineHeight: 1,
           }}
           title="Zoom out"
+          aria-label="Zoom out"
         >
           −
         </button>
@@ -528,6 +529,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
             flexShrink: 0, padding: 0, fontSize: '1rem', lineHeight: 1,
           }}
           title="Zoom in"
+          aria-label="Zoom in"
         >
           +
         </button>

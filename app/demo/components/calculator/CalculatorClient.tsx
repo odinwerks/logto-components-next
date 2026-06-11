@@ -602,8 +602,8 @@ export function CalculatorClient() {
   };
 
   const calcWrapperStyle: React.CSSProperties = {
-    background: '#0e0e10',
-    border: '1px solid #2a2a36',
+    background: 'var(--ldd-bg-primary)',
+    border: '1px solid var(--ldd-border-color)',
     borderRadius: '4px',
     width: '340px',
     overflow: 'hidden',
@@ -612,8 +612,8 @@ export function CalculatorClient() {
 
   const displayStyle: React.CSSProperties = {
     padding: '10px 18px 10px',
-    background: '#16161a',
-    borderBottom: '1px solid #2a2a36',
+    background: 'var(--ldd-bg-secondary)',
+    borderBottom: '1px solid var(--ldd-border-color)',
     minHeight: '100px',
     display: 'flex',
     flexDirection: 'column',
@@ -630,7 +630,7 @@ export function CalculatorClient() {
 
   const modeLabelStyle: React.CSSProperties = {
     fontSize: '11px',
-    color: '#4080ff',
+    color: 'var(--ldd-accent-blue)',
     fontWeight: 500,
     letterSpacing: '0.1em',
     cursor: 'pointer',
@@ -638,7 +638,7 @@ export function CalculatorClient() {
 
   const invLabelStyle: React.CSSProperties = {
     fontSize: '11px',
-    color: state.invOn ? '#e8a020' : '#444',
+    color: state.invOn ? 'var(--ldd-accent-yellow)' : 'var(--ldd-text-tertiary)',
     fontWeight: 500,
     letterSpacing: '0.08em',
     cursor: 'pointer',
@@ -648,7 +648,7 @@ export function CalculatorClient() {
   const exprLineStyle: React.CSSProperties = {
     fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '12px',
-    color: '#606078',
+    color: 'var(--ldd-text-tertiary)',
     minHeight: '16px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -659,7 +659,7 @@ export function CalculatorClient() {
   const mainLineStyle: React.CSSProperties = {
     fontFamily: "'IBM Plex Mono', monospace",
     fontSize: mainDisplay.length > 16 ? '16px' : mainDisplay.length > 11 ? '22px' : '34px',
-    color: '#f0f0f5',
+    color: 'var(--ldd-text-primary)',
     textAlign: 'right',
     marginTop: '3px',
     overflow: 'hidden',
@@ -674,7 +674,7 @@ export function CalculatorClient() {
     bottom: '8px',
     left: '18px',
     fontSize: '11px',
-    color: drawerOpen ? '#4080ff' : '#444',
+    color: drawerOpen ? 'var(--ldd-accent-blue)' : 'var(--ldd-text-tertiary)',
     fontWeight: 500,
     letterSpacing: '0.08em',
     cursor: 'pointer',
@@ -719,9 +719,9 @@ export function CalculatorClient() {
     fontFamily: "'IBM Plex Sans', sans-serif",
     fontSize: '17px',
     fontWeight: 500,
-    background: '#1e1e24',
-    color: '#f0f0f5',
-    border: '1px solid #2a2a36',
+    background: 'var(--ldd-bg-tertiary)',
+    color: 'var(--ldd-text-primary)',
+    border: '1px solid var(--ldd-border-color)',
     borderRadius: '2px',
     cursor: 'pointer',
     transition: 'background 0.07s, transform 0.06s',
@@ -733,7 +733,7 @@ export function CalculatorClient() {
     letterSpacing: '0.01em',
   };
 
-  const fnBtnStyle: React.CSSProperties = { ...btnStyle, fontSize: '12.5px', background: '#16161a' };
+  const fnBtnStyle: React.CSSProperties = { ...btnStyle, fontSize: '12.5px', background: 'var(--ldd-bg-secondary)' };
   const sciBtnStyle: React.CSSProperties = {
     ...fnBtnStyle,
     opacity: isScientificDisabled ? 0.4 : 1,

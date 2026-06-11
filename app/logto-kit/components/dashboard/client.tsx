@@ -8,6 +8,7 @@ import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { ToastContainer } from './shared/Toast';
+import { SignOutModal } from './shared/SignOutModal';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -198,7 +199,7 @@ export function DashboardClient({
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
 
   // ── Toast ──────────────────────────────────────────────────────────────────
-  const { toasts, showToast, dismissToast, mapErrorToast } = useDashboardToasts(t);
+  const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
 
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const tabPanelId = 'dashboard-tabpanel';
@@ -259,9 +260,16 @@ export function DashboardClient({
   // ── Theme handlers (providers handle persistence) ───────────────────────────
 
   // ── Sign out ───────────────────────────────────────────────────────────────
-  const handleSignOut = useCallback(async () => {
-    await onSignOut();
-  }, [onSignOut]);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const handleSignOut = useCallback(() => {
+    setSuppressAll(true);
+    setIsSigningOut(true);
+  }, [setSuppressAll]);
+
+  const abortSignOut = useCallback(() => {
+    setSuppressAll(false);
+    setIsSigningOut(false);
+  }, [setSuppressAll]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
@@ -509,6 +517,7 @@ export function DashboardClient({
       </div>
 
       {/* Toasts */}
+      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );
@@ -586,7 +595,7 @@ function SignOutButton({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const dimRed = themeMode === 'dark' ? 'rgba(239,68,68,0.55)' : 'rgba(185,28,28,0.6)';
+  const dimRed = themeMode === 'dark' ? 'rgba(239,68,68,0.85)' : 'rgba(185,28,28,0.85)';
   const fullRed = themeMode === 'dark' ? 'rgba(239,68,68,0.9)' : 'rgb(185,28,28)';
   const hoverBg = themeMode === 'dark' ? 'rgba(239,68,68,0.07)' : 'rgba(185,28,28,0.05)';
 

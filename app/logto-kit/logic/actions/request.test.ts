@@ -61,3 +61,32 @@ describe('makeRequest - path guard', () => {
     await expect(makeRequest('//api/evil')).rejects.toThrow('Invalid API path');
   });
 });
+
+  // ── BUG-003: Session password entry spins eternally - missing fetch timeout ───
+
+  it('passes a default AbortSignal.timeout when no signal option is provided', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+
+    await makeRequest('/api/my-account');
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it('uses the caller-provided signal instead of a default timeout', async () => {
+    const controller = new AbortController();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+
+    await makeRequest('/api/my-account', { signal: controller.signal });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        signal: controller.signal,
+      })
+    );
+  });

@@ -366,6 +366,15 @@ export const ukUA: Translations = {
     systemTheme: 'Системна',
     loggedInAs: 'Ви увійшли як',
   },
+
+  // Sign-out modal (playful farewell flow)
+  signout: {
+    title: 'Вже йдеш?',
+    bodyCountdown: 'Вийдеш через {n}с',
+    abort: 'Скасувати',
+    confirm: 'Відпусти!',
+    farewell: 'До зустрічі!',
+  },
 };
 
 export default ukUA;

@@ -406,7 +406,7 @@ export function FlowModal({
           {step.kind === 'totp-scan' && (
               <>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '1rem' : '1.25rem' }}>
-                  <div style={{ background: '#fff', padding: '0.375rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: isMobile ? 'center' : 'flex-start' }}>
+                  <div role="img" aria-label="TOTP setup QR code — use an authenticator app to scan this code" style={{ background: '#fff', padding: '0.375rem', border: `1px solid ${c.borderColor}`, flexShrink: 0, alignSelf: isMobile ? 'center' : 'flex-start' }}>
                     <QRCodeSVG value={step.totpUri} size={152} />
                   </div>
                     <div style={{ flex: 1, minWidth: 0 }}>

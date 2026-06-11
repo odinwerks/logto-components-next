@@ -7,7 +7,7 @@ import type { ActionResult } from '../../logic/actions/safe';
 import { updateUserCustomData } from '../../logic/actions';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
-import { DashboardRouter } from '../dashboard/dashboard-router';
+import { DashboardRouter, useIsPortrait } from '../dashboard/dashboard-router';
 
 interface LogtoContextValue {
   mode: 'dark' | 'light';
@@ -53,6 +53,7 @@ function LogtoProviderContent({
   children: ReactNode;
 }) {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const isPortrait = useIsPortrait();
 
   const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
@@ -114,6 +115,7 @@ function LogtoProviderContent({
                 flexDirection: 'column',
               }}
             >
+              {!isPortrait && (
               <button
                 onClick={closeDashboard}
                 aria-label="Close dashboard"
@@ -138,6 +140,7 @@ function LogtoProviderContent({
               >
                 ✕
               </button>
+            )}
               <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                 <DashboardRouter desktop={dashboard.desktop} mobile={dashboard.mobile} />
               </div>

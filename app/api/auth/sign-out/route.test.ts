@@ -29,7 +29,7 @@ beforeEach(() => {
 
 // ── POST /api/auth/sign-out ────────────────────────────────────────────────
 describe('POST /api/auth/sign-out', () => {
-  it('calls signOut and throws NEXT_REDIRECT on success', async () => {
+  it('calls signOut and throws NEXT_REDIRECT on success (no origin = non-browser)', async () => {
     const { signOut } = await import('@logto/next/server-actions');
     (signOut as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('NEXT_REDIRECT')
@@ -37,12 +37,44 @@ describe('POST /api/auth/sign-out', () => {
 
     const req = new NextRequest('http://localhost:3000/api/auth/sign-out', {
       method: 'POST',
-      headers: { origin: 'https://evil.com' },
+      // No Origin header — simulates curl / non-browser clients
     });
     const { POST } = await import('./route');
 
     await expect(POST(req)).rejects.toThrow('NEXT_REDIRECT');
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows same-origin requests', async () => {
+    const { signOut } = await import('@logto/next/server-actions');
+    (signOut as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('NEXT_REDIRECT')
+    );
+
+    const req = new NextRequest('http://localhost:3000/api/auth/sign-out', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3000' },
+    });
+    const { POST } = await import('./route');
+
+    await expect(POST(req)).rejects.toThrow('NEXT_REDIRECT');
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects cross-origin requests with 403', async () => {
+    const { signOut } = await import('@logto/next/server-actions');
+
+    const req = new NextRequest('http://localhost:3000/api/auth/sign-out', {
+      method: 'POST',
+      headers: { origin: 'https://evil.com' },
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe('FORBIDDEN');
+    expect(signOut).not.toHaveBeenCalled();
   });
 
   it('redirects to / on signOut failure', async () => {

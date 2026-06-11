@@ -57,3 +57,49 @@ describe('useDashboardToasts', () => {
     expect(result.current.toasts[0]?.id).not.toBe(result.current.toasts[1]?.id);
   });
 });
+
+describe('useDashboardToasts - suppressAll', () => {
+  it('suppresses toasts when suppressAll is true', () => {
+    const { result } = renderHook(() => useDashboardToasts(enUS));
+
+    act(() => {
+      result.current.setSuppressAll(true);
+      result.current.showToast('info', 'Should not appear');
+    });
+
+    expect(result.current.toasts).toHaveLength(0);
+  });
+
+  it('re-enables toasts when suppressAll is toggled off', () => {
+    const { result } = renderHook(() => useDashboardToasts(enUS));
+
+    act(() => {
+      result.current.setSuppressAll(true);
+      result.current.showToast('info', 'Should not appear');
+    });
+    expect(result.current.toasts).toHaveLength(0);
+
+    act(() => {
+      result.current.setSuppressAll(false);
+      result.current.showToast('info', 'Should appear');
+    });
+    expect(result.current.toasts).toHaveLength(1);
+  });
+
+  it('does not suppress error toasts when suppressAll is false', () => {
+    const { result } = renderHook(() => useDashboardToasts(enUS));
+
+    act(() => {
+      result.current.setSuppressAll(false);
+      result.current.showToast('error', 'Error appears');
+    });
+
+    expect(result.current.toasts).toHaveLength(1);
+  });
+
+  it('returns suppressAll in its initial false state', () => {
+    const { result } = renderHook(() => useDashboardToasts(enUS));
+
+    expect(result.current.suppressAll).toBe(false);
+  });
+});

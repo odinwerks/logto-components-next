@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import Image from 'next/image';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
@@ -45,14 +44,8 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
 
   if (src && !imgError) {
     return (
-      <Image
-        src={src}
-        alt={os ?? 'OS'}
-        width={size}
-        height={size}
-        style={{ display: 'block' }}
-        onError={() => setImgError(true)}
-      />
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt={os ?? 'OS'} width={size} height={size} style={{ display: 'block' }} onError={() => setImgError(true)} />
     );
   }
 

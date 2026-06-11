@@ -9,6 +9,7 @@ import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { useLogto } from '../providers/logto-provider';
 import { ToastContainer } from './shared/Toast';
+import { SignOutModal } from './shared/SignOutModal';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
 import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { ProfileTab } from './tabs/profile';
@@ -125,7 +126,7 @@ export function MobileClient({
     () => false
   );
 
-  const { toasts, showToast, dismissToast, mapErrorToast } = useDashboardToasts(t);
+  const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
 
   const router = useRouter();
   const refreshData = useCallback(() => {
@@ -141,13 +142,17 @@ export function MobileClient({
     setView('menu');
   }, []);
 
-  const handleSignOut = useCallback(async () => {
-    try {
-      await onSignOut();
-    } catch {
-      showToast('error', t.dashboard.error);
-    }
-  }, [onSignOut, showToast, t.dashboard.error]);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = useCallback(() => {
+    setSuppressAll(true);
+    setIsSigningOut(true);
+  }, [setSuppressAll]);
+
+  const abortSignOut = useCallback(() => {
+    setSuppressAll(false);
+    setIsSigningOut(false);
+  }, [setSuppressAll]);
 
   // ── Menu view ────────────────────────────────────────────────────────────
 
@@ -273,6 +278,7 @@ export function MobileClient({
           <ArrowLeft size={22} />
         </button>
 
+        <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
         <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
       </div>
     );
@@ -446,6 +452,7 @@ export function MobileClient({
         <ArrowLeft size={22} />
       </button>
 
+      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );

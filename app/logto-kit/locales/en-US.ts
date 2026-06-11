@@ -366,6 +366,15 @@ export const enUS: Translations = {
     systemTheme: 'System',
     loggedInAs: 'Logged in as',
   },
+
+  // Sign-out modal (playful farewell flow)
+  signout: {
+    title: 'Leaving already?',
+    bodyCountdown: "You'll be signed out in {n}s",
+    abort: 'Abort',
+    confirm: 'Let me go!',
+    farewell: 'See you later!',
+  },
 };
 
 export default enUS;

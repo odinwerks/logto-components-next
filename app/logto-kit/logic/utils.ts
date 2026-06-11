@@ -59,6 +59,7 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {

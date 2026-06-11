@@ -381,6 +381,15 @@ export interface Translations {
     systemTheme: string;
     loggedInAs: string;
   };
+
+  // Sign-out modal (playful farewell flow)
+  signout: {
+    title: string;
+    bodyCountdown: string;
+    abort: string;
+    confirm: string;
+    farewell: string;
+  };
 }
 
 // Backward-compatible alias

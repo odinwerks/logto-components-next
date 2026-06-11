@@ -366,6 +366,15 @@ export const kaGE: Translations = {
     systemTheme: 'სისტემური',
     loggedInAs: 'შესულია როგორც',
   },
+
+  // Sign-out modal (playful farewell flow)
+  signout: {
+    title: 'უკვე მიდიხარ?',
+    bodyCountdown: 'გამოხვალ {n} წამში',
+    abort: 'გაუქმება',
+    confirm: 'გამიშვი!',
+    farewell: 'ნახვამდის!',
+  },
 };
 
 export default kaGE;
