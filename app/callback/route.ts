@@ -14,8 +14,6 @@ export async function GET(request: NextRequest) {
     redirect(`/?auth_error=${encodeURIComponent(oauthError)}`);
   }
 
-  // handleSignIn is smart enough to detect missing OAuth params and
-  // initiate the sign-in flow when the user isn't in an active OAuth flow.
   await handleSignIn(getLogtoConfig(), searchParams);
   redirect('/');
 }

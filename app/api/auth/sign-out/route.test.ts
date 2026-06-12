@@ -61,20 +61,23 @@ describe('POST /api/auth/sign-out', () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects cross-origin requests with 403', async () => {
+  it('does NOT reject cross-origin requests (AGENTS.md: no origin guard on auth routes)', async () => {
+    // The Logto OAuth `state` parameter provides CSRF protection for sign-out.
+    // Adding an origin guard here breaks local dev and is explicitly prohibited in AGENTS.md.
     const { signOut } = await import('@logto/next/server-actions');
+    (signOut as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('NEXT_REDIRECT')
+    );
 
     const req = new NextRequest('http://localhost:3000/api/auth/sign-out', {
       method: 'POST',
-      headers: { origin: 'https://evil.com' },
+      headers: { origin: 'https://other-origin.com' },
     });
     const { POST } = await import('./route');
-    const res = await POST(req);
 
-    expect(res.status).toBe(403);
-    const body = await res.json();
-    expect(body.error).toBe('FORBIDDEN');
-    expect(signOut).not.toHaveBeenCalled();
+    // Should proceed to signOut, not return 403
+    await expect(POST(req)).rejects.toThrow('NEXT_REDIRECT');
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 
   it('redirects to / on signOut failure', async () => {
