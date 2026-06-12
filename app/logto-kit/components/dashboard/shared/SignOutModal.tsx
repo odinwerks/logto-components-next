@@ -3,7 +3,6 @@ import type { ThemeColors } from '../types';
 import type { Translations } from '../../../locales';
 import { Overlay } from './FlowModal';
 import { Button } from '../../shared/Button';
-import { signOutUser } from '../../../logic/actions/auth';
 import { readEnv } from '../../../logic/env';
 
 interface SignOutModalProps {
@@ -18,17 +17,13 @@ interface SignOutModalProps {
 export function SignOutModal({
   isOpen,
   onAbort,
-  countdownSeconds = 15,
+  countdownSeconds = 8,
   mode,
   colors,
   t,
 }: SignOutModalProps) {
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [showFarewell, setShowFarewell] = useState(false);
-
-  // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 15000)
-  const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '15000', 10);
-  const farewellDelayMs = Number.isFinite(rawFarewellDelay) && rawFarewellDelay >= 0 ? rawFarewellDelay : 15000;
 
   useEffect(() => {
     if (!isOpen) {
@@ -37,9 +32,18 @@ export function SignOutModal({
       return;
     }
     if (showFarewell) {
-      // Farewell stage: wait SIGNOUT_REDIRECT_DELAY then call signOutUser server action
+      // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 3000)
+      const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '3000', 10);
+      const farewellDelayMs = Number.isFinite(rawFarewellDelay) && rawFarewellDelay >= 0 ? rawFarewellDelay : 3000;
+      // Farewell stage: wait SIGNOUT_REDIRECT_DELAY then POST to sign-out route
       const timer = setTimeout(() => {
-        signOutUser();
+        fetch('/api/auth/sign-out', { method: 'POST', redirect: 'manual' })
+          .then(() => {
+            window.location.href = '/';
+          })
+          .catch(() => {
+            window.location.href = '/';
+          });
       }, farewellDelayMs);
       return () => clearTimeout(timer);
     }
@@ -49,7 +53,7 @@ export function SignOutModal({
     }
     const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     return () => clearInterval(timer);
-  }, [isOpen, countdown, countdownSeconds, showFarewell, farewellDelayMs]);
+  }, [isOpen, countdown, countdownSeconds, showFarewell]);
 
   if (!isOpen) return null;
 
@@ -137,14 +141,15 @@ export function SignOutModal({
           <p
             style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: '0.75rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
               color: colors.textSecondary,
               lineHeight: 1.55,
               margin: 0,
             }}
           >
             {parts[0]}
-            <strong style={{ fontSize: '1.5rem', fontWeight: 700 }}>{countdown}</strong>
+            <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
             {parts[1] || ''}
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>

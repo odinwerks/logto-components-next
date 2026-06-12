@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SignOutModal } from './SignOutModal';
 import type { Translations } from '../../../locales';
 import type { ThemeColors } from '../types';
-import { signOutUser } from '../../../logic/actions/auth';
 import * as env from '../../../logic/env';
 
 vi.mock('../../../logic/env', async () => {
@@ -48,14 +47,18 @@ const mockColors = {
   contrastText: '#fff',
 } as unknown as ThemeColors;
 
-// Mock the signOutUser server action
-vi.mock('../../../logic/actions/auth', () => ({
-  signOutUser: vi.fn(),
-}));
+// Mock the signOutUser server action (removed - signout now uses fetch + window.location.href)
 
 describe('SignOutModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock fetch for sign-out tests
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true })));
+    // Mock window.location.href
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { href: '/' },
+    });
   });
 
   it('renders when isOpen is true', () => {
@@ -99,7 +102,7 @@ describe('SignOutModal', () => {
     expect(onAbort).toHaveBeenCalledTimes(1);
   });
 
-  it('shows farewell stage and calls signOutUser after countdown reaches zero', async () => {
+  it('shows farewell stage and calls fetch+redirect after countdown reaches zero', async () => {
     vi.useFakeTimers();
 
     render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={2} mode="dark" colors={mockColors} t={mockT} />);
@@ -112,16 +115,17 @@ describe('SignOutModal', () => {
     // Farewell text should be visible
     expect(screen.getByText('See you later!')).toBeInTheDocument();
 
-    // Advance another ~1s for signOutUser call
-    act(() => {
-      vi.advanceTimersByTime(1100);
+    // Advance past SIGNOUT_REDIRECT_DELAY (mocked to 100ms)
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+      await Promise.resolve();
     });
 
-    expect(signOutUser).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('/api/auth/sign-out', { method: 'POST', redirect: 'manual' });
     vi.useRealTimers();
   });
 
-  it('shows farewell stage immediately when confirm button is clicked and calls signOutUser', async () => {
+  it('shows farewell stage immediately when confirm button is clicked and calls fetch+redirect', async () => {
     vi.useFakeTimers();
     render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={15} mode="dark" colors={mockColors} t={mockT} />);
 
@@ -129,11 +133,13 @@ describe('SignOutModal', () => {
 
     expect(screen.getByText('See you later!')).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(1100);
+    // Advance past SIGNOUT_REDIRECT_DELAY (mocked to 100ms)
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+      await Promise.resolve();
     });
 
-    expect(signOutUser).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('/api/auth/sign-out', { method: 'POST', redirect: 'manual' });
     vi.useRealTimers();
   });
 
@@ -154,8 +160,12 @@ describe('SignOutModal', () => {
     render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={15} mode="dark" colors={mockColors} t={mockT} />);
     const strong = screen.getByText('15');
     expect(strong.tagName).toBe('STRONG');
-    // Verify inline style for larger/bolder number (spec requirement)
-    expect(strong.getAttribute('style')).toContain('font-size: 1.5rem');
+    // Verify inline style for countdown number (new spec: 1.125rem, 700)
+    expect(strong.getAttribute('style')).toContain('font-size: 1.125rem');
     expect(strong.getAttribute('style')).toContain('font-weight: 700');
+    // Verify parent <p> has bold label text (0.875rem, 600)
+    const parentP = strong.parentElement;
+    expect(parentP?.getAttribute('style')).toContain('font-size: 0.875rem');
+    expect(parentP?.getAttribute('style')).toContain('font-weight: 600');
   });
 });
