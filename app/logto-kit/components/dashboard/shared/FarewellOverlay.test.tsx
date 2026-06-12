@@ -21,9 +21,7 @@ describe('FarewellOverlay', () => {
     // The component uses window.location.href directly in its timer.
     // This test verifies the default branch exists; full navigation tested via integration.
     const originalLocation = window.location;
-    // @ts-expect-error - deleting read-only property for test purposes
     delete (window as unknown as { location: unknown }).location;
-    // @ts-expect-error - assigning minimal stub for test purposes
     (window as unknown as { location: { href: string } }).location = { href: '' };
 
     render(<FarewellOverlay message="Account deleted." colors={mockColors} delayMs={0} />);
