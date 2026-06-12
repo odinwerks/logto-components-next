@@ -249,21 +249,22 @@ export function MobileClient({
           aria-label="Close dashboard"
           style={{
             position: 'fixed',
-            bottom: '1.5rem',
-            right: '1.35rem',
-            width: '3rem',
-            height: '3rem',
-            borderRadius: '0.75rem',
+            bottom: '1rem',
+            right: '1rem',
+            width: '2.5rem',
+            height: '2.5rem',
+            borderRadius: '0.625rem',
             border: `1px solid ${colors.borderColor}`,
             background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
             backdropFilter: 'blur(0.5rem)',
             WebkitBackdropFilter: 'blur(0.5rem)',
-            color: colors.textTertiary,
+            color: colors.textSecondary,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             transition: 'background 0.15s ease, color 0.15s ease',
           }}
           onMouseEnter={(e) => {
@@ -272,10 +273,10 @@ export function MobileClient({
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-            e.currentTarget.style.color = colors.textTertiary;
+            e.currentTarget.style.color = colors.textSecondary;
           }}
         >
-          <ArrowLeft size={22} />
+          <ArrowLeft size={18} />
         </button>
 
         <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
@@ -423,21 +424,22 @@ export function MobileClient({
         aria-label="Back to menu"
         style={{
           position: 'fixed',
-          bottom: '1.5rem',
-          right: '1.35rem',
-          width: '3rem',
-          height: '3rem',
-          borderRadius: '0.75rem',
+          bottom: '1rem',
+          right: '1rem',
+          width: '2.5rem',
+          height: '2.5rem',
+          borderRadius: '0.625rem',
           border: `1px solid ${colors.borderColor}`,
           background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
           backdropFilter: 'blur(0.5rem)',
           WebkitBackdropFilter: 'blur(0.5rem)',
-          color: colors.textTertiary,
+          color: colors.textSecondary,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           transition: 'background 0.15s ease, color 0.15s ease',
         }}
         onMouseEnter={(e) => {
@@ -446,10 +448,10 @@ export function MobileClient({
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-          e.currentTarget.style.color = colors.textTertiary;
+          e.currentTarget.style.color = colors.textSecondary;
         }}
       >
-        <ArrowLeft size={22} />
+        <ArrowLeft size={18} />
       </button>
 
       <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
