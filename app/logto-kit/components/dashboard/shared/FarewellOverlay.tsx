@@ -15,7 +15,11 @@ export function FarewellOverlay({ message, colors, delayMs, onComplete }: Farewe
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      onComplete?.();
+      if (onComplete) {
+        onComplete();
+      } else {
+        window.location.href = '/';
+      }
     }, effectiveDelay);
     return () => clearTimeout(timer);
   }, [effectiveDelay, onComplete]);
