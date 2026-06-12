@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ThemeColors } from '../types';
 import type { Translations } from '../../../locales';
 import { Overlay } from './FlowModal';
@@ -24,13 +24,17 @@ export function SignOutModal({
 }: SignOutModalProps) {
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [showFarewell, setShowFarewell] = useState(false);
+  const prevIsOpenRef = useRef(isOpen);
 
   useEffect(() => {
-    if (!isOpen) {
+    // Reset state when transitioning from open to closed (not on initial render)
+    if (prevIsOpenRef.current && !isOpen) {
       setCountdown(countdownSeconds);
       setShowFarewell(false);
-      return;
     }
+    prevIsOpenRef.current = isOpen;
+
+    if (!isOpen) return;
     if (showFarewell) {
       // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 3000)
       const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '3000', 10);
@@ -47,11 +51,14 @@ export function SignOutModal({
       }, farewellDelayMs);
       return () => clearTimeout(timer);
     }
-    if (countdown <= 0) {
-      setShowFarewell(true);
-      return;
-    }
-    const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((c) => {
+        const next = c - 1;
+        if (next <= 0) setShowFarewell(true);
+        return next;
+      });
+    }, 1000);
     return () => clearInterval(timer);
   }, [isOpen, countdown, countdownSeconds, showFarewell]);
 
