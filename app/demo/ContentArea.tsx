@@ -147,7 +147,7 @@ const footDotStyle: React.CSSProperties = {
 export default function ContentArea({ item }: ContentAreaProps) {
   const { mode } = useThemeMode();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {

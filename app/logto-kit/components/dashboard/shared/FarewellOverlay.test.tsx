@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { FarewellOverlay } from './FarewellOverlay';
 import type { ThemeColors } from '../types';
 
@@ -21,10 +21,10 @@ describe('FarewellOverlay', () => {
     // The component uses window.location.href directly in its timer.
     // This test verifies the default branch exists; full navigation tested via integration.
     const originalLocation = window.location;
-    // @ts-ignore
-    delete (window as any).location;
-    // @ts-ignore
-    (window as any).location = { href: '' };
+    // @ts-expect-error - deleting read-only property for test purposes
+    delete (window as unknown as { location: unknown }).location;
+    // @ts-expect-error - assigning minimal stub for test purposes
+    (window as unknown as { location: { href: string } }).location = { href: '' };
 
     render(<FarewellOverlay message="Account deleted." colors={mockColors} delayMs={0} />);
 
@@ -33,6 +33,6 @@ describe('FarewellOverlay', () => {
     expect(screen.getByText('Account deleted.')).toBeTruthy();
 
     // Restore
-    (window as any).location = originalLocation;
+    (window as unknown as { location: typeof originalLocation }).location = originalLocation;
   });
 });

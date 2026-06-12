@@ -4,15 +4,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SignOutModal } from './SignOutModal';
 import type { Translations } from '../../../locales';
 import type { ThemeColors } from '../types';
-import * as env from '../../../logic/env';
 
 vi.mock('../../../logic/env', async () => {
-  const actual = await vi.importActual('../../../logic/env');
+  const actual = await vi.importActual<typeof import('../../../logic/env')>('../../../logic/env');
   return {
     ...actual,
     readEnv: vi.fn((name: string) => {
       if (name === 'SIGNOUT_REDIRECT_DELAY') return '100';
-      return (actual as any).readEnv(name);
+      return actual.readEnv(name);
     }),
   };
 });
