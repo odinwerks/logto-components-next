@@ -27,12 +27,13 @@ const PRIVATE_ENV_VARS = new Set([
   'COUNTRY_CODE_ALLOW_LIST', 'COUNTRY_CODE_BLOCK_LIST',
 ]);
 
+const IS_NEXT_BUILD = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
+
 function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
 
-  const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
-  const isBuildTime = (isNextBuild && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
+  const isBuildTime = (IS_NEXT_BUILD && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
   if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
   }
@@ -78,9 +79,8 @@ export const logtoConfig = (() => {
   const allowList = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
   const blockList = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
   if (allowList.length > 0 && blockList.length > 0) {
-    const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
     const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
-    if (isNextBuild) {
+    if (IS_NEXT_BUILD) {
       warn(`[Logto Config] ${msg} Falling back to allow list.`);
     } else {
       throw new Error(`Configuration Error: ${msg}`);
@@ -114,14 +114,13 @@ export const logtoConfig = (() => {
   // Runtime guard: prevent serving with placeholder secrets in production.
   // During `next build` (esp. Docker), env files are excluded from the build
   // context, so placeholders are expected. The guard re-runs at server start.
-  const isNextBuild = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
-  if (config.appSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
+  if (config.appSecret === 'build-placeholder' && nodeEnv === 'production' && !IS_NEXT_BUILD) {
     throw new Error(
       'FATAL: appSecret is still "build-placeholder" at runtime in production. ' +
       'Set APP_SECRET environment variable before starting the server.'
     );
   }
-  if (config.cookieSecret === 'build-placeholder' && nodeEnv === 'production' && !isNextBuild) {
+  if (config.cookieSecret === 'build-placeholder' && nodeEnv === 'production' && !IS_NEXT_BUILD) {
     throw new Error(
       'FATAL: cookieSecret is still "build-placeholder" at runtime in production. ' +
       'Set COOKIE_SECRET environment variable before starting the server.'
@@ -129,13 +128,20 @@ export const logtoConfig = (() => {
   }
 
   // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
-  const isNextBuildForHttps = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
-  if (nodeEnv === 'production' && !isNextBuildForHttps) {
+  if (nodeEnv === 'production' && !IS_NEXT_BUILD) {
     function assertHttpsInProduction(url: string | undefined, name: string): void {
       if (!url) return; // Let existing required checks handle missing values
       try {
         const parsed = new URL(url);
-        const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+        // Exempt IPv4 loopback (127.0.0.1), IPv6 loopback (::1 and variants),
+        // and 'localhost' hostname from the HTTPS requirement (CFG-BUG-004).
+        const isLocalhost =
+          parsed.hostname === 'localhost' ||
+          parsed.hostname === '127.0.0.1' ||
+          parsed.hostname === '::1' ||
+          parsed.hostname === '[::1]' ||
+          parsed.hostname === '0:0:0:0:0:0:0:1' ||
+          parsed.hostname === '[0:0:0:0:0:0:0:1]';
         if (parsed.protocol !== 'https:' && !isLocalhost) {
           throw new Error(
             `${name} must use HTTPS in production - secrets must not be ` +
@@ -188,6 +194,16 @@ let cachedM2MToken: { token: string; expiresAt: number } | null = null;
 // network requests (BUG-016).
 let pendingTokenPromise: Promise<string> | null = null;
 
+// Exponential backoff state for M2M token retries (API-A05)
+let m2mRetryCount = 0;
+const M2M_MAX_RETRY_DELAY_MS = 30_000; // 30 seconds ceiling
+const M2M_BASE_DELAY_MS = 500;         // 500 ms base
+
+function getM2mBackoffDelay(): number {
+  // Exponential backoff: 500ms * 2^n, capped at 30 s
+  return Math.min(M2M_BASE_DELAY_MS * Math.pow(2, m2mRetryCount), M2M_MAX_RETRY_DELAY_MS);
+}
+
 export async function getManagementApiToken(): Promise<string> {
   // Return cached token if still valid (with 10-minute buffer before expiry)
   if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt) {
@@ -211,6 +227,13 @@ export async function getManagementApiToken(): Promise<string> {
 
   // Wrap the actual fetch in a shared promise so concurrent callers coalesce
   pendingTokenPromise = (async () => {
+    // Exponential backoff: wait before retrying after previous failures (API-A05)
+    if (m2mRetryCount > 0) {
+      const delay = getM2mBackoffDelay();
+      warn(`[M2M Token] Backing off for ${delay}ms before retry attempt ${m2mRetryCount}`);
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+    }
+
     const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
     const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
     const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
@@ -238,20 +261,26 @@ export async function getManagementApiToken(): Promise<string> {
     if (!res.ok) {
       const errorText = await res.text();
       warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
+      m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
       throw new Error('Management API token request failed');
     }
 
     const data = await res.json();
     if (!data.access_token) {
+      m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
       throw new Error(
         `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
       );
     }
 
-    // Cache the token with a 50-minute TTL (tokens typically last 1 hour)
+    // Success: reset backoff counter
+    m2mRetryCount = 0;
+
+    // Cache the token with dynamic TTL based on expires_in with a 60s buffer
+    const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
     cachedM2MToken = {
       token: data.access_token as string,
-      expiresAt: Date.now() + 50 * 60 * 1000,
+      expiresAt: Date.now() + (expiresIn - 60) * 1000,
     };
 
     return cachedM2MToken.token;

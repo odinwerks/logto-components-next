@@ -174,6 +174,19 @@ describe('config resolution', () => {
       const { getLogtoConfig } = await import('./config');
       expect(getLogtoConfig()).toBeDefined();
     });
+
+    // CFG-BUG-004: IPv6 loopback exemptions
+    it('allows HTTP [::1] LOGTO_INTROSPECTION_URL in production (IPv6 loopback)', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'http://[::1]:3001/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
   });
 
   describe('backendType', () => {
@@ -331,9 +344,9 @@ describe('getManagementApiToken caching', () => {
     expect(token1).toBe('test-token-abc');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-    // Advance time past the 50-minute TTL
+    // Advance time past the new dynamic TTL ((3600 - 60) * 1000)
     vi.useFakeTimers();
-    vi.advanceTimersByTime(50 * 60 * 1000 + 1);
+    vi.advanceTimersByTime((3600 - 60) * 1000 + 1);
 
     // Update the mock to return a different token for the second fetch
     fetchSpy.mockResolvedValueOnce({
@@ -347,5 +360,78 @@ describe('getManagementApiToken caching', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
 
     vi.useRealTimers();
+  });
+});
+
+// API-A05: M2M token failure triggers exponential backoff, not a retry storm
+describe('getManagementApiToken exponential backoff (API-A05)', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('APP_SECRET', 'dummy-app-secret');
+    vi.stubEnv('APP_ID', 'test-app-id');
+    vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+    vi.stubEnv('LOGTO_M2M_APP_ID', 'm2m-app-id');
+    vi.stubEnv('LOGTO_M2M_APP_SECRET', 'm2m-app-secret');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('applies a backoff delay on second call after first failure', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      // First call: fails
+      .mockResolvedValueOnce({ ok: false, text: async () => 'Internal Server Error', status: 500 } as unknown as Response)
+      // Second call: succeeds
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'recovered-token' }) } as Response);
+
+    const { getManagementApiToken } = await import('./config');
+
+    // First call — fails, increments retry count
+    await expect(getManagementApiToken()).rejects.toThrow('Management API token request failed');
+
+    // Second call — should wait for backoff delay before fetching
+    // We set timers to advance past the expected delay
+    const secondCallPromise = getManagementApiToken();
+    // Advance timers past the base delay (500ms * 2^1 = 1000ms)
+    vi.advanceTimersByTime(1100);
+    const token = await secondCallPromise;
+
+    expect(token).toBe('recovered-token');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('resets backoff counter after a successful token fetch', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: false, text: async () => 'error', status: 500 } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'token-after-retry' }) } as Response)
+      // Third call — should NOT wait (counter reset), immediate fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'fresh-token' }) } as Response);
+
+    const { getManagementApiToken } = await import('./config');
+
+    // First call fails
+    await expect(getManagementApiToken()).rejects.toThrow();
+
+    // Second call succeeds (advance timer past backoff)
+    const secondCallPromise = getManagementApiToken();
+    vi.advanceTimersByTime(2000);
+    await secondCallPromise;
+
+    // Expire the cache so we need a new token
+    vi.advanceTimersByTime((3600 - 60) * 1000 + 1);
+
+    // Third call — no backoff expected (counter was reset to 0 after success)
+    // If no delay applied, it resolves immediately without timer advance
+    const thirdToken = await getManagementApiToken();
+    expect(thirdToken).toBe('fresh-token');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 });
