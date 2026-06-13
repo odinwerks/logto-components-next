@@ -162,21 +162,31 @@ interface ToastContainerProps {
 }
 
 export function ToastContainer({ messages, onDismiss, mode, colors }: ToastContainerProps) {
+  if (messages.length === 0) return null;
+
   return (
-    <>
-      {messages.map((message, index) => (
+    <div
+      style={{
+        position: 'fixed',
+        top: '1.25rem',
+        right: '1.25rem',
+        zIndex: 3000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem',
+        pointerEvents: 'none',
+      }}
+    >
+      {messages.map((message) => (
         <div
           key={message.id}
           style={{
-            position: 'fixed',
-            top: `${1.25 + index * 4.375}rem`,
-            right: '1.25rem',
-            zIndex: 3000,
+            pointerEvents: 'auto',
           }}
         >
           <Toast message={message} onDismiss={onDismiss} mode={mode} colors={colors} />
         </div>
       ))}
-    </>
+    </div>
   );
 }
