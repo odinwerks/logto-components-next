@@ -158,7 +158,7 @@ describe('createLockManager', () => {
     release2();
   });
 
-  it('evicts oldest entry when maxEntries is exceeded', async () => {
+  it('throws an error when maxEntries is exceeded', async () => {
     const manager = createLockManager(2); // max 2 entries
 
     const release1 = await manager.acquire('oldest');
@@ -166,15 +166,39 @@ describe('createLockManager', () => {
 
     expect(manager.locks.size).toBe(2);
 
-    // Acquiring a third should evict 'oldest'
-    const release3 = await manager.acquire('newest');
+    // Acquiring a third should throw an error because it is at capacity
+    await expect(manager.acquire('newest')).rejects.toThrow(
+      "Lock manager at capacity (2). Try again later."
+    );
 
     expect(manager.locks.size).toBe(2);
-    expect(manager.locks.has('oldest')).toBe(false);
+    expect(manager.locks.has('oldest')).toBe(true);
     expect(manager.locks.has('middle')).toBe(true);
-    expect(manager.locks.has('newest')).toBe(true);
 
-    release1(); // safe — release was captured before eviction
+    release1();
+    release2();
+  });
+
+  it('allows waiting on an existing key even if at capacity', async () => {
+    const manager = createLockManager(2); // max 2 entries
+
+    const release1 = await manager.acquire('oldest');
+    const release2 = await manager.acquire('middle');
+
+    expect(manager.locks.size).toBe(2);
+
+    // Acquiring 'oldest' again should NOT throw, but wait on the existing lock
+    const pWait = manager.acquire('oldest');
+    
+    // Give wait a moment
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // release1 first lock
+    release1();
+    
+    const release3 = await pWait;
+    expect(manager.locks.size).toBe(2);
+    
     release2();
     release3();
   });

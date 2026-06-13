@@ -77,11 +77,9 @@ export function createLockManager(maxEntries = 1000) {
    * @throws If the lock cannot be acquired within the timeout.
    */
   async function acquire(key: string, timeoutMs = DEFAULT_LOCK_TIMEOUT_MS): Promise<() => void> {
-    // Evict oldest if at capacity
-    while (locks.size >= maxEntries) {
-      const oldest = locks.keys().next().value;
-      if (oldest === undefined) break;
-      locks.delete(oldest);
+    // Throw error if at capacity
+    if (locks.size >= maxEntries && !locks.has(key)) {
+      throw new Error(`Lock manager at capacity (${maxEntries}). Try again later.`);
     }
 
     // Wait for existing lock on this key with timeout
