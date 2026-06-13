@@ -115,7 +115,6 @@ function LogtoProviderContent({
                 flexDirection: 'column',
               }}
             >
-              {!isPortrait && (
               <button
                 onClick={closeDashboard}
                 aria-label="Close dashboard"
@@ -140,7 +139,6 @@ function LogtoProviderContent({
               >
                 ✕
               </button>
-            )}
               <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                 <DashboardRouter desktop={dashboard.desktop} mobile={dashboard.mobile} />
               </div>
