@@ -494,14 +494,38 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
 
   // Fetch the user's org role details from Management API (real UUIDs + descriptions)
   const [orgUserRoles, setOrgUserRoles] = useState<Record<string, { id: string; description?: string }>>({});
+  const [isRolesLoading, setIsRolesLoading] = useState(false);
+
+  const handleRefreshRoles = async () => {
+    if (!activeOrgId || isRolesLoading) return;
+    setIsRolesLoading(true);
+    try {
+      const result = await loadOrganizationUserRoles(activeOrgId);
+      if (result.ok) {
+        const map: Record<string, { id: string; description?: string }> = {};
+        for (const apiRole of result.data) {
+          map[apiRole.name] = { id: apiRole.id, description: apiRole.description };
+        }
+        setOrgUserRoles(map);
+      } else {
+        console.error('[OrganizationsTab] Failed to load org user roles:', result.error);
+      }
+    } catch (err) {
+      console.error('[OrganizationsTab] Error refreshing org user roles:', err);
+    } finally {
+      setIsRolesLoading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
 
     if (!activeOrgId || organizationRoles.length === 0) return;
 
+    setIsRolesLoading(true);
     loadOrganizationUserRoles(activeOrgId).then(result => {
       if (cancelled) return;
+      setIsRolesLoading(false);
       if (!result.ok) {
         console.error('[OrganizationsTab] Failed to load org user roles:', result.error);
         return;
@@ -511,6 +535,10 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
         map[apiRole.name] = { id: apiRole.id, description: apiRole.description };
       }
       setOrgUserRoles(map);
+    }).catch(err => {
+      if (cancelled) return;
+      setIsRolesLoading(false);
+      console.error('[OrganizationsTab] Error loading org user roles:', err);
     });
 
     return () => { cancelled = true; };
@@ -658,8 +686,8 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <p style={{ ...sectionLabel, marginBottom: 0 }}>{t.organizations.orgRoles}</p>
             <RefreshButton
-              onClick={() => router.refresh()}
-              loading={false}
+              onClick={handleRefreshRoles}
+              loading={isRolesLoading}
               colors={colors}
               ariaLabel={t.organizations.refreshOrgRoles}
             />

@@ -393,3 +393,64 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
     });
   });
 });
+
+describe('OrganizationsTab - DASH-BUG-004 Org roles refresh button', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue(true);
+  });
+
+  it('renders roles refresh button and calls loadOrganizationUserRoles on click', async () => {
+    const rolesRequest = deferred<{ ok: true; data: { id: string; name: string; description: string }[] }>();
+    mockLoadOrganizationUserRoles.mockImplementation(() => rolesRequest.promise);
+
+    // Make sure we have some org roles to render
+    const userDataWithRoles = {
+      ...baseUserData,
+      organizationRoles: [
+        { id: 'role-1', organizationId: 'org-1', name: 'admin' },
+      ],
+    };
+
+    renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1', userData: userDataWithRoles });
+
+    // The refresh button for org roles should be present and disabled while initial fetch is running
+    const rolesRefreshBtn = screen.getByRole('button', { name: enUS.organizations.refreshOrgRoles });
+    expect(rolesRefreshBtn).toBeInTheDocument();
+    expect(rolesRefreshBtn).toBeDisabled();
+
+    // Resolve the initial fetch
+    await act(async () => {
+      rolesRequest.resolve({ ok: true, data: [{ id: 'api-role-1', name: 'admin', description: 'Admin role' }] });
+      await rolesRequest.promise;
+    });
+
+    // Button should now be enabled
+    await waitFor(() => {
+      expect(rolesRefreshBtn).not.toBeDisabled();
+    });
+
+    // Click the refresh button
+    const nextRolesRequest = deferred<{ ok: true; data: { id: string; name: string; description: string }[] }>();
+    mockLoadOrganizationUserRoles.mockImplementation(() => nextRolesRequest.promise);
+
+    await act(async () => {
+      fireEvent.click(rolesRefreshBtn);
+    });
+
+    // It should become disabled while fetching again
+    expect(rolesRefreshBtn).toBeDisabled();
+
+    // Resolve the refresh fetch
+    await act(async () => {
+      nextRolesRequest.resolve({ ok: true, data: [{ id: 'api-role-1', name: 'admin', description: 'Updated Admin role' }] });
+      await nextRolesRequest.promise;
+    });
+
+    // Button becomes enabled again
+    await waitFor(() => {
+      expect(rolesRefreshBtn).not.toBeDisabled();
+    });
+  });
+});
