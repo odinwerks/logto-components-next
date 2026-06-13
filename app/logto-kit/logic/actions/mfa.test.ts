@@ -374,12 +374,6 @@ describe('generateBackupCodes', () => {
     // Total size is now 1000
     expect(await getBackupCodesLocksSizeForTesting()).toBe(1000);
 
-    // Mock makeRequest to return standard responses
-    vi.mocked(makeRequest)
-      .mockResolvedValueOnce(mockOkResponse([]))
-      .mockResolvedValueOnce(mockOkResponse({ codes: ['C3'] }))
-      .mockResolvedValueOnce(mockOkResponse());
-
     // Mock the user ID for this request to be 'user-new'
     const { getLogtoContext } = await import('@logto/next/server-actions');
     vi.mocked(getLogtoContext).mockResolvedValueOnce({
@@ -388,19 +382,22 @@ describe('generateBackupCodes', () => {
     } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
 
     const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
-    expect(r.ok).toBe(true);
+    expect(r.ok).toBe(false);
 
-    // Verify oldest is evicted
-    expect(await hasBackupCodesLockForTesting('user-oldest')).toBe(false);
+    // Verify oldest is NOT evicted
+    expect(await hasBackupCodesLockForTesting('user-oldest')).toBe(true);
 
     // Verify active is kept
     expect(await hasBackupCodesLockForTesting('user-active')).toBe(true);
 
-    // Verify 'user-new' is deleted at the end of the request
+    // Verify 'user-new' is not present
     expect(await hasBackupCodesLockForTesting('user-new')).toBe(false);
 
-    // Verify final map size is 999
-    expect(await getBackupCodesLocksSizeForTesting()).toBe(999);
+    // Verify final map size is 1000
+    expect(await getBackupCodesLocksSizeForTesting()).toBe(1000);
+
+    // Clean up locks to avoid leaking state to subsequent tests
+    await clearBackupCodesLocksForTesting();
   });
 });
 
