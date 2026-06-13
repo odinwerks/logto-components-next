@@ -152,8 +152,10 @@ export function PreferencesProvider({
     const handlePreferencesChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ lang?: string; asOrg?: string | null }>;
       const detail = customEvent.detail || {};
-      const newLang = detail.lang || getStoredLang();
-      const newAsOrg = detail.asOrg !== undefined ? detail.asOrg : getStoredOrg();
+      
+      const hasDetail = 'lang' in detail || 'asOrg' in detail;
+      const newLang = hasDetail ? detail.lang : getStoredLang();
+      const newAsOrg = hasDetail ? detail.asOrg : getStoredOrg();
 
       if (newLang && newLang !== langRef.current) {
         setStoredLang(newLang);
@@ -244,19 +246,21 @@ export function PreferencesProvider({
 
   const setLang = useCallback((newLang: string) => {
     const prev = langRef.current;
+    langRef.current = newLang;
     setStoredLang(newLang);
     setLangState(newLang);
     persistLang({ theme: themeRef.current, lang: newLang, asOrg: asOrgRef.current }, prev);
-    window.dispatchEvent(new Event('preferences-changed'));
+    window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { lang: newLang } }));
     onLangChange?.();
   }, [persistLang, onLangChange]);
 
   const setAsOrg = useCallback((newOrgId: string | null) => {
     const prev = asOrgRef.current;
+    asOrgRef.current = newOrgId;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
     persistOrg({ theme: themeRef.current, lang: langRef.current, asOrg: newOrgId }, prev);
-    window.dispatchEvent(new Event('preferences-changed'));
+    window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { asOrg: newOrgId } }));
   }, [persistOrg]);
 
   const value = useMemo(
