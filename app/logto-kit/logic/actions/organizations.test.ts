@@ -351,4 +351,21 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(getManagementApiToken).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('fails closed when all parallel scope fetches fail', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce({
+        status: 500,
+        ok: false,
+        text: async () => 'Internal Server Error',
+      } as Response);
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('FETCH_FAILED');
+  });
 });

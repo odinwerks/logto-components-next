@@ -142,6 +142,23 @@ describe('verifyPersonalAccess - existingIntrospection optimization', () => {
     expect(result.error).toBe('UNAUTHORIZED');
     expect(introspectToken).not.toHaveBeenCalled();
   });
+
+  it('fails closed when all parallel scope fetches fail', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce({
+        status: 500,
+        ok: false,
+        text: async () => 'Internal Server Error',
+      } as Response);
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess();
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('FETCH_FAILED');
+  });
 });
 
 describe('getRoleDetails session authentication', () => {

@@ -43,7 +43,16 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     // fresh token with the user's current organization permissions.
     const endpoint = config.endpoint.replace(/\/$/, '');
     const parsed = new URL(endpoint);
-    if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
+    // Exempt IPv4 loopback, IPv6 loopback, and localhost from the HTTPS
+    // requirement so local development and Docker setups work (CFG-BUG-004).
+    const isLocalhost =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1' ||
+      parsed.hostname === '[::1]' ||
+      parsed.hostname === '0:0:0:0:0:0:0:1' ||
+      parsed.hostname === '[0:0:0:0:0:0:0:1]';
+    if (parsed.protocol !== 'https:' && !isLocalhost) {
       throw new Error('Logto endpoint must use HTTPS in production');
     }
     const tokenEndpoint = `${endpoint}/oidc/token`;
@@ -244,9 +253,11 @@ export async function verifyOrgAccess(
     // Union scope names from all successful role-scope fetches
     const seen = new Set<string>();
     const permissions: string[] = [];
+    let successfulFetches = 0;
 
     for (const result of scopeResults) {
       if (result.status === 'fulfilled') {
+        successfulFetches++;
         for (const scope of result.value) {
           if (scope.name && !seen.has(scope.name)) {
             seen.add(scope.name);
@@ -256,6 +267,10 @@ export async function verifyOrgAccess(
       } else {
         warn(`[verifyOrgAccess] Scope fetch failed for a role: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
       }
+    }
+
+    if (roles.length > 0 && successfulFetches === 0) {
+      throw new Error('FETCH_FAILED');
     }
 
     debugLog(`[verifyOrgAccess] Effective permissions for user ${userId} in org ${orgId}:`, permissions);

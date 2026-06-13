@@ -249,9 +249,11 @@ export async function verifyPersonalAccess(
     // Union scope names from all successful fetches
     const seen = new Set<string>();
     const permissions: string[] = [];
+    let successfulFetches = 0;
 
     for (const result of scopeResults) {
       if (result.status === 'fulfilled') {
+        successfulFetches++;
         for (const scope of result.value) {
           if (scope.name && !seen.has(scope.name)) {
             seen.add(scope.name);
@@ -261,6 +263,10 @@ export async function verifyPersonalAccess(
       } else {
         warn(`[verifyPersonalAccess] Scope fetch failed for a role: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
       }
+    }
+
+    if (roles.length > 0 && successfulFetches === 0) {
+      throw new Error('FETCH_FAILED');
     }
 
     debugLog(`[verifyPersonalAccess] Effective personal permissions for user ${userId}:`, permissions);
