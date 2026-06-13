@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
@@ -478,6 +478,7 @@ function MobileMenuEntry({
   onClick: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isLast = index === total - 1;
 
@@ -490,6 +491,30 @@ function MobileMenuEntry({
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     () => false
   );
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  const handleTouchStart = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    setPressed(true);
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      setPressed(false);
+    }, 150);
+  };
 
   return (
     <button
@@ -506,8 +531,8 @@ function MobileMenuEntry({
         e.currentTarget.style.textShadow = 'none';
         e.currentTarget.style.transform = 'scale(1)';
       }}
-      onTouchStart={() => setPressed(true)}
-      onTouchEnd={() => setTimeout(() => setPressed(false), 150)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         width: '100%',
         padding: '1.25rem 1.5rem',
