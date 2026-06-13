@@ -235,7 +235,7 @@ export function PhoneCountrySelect({
     border: `1px solid ${colors.borderColor}`,
     borderRadius: '0.25rem',
     boxShadow: _mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)',
-    zIndex: 1000,
+    zIndex: 2100,
     display: 'flex',
     flexDirection: 'column',
   };
