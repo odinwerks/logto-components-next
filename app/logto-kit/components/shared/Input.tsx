@@ -4,6 +4,8 @@ import type { ThemeColors } from '../../themes';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 
 export type InputProps = {
+  id?: string;
+  name?: string;
   type?: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -21,6 +23,8 @@ export type InputProps = {
 };
 
 export function Input({
+  id,
+  name,
   type = 'text',
   value,
   onChange,
@@ -57,6 +61,8 @@ export function Input({
 
   const input = (
     <input
+      id={id}
+      name={name}
       type={type}
       value={value}
       onChange={onChange}
