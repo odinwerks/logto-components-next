@@ -53,6 +53,13 @@ export async function verifyAndLinkWebAuthn(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    if (!_intro.active) {
+      throw new Error('UNAUTHORIZED');
+    }
+    const userId = _intro.sub ?? 'unknown';
+
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -81,9 +88,7 @@ export async function verifyAndLinkWebAuthn(
     await throwOnApiError(linkRes, 'MFA_ENROLL_FAILED', 'webauthn-link');
 
     // Audit (best-effort - failure must not break the main action)
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    auditSafe(_intro.sub ?? 'unknown', 'mfa.webauthn.enroll');
+    auditSafe(userId, 'mfa.webauthn.enroll');
   });
 }
 
@@ -101,6 +106,13 @@ export async function renamePasskey(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    if (!_intro.active) {
+      throw new Error('UNAUTHORIZED');
+    }
+    const userId = _intro.sub ?? 'unknown';
+
     assertSafeLogtoId(verificationId, 'verificationId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -121,8 +133,6 @@ export async function renamePasskey(
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'webauthn-rename');
 
     // Audit (best-effort - failure must not break the main action)
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    auditSafe(_intro.sub ?? 'unknown', 'mfa.webauthn.rename', verificationId);
+    auditSafe(userId, 'mfa.webauthn.rename', verificationId);
   });
 }

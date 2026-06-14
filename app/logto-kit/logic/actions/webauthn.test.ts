@@ -222,6 +222,16 @@ describe('verifyAndLinkWebAuthn', () => {
     expect(r.error).toContain('MFA_ENROLL_FAILED');
     expect(makeRequest).toHaveBeenCalledTimes(1);
   });
+
+  it('returns UNAUTHORIZED when token is inactive', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
+
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
+  });
 });
 
 // ============================================================================
@@ -306,5 +316,15 @@ describe('renamePasskey', () => {
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
+  });
+
+  it('returns UNAUTHORIZED when token is inactive', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
+
+    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
   });
 });
