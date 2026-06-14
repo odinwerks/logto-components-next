@@ -60,6 +60,18 @@ describe('SessionHeartbeat Component (BUG-024)', () => {
     expect(documentListeners['visibilitychange']).toBeUndefined();
   });
 
+  it('defaults to upstream and does not start heartbeat loop if BACKEND_TYPE is unconfigured (undefined)', () => {
+    vi.mocked(readEnv).mockReturnValue(undefined);
+
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
+
+    render(<SessionHeartbeat />);
+
+    expect(recordHeartbeat).not.toHaveBeenCalled();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(documentListeners['visibilitychange']).toBeUndefined();
+  });
+
   it('starts the heartbeat loop and makes periodic requests if BACKEND_TYPE is blacktop', async () => {
     vi.mocked(readEnv).mockReturnValue('blacktop');
 
