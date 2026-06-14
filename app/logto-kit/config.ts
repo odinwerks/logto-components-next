@@ -33,7 +33,7 @@ function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
 
-  const isBuildTime = (IS_NEXT_BUILD && process.env.NODE_ENV === 'production' && !valueRaw) || !!process.env.VITEST;
+  const isBuildTime = (IS_NEXT_BUILD && process.env.NODE_ENV === 'production' && !valueRaw);
   if (required && !valueRaw && !isBuildTime) {
     throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
   }
@@ -205,7 +205,7 @@ function getM2mBackoffDelay(): number {
 }
 
 export async function getManagementApiToken(): Promise<string> {
-  // Return cached token if still valid (with 10-minute buffer before expiry)
+  // Return cached token if still valid (expires 60s before token expiry)
   if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt) {
     return cachedM2MToken.token;
   }
