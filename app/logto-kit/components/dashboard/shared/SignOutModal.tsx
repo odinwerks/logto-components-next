@@ -4,6 +4,8 @@ import type { Translations } from '../../../locales';
 import { Overlay } from './FlowModal';
 import { Button } from '../../shared/Button';
 import { readEnv } from '../../../logic/env';
+import { signOutUser } from '../../../logic/actions/auth';
+import { useFocusTrap } from './focus-trap';
 
 interface SignOutModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface SignOutModalProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 export function SignOutModal({
@@ -21,10 +24,14 @@ export function SignOutModal({
   mode,
   colors,
   t,
+  showToast,
 }: SignOutModalProps) {
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [showFarewell, setShowFarewell] = useState(false);
   const prevIsOpenRef = useRef(isOpen);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, onAbort);
 
   useEffect(() => {
     // Reset state when transitioning from open to closed (not on initial render)
@@ -36,18 +43,22 @@ export function SignOutModal({
 
     if (!isOpen) return;
     if (showFarewell) {
-      // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 3000)
-      const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '3000', 10);
-      const farewellDelayMs = Number.isFinite(rawFarewellDelay) && rawFarewellDelay >= 0 ? rawFarewellDelay : 3000;
-      // Farewell stage: wait SIGNOUT_REDIRECT_DELAY then POST to sign-out route
-      const timer = setTimeout(() => {
-        fetch('/api/auth/sign-out', { method: 'POST', redirect: 'manual' })
-          .then(() => {
-            window.location.href = '/';
-          })
-          .catch(() => {
-            window.location.href = '/';
-          });
+      // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 1000)
+      const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '1000', 10);
+      const farewellDelayMs = Number.isFinite(rawFarewellDelay) && rawFarewellDelay >= 0 ? rawFarewellDelay : 1000;
+      // Farewell stage: wait SIGNOUT_REDIRECT_DELAY then call signOutUser server action
+      const timer = setTimeout(async () => {
+        try {
+          await signOutUser();
+        } catch (err) {
+          console.error('[SignOutModal] signOutUser failed:', err);
+          if (showToast) {
+            showToast('error', t.dashboard.signOutFailed);
+          }
+          setShowFarewell(false);
+          setCountdown(countdownSeconds);
+          onAbort();
+        }
       }, farewellDelayMs);
       return () => clearTimeout(timer);
     }
@@ -60,7 +71,12 @@ export function SignOutModal({
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, countdown, countdownSeconds, showFarewell]);
+  // countdown intentionally omitted: functional updater form `c => c - 1` captures no
+  // stale state, and the guard above (`countdown <= 0`) is evaluated on the render that
+  // produced the latest countdown value.  Keeping countdown in deps would tear down and
+  // recreate the interval every second, causing jitter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, countdownSeconds, showFarewell]);
 
   if (!isOpen) return null;
 
@@ -78,6 +94,9 @@ export function SignOutModal({
   if (showFarewell) {
     return (
       <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         style={{
           position: 'fixed',
           inset: 0,
@@ -91,6 +110,7 @@ export function SignOutModal({
         }}
       >
         <p
+          aria-label={t.signout.farewell}
           style={{
             fontFamily: "'DM Sans', system-ui, sans-serif",
             fontSize: '1.75rem',
@@ -113,6 +133,7 @@ export function SignOutModal({
   return (
     <Overlay onDismiss={handleAbort}>
       <div
+        ref={dialogRef}
         style={{
           width: '100%',
           maxWidth: '27.5rem',
@@ -123,6 +144,8 @@ export function SignOutModal({
         }}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="signout-modal-title"
+        aria-describedby="signout-modal-desc"
       >
         <div
           style={{
@@ -131,6 +154,7 @@ export function SignOutModal({
           }}
         >
           <p
+            id="signout-modal-title"
             style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
               fontWeight: 600,
@@ -146,6 +170,7 @@ export function SignOutModal({
 
         <div style={{ padding: '1.25rem 1.375rem' }}>
           <p
+            id="signout-modal-desc"
             style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
               fontSize: '0.875rem',

@@ -16,6 +16,18 @@ vi.mock('../../../logic/env', async () => {
   };
 });
 
+// Mock signOutUser server action
+vi.mock('../../../logic/actions/auth', () => ({
+  signOutUser: vi.fn().mockResolvedValue(undefined),
+}));
+import { signOutUser } from '../../../logic/actions/auth';
+
+// Mock focus-trap utility
+vi.mock('./focus-trap', () => ({
+  useFocusTrap: vi.fn(),
+}));
+import { useFocusTrap } from './focus-trap';
+
 // Mock translations object with the new signout section
 const mockT = {
   common: {
@@ -26,6 +38,7 @@ const mockT = {
   },
   dashboard: {
     signOut: 'Sign out',
+    signOutFailed: 'Sign out failed',
   },
   signout: {
     title: 'Leaving already?',
@@ -46,18 +59,9 @@ const mockColors = {
   contrastText: '#fff',
 } as unknown as ThemeColors;
 
-// Mock the signOutUser server action (removed - signout now uses fetch + window.location.href)
-
 describe('SignOutModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock fetch for sign-out tests
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true })));
-    // Mock window.location.href
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { href: '/' },
-    });
   });
 
   it('renders when isOpen is true', () => {
@@ -101,7 +105,7 @@ describe('SignOutModal', () => {
     expect(onAbort).toHaveBeenCalledTimes(1);
   });
 
-  it('shows farewell stage and calls fetch+redirect after countdown reaches zero', async () => {
+  it('shows farewell stage and calls signOutUser after countdown reaches zero', async () => {
     vi.useFakeTimers();
 
     render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={2} mode="dark" colors={mockColors} t={mockT} />);
@@ -120,11 +124,11 @@ describe('SignOutModal', () => {
       await Promise.resolve();
     });
 
-    expect(fetch).toHaveBeenCalledWith('/api/auth/sign-out', { method: 'POST', redirect: 'manual' });
+    expect(signOutUser).toHaveBeenCalled();
     vi.useRealTimers();
   });
 
-  it('shows farewell stage immediately when confirm button is clicked and calls fetch+redirect', async () => {
+  it('shows farewell stage immediately when confirm button is clicked and calls signOutUser', async () => {
     vi.useFakeTimers();
     render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={15} mode="dark" colors={mockColors} t={mockT} />);
 
@@ -138,7 +142,7 @@ describe('SignOutModal', () => {
       await Promise.resolve();
     });
 
-    expect(fetch).toHaveBeenCalledWith('/api/auth/sign-out', { method: 'POST', redirect: 'manual' });
+    expect(signOutUser).toHaveBeenCalled();
     vi.useRealTimers();
   });
 
@@ -166,5 +170,58 @@ describe('SignOutModal', () => {
     const parentP = strong.parentElement;
     expect(parentP?.getAttribute('style')).toContain('font-size: 0.875rem');
     expect(parentP?.getAttribute('style')).toContain('font-weight: 600');
+  });
+
+  it('calls useFocusTrap with dialog element and onAbort', () => {
+    const onAbort = vi.fn();
+    render(<SignOutModal isOpen={true} onAbort={onAbort} mode="dark" colors={mockColors} t={mockT} />);
+    
+    expect(useFocusTrap).toHaveBeenCalled();
+    const [refCall, callbackCall] = (useFocusTrap as any).mock.calls[0];
+    expect(refCall.current).not.toBeNull();
+    expect(refCall.current.getAttribute('role')).toBe('dialog');
+    expect(callbackCall).toBe(onAbort);
+  });
+
+  it('exposes correct ARIA attributes pointing to title and body elements', () => {
+    render(<SignOutModal isOpen={true} onAbort={vi.fn()} mode="dark" colors={mockColors} t={mockT} />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'signout-modal-title');
+    expect(dialog).toHaveAttribute('aria-describedby', 'signout-modal-desc');
+    expect(screen.getByText('Leaving already?')).toHaveAttribute('id', 'signout-modal-title');
+    expect(screen.getByText(/You'll be signed out in/)).toHaveAttribute('id', 'signout-modal-desc');
+  });
+
+  it('calls showToast and onAbort on signOutUser failure', async () => {
+    vi.useFakeTimers();
+    const mockShowToast = vi.fn();
+    const onAbort = vi.fn();
+    
+    // Mock failure
+    vi.mocked(signOutUser).mockRejectedValueOnce(new Error('Sign out failed'));
+
+    render(
+      <SignOutModal
+        isOpen={true}
+        onAbort={onAbort}
+        mode="dark"
+        colors={mockColors}
+        t={mockT}
+        showToast={mockShowToast}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Let me go!' }));
+
+    // Advance past SIGNOUT_REDIRECT_DELAY (mocked to 100ms)
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+      await Promise.resolve();
+    });
+
+    expect(signOutUser).toHaveBeenCalled();
+    expect(mockShowToast).toHaveBeenCalledWith('error', 'Sign out failed');
+    expect(onAbort).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

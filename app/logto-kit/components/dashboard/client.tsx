@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
@@ -180,6 +180,17 @@ export function DashboardClient({
   // ── Theme ──────────────────────────────────────────────────────────────────
   const { mode, colors } = useThemeMode();
 
+  const prefersReducedMotion = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false
+  );
+
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang } = useLangMode();
   const t = useMemo<Translations>(
@@ -295,7 +306,7 @@ export function DashboardClient({
           style={{
             width: '100%',
             maxWidth: '61.875rem',
-            height: '41.25rem',
+            height: 'min(41.25rem, calc(100vh - 4rem))',
             display: 'flex',
         background: colors.bgSecondary,
         border: `1px solid ${colors.borderColor}`,
@@ -429,7 +440,7 @@ export function DashboardClient({
               </div>
             )}
           >
-            <div key={activeTab} style={{ animation: 'fadeIn 0.12s ease' }}>
+            <div key={activeTab} style={{ animation: prefersReducedMotion ? 'none' : 'fadeIn 0.12s ease' }}>
         {activeTab === 'profile' && (
           <ProfileTab
             userData={userData}
@@ -517,7 +528,7 @@ export function DashboardClient({
       </div>
 
       {/* Toasts */}
-      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
+      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );
@@ -533,7 +544,7 @@ function NavButton({
   tabId: TabId;
   isActive: boolean;
   label: string;
-  Icon: React.ComponentType<{ size?: number; color?: string }>;
+  Icon: React.ComponentType<{ size?: number; color?: string; 'aria-hidden'?: any }>;
   colors: ThemeColors;
   themeMode: 'dark' | 'light';
   panelId: string;
@@ -576,7 +587,7 @@ function NavButton({
         transition: 'background 0.12s ease, color 0.12s ease',
       }}
     >
-      <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} />
+      <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} aria-hidden="true" />
       {label}
     </button>
   );

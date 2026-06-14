@@ -279,7 +279,7 @@ export function MobileClient({
           <ArrowLeft size={18} />
         </button>
 
-        <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
+        <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
         <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
       </div>
     );
@@ -454,7 +454,7 @@ export function MobileClient({
         <ArrowLeft size={18} />
       </button>
 
-      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
+      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );
