@@ -174,3 +174,51 @@ select:focus {
   .ldd-desktop { display: none; }
   .ldd-mobile  { display: block; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Docs layout: responsive padding and table overflow for portrait/mobile */
+@media (max-width: 768px), (orientation: portrait) {
+  .docs-content-container > div {
+    padding: 1.25rem 1rem 5rem !important;
+  }
+  .docs-content-container table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Docs layout: responsive CSS classes to prevent hydration flashes */
+@media (max-width: 64rem), (orientation: portrait) {
+  .desktop-only-sidebar {
+    display: none !important;
+  }
+}
+@media (min-width: 64.0625rem) and (orientation: landscape) {
+  .mobile-only-nav {
+    display: none !important;
+  }
+}
+
+/* Demo content area keyframe animations */
+@keyframes demo-slideIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes demo-riseUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes demo-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}

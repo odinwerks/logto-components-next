@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UserData, MfaVerification, MfaVerificationPayload } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Check, Key, Plus, RefreshCw, Lock, Shield, Fingerprint, Pencil } from 'lucide-react';
+import { Check, Key, Plus, RefreshCw, Lock, Shield, Fingerprint, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { FlowModal, BackupCodesModal, type ModalStep } from '../shared/FlowModal';
+import { FarewellOverlay } from '../shared/FarewellOverlay';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
-import { readEnv } from '../../../logic/env';
 import { captureMessage } from '../../../logic/capture-message';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
@@ -206,7 +206,9 @@ export function SecurityTab({
   // ── Delete account modal ──
   const [deleteStep, setDeleteStep] = useState<ModalStep | null>(null);
   const [deletePwErr, setDeletePwErr] = useState('');
-  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ── Farewell overlay ──
+  const [showFarewell, setShowFarewell] = useState(false);
 
   const handleDeleteAccount = async (pw: string) => {
     const deleteGen = deleteGenRef.current;
@@ -227,19 +229,10 @@ export function SecurityTab({
     setDeleteStep({ kind: 'loading', message: t.security.accountDeleted });
     onSuccess(t.security.accountDeleted);
 
-    const rawDelay = parseInt(readEnv('DELETE_REDIRECT_DELAY') || '3000', 10);
-    const delayMs = Number.isFinite(rawDelay) && rawDelay >= 0 ? rawDelay : 3000;
-    redirectTimerRef.current = setTimeout(() => {
-      window.location.href = '/';
-    }, delayMs);
+    // Show farewell overlay instead of redirecting
+    setShowFarewell(true);
+    setDeleteStep(null);
   };
-
-  // Cleanup redirect timer on unmount
-  useEffect(() => {
-    return () => {
-      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-    };
-  }, []);
 
   // ── Passkey registration ──
   const [passkeyRegStep, setPasskeyRegStep] = useState<ModalStep | null>(null);
@@ -602,6 +595,20 @@ export function SecurityTab({
         />
       )}
 
+      {/* Farewell overlay */}
+      {showFarewell && (
+        <FarewellOverlay
+          message={t.security.accountDeletedFarewell || t.signout.farewell}
+          colors={colors}
+          delayMs={3000}
+          onComplete={() => {
+            setShowFarewell(false);
+            // After account deletion, redirect to sign-in page
+            window.location.href = '/api/auth/sign-in';
+          }}
+        />
+      )}
+
 
 
       {/* ── Password ── */}
@@ -890,10 +897,33 @@ export function SecurityTab({
                 {t.security.deleteAccountDescription}
               </p>
             </div>
-            <Button variant="danger" size="sm" style={{ flexShrink: 0 }}
-              onClick={() => { ++deleteGenRef.current; setDeletePwErr(''); setDeleteStep({ kind: 'password' }); }} mode={mode} colors={colors}>
-              {t.security.deleteAccount}
-            </Button>
+            {isMobile ? (
+              <button
+                onClick={() => { ++deleteGenRef.current; setDeletePwErr(''); setDeleteStep({ kind: 'password' }); }}
+                aria-label={t.security.deleteAccount}
+                style={{
+                  width: '2rem',
+                  height: '2rem',
+                  borderRadius: '0.25rem',
+                  border: `1px solid ${colors.borderColor}`,
+                  background: colors.bgTertiary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: colors.accentRed,
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <Trash2 size={14} strokeWidth={1.5} color={T.redText} />
+              </button>
+            ) : (
+              <Button variant="danger" size="sm" style={{ flexShrink: 0 }}
+                onClick={() => { ++deleteGenRef.current; setDeletePwErr(''); setDeleteStep({ kind: 'password' }); }} mode={mode} colors={colors}>
+                {t.security.deleteAccount}
+              </Button>
+            )}
           </div>
         </Card>
       </div>

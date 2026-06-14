@@ -12,8 +12,8 @@ export type { ActionResult, DataResult } from './safe';
 // Shared Helpers
 export { throwOnApiError, patchMyAccount } from './shared';
 
-// Action Helpers (staleness checks, audit, locking)
-export { assertVerificationNotExpired, auditSafe, createLockManager } from './helpers';
+// Action Helpers (staleness checks, audit)
+export { assertVerificationNotExpired, auditSafe } from './helpers';
 
 // Token Helpers
 export { getTokenForServerAction, getFreshAccessToken } from './tokens';

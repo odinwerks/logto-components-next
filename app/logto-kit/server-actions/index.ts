@@ -41,7 +41,10 @@ export const loadPersonalPermissions = createSimpleLoader(getUserScopes);
 
 // ── Org loaders (id required, guard on permission lookups) ───────────────────
 
-export const loadOrganizationUserRoles = createIdLoader(getOrganizationUserRoles);
+export const loadOrganizationUserRoles = createIdLoader(
+  getOrganizationUserRoles,
+  true, // requireGuard = true
+);
 export const loadOrganizationPermissions = createIdLoader(
   getOrganizationUserPermissions,
   true,

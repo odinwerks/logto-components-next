@@ -167,4 +167,11 @@ describe('SecurityTab', () => {
     const editButton = await screen.findByRole('button', { name: enUS.profile.edit });
     expect(editButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
   });
+
+  it('keeps mobile delete account action button square', async () => {
+    renderSecurity({ mobmode: 1 });
+
+    const deleteButton = await screen.findByRole('button', { name: enUS.security.deleteAccount });
+    expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
+  });
 });

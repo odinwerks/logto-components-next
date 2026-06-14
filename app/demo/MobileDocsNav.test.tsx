@@ -107,9 +107,9 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // Open the nav
     fireEvent.click(openBtn);
 
-    // 2. X icon button (Close nav)
-    const closeBtn = screen.getByRole('button', { name: 'Close navigation' });
-    expect(closeBtn).toHaveAttribute('type', 'button');
+    // 2. Back button when on topics list (replaces X button)
+    const topicsBackBtn = screen.getByRole('button', { name: 'Back to topics' });
+    expect(topicsBackBtn).toHaveAttribute('type', 'button');
 
     // Go to sections stage by clicking a topic
     fireEvent.click(screen.getByText('Topic A'));
@@ -117,5 +117,26 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // 3. ArrowLeft icon button (Back-to-topics)
     const backBtn = screen.getByRole('button', { name: 'Back to topics' });
     expect(backBtn).toHaveAttribute('type', 'button');
+  });
+
+  it('closes the overlay and redirects to index when clicking back button on topics list', () => {
+    render(<MobileDocsNav />);
+
+    // Open navigation
+    const openBtn = screen.getByRole('button', { name: 'Open navigation' });
+    fireEvent.click(openBtn);
+
+    // Verify overlay is open and 'Open navigation' button is gone
+    expect(screen.queryByRole('button', { name: 'Open navigation' })).toBeNull();
+
+    // Click Back to topics button (which sets stage to 'index')
+    const backBtn = screen.getByRole('button', { name: 'Back to topics' });
+    fireEvent.click(backBtn);
+
+    // Verify router pushed to '/'
+    expect(pushMock).toHaveBeenCalledWith('/');
+
+    // Verify overlay is closed and 'Open navigation' button is visible again
+    expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
   });
 });

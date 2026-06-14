@@ -49,7 +49,6 @@ export function Input({
     color: colors.textPrimary,
     fontSize: '0.8125rem',
     fontFamily: "'DM Sans', system-ui, sans-serif",
-    outline: 'none',
     boxSizing: 'border-box',
     borderRadius: '0.25rem',
     transition: 'border-color 0.15s ease, background 0.15s ease',

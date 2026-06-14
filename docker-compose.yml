@@ -18,9 +18,10 @@ services:
         NEXT_PUBLIC_LOAD_TABS:          ${LOAD_TABS}
         NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY}
         NEXT_PUBLIC_BACKEND_TYPE:       ${BACKEND_TYPE}
+        NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY: ${SIGNOUT_REDIRECT_DELAY}
     networks:
       - dash-net
-    # Port 2999 is NOT exposed to the host — only cloudflared can reach it
+    # Port 2999 is NOT exposed to the host - only cloudflared can reach it
     # via the internal dash-net network. Remove the comment below if you need
     # direct host access for debugging:
     # ports:
@@ -28,12 +29,12 @@ services:
     environment:
       - NODE_ENV=production
       # ── Core Logto config ─────────────────────────────────────────────────
-      - APP_ID=${APP_ID}
-      - APP_SECRET=${APP_SECRET}
-      - ENDPOINT=${ENDPOINT}
+      - APP_ID=${APP_ID:?APP_ID is required - set it in .env}
+      - APP_SECRET=${APP_SECRET:?APP_SECRET is required - set it in .env}
+      - ENDPOINT=${ENDPOINT:?ENDPOINT is required - set it in .env}
       - BASE_URL=${PUBLIC_BASE_URL}
-      - COOKIE_SECRET=${COOKIE_SECRET}
-      - SCOPES=${SCOPES}
+      - COOKIE_SECRET=${COOKIE_SECRET:?COOKIE_SECRET is required - set it in .env}
+      - SCOPES=${SCOPES:?SCOPES is required - set it in .env}
       # ── M2M (account deletion, RBAC) ─────────────────────────────────────
       - LOGTO_M2M_APP_ID=${LOGTO_M2M_APP_ID}
       - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET}
@@ -64,6 +65,14 @@ services:
       - NAME_TYPE=${NAME_TYPE}
       - LOAD_TABS=${LOAD_TABS}
       - DELETE_REDIRECT_DELAY=${DELETE_REDIRECT_DELAY}
+      # ── Logging ───────────────────────────────────────────────
+      - LOG_BACKEND=${LOG_BACKEND}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LOGGING_WEBHOOK_URL=${LOGGING_WEBHOOK_URL}
+      # ── Fallback URLs ──────────────────────────────────────────
+      - APP_URL=${APP_URL}
+      # ── Sign-out redirect delay (server-side) ──────────────────
+      - SIGNOUT_REDIRECT_DELAY=${SIGNOUT_REDIRECT_DELAY}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('net').createConnection(2999,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})\""]
       interval: 15s
@@ -86,6 +95,18 @@ services:
     depends_on:
       logto-dash:
         condition: service_healthy
+    restart: unless-stopped
+
+  # ── Redis (optional) ─────────────────────────────────────────────────────────
+  # Only needed when REDIS_URL is set. Provides distributed rate limiting,
+  # locking, and token caching via app/lib/distributed-state.ts.
+  # Remove or comment out this service if you are not using Redis.
+  redis:
+    image: redis:latest
+    networks:
+      - dash-net
+    ports:
+      - "2998:2998"
     restart: unless-stopped
 
 volumes: {}

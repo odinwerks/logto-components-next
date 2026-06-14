@@ -227,7 +227,9 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
         {/* Language selector */}
         {supportedLangs && supportedLangs.length > 0 && (
           <>
-            <p style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>{t.common.language}</p>
+            <label htmlFor="lang-select" style={{ ...sectionLabelStyle, marginBottom: '0.5rem', display: 'block' }}>
+              {t.common.language}
+            </label>
             <div style={{
               background: c.bgSecondary,
               border: `1px solid ${c.borderColor}`,
@@ -236,6 +238,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
             }}>
               <div style={{ position: 'relative' }}>
                 <select
+                  id="lang-select"
                   value={lang}
                   onChange={e => setLang(e.target.value)}
                   style={selectStyle}

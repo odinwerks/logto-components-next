@@ -98,11 +98,11 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
           alignItems: 'flex-start',
           gap: '1rem',
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
             <div style={{
               flexShrink: 0,
-              width: '2rem',
-              height: '2rem',
+              width: '2.7rem',
+              height: '2.7rem',
               borderRadius: '0.25rem',
               background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
               border: `1px solid ${c.borderColor}`,
@@ -110,7 +110,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <MapPin size={14} strokeWidth={1.5} color={c.accentRed} />
+              <MapPin size={24} strokeWidth={1.5} color={c.accentRed} />
             </div>
             <div style={{ minWidth: 0 }}>
               <p style={{

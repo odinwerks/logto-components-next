@@ -21,6 +21,18 @@ import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
+import { useFocusTrap } from '../shared/focus-trap';
+
+interface AvatarModalWrapperProps {
+  children: (ref: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
+  onClose: () => void;
+}
+
+function AvatarModalWrapper({ children, onClose }: AvatarModalWrapperProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onClose);
+  return <>{children(dialogRef)}</>;
+}
 
 const UploadIcon = ({ size = 1, color = 'currentColor' }) => (
   <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
@@ -179,13 +191,26 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
                     <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
                       {t.profile.resourceLabel}: {perm.resourceName}
                     </span>
-                    <span
+                    <button
+                      type="button"
                       onMouseEnter={(e) => handlePermMouseEnter(e, perm)}
                       onMouseLeave={handlePermMouseLeave}
-                      style={{ cursor: 'help', color: c.textTertiary, display: 'inline-flex', alignItems: 'center' }}
+                      onFocus={(e) => handlePermMouseEnter(e as unknown as React.MouseEvent, perm)}
+                      onBlur={handlePermMouseLeave}
+                      aria-label={`Permission details for ${perm.scope}`}
+                      style={{
+                        cursor: 'help',
+                        color: c.textTertiary,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        margin: 0,
+                      }}
                     >
                       <Info size={14} />
-                    </span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -557,66 +582,6 @@ export function ProfileTab({
     }
   }, [avatarModalOpen]);
 
-  // Unified ESC & Focus Trap handler
-  useEffect(() => {
-    if (!avatarModalOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (!isUploading) {
-          handleCloseModal();
-        }
-        return;
-      }
-
-      if (e.key === 'Tab') {
-        if (!modalRef.current) return;
-
-        // Get all potentially focusable elements
-        const candidates = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(
-            'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]'
-          )
-        );
-
-        // Filter candidates to exclude hidden file/camera inputs and visually hidden elements
-        const focusables = candidates.filter((el) => {
-          if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'file') {
-            return false;
-          }
-          const style = window.getComputedStyle(el);
-          if (style.display === 'none' || style.visibility === 'hidden') {
-            return false;
-          }
-          return el.tabIndex !== -1;
-        });
-
-        if (focusables.length === 0) {
-          e.preventDefault();
-          return;
-        }
-
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === modalRef.current) {
-            last.focus();
-            e.preventDefault();
-          }
-        } else {
-          if (document.activeElement === last) {
-            first.focus();
-            e.preventDefault();
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [avatarModalOpen, isUploading, handleCloseModal]);
-
   const dropZoneStyle: React.CSSProperties = {
     ...cs.surfaces.dropZone,
     ...(isDragging ? cs.surfaces.dropZoneActive : {}),
@@ -629,13 +594,15 @@ export function ProfileTab({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {avatarModalOpen && (
-        <Overlay onDismiss={handleCloseModal}>
-          <div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="avatar-modal-title"
-            tabIndex={-1}
+        <AvatarModalWrapper onClose={() => { if (!isUploading) handleCloseModal(); }}>
+          {(ref) => (
+            <Overlay onDismiss={handleCloseModal}>
+              <div
+                ref={ref}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="avatar-modal-title"
+                tabIndex={-1}
             style={{
               width: '100%',
               maxWidth: inCropMode ? '42rem' : '32rem',
@@ -866,6 +833,8 @@ export function ProfileTab({
             )}
           </div>
         </Overlay>
+          )}
+        </AvatarModalWrapper>
       )}
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1rem' }}>

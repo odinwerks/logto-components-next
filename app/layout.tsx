@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Mono, Instrument_Serif, DM_Sans } from 'next/font/google';
+import { headers } from 'next/headers';
 import './globals.css';
 import AuthWatcher from './logto-kit/components/providers/auth-watcher';
 import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
@@ -34,11 +35,13 @@ export const viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
@@ -47,8 +50,10 @@ export default function RootLayout({
           before React hydrates. Any DOM change here causes a hydration mismatch,
           which is why suppressHydrationWarning is on <html>. This is the ONLY
           expected source of mismatch.
+          The nonce is provided by the middleware's per-request CSP (proxy.ts).
         */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               try {

@@ -142,6 +142,16 @@ function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string;
 
 function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: string; colors: ThemeColors }) {
   const resolvedShape = getShape(shape);
+  const prefersReducedMotion = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false
+  );
   return (
     <div
       style={{
@@ -151,7 +161,7 @@ function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: str
         border: `2px solid ${colors.borderColor}`,
         background: colors.bgTertiary,
         opacity: 0.6,
-        animation: 'pulse 1.5s infinite ease-in-out',
+        animation: prefersReducedMotion ? 'none' : 'pulse 1.5s infinite ease-in-out',
       }}
     />
   );

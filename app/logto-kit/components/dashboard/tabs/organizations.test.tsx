@@ -392,6 +392,38 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
       expect(screen.queryByText('Read organization')).toBeNull();
     });
   });
+
+  it('triggers tooltip when focusing on OrgCard info button', async () => {
+    renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
+
+    // Find the OrgCard's info button
+    const infoButtons = screen.getAllByRole('button', { name: /Organization info/i });
+    const infoButton = infoButtons[0];
+    expect(infoButton).toBeInTheDocument();
+
+    // Tooltip is not shown yet
+    expect(screen.queryByText('org-1')).toBeNull();
+
+    // Focus on the info button
+    await act(async () => {
+      fireEvent.focus(infoButton);
+    });
+
+    // Tooltip should be rendered
+    await waitFor(() => {
+      expect(screen.getByText('org-1')).toBeInTheDocument();
+    });
+
+    // Blur the info button
+    await act(async () => {
+      fireEvent.blur(infoButton);
+    });
+
+    // Tooltip should be gone
+    await waitFor(() => {
+      expect(screen.queryByText('org-1')).toBeNull();
+    });
+  });
 });
 
 describe('OrganizationsTab - DASH-BUG-004 Org roles refresh button', () => {
@@ -452,5 +484,20 @@ describe('OrganizationsTab - DASH-BUG-004 Org roles refresh button', () => {
     await waitFor(() => {
       expect(rolesRefreshBtn).not.toBeDisabled();
     });
+  });
+});
+
+describe('OrganizationsTab - BUG-021 organization list container role', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue(true);
+  });
+
+  it('renders the organization list container with role="radiogroup" and proper aria-label', () => {
+    renderOrganizations();
+
+    const radiogroup = screen.getByRole('radiogroup', { name: enUS.organizations.orgs });
+    expect(radiogroup).toBeInTheDocument();
   });
 });

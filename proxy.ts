@@ -5,6 +5,71 @@ import { isAuthError, isInvalidGrantError, isTransientError } from './app/logto-
 import { error as logError, warn as logWarn, log } from './app/logto-kit/logic/log';
 
 /**
+ * Builds the connect-src CSP directive using the configured Logto endpoint.
+ *
+ * Reads ENDPOINT (or NEXT_PUBLIC_ENDPOINT) and extracts the origin so only
+ * the actual Logto host is allowed - not a hardcoded domain from a fork's
+ * original developer.
+ *
+ * Falls back to `https://*.logto.app` if neither env var is set (safe default
+ * for cloud-hosted Logto instances).
+ */
+function buildConnectSrc(): string {
+  const raw = process.env.ENDPOINT ?? process.env.NEXT_PUBLIC_ENDPOINT;
+  let logtoOrigin = 'https://*.logto.app'; // safe cloud fallback
+
+  if (raw) {
+    try {
+      const url = new URL(raw);
+      logtoOrigin = url.origin; // e.g. "https://auth.example.com"
+    } catch {
+      // Malformed ENDPOINT - log and use fallback
+      console.warn('[CSP] ENDPOINT env var is not a valid URL; using fallback connect-src');
+    }
+  }
+
+  return [
+    "connect-src 'self'",
+    logtoOrigin,
+    'https://ipapi.co',
+    'https://*.basemaps.cartocdn.com',
+    'https://*.supabase.co',
+    'wss:',
+  ].join(' ');
+}
+
+/**
+ * Builds a per-request Content-Security-Policy header using a nonce for
+ * script-src. This removes 'unsafe-inline' from script-src, replacing it
+ * with a nonce that is embedded in the theme-flash-prevention inline script
+ * in layout.tsx.
+ *
+ * 'unsafe-eval' is only needed for Next.js hot-reload in development.
+ */
+function buildCsp(nonce: string): string {
+  const scriptSrc = process.env.NODE_ENV === 'development'
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+
+  return [
+    "default-src 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    // img-src: self + data URIs (avatars, QR codes) + blob (image cropper)
+    // + any HTTPS source (avatar URLs from S3/Supabase can vary)
+    "img-src 'self' data: blob: https:",
+    // connect-src: Next.js HMR in dev, Logto OIDC endpoint (derived from ENDPOINT
+    // env var - no hardcoded domains), ipapi.co for geo, CartoCDN for map tiles,
+    // Supabase for storage.
+    buildConnectSrc(),
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+}
+
+/**
  * Sanitizes an error for safe logging: truncates to 200 chars, replaces newlines.
  */
 function safeLogMessage(err: unknown): string {
@@ -17,17 +82,13 @@ const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 const WIPE_NONCE_TTL_SECONDS = 60;
 
 // These paths are public (no session needed). They are either:
-//   - Cookie/session management (wipe, sign-out) - GET for convenience, POST for CSRF safety
 //   - Auth-initiation routes (sign-in, callback) - must be reachable pre-auth
-// These paths bypass the auth middleware. They are either:
-//   - Auth-initiation routes that must be reachable before a session exists.
-//   - Cookie/session endpoints that don't need session authentication, but
-//     their POST handlers enforce same-origin via checkSameOrigin() for CSRF safety.
-//     GET handlers provide convenience for browser navigation.
+//   - Cookie/session management (wipe) - GET for convenience, POST enforces checkSameOrigin
+// Note: Sign-out is handled by the signOutUser() Server Action, not an API route.
+//   Server Actions have built-in origin validation, so no separate route or CSRF guard needed.
 const PUBLIC_PATHS = [
   '/callback',
   '/api/auth/sign-in',
-  '/api/auth/sign-out',
   '/api/wipe',
 ];
 
@@ -36,14 +97,24 @@ const getClient = () => new LogtoClient(getLogtoConfig());
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip public paths (exact match or with trailing slash)
-  if (PUBLIC_PATHS.some(path => pathname === path || pathname === path + '/')) {
+  // Skip Next.js internals (no CSP needed for static assets)
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
     return NextResponse.next();
   }
 
-  // Skip Next.js internals
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
-    return NextResponse.next();
+  // Generate a per-request nonce for CSP script-src
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const cspHeader = buildCsp(nonce);
+
+  // Request headers forwarded to the app (layout.tsx reads x-nonce)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+
+  // Skip public paths (exact match or with trailing slash) - apply CSP but skip auth check
+  if (PUBLIC_PATHS.some(path => pathname === path || pathname === path + '/')) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', cspHeader);
+    return response;
   }
 
   try {
@@ -55,8 +126,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
     }
 
-    // Authenticated - proceed
-    return NextResponse.next();
+    // Authenticated - proceed with nonce and CSP headers
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', cspHeader);
+    return response;
   } catch (error) {
     const errorMessage = safeLogMessage(error);
 

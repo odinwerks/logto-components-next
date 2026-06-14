@@ -37,11 +37,27 @@ export function clearGeoCache(): void {
   cache.clear();
 }
 
+// IPv4 regex: four decimal octets (0-255)
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+// IPv6 regex: simplified validation (covers full notation and common compressed forms)
+const IPV6_REGEX = /^(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+
+/**
+ * Returns true if `ip` is a valid IPv4 or IPv6 address.
+ * Prevents SSRF / path-traversal via URL interpolation (LOGIC-BUG-001).
+ */
+function isValidIp(ip: string): boolean {
+  return IPV4_REGEX.test(ip) || IPV6_REGEX.test(ip);
+}
+
 const inFlight = new Map<string, Promise<GeoLocation | null>>();
 
 export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   if (typeof window === 'undefined') return null;
   if (!ip) return null;
+
+  // Validate IP format before interpolating into the URL (SSRF / path-traversal guard)
+  if (!isValidIp(ip)) return null;
 
   // Check user consent before geolocation lookup
   const consent = sessionStorage.getItem('geo-consent');
@@ -56,7 +72,9 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
 
   const promise = (async () => {
     try {
-      const res = await fetch(`https://ipapi.co/${ip}/json/`);
+      const res = await fetch(`https://ipapi.co/${ip}/json/`, {
+        signal: AbortSignal.timeout(5000), // 5-second timeout (LOGIC-BUG-001)
+      });
       if (!res.ok) return null;
       const data = await res.json();
       if (data.error) return null;

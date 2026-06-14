@@ -158,7 +158,10 @@ describe('uploadAvatar backend selection', () => {
 });
 
 // BUG-024: Rate limiter map never shrinks
-describe('rate limiter map cleanup', () => {
+// NOTE: The sliding-window uploadTimestamps map was replaced by the centralized
+// count+reset rate limiter in app/lib/distributed-state.ts (avatar-upload namespace).
+// The test helpers below are now stubs. These tests verify the stub API contract.
+describe('rate limiter map cleanup (stubs after migration to centralized rate limiter)', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const { clearUploadTimestampsForTesting } = await import('./avatar');
@@ -170,36 +173,27 @@ describe('rate limiter map cleanup', () => {
     vi.useRealTimers();
   });
 
-  it('removes stale entries when cleanup is triggered', async () => {
+  it('getUploadTimestampsSizeForTesting always returns 0 (stub)', async () => {
     const {
       setUploadTimestampsForTesting,
       getUploadTimestampsSizeForTesting,
-      hasUploadTimestampsForTesting,
-      triggerRateLimiterCleanupForTesting,
     } = await import('./avatar');
 
     const now = Date.now();
     vi.setSystemTime(now);
 
-    // Add entries with stale timestamps (older than 60s)
+    // Stub: injecting timestamps has no effect
     for (let i = 0; i < 5; i++) {
       await setUploadTimestampsForTesting(`user-stale-${i}`, [now - 120_000]);
     }
 
-    expect(await getUploadTimestampsSizeForTesting()).toBe(5);
-
-    // Trigger cleanup
-    await triggerRateLimiterCleanupForTesting();
-
-    // All stale entries should be removed
+    // Stub returns 0 regardless
     expect(await getUploadTimestampsSizeForTesting()).toBe(0);
-    expect(await hasUploadTimestampsForTesting('user-stale-0')).toBe(false);
   });
 
-  it('preserves active entries during cleanup', async () => {
+  it('hasUploadTimestampsForTesting always returns false (stub)', async () => {
     const {
       setUploadTimestampsForTesting,
-      getUploadTimestampsSizeForTesting,
       hasUploadTimestampsForTesting,
       triggerRateLimiterCleanupForTesting,
     } = await import('./avatar');
@@ -207,57 +201,23 @@ describe('rate limiter map cleanup', () => {
     const now = Date.now();
     vi.setSystemTime(now);
 
-    // Add stale entries
-    for (let i = 0; i < 3; i++) {
-      await setUploadTimestampsForTesting(`user-stale-${i}`, [now - 120_000]);
-    }
-
-    // Add active entry (within the 60s window)
     await setUploadTimestampsForTesting('user-active', [now - 10_000]);
-
-    expect(await getUploadTimestampsSizeForTesting()).toBe(4);
-
-    // Trigger cleanup
     await triggerRateLimiterCleanupForTesting();
 
-    // Stale entries removed, active entry preserved
-    expect(await getUploadTimestampsSizeForTesting()).toBe(1);
-    expect(await hasUploadTimestampsForTesting('user-active')).toBe(true);
-    expect(await hasUploadTimestampsForTesting('user-stale-0')).toBe(false);
+    // Stub always returns false
+    expect(await hasUploadTimestampsForTesting('user-active')).toBe(false);
   });
 
-  it('preserves entries with mixed stale and active timestamps', async () => {
+  it('triggerRateLimiterCleanupForTesting is a no-op (stub)', async () => {
     const {
-      setUploadTimestampsForTesting,
       getUploadTimestampsSizeForTesting,
-      hasUploadTimestampsForTesting,
       triggerRateLimiterCleanupForTesting,
     } = await import('./avatar');
 
-    const now = Date.now();
-    vi.setSystemTime(now);
-
-    // Entry with mix of stale and active timestamps
-    await setUploadTimestampsForTesting('user-mixed', [
-      now - 120_000, // stale
-      now - 30_000,  // active
-    ]);
-
-    // Entry with only stale timestamps
-    await setUploadTimestampsForTesting('user-all-stale', [
-      now - 120_000,
-      now - 90_000,
-    ]);
-
-    expect(await getUploadTimestampsSizeForTesting()).toBe(2);
-
-    // Trigger cleanup
-    await triggerRateLimiterCleanupForTesting();
-
-    // Mixed entry should be preserved (has at least one active timestamp)
-    expect(await hasUploadTimestampsForTesting('user-mixed')).toBe(true);
-    // All-stale entry should be removed
-    expect(await hasUploadTimestampsForTesting('user-all-stale')).toBe(false);
-    expect(await getUploadTimestampsSizeForTesting()).toBe(1);
+    // Should not throw
+    await expect(triggerRateLimiterCleanupForTesting()).resolves.toBeUndefined();
+    // Size remains 0 (stub)
+    expect(await getUploadTimestampsSizeForTesting()).toBe(0);
   });
+
 });

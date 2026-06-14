@@ -106,7 +106,7 @@ const mockTranslations: Translations = {
     satellite: 'Satellite',
     street: 'Street',
     activeNow: 'Active now',
-    locationDisclosure: 'Location is estimated from IP and may be approximate.',
+    locationDisclosure: 'Location is very approximate. Assume a 3km radius tolerance.',
     externalMapDisclosure: 'Map links open external services with approximate coordinates.',
   },
 } as unknown as Translations;

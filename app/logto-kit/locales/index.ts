@@ -80,6 +80,7 @@ export interface Translations {
     passwordChanged: string;
     confirmDeleteAccount: string;
     accountDeleted: string;
+    accountDeletedFarewell: string;
     deletingAccount: string;
     passwordChangeFailed: string;
     reconfigure: string;
@@ -359,6 +360,9 @@ export interface Translations {
     activeNow: string;
     locationDisclosure: string;
     externalMapDisclosure: string;
+    gcAllConfirmTitle: string;
+    gcAllSuccess: string;
+    viewMap: string;
   };
   
   // Common
@@ -380,6 +384,7 @@ export interface Translations {
     darkTheme: string;
     systemTheme: string;
     loggedInAs: string;
+    yes: string;
   };
 
   // Sign-out modal (playful farewell flow)

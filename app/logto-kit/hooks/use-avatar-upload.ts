@@ -35,6 +35,7 @@ export function useAvatarUpload({
 }: UseAvatarUploadOptions = {}): UseAvatarUploadReturn {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isUploadingRef = useRef(false)
 
   const onSuccessRef = useRef(onSuccess)
   const onErrorRef = useRef(onError)
@@ -45,6 +46,8 @@ export function useAvatarUpload({
 
   const upload = useCallback(
     async (file: File): Promise<string | null> => {
+      if (isUploadingRef.current) return null;
+      isUploadingRef.current = true;
       setIsUploading(true)
       setError(null)
 
@@ -70,6 +73,7 @@ export function useAvatarUpload({
         onErrorRef.current?.(message)
         return null
       } finally {
+        isUploadingRef.current = false;
         setIsUploading(false)
       }
     },

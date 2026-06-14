@@ -67,6 +67,7 @@ vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
 vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
 vi.mock('./tabs/identities', () => ({ IdentitiesTab: () => null }));
 vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
+vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
 vi.mock('./shared/Toast', () => ({ ToastContainer: () => null }));
 
 // Import after mocks

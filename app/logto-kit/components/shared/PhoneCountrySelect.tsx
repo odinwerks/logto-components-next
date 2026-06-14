@@ -150,14 +150,18 @@ export function PhoneCountrySelect({
   const handleToggle = () => {
     if (disabled) return;
     setSearchQuery('');
+    if (!isOpen) {
+      updateCoords();
+    }
     setIsOpen((prev) => !prev);
   };
 
   const openDropdown = useCallback(() => {
     if (disabled) return;
     setSearchQuery('');
+    updateCoords();
     setIsOpen(true);
-  }, [disabled]);
+  }, [disabled, updateCoords]);
 
   const selectCountry = (country: typeof COUNTRY_CODES[number]) => {
     onChange(country.code);
@@ -219,7 +223,6 @@ export function PhoneCountrySelect({
     boxSizing: 'border-box',
     fontFamily: "'DM Sans', system-ui, sans-serif",
     height: '100%',
-    outline: 'none',
     gap: '0.25rem',
     width: '6.5rem',
   };
@@ -258,7 +261,6 @@ export function PhoneCountrySelect({
     fontSize: '0.8125rem',
     fontFamily: "'DM Sans', system-ui, sans-serif",
     borderRadius: '0.25rem',
-    outline: 'none',
     boxSizing: 'border-box',
   };
 

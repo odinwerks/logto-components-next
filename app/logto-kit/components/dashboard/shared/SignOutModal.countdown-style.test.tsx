@@ -5,6 +5,11 @@ import { SignOutModal } from './SignOutModal';
 import type { Translations } from '../../../locales';
 import type { ThemeColors } from '../types';
 
+// Mock signOutUser server action (required since SignOutModal now imports it)
+vi.mock('../../../logic/actions/auth', () => ({
+  signOutUser: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock translations
 const mockT = {
   signout: {

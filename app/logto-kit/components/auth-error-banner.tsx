@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 
@@ -34,32 +34,50 @@ export function AuthErrorBanner() {
   const searchParams = useSearchParams();
   const authError = searchParams.get('auth_error');
 
-  if (!authError) {
+  // Derive the safe error code without state — useMemo is sufficient because
+  // authError comes from searchParams which is a stable reference per navigation.
+  const activeError = useMemo(() => {
+    if (!authError) return null;
+    return KNOWN_OAUTH_ERRORS.has(authError) ? authError : 'authentication_error';
+  }, [authError]);
+
+  if (!activeError) {
     return null;
   }
 
-  // Validate against known OAuth error codes to prevent social engineering
-  const safeError = KNOWN_OAUTH_ERRORS.has(authError) ? authError : 'authentication_error';
-
-  // key={safeError} forces remount (resetting local state) when the error changes,
-  // avoiding the need for a useEffect that calls setState.
-  return <AuthErrorBannerInner key={safeError} authError={safeError} />;
+  return (
+    // key ensures AuthErrorBannerInner remounts (resetting dismissed) when error changes
+    <AuthErrorBannerInner
+      key={activeError}
+      authError={activeError}
+    />
+  );
 }
 
-function AuthErrorBannerInner({ authError }: { authError: string }) {
+function AuthErrorBannerInner({
+  authError,
+}: {
+  authError: string;
+}) {
   const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Automatically clear auth_error parameter from URL after display
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.has('auth_error')) {
+      params.delete('auth_error');
+      const newQuery = params.toString();
+      router.replace(newQuery ? `?${newQuery}` : window.location.pathname);
+    }
+  }, [searchParams, router]);
 
   if (dismissed) {
     return null;
   }
 
   const handleDismiss = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('auth_error');
-    const newQuery = params.toString();
-    router.replace(newQuery ? `?${newQuery}` : window.location.pathname);
     setDismissed(true);
   };
 

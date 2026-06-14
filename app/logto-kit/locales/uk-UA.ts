@@ -64,6 +64,7 @@ export const ukUA: Translations = {
     passwordChanged: 'Пароль успішно змінено',
     confirmDeleteAccount: 'Введіть пароль для безповоротного видалення облікового запису.',
     accountDeleted: 'Ваш обліковий запис видалено.',
+    accountDeletedFarewell: 'Ваш обліковий запис видалено. До побачення!',
     deletingAccount: 'Видалення облікового запису…',
     passwordChangeFailed: 'Помилка зміни пароля',
     reconfigure: 'Переналаштувати',
@@ -342,8 +343,11 @@ export const ukUA: Translations = {
     viewOnGoogleMaps: 'Переглянути на Google Maps',
     refreshData: 'Оновити',
     activeNow: 'Активно зараз',
-    locationDisclosure: 'Місцезнаходження визначається за IP і може бути приблизним.',
+    locationDisclosure: 'Місцезнаходження дуже приблизне. Допускається похибка радіусом 3 км.',
     externalMapDisclosure: 'Посилання на мапи відкривають зовнішні сервіси з приблизними координатами.',
+    gcAllConfirmTitle: 'Ви впевнені, що хочете інвалідувати ці сесії?',
+    gcAllSuccess: 'Усі інші сесії відкликано',
+    viewMap: 'Переглянути карту',
   },
   
   // Common
@@ -365,6 +369,7 @@ export const ukUA: Translations = {
     darkTheme: 'Темна',
     systemTheme: 'Системна',
     loggedInAs: 'Ви увійшли як',
+    yes: 'Так',
   },
 
   // Sign-out modal (playful farewell flow)

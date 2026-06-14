@@ -278,4 +278,35 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     expect(renderedLang).toBe('fr');
     expect(renderedOrg).toBe('org_stored');
   });
+
+  it('updates themeRef.current synchronously when setMode is called to prevent silent data corruption', () => {
+    const onUpdateCustomData = vi.fn((_customData: Record<string, unknown>) => Promise.resolve({ ok: true } as ActionResult));
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+    let setLang: ((lang: string) => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      const lang = useLangMode();
+      setMode = theme.setMode;
+      setLang = lang.setLang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialTheme="dark" initialLang="en" onUpdateCustomData={onUpdateCustomData}>
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    // Call setMode and setLang synchronously in a single act block
+    act(() => {
+      setMode?.('light');
+      setLang?.('fr');
+    });
+
+    expect(onUpdateCustomData).toHaveBeenCalled();
+    const calls = onUpdateCustomData.mock.calls;
+    const lastCallPayload = (calls[calls.length - 1] as unknown[])[0] as { Preferences: { theme: string; lang: string } };
+    expect(lastCallPayload.Preferences.theme).toBe('light');
+  });
 });

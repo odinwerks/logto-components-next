@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useSyncExternalStore } from 'react';
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
 
@@ -17,6 +17,17 @@ interface ToastProps {
 
 export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
+
+  const prefersReducedMotion = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false
+  );
 
   useEffect(() => {
     const timer = setTimeout(
@@ -64,7 +75,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const toastStyle: React.CSSProperties = {
     ...styleMap[message.type],
     maxWidth: '25rem',
-    animation: 'slideIn 0.2s ease-out',
+    animation: prefersReducedMotion ? 'none' : 'slideIn 0.2s ease-out',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   };
@@ -77,30 +88,22 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
         alignItems: 'flex-start',
         gap: '0.5rem',
       }}>
-        <button
-          type="button"
-          onClick={copy}
-          aria-label="Copy message"
-          title="Click to copy"
+        <div
           style={{
-            background: 'transparent',
-            border: 'none',
             color: 'inherit',
             fontFamily: 'inherit',
             fontSize: 'inherit',
             textAlign: 'left',
             padding: 0,
             margin: 0,
-            cursor: 'pointer',
             flex: 1,
-            outline: 'none',
             alignSelf: 'stretch',
             whiteSpace: 'inherit',
             wordBreak: 'inherit',
           }}
         >
           {message.message}
-        </button>
+        </div>
         <div style={{
           display: 'flex',
           gap: '0.375rem',
@@ -113,6 +116,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
           ) : (
             <button
               onClick={copy}
+              aria-label={`Copy notification message: ${message.message}`}
               style={{
                 background: 'rgba(255,255,255,0.08)',
                 border: '1px solid currentColor',
@@ -170,7 +174,7 @@ export function ToastContainer({ messages, onDismiss, mode, colors }: ToastConta
         position: 'fixed',
         top: '1.25rem',
         right: '1.25rem',
-        zIndex: 3000,
+        zIndex: 9500,
         display: 'flex',
         flexDirection: 'column',
         gap: '0.75rem',

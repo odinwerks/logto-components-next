@@ -15,7 +15,7 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { warn } from '../log';
-import { createLockManager } from './helpers';
+import { createLockManager } from '../../../lib/distributed-state';
 
 export async function updateUserBasicInfo(updates: {
   name?: string;
@@ -54,7 +54,7 @@ export async function updateUserProfile(profile: {
 // In-flight lock to prevent concurrent GET-PATCH races when
 // PreferencesProvider calls updateUserCustomData in rapid succession.
 // Per-user Map keyed by user ID to avoid blocking different users.
-const customDataLockManager = createLockManager();
+const customDataLockManager = createLockManager('profile-custom-data');
 
 /**
  * Updates the user's custom data Preferences via the Logto Management API.

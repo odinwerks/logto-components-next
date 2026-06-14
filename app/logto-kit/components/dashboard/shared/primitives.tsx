@@ -9,8 +9,8 @@ import type { ThemeColors } from '../../../themes';
  * semantically-specific component file.
  */
 
-export function Lbl({ children, colors }: { children: React.ReactNode; colors: ThemeColors }) {
-  return <label style={{
+export function Lbl({ children, colors, htmlFor }: { children: React.ReactNode; colors: ThemeColors; htmlFor?: string }) {
+  return <label htmlFor={htmlFor} style={{
     display: 'block',
     fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
     fontWeight: 500,

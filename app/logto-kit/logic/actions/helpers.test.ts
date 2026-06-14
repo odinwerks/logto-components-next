@@ -45,6 +45,20 @@ describe('assertVerificationNotExpired', () => {
     const futureTimestamp = Date.now() + 60_000; // 1 minute in the future
     expect(() => assertVerificationNotExpired(futureTimestamp)).not.toThrow();
   });
+
+  it('throws VERIFICATION_EXPIRED for implausibly far-future timestamps', () => {
+    const farFuture = Date.now() + 12 * 60 * 1000; // 12 minutes in the future (TTL is 10 mins)
+    expect(() => assertVerificationNotExpired(farFuture)).toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('throws VERIFICATION_EXPIRED for Number.MAX_SAFE_INTEGER', () => {
+    expect(() => assertVerificationNotExpired(Number.MAX_SAFE_INTEGER)).toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('throws VERIFICATION_EXPIRED for Infinity and NaN', () => {
+    expect(() => assertVerificationNotExpired(Infinity)).toThrow('VERIFICATION_EXPIRED');
+    expect(() => assertVerificationNotExpired(NaN)).toThrow('VERIFICATION_EXPIRED');
+  });
 });
 
 // ============================================================================

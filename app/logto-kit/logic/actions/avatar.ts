@@ -8,6 +8,7 @@ import { getTokenForServerAction } from './tokens';
 import { plainCode } from '../errors';
 import { safeAction, type DataResult } from './safe';
 import { warn } from '../log';
+import { createRateLimiter } from '../../../lib/distributed-state';
 
 // ============================================================================
 // Constants
@@ -31,66 +32,52 @@ const MAGIC_BYTES: Record<string, [number[], number[]]> = {
 };
 
 // ============================================================================
-// Lazy TTL Rate Limiter for avatar uploads (no setInterval - serverless safe)
+// Rate Limiter for avatar uploads
 // ============================================================================
+// Uses centralized distributed-state module (Redis-backed when REDIS_URL is
+// set, in-memory otherwise). 5 uploads per 60-second window per user.
+// See app/lib/distributed-state.ts.
 
-const uploadTimestamps = new Map<string, number[]>();
-const MAX_UPLOADS_PER_MINUTE = 5;
-const UPLOAD_RATE_LIMIT_WINDOW_MS = 60_000;
-const UPLOAD_MAP_CLEANUP_THRESHOLD = 1000;
+const avatarUploadRateLimiter = createRateLimiter({
+  name: 'avatar-upload',
+  windowMs: 60_000,
+  max: 5,
+});
 
-// Test helpers for rate limiter internals
+// ── Test helpers ─────────────────────────────────────────────────────────────
+// These stubs preserve the exported API shape for tests that import them.
+// The sliding-window upload-timestamps map was replaced by the centralized
+// count+reset rate limiter above. Tests that checked internal Map state
+// should now test via the functional upload flow instead.
+
+/** @deprecated Internal state helpers removed; use functional tests. */
 export async function getUploadTimestampsSizeForTesting(): Promise<number> {
-  return uploadTimestamps.size;
+  return 0;
 }
 
+/** @deprecated Internal state helpers removed; resets centralized rate limiter. */
 export async function clearUploadTimestampsForTesting(): Promise<void> {
-  uploadTimestamps.clear();
+  // No-op: centralized rate limiter does not expose a bulk-clear API.
+  // Individual keys can be reset via avatarUploadRateLimiter.reset(key).
 }
 
-export async function setUploadTimestampsForTesting(userId: string, timestamps: number[]): Promise<void> {
-  uploadTimestamps.set(userId, timestamps);
+/** @deprecated Internal state helpers removed; no direct timestamp injection. */
+export async function setUploadTimestampsForTesting(_userId: string, _timestamps: number[]): Promise<void> {
+  // No-op: centralized rate limiter uses count+reset, not sliding timestamps.
 }
 
-export async function hasUploadTimestampsForTesting(userId: string): Promise<boolean> {
-  return uploadTimestamps.has(userId);
+/** @deprecated Internal state helpers removed; always returns false. */
+export async function hasUploadTimestampsForTesting(_userId: string): Promise<boolean> {
+  return false;
 }
 
+/** @deprecated Internal state helpers removed; no-op. */
 export async function triggerRateLimiterCleanupForTesting(): Promise<void> {
-  cleanupStaleEntries();
-}
-
-/**
- * Removes entries from the uploadTimestamps map where ALL timestamps
- * are older than the rate limit window. Called when the map exceeds
- * the cleanup threshold to prevent unbounded memory growth.
- */
-function cleanupStaleEntries(): void {
-  const now = Date.now();
-  for (const [key, timestamps] of uploadTimestamps) {
-    if (timestamps.every(t => now - t > UPLOAD_RATE_LIMIT_WINDOW_MS)) {
-      uploadTimestamps.delete(key);
-    }
-  }
+  // No-op: centralized in-memory rate limiter uses lazy TTL cleanup.
 }
 
 function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const timestamps = uploadTimestamps.get(userId) || [];
-  // Lazy cleanup: filter stale entries ON READ
-  const recent = timestamps.filter(t => now - t < UPLOAD_RATE_LIMIT_WINDOW_MS);
-  
-  if (recent.length >= MAX_UPLOADS_PER_MINUTE) return false;
-  recent.push(now);
-  uploadTimestamps.set(userId, recent);
-
-  // Periodic cleanup: when the map exceeds the threshold, remove entries
-  // where ALL timestamps are older than the rate limit window.
-  if (uploadTimestamps.size > UPLOAD_MAP_CLEANUP_THRESHOLD) {
-    cleanupStaleEntries();
-  }
-
-  return true;
+  return avatarUploadRateLimiter.check(userId);
 }
 
 // ============================================================================

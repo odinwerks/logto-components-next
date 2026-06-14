@@ -76,6 +76,7 @@ export function PasswordVerifyModal({
   const titleId = useId();
   const descriptionId = useId();
   const pwdErrorId = useId();
+  const pwInputId = useId();
   const dangerColor = c.accentRed;
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
@@ -112,8 +113,9 @@ export function PasswordVerifyModal({
         <div style={{ padding: '1.25rem 1.375rem' }}>
           {step.kind === 'password' && (
             <>
-              <label style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{t.verification.password}</label>
+              <label htmlFor={pwInputId} style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{t.verification.password}</label>
       <Input
+        id={pwInputId}
         type={showPw ? 'text' : 'password'}
         value={pw}
         onChange={(e) => {
@@ -235,6 +237,11 @@ export function FlowModal({
   const titleId = useId();
   const descriptionId = useId();
   const pwdErrorId = useId();
+  const pwInputId = useId();
+  const codeInputId = useId();
+  const totpInputId = useId();
+  const newPwInputId = useId();
+  const renameInputId = useId();
 
   const dangerColor = c.accentRed;
 
@@ -312,8 +319,9 @@ export function FlowModal({
           {step.kind === 'password' && (
             <>
               {extra}
-              <Lbl colors={colors}>{t.verification.password}</Lbl>
+              <Lbl colors={colors} htmlFor={pwInputId}>{t.verification.password}</Lbl>
               <Input
+                id={pwInputId}
                 type={showPw ? 'text' : 'password'}
                 value={pw}
                 onChange={(e) => {
@@ -381,8 +389,9 @@ export function FlowModal({
                   <span style={{ fontFamily: T.mono, color: T.text }}>{step.destination}</span>.
                 </p>
               </div>
-              <Lbl colors={colors}>{t.verification.verificationCode}</Lbl>
+              <Lbl colors={colors} htmlFor={codeInputId}>{t.verification.verificationCode}</Lbl>
               <Input
+                id={codeInputId}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
@@ -448,8 +457,9 @@ export function FlowModal({
                     </div>
 
                     <HR colors={colors} />
-                    <Lbl colors={colors}>{t.verification.totpCodeLabel || '6-digit code from your app'}</Lbl>
+                    <Lbl colors={colors} htmlFor={totpInputId}>{t.verification.totpCodeLabel || '6-digit code from your app'}</Lbl>
                     <Input
+                      id={totpInputId}
                       value={code}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -482,8 +492,9 @@ export function FlowModal({
 
           {step.kind === 'new-password' && (
             <>
-              <Lbl colors={colors}>{t.security.password}</Lbl>
+              <Lbl colors={colors} htmlFor={newPwInputId}>{t.security.password}</Lbl>
               <Input
+                id={newPwInputId}
                 type={showNewPw ? 'text' : 'password'}
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
@@ -519,8 +530,9 @@ export function FlowModal({
 
           {step.kind === 'rename-passkey' && (
             <>
-              <Lbl colors={colors}>{t.mfa.newPasskeyName}</Lbl>
+              <Lbl colors={colors} htmlFor={renameInputId}>{t.mfa.newPasskeyName}</Lbl>
               <Input
+                id={renameInputId}
                 type="text"
                 value={renameVal}
                 onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}

@@ -16,7 +16,22 @@ export const FOCUSABLE_SELECTOR = [
 
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
-    return !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.getAttribute('aria-hidden') !== 'true';
+    if (el.hasAttribute('disabled') || el.tabIndex === -1 || el.getAttribute('aria-hidden') === 'true') {
+      return false;
+    }
+
+    if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'file') {
+      return false;
+    }
+
+    if (typeof window !== 'undefined') {
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+    }
+
+    return true;
   });
 }
 
@@ -43,10 +58,10 @@ export function useFocusTrap(
     // Restore focus to the element that had focus before the modal opened
     restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    // Focus the first autofocus element, or the first focusable, or the dialog itself
+    // Focus the first autofocus element, or the dialog itself if focusable, or the first focusable
     const focusable = getFocusableElements(dialog);
     const autoFocused = focusable.find((el) => el.hasAttribute('autofocus'));
-    const initial = autoFocused ?? focusable[0] ?? dialog;
+    const initial = autoFocused ?? (dialog.tabIndex === -1 || dialog.hasAttribute('tabindex') ? dialog : (focusable[0] ?? dialog));
     initial.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,16 +87,17 @@ export function useFocusTrap(
       const last = nodes[nodes.length - 1];
       const active = document.activeElement as HTMLElement | null;
       const outsideDialog = !active || !currentDialog.contains(active);
+      const isContainerActive = active === currentDialog;
 
       if (e.shiftKey) {
-        if (outsideDialog || active === first) {
+        if (outsideDialog || active === first || isContainerActive) {
           e.preventDefault();
           last.focus();
         }
         return;
       }
 
-      if (outsideDialog || active === last) {
+      if (outsideDialog || active === last || isContainerActive) {
         e.preventDefault();
         first.focus();
       }

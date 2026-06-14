@@ -100,6 +100,7 @@ interface RenderSessionsOptions {
   onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions?: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
+  mobmode?: number;
 }
 
 function renderSessionsTab({
@@ -107,6 +108,7 @@ function renderSessionsTab({
   onRevokeSession,
   onRevokeAllOtherSessions,
   onVerifyPassword,
+  mobmode = 0,
 }: RenderSessionsOptions = {}) {
   const getSessionsFn = (onGetSessionsWithDeviceMeta ??
     vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
@@ -139,6 +141,7 @@ function renderSessionsTab({
       mode="dark"
       colors={DARK_COLORS}
       t={enUS}
+      mobmode={mobmode}
       onGetSessionsWithDeviceMeta={getSessionsFn}
       onRevokeSession={revokeSessionFn}
       onRevokeAllOtherSessions={revokeAllFn}
@@ -356,6 +359,59 @@ describe('SessionsTab', () => {
     });
   });
 
+  describe('BUG LOG-003: revokingId not cleared on single-session revoke failure', () => {
+    it('clears revokingId on single-session revoke failure', async () => {
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
+      });
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+      const onRevokeSession = vi.fn().mockResolvedValue({
+        ok: false,
+        error: 'Failed to revoke session',
+      });
+
+      renderSessionsTab({
+        onVerifyPassword,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+        onRevokeSession,
+      });
+
+      await verifyAndLoadSessions();
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      const revokeButtons = screen.getAllByRole('button', { name: 'Revoke' });
+      const nonCurrentRevokeBtn = revokeButtons[0];
+
+      await act(async () => {
+        fireEvent.click(nonCurrentRevokeBtn);
+      });
+
+      // Submit password
+      const passwordInput = screen.getByPlaceholderText('Enter password');
+      fireEvent.change(passwordInput, { target: { value: 'test-password' } });
+
+      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      await act(async () => {
+        fireEvent.click(modalSubmitBtn);
+      });
+
+      // Wait for revoke failure error
+      await waitFor(() => {
+        expect(screen.getByText('Failed to revoke session')).toBeDefined();
+      });
+
+      // Since revoke failed, revokingId should be cleared (null), meaning
+      // the Revoke button is no longer disabled.
+      expect(nonCurrentRevokeBtn).not.toBeDisabled();
+    });
+  });
+
   describe('BUG 1: re-verification uses fresh values', () => {
     it('reloads sessions with refreshed verification after revoke re-verification', async () => {
       const now = new Date('2026-01-01T00:00:00.000Z').getTime();
@@ -532,6 +588,185 @@ describe('SessionsTab', () => {
         expect(macosImg2).toBeDefined();
         expect(macosImg2?.getAttribute('src')).toContain('/os-icons/MacOS.svg');
       });
+    });
+  });
+
+  describe('skeleton loader and map features', () => {
+    it('renders the correct skeleton elements on mobile and desktop during loading', async () => {
+      // First, successfully verify and load sessions
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
+      });
+
+      let resolveRefresh: (value: DataResult<LogtoSession[]>) => void = () => {};
+      const refreshPromise = new Promise<DataResult<LogtoSession[]>>((resolve) => {
+        resolveRefresh = resolve;
+      });
+
+      const onGetSessions = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          data: createdSessions,
+        })
+        .mockReturnValueOnce(refreshPromise);
+
+      render(
+        <SessionsTab
+          userData={defaultUserData}
+          mode="dark"
+          colors={DARK_COLORS}
+          t={enUS}
+          mobmode={1} // Mobile Mode
+          onGetSessionsWithDeviceMeta={onGetSessions}
+          onRevokeSession={vi.fn()}
+          onRevokeAllOtherSessions={vi.fn()}
+          onVerifyPassword={onVerifyPassword}
+          onSuccess={vi.fn()}
+          onError={vi.fn()}
+        />,
+      );
+
+      // Verify and load initial sessions
+      await verifyAndLoadSessions();
+
+      // Wait for loaded sessions to appear (use button role with name for mobile)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: enUS.sessions.thisDevice })).toBeInTheDocument();
+      });
+
+      // Click refresh button to trigger loading state with viewState='loaded'
+      const refreshBtn = screen.getByRole('button', { name: /refresh/i });
+      await act(async () => { fireEvent.click(refreshBtn); });
+
+      // Now the loading state is active. Check for mobile Globe icon button placeholder
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: enUS.sessions.thisDevice })).toBeInTheDocument();
+      });
+
+      // Check for map button placeholders
+      expect(screen.getAllByRole('button', { name: enUS.sessions.ipLocation }).length).toBeGreaterThan(0);
+
+      // Clean up by resolving the pending promise
+      await act(async () => {
+        resolveRefresh({ ok: true, data: createdSessions });
+      });
+    });
+
+    it('automatically grants geo-consent and shows SessionMapModal with location info when map button is clicked', async () => {
+      const mockGeo = {
+        lat: 41.7151,
+        lon: 44.8271,
+        city: 'Tbilisi',
+        country: 'Georgia',
+        region: 'Tbilisi',
+      };
+      mockFetchGeo.mockResolvedValueOnce(mockGeo);
+
+      // Render the sessions tab and load sessions
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      // Find the map pin button
+      const mapBtn = screen.getAllByTitle(enUS.sessions.ipLocation)[0];
+      await act(async () => { fireEvent.click(mapBtn); });
+
+      // sessionStorage 'geo-consent' should be set to 'true'
+      expect(sessionStorage.getItem('geo-consent')).toBe('true');
+
+      // Check if SessionMapModal is open with correct information
+      await waitFor(() => {
+        // Tbilisi, Georgia should be displayed
+        expect(screen.getByText('Tbilisi, Georgia')).toBeInTheDocument();
+        // IP address 1.2.3.4 should be displayed (check inside modal)
+        expect(screen.getAllByText(/1\.2\.3\.4/).length).toBeGreaterThan(0);
+        // Latitude & Longitude with 4 decimals (e.g. 41.7151, 44.8271)
+        expect(screen.getByText(/41\.7151/)).toBeInTheDocument();
+        expect(screen.getByText(/44\.8271/)).toBeInTheDocument();
+        // OpenStreetMap and Google Maps buttons
+        expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnOpenStreetMap, 'i') })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnGoogleMaps, 'i') })).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('GC ALL Confirmation Modal (Task 1)', () => {
+    it('renders with correct ARIA attributes, focus trap, and references', async () => {
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      // Open GC ALL modal by clicking the 'Revoke all other sessions' button
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => {
+        fireEvent.click(gcAllBtn);
+      });
+
+      // The modal should be open
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(dialog.getAttribute('aria-modal')).toBe('true');
+      expect(dialog.getAttribute('aria-labelledby')).toBe('gc-all-title');
+
+      const title = screen.getByText(enUS.sessions.gcAllConfirmTitle);
+      expect(title).toBeInTheDocument();
+      expect(title.getAttribute('id')).toBe('gc-all-title');
+    });
+  });
+
+  describe('Sessions Tab UI Fixes', () => {
+    it('applies correct styling to the mobile revoke button', async () => {
+      renderSessionsTab({ mobmode: 1 });
+      await verifyAndLoadSessions();
+
+      // Find the mobile revoke trash button
+      const revokeBtns = screen.getAllByRole('button', { name: enUS.sessions.revoke });
+      expect(revokeBtns.length).toBeGreaterThan(0);
+      const revokeBtn = revokeBtns[0] as HTMLButtonElement;
+
+      const style = window.getComputedStyle(revokeBtn);
+      expect(style.width).toBe('2rem');
+      expect(style.height).toBe('2rem');
+      expect(revokeBtn.style.color).toBe('rgb(220, 38, 38)');
+      expect(revokeBtn.style.background).toBe('rgb(26, 5, 5)');
+    });
+
+    it('renders desktop Revoke All button with correct translation text', async () => {
+      renderSessionsTab({ mobmode: 0 });
+      await verifyAndLoadSessions();
+
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      expect(gcAllBtn).toBeInTheDocument();
+      expect(gcAllBtn.textContent).toBe(enUS.sessions.revokeAll);
+    });
+
+    it('renders desktop Refresh button as text-only without RefreshCw icon', async () => {
+      renderSessionsTab({ mobmode: 0 });
+      await verifyAndLoadSessions();
+
+      const refreshBtn = screen.getByRole('button', { name: enUS.sessions.refreshData });
+      expect(refreshBtn).toBeInTheDocument();
+      expect(refreshBtn.textContent).toBe(enUS.sessions.refreshData);
+      
+      const svg = refreshBtn.querySelector('svg');
+      expect(svg).toBeNull();
+    });
+
+    it('renders desktop Map button as a text button with View map label', async () => {
+      renderSessionsTab({ mobmode: 0 });
+      await verifyAndLoadSessions();
+
+      const mapBtns = screen.getAllByRole('button', { name: enUS.sessions.ipLocation });
+      expect(mapBtns.length).toBeGreaterThan(0);
+      const mapBtn = mapBtns[0];
+      expect(mapBtn).toBeInTheDocument();
+      expect(mapBtn.textContent).toContain(enUS.sessions.viewMap);
+
+      const svg = mapBtn.querySelector('svg');
+      expect(svg).toBeNull();
     });
   });
 });

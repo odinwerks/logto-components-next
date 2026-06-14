@@ -38,25 +38,41 @@ export function truncateError(text: string, maxLength = 200): string {
  */
 export async function introspectToken(token: string): Promise<OidcIntrospectionResponse> {
   const url = process.env.LOGTO_INTROSPECTION_URL;
-  const clientId = process.env.APP_ID;
-  const clientSecret = process.env.APP_SECRET;
+  let clientId: string | undefined;
+  let clientSecret: string | undefined;
 
-  if (!url || !clientId || !clientSecret) {
+  try {
+    const config = getLogtoConfig();
+    clientId = config.appId;
+    clientSecret = config.appSecret;
+  } catch {
+    // If config resolution fails (e.g. missing required env vars), treat it as unconfigured
+  }
+
+  if (
+    !url ||
+    !clientId ||
+    !clientSecret ||
+    clientId === 'build-placeholder' ||
+    clientSecret === 'build-placeholder'
+  ) {
     throw new Error(
       'Logto introspection not configured - set LOGTO_INTROSPECTION_URL, ' +
         'APP_ID and APP_SECRET.'
     );
   }
 
-  const body = new URLSearchParams({
-    token,
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
+  // RFC 7662 §2.1: client credentials MUST be sent via HTTP Basic Auth,
+  // not in the request body, to avoid leaking secrets in server logs/proxies.
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const body = new URLSearchParams({ token });
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${credentials}`,
+    },
     body: body.toString(),
     cache: 'no-store',
     signal: AbortSignal.timeout(10000),

@@ -46,3 +46,21 @@ describe('PreferencesTab theme semantics', () => {
     expect(mockSetTheme).toHaveBeenCalledWith('dark');
   });
 });
+
+describe('PreferencesTab language semantics', () => {
+  it('associates the language select with its label', () => {
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US', 'uk-UA']}
+      />,
+    );
+
+    const select = screen.getByLabelText(enUS.common.language);
+    expect(select).toBeInTheDocument();
+    expect(select.tagName).toBe('SELECT');
+    expect(select).toHaveAttribute('id', 'lang-select');
+  });
+});

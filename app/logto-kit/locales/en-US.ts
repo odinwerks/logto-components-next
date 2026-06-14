@@ -64,6 +64,7 @@ export const enUS: Translations = {
     passwordChanged: 'Password changed successfully',
     confirmDeleteAccount: 'Enter your password to permanently delete your account.',
     accountDeleted: 'Your account has been deleted.',
+    accountDeletedFarewell: 'Your account has been deleted. Goodbye!',
     deletingAccount: 'Deleting account…',
     passwordChangeFailed: 'Password change failed',
     reconfigure: 'Reconfigure',
@@ -342,8 +343,11 @@ export const enUS: Translations = {
     viewOnGoogleMaps: 'View on Google Maps',
     refreshData: 'Refresh',
     activeNow: 'Active now',
-    locationDisclosure: 'Location is estimated from IP and may be approximate.',
+    locationDisclosure: 'Location is very approximate. Assume a 3km radius tolerance.',
     externalMapDisclosure: 'Map links open external services with approximate coordinates.',
+    gcAllConfirmTitle: 'Are you sure you want to invalidate these sessions?',
+    gcAllSuccess: 'All other sessions revoked',
+    viewMap: 'View map',
   },
   
   // Common
@@ -365,6 +369,7 @@ export const enUS: Translations = {
     darkTheme: 'Dark',
     systemTheme: 'System',
     loggedInAs: 'Logged in as',
+    yes: 'Yes',
   },
 
   // Sign-out modal (playful farewell flow)

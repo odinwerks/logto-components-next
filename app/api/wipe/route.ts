@@ -3,6 +3,7 @@ import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
+import crypto from 'crypto';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
@@ -37,7 +38,12 @@ export async function GET(request: NextRequest) {
   } else {
     const nonce = request.nextUrl.searchParams.get('nonce');
     const cookieNonce = request.cookies.get(WIPE_NONCE_COOKIE)?.value;
-    if (!nonce || !cookieNonce || nonce !== cookieNonce) {
+    if (!nonce || !cookieNonce) {
+      return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
+    }
+    const h1 = crypto.createHash('sha256').update(nonce).digest();
+    const h2 = crypto.createHash('sha256').update(cookieNonce).digest();
+    if (!crypto.timingSafeEqual(h1, h2)) {
       return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
     }
   }

@@ -4,7 +4,6 @@ import { UAParser } from 'ua-parser-js';
 import type { LogtoSession, SessionMeta } from '../types';
 import { introspectToken } from '../utils';
 import { debugLog } from '../debug';
-import { warn } from '../log';
 import { assertSafeLogtoId, assertRevokeGrantsTarget } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
@@ -41,6 +40,27 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
 // ============================================================================
 
 /**
+ * Internal non-wrapped function to get user sessions.
+ * Prevents double-wrapping error code swallowing (BUG-014).
+ */
+export async function getUserSessionsInternal(
+  verificationRecordId: string,
+  verificationTimestamp: number,
+): Promise<LogtoSession[]> {
+  assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
+  assertVerificationNotExpired(verificationTimestamp);
+  debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
+  const res = await makeRequest('/api/my-account/sessions', {
+    extraHeaders: { 'logto-verification-id': verificationRecordId },
+  });
+  await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
+  const data = await res.json();
+  const sessions = (data.sessions ?? []) as LogtoSession[];
+  debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
+  return sessions;
+}
+
+/**
  * Gets the user's active sessions.
  * @param verificationRecordId - Verification record for identity.
  * @param verificationTimestamp - Verification record creation timestamp.
@@ -51,17 +71,7 @@ export async function getUserSessions(
   verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
-    assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
-    debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
-    const res = await makeRequest('/api/my-account/sessions', {
-      extraHeaders: { 'logto-verification-id': verificationRecordId },
-    });
-    await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
-    const data = await res.json();
-    const sessions = (data.sessions ?? []) as LogtoSession[];
-    debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
-    return sessions;
+    return getUserSessionsInternal(verificationRecordId, verificationTimestamp);
   });
 }
 
@@ -76,24 +86,15 @@ export async function getSessionsWithDeviceMeta(
   verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
-    const sessionsResult = await getUserSessions(verificationRecordId, verificationTimestamp);
-    if (!sessionsResult.ok) {
-      throw new Error(sessionsResult.error);
-    }
-    const sessions = sessionsResult.data;
+    const sessions = await getUserSessionsInternal(verificationRecordId, verificationTimestamp);
 
-    // Introspection is optional - userId is only used for display metadata.
-    // If introspection fails (e.g., LOGTO_INTROSPECTION_URL not configured),
-    // use empty string as fallback. This prevents the sessions tab from breaking.
-    let userId = '';
-    try {
-      const token = await getTokenForServerAction();
-      const introspection = await introspectToken(token);
-      userId = introspection.sub || '';
-    } catch (err) {
-      warn('[getSessionsWithDeviceMeta] Introspection failed, using empty userId:', err instanceof Error ? err.message : String(err));
-      // Introspection failed; use empty userId as fallback
-    }
+    // userId is a display-only metadata field in SessionMeta. Token introspection
+    // was previously used to populate it, but that added an unnecessary sequential
+    // network round-trip (10 s timeout) on every Sessions tab load. The field is
+    // not rendered in any current UI component, so we always set it to ''.
+    // revokeAllOtherSessions still uses introspection (for sid-based current-session
+    // detection), so those imports remain.
+    const userId = '';
 
     const enrichedSessions: LogtoSession[] = sessions.map(session => {
       const signInContext = session.lastSubmission?.signInContext;
@@ -126,6 +127,48 @@ export async function getSessionsWithDeviceMeta(
 }
 
 /**
+ * Internal non-wrapped function to revoke a user session.
+ * Supports skipping the verification check to prevent mid-loop timeouts (BUG-004).
+ */
+export async function revokeUserSessionInternal(
+  sessionId: string,
+  identityVerificationRecordId: string,
+  verificationTimestamp: number,
+  revokeGrantsTarget?: 'all' | 'firstParty',
+  signal?: AbortSignal,
+  skipVerificationCheck = false,
+): Promise<void> {
+  assertSafeLogtoId(sessionId, 'sessionId');
+  assertRevokeGrantsTarget(revokeGrantsTarget);
+  assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+  if (!skipVerificationCheck) {
+    assertVerificationNotExpired(verificationTimestamp);
+  }
+
+  debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
+  debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId.substring(0, 8)}...`);
+
+  const extraHeaders: Record<string, string> = {
+    'logto-verification-id': identityVerificationRecordId,
+  };
+
+  const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}`;
+
+  debugLog(`[revokeUserSession] Calling DELETE ${safePath}${revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : ''}`);
+  const res = await makeRequest(safePath, {
+    method: 'DELETE',
+    extraHeaders,
+    ...(revokeGrantsTarget && { query: { revokeGrantsTarget } }),
+    signal,
+  });
+
+  debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
+  await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
+
+  debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+}
+
+/**
  * Revokes a user session.
  * @param sessionId - The session ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
@@ -140,32 +183,13 @@ export async function revokeUserSession(
   signal?: AbortSignal,
 ): Promise<ActionResult> {
   return safeAction(async () => {
-    assertSafeLogtoId(sessionId, 'sessionId');
-    assertRevokeGrantsTarget(revokeGrantsTarget);
-    assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
-
-    debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
-    debugLog(`[revokeUserSession] revokeGrantsTarget=${revokeGrantsTarget}, verificationId=${identityVerificationRecordId.substring(0, 8)}...`);
-
-    const extraHeaders: Record<string, string> = {
-      'logto-verification-id': identityVerificationRecordId,
-    };
-
-    const safePath = `/api/my-account/sessions/${encodeURIComponent(sessionId)}`;
-
-    debugLog(`[revokeUserSession] Calling DELETE ${safePath}${revokeGrantsTarget ? `?revokeGrantsTarget=${revokeGrantsTarget}` : ''}`);
-    const res = await makeRequest(safePath, {
-      method: 'DELETE',
-      extraHeaders,
-      ...(revokeGrantsTarget && { query: { revokeGrantsTarget } }),
+    await revokeUserSessionInternal(
+      sessionId,
+      identityVerificationRecordId,
+      verificationTimestamp,
+      revokeGrantsTarget,
       signal,
-    });
-
-    debugLog(`[revokeUserSession] Logto responded with status ${res.status}`);
-    await throwOnApiError(res, 'SESSION_REVOKE_FAILED', 'session-revoke');
-
-    debugLog(`[revokeUserSession] Successfully revoked session ${sessionId}`);
+    );
   }) as Promise<ActionResult>;
 }
 
@@ -189,11 +213,7 @@ export async function revokeAllOtherSessions(
     assertVerificationNotExpired(verificationTimestamp);
     debugLog('[revokeAllOtherSessions] Fetching sessions');
 
-    const sessionsResult = await getUserSessions(verificationRecordId, verificationTimestamp);
-    if (!sessionsResult.ok) {
-      throw new Error(sessionsResult.error);
-    }
-    const sessions = sessionsResult.data;
+    const sessions = await getUserSessionsInternal(verificationRecordId, verificationTimestamp);
 
     // Identify current session via token introspection.
     // The introspection `sid` claim is the OIDC session UID - matches payload.uid.
@@ -222,8 +242,14 @@ export async function revokeAllOtherSessions(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
       try {
-        const r = await revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty', controller.signal);
-        if (!r.ok) throw new Error(r.error);
+        await revokeUserSessionInternal(
+          s.payload.uid,
+          verificationRecordId,
+          verificationTimestamp,
+          'firstParty',
+          controller.signal,
+          true, // skipVerificationCheck (BUG-004)
+        );
         results.push({ status: 'fulfilled', value: undefined });
       } catch (reason) {
         results.push({ status: 'rejected', reason });

@@ -32,7 +32,7 @@ const {
   });
 
   return {
-  mockReadEnv: vi.fn(),
+  mockReadEnv: vi.fn((key: string, _allowPublic?: boolean): string | undefined => key === 'APP_SECRET' ? 'dummy-secret' : undefined),
   MockUserBadge: () => null,
   mockLoadPersonalPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
   mockLoadPersonalRoles: vi.fn().mockResolvedValue({ ok: true, data: [] }),
@@ -112,6 +112,7 @@ function renderProfile(
   mockReadEnv.mockImplementation((key: string) => {
     if (key === 'NAME_TYPE') return nameType;
     if (key === 'USER_SHAPE') return 'circle';
+    if (key === 'APP_SECRET') return 'dummy-secret';
     return undefined;
   });
 

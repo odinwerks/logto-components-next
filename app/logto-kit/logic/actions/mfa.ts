@@ -11,45 +11,18 @@ import { ValidationError } from '../validation';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../config';
 
-import { assertVerificationNotExpired, auditSafe, createLockManager } from './helpers';
+import { assertVerificationNotExpired, auditSafe } from './helpers';
+import { createLockManager, createRateLimiter } from '../../../lib/distributed-state';
 
 // In-flight lock to prevent concurrent backup codes generation races
-const backupCodesLockManager = createLockManager();
+const backupCodesLockManager = createLockManager('mfa-backup-codes');
 
-const totpGenerationCooldowns = new Map<string, number>();
-const MAX_COOLDOWN_ENTRIES = 1000;
-
-export async function clearTotpCooldownsForTesting(): Promise<void> {
-  totpGenerationCooldowns.clear();
-}
-
-export async function getTotpCooldownsSizeForTesting(): Promise<number> {
-  return totpGenerationCooldowns.size;
-}
-
-export async function setTotpCooldownForTesting(userId: string, timestamp: number): Promise<void> {
-  totpGenerationCooldowns.set(userId, timestamp);
-}
-
-export async function hasTotpCooldownForTesting(userId: string): Promise<boolean> {
-  return totpGenerationCooldowns.has(userId);
-}
-
-export async function getBackupCodesLocksSizeForTesting(): Promise<number> {
-  return backupCodesLockManager.locks.size;
-}
-
-export async function clearBackupCodesLocksForTesting(): Promise<void> {
-  backupCodesLockManager.locks.clear();
-}
-
-export async function setBackupCodesLockForTesting(userId: string, promise: Promise<void>): Promise<void> {
-  backupCodesLockManager.locks.set(userId, promise);
-}
-
-export async function hasBackupCodesLockForTesting(userId: string): Promise<boolean> {
-  return backupCodesLockManager.locks.has(userId);
-}
+// Rate limiter for TOTP secret generation (1 request per 10s per user)
+const totpGenerationRateLimiter = createRateLimiter({
+  name: 'mfa-totp-cooldown',
+  windowMs: 10_000,
+  max: 1,
+});
 
 /**
  * Gets the user's MFA verifications.
@@ -88,27 +61,10 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
     const userId = claims.sub;
     assertSafeLogtoId(userId);
 
-    const now = Date.now();
-
-    // To prevent unbounded Map growth, execute a lazy-on-write cleanup during request check:
-    if (totpGenerationCooldowns.size >= MAX_COOLDOWN_ENTRIES) {
-      for (const [key, timestamp] of totpGenerationCooldowns.entries()) {
-        if (now >= timestamp + 10000) {
-          totpGenerationCooldowns.delete(key);
-        }
-      }
-      if (totpGenerationCooldowns.size >= MAX_COOLDOWN_ENTRIES) {
-        totpGenerationCooldowns.clear();
-      }
-    }
-
-    const lastRequestTime = totpGenerationCooldowns.get(userId);
-    if (lastRequestTime !== undefined && now < lastRequestTime + 10000) {
+    // Rate limit check (1 request per 10s per user)
+    if (!totpGenerationRateLimiter.check(userId)) {
       throw plainCode('MFA_ENROLL_FAILED');
     }
-
-    // Set cooldown to the current timestamp
-    totpGenerationCooldowns.set(userId, now);
 
     const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
       method: 'POST',
@@ -131,6 +87,11 @@ export async function addMfaVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const token = await getTokenForServerAction();
+    const intro = await introspectToken(token);
+    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    const userId = intro.sub;
+
     assertMfaType(verification.type);
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -198,9 +159,7 @@ export async function addMfaVerification(
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'mfa-add');
 
     // Audit (best-effort - failure must not break the main action)
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    auditSafe(_intro.sub ?? 'unknown', `mfa.${verification.type.toLowerCase()}.enroll`);
+    auditSafe(userId, `mfa.${verification.type.toLowerCase()}.enroll`);
   });
 }
 
@@ -215,6 +174,11 @@ export async function deleteMfaVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const token = await getTokenForServerAction();
+    const intro = await introspectToken(token);
+    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    const userId = intro.sub;
+
     assertSafeLogtoId(verificationId, 'verificationId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -229,9 +193,7 @@ export async function deleteMfaVerification(
     await throwOnApiError(res, 'MFA_REMOVE_FAILED', 'mfa-remove');
 
     // Audit (best-effort - failure must not break the main action)
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    auditSafe(_intro.sub ?? 'unknown', 'mfa.remove', verificationId);
+    auditSafe(userId, 'mfa.remove', verificationId);
   });
 }
 
@@ -308,9 +270,7 @@ export async function generateBackupCodes(
       await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
       // Audit (best-effort - failure must not break the main action)
-      const _token = await getTokenForServerAction();
-      const _intro = await introspectToken(_token);
-      auditSafe(_intro.sub ?? 'unknown', 'mfa.backup_codes.generate');
+      auditSafe(userId, 'mfa.backup_codes.generate');
 
       return { codes };
     } finally {
@@ -351,6 +311,11 @@ export async function replaceTotpVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const token = await getTokenForServerAction();
+    const intro = await introspectToken(token);
+    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    const userId = intro.sub;
+
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
@@ -364,8 +329,7 @@ export async function replaceTotpVerification(
 
     await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-replace');
 
-    const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
-    auditSafe(_intro.sub ?? 'unknown', 'mfa.totp.replace');
+    // Audit (best-effort - failure must not break the main action)
+    auditSafe(userId, 'mfa.totp.replace');
   });
 }

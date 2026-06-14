@@ -248,7 +248,7 @@ export function pickPreferences(input: unknown): PreferencesShape {
         </p>
         <ul style={{ ...styles.textStyle, margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ paddingBottom: '8px' }}>
-            <strong>OAuth callback endpoints:</strong> Sign-in and sign-out endpoints are exempt from origin guards because the standard OIDC <code style={styles.codeStyle}>state</code> parameter natively provides full CSRF protection, and local development environments often trigger spurious origin mismatches during OAuth redirect round-trips.
+            <strong>OAuth callback endpoints:</strong> Sign-in and callback endpoints are exempt from origin guards because the standard OIDC <code style={styles.codeStyle}>state</code> parameter natively provides full CSRF protection, and local development environments often trigger spurious origin mismatches during OAuth redirect round-trips. Sign-out uses a Server Action (<code style={styles.codeStyle}>signOutUser()</code>), which has built-in origin validation — no API route or origin guard is needed.
           </li>
           <li>
             <strong>Standard <code style={styles.codeStyle}>GET</code> requests to <code style={styles.codeStyle}>/api/wipe</code>:</strong> Plain cookie-clearing via GET is exempt from origin guards to support standard browser navigations and redirects. However, destructive force-signout requests via <code style={styles.codeStyle}>GET /api/wipe?force=true</code> or any <code style={styles.codeStyle}>POST</code> requests to <code style={styles.codeStyle}>/api/wipe</code> strictly enforce <code style={styles.codeStyle}>checkSameOrigin</code>.

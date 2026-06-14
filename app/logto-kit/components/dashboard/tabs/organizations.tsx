@@ -48,7 +48,7 @@ interface OrgCardProps {
 
 const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }: OrgCardProps) => {
   const c = colors;
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const showTooltip = isHovered || isFocused;
@@ -94,91 +94,128 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
   }, []);
 
   return (
-    <button
-      onClick={() => handleOrgClick(org.id)}
-      role="radio"
-      aria-checked={isSelected}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      aria-describedby={showTooltip ? tooltipId : undefined}
+    <div
       style={{
-        padding: '0.625rem 0.75rem',
-        background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
-        border: `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
-        borderRadius: '0.25rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        cursor: isLoading === org.id ? 'wait' : 'pointer',
-        opacity: isLoading === org.id ? 0.6 : 1,
-        transition: 'all 0.15s ease',
-        boxShadow: isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+        position: 'relative',
         width: '100%',
-        textAlign: 'left',
       }}
     >
-      <div>
-        <div style={{
-          color: isSelected ? c.accentBlue : c.textPrimary,
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          fontFamily: FONT_MONO,
-        }}>
-          {org.name}
-          {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: '0.5625rem' }}>{t.organizations.active}</span>}
+      <button
+        onClick={() => handleOrgClick(org.id)}
+        role="radio"
+        aria-checked={isSelected}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        aria-describedby={showTooltip ? tooltipId : undefined}
+        style={{
+          padding: '0.625rem 2.25rem 0.625rem 0.75rem',
+          background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
+          border: `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
+          borderRadius: '0.25rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: isLoading === org.id ? 'wait' : 'pointer',
+          opacity: isLoading === org.id ? 0.6 : 1,
+          transition: 'all 0.15s ease',
+          boxShadow: isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+          width: '100%',
+          textAlign: 'left',
+        }}
+      >
+        <div>
+          <div style={{
+            color: isSelected ? c.accentBlue : c.textPrimary,
+            fontSize: '0.6875rem',
+            fontWeight: 600,
+            fontFamily: FONT_MONO,
+          }}>
+            {org.name}
+            {isSelected && <span style={{ marginLeft: '0.5rem', fontSize: '0.5625rem' }}>{t.organizations.active}</span>}
+          </div>
         </div>
-        <div
-          ref={triggerRef}
-          style={{ display: 'inline-flex', alignItems: 'center', marginTop: '0.125rem' }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <Info
-            size={12}
-            strokeWidth={1.5}
-            style={{ color: c.textTertiary, cursor: 'help', flexShrink: 0 }}
-          />
-          {showTooltip &&
-            createPortal(
-              <div
-                id={tooltipId}
-                style={tooltipStyle}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
-                <div
-                  style={{
-                    background: c.bgSecondary,
-                    border: `1px solid ${c.borderColor}`,
-                    borderRadius: '0.25rem',
-                    padding: '0.5rem 0.625rem',
-                    minWidth: '14rem',
-                    maxWidth: '18rem',
-                    boxShadow: mode === 'dark'
-                      ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
-                      : '0 2px 8px rgba(0, 0, 0, 0.15)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
-                  }}
-                >
-                  <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
-                    <span style={{ color: c.textTertiary }}>{t.organizations.idLabel}: </span>
-                    {org.id}
-                  </div>
-                  {org.description && (
-                    <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
-                      <span style={{ color: c.textTertiary }}>Description: </span>
-                      {org.description}
-                    </div>
-                  )}
+      </button>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Organization info"
+        style={{
+          position: 'absolute',
+          right: '0.75rem',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'help',
+          background: 'none',
+          border: 'none',
+          padding: '0.25rem',
+          margin: 0,
+          outline: 'none',
+          zIndex: 10,
+          color: c.textTertiary,
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsFocused((prev) => !prev);
+          }
+        }}
+      >
+        <Info
+          size={12}
+          strokeWidth={1.5}
+          style={{ flexShrink: 0 }}
+        />
+      </button>
+      {showTooltip &&
+        createPortal(
+          <div
+            id={tooltipId}
+            style={tooltipStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div
+              style={{
+                background: c.bgSecondary,
+                border: `1px solid ${c.borderColor}`,
+                borderRadius: '0.25rem',
+                padding: '0.5rem 0.625rem',
+                minWidth: '14rem',
+                maxWidth: '18rem',
+                boxShadow: mode === 'dark'
+                  ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
+              }}
+            >
+              <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+                <span style={{ color: c.textTertiary }}>{t.organizations.idLabel}: </span>
+                {org.id}
+              </div>
+              {org.description && (
+                <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
+                  <span style={{ color: c.textTertiary }}>Description: </span>
+                  {org.description}
                 </div>
-              </div>,
-              document.body
-            )}
-        </div>
-      </div>
-    </button>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+    </div>
   );
 };
 
@@ -362,7 +399,7 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
       });
 
     return () => { cancelled = true; };
-  }, [activeOrgId, userData, visible]);
+  }, [activeOrgId, visible]);
 
   if (!visible) return null;
 
@@ -522,24 +559,29 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
 
     if (!activeOrgId || organizationRoles.length === 0) return;
 
-    setIsRolesLoading(true);
-    loadOrganizationUserRoles(activeOrgId).then(result => {
-      if (cancelled) return;
-      setIsRolesLoading(false);
-      if (!result.ok) {
-        console.error('[OrganizationsTab] Failed to load org user roles:', result.error);
-        return;
+    const loadRoles = async () => {
+      setIsRolesLoading(true);
+      try {
+        const result = await loadOrganizationUserRoles(activeOrgId);
+        if (cancelled) return;
+        setIsRolesLoading(false);
+        if (!result.ok) {
+          console.error('[OrganizationsTab] Failed to load org user roles:', result.error);
+          return;
+        }
+        const map: Record<string, { id: string; description?: string }> = {};
+        for (const apiRole of result.data) {
+          map[apiRole.name] = { id: apiRole.id, description: apiRole.description };
+        }
+        setOrgUserRoles(map);
+      } catch (err) {
+        if (cancelled) return;
+        setIsRolesLoading(false);
+        console.error('[OrganizationsTab] Error loading org user roles:', err);
       }
-      const map: Record<string, { id: string; description?: string }> = {};
-      for (const apiRole of result.data) {
-        map[apiRole.name] = { id: apiRole.id, description: apiRole.description };
-      }
-      setOrgUserRoles(map);
-    }).catch(err => {
-      if (cancelled) return;
-      setIsRolesLoading(false);
-      console.error('[OrganizationsTab] Error loading org user roles:', err);
-    });
+    };
+
+    loadRoles();
 
     return () => { cancelled = true; };
     // intentional: relies on unmount/remount for refresh, not dependency tracking
@@ -662,7 +704,11 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
                 {errorMsg}
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div
+              role="radiogroup"
+              aria-label={t.organizations.orgs}
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+            >
               {organizations.map(org => (
                 <OrgCard
                   key={org.id}

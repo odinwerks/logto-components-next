@@ -118,7 +118,7 @@ const phStyle: React.CSSProperties = {
 };
 
 const cursorStyle: React.CSSProperties = {
-  animation: 'blink 1.1s step-end infinite',
+  animation: 'demo-blink 1.1s step-end infinite',
   color: 'rgba(255,255,255,0.22)',
   marginLeft: '2px',
 };
@@ -131,7 +131,7 @@ const footStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '7px',
-  animation: 'riseUp 0.28s ease-out 0.4s both',
+  animation: 'demo-riseUp 0.28s ease-out 0.4s both',
 };
 
 const footDotStyle: React.CSSProperties = {
@@ -245,12 +245,6 @@ export default function ContentArea({ item }: ContentAreaProps) {
 
   return (
     <div style={themedContentStyle}>
-      <style>{`
-        @keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes riseUp { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-      `}</style>
-
       <div style={themedTopbarStyle}>
         <span style={themedCrumbStyle}>logto-kit</span>
         <span style={themedSepStyle}>/</span>
@@ -269,7 +263,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
               key={section}
               style={{
                 ...themedSectStyle,
-                animation: `riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
+                animation: `demo-riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
               }}
             >
               <div style={themedSectHeadStyle}>

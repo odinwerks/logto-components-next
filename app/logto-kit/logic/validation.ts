@@ -66,13 +66,18 @@ export function validateUsername(username: string, t: Translations['validation']
 
 export function validateUrl(url: string, t: Translations['validation'], field = 'url'): void {
   if (!url) return;
+
+  // Step 1: Parse the URL — catch only malformed URL exceptions here.
+  let parsed: URL;
   try {
-    const parsed = new URL(url);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      throw new ValidationError(t.urlInvalidProtocol, field);
-    }
+    parsed = new URL(url);
   } catch {
     throw new ValidationError(t.urlInvalidFormat, field);
+  }
+
+  // Step 2: Check the protocol/scheme separately so the error is accurate.
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new ValidationError(t.urlInvalidProtocol, field);
   }
 }
 

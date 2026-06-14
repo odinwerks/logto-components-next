@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, ArrowLeft, X } from 'lucide-react';
+import { Menu, ArrowLeft } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
 import { NAV_ITEMS } from './nav-data';
@@ -10,11 +10,20 @@ import { slugify } from './components/SectionComponents';
 
 export default function MobileDocsNav() {
   const [isOpen, setIsOpen] = useState(false);
-  const [stage, setStage] = useState<'topics' | 'sections'>('topics');
+  const [stage, setStage] = useState<'index' | 'topics' | 'sections'>('topics');
   const [selectedTopic, setSelectedTopic] = useState<typeof NAV_ITEMS[0] | null>(null);
   const { colors, mode } = useThemeMode();
   const router = useRouter();
   const isDark = mode === 'dark';
+
+  useEffect(() => {
+    if (stage === 'index') {
+      router.push('/');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsOpen(false);
+      setStage('topics');
+    }
+  }, [stage, router, setIsOpen]);
 
   const handleSectionClick = (topicId: string, section: string) => {
     router.push(`/${topicId}/${slugify(section)}`);
@@ -200,15 +209,17 @@ export default function MobileDocsNav() {
                  <UserButton Size="2.5rem" shape="rsq" />
               </div>
 
-              {/* X Close button positioned exactly where Hamburger is */}
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                style={triggerStyle}
-                aria-label="Close navigation"
-              >
-                 <X size={18} />
-              </button>
+              {/* Back button replacing X Close button */}
+              {stage === 'topics' && (
+                <button
+                  type="button"
+                  onClick={() => setStage('index')}  // Go back to index, not close
+                  style={triggerStyle}
+                  aria-label="Back to topics"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+              )}
             </div>
           ) : (
             <div style={stageContainerStyle}>

@@ -8,6 +8,17 @@ import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
 import { getManagementApiToken, getLogtoConfig } from '../../logto-kit/config';
 import { verifyPersonalAccess, verifyOrgAccess } from '../../logto-kit/logic/actions';
+import { createRateLimiter } from '../../lib/distributed-state';
+
+// ── Per-user rate limiting ────────────────────────────────────────────────────
+// Protects Logto API quotas from exhaustion by a single user.
+// Uses centralized distributed-state module (Redis-backed when REDIS_URL is set,
+// in-memory otherwise). See app/lib/distributed-state.ts.
+const protectedRouteRateLimiter = createRateLimiter({
+  name: 'protected-route',
+  windowMs: 60_000,
+  max: 60,
+});
 
 async function fetchUserAsOrg(userId: string): Promise<string | null> {
   try {
@@ -123,6 +134,12 @@ export async function POST(request: NextRequest) {
       assertSafeUserId(id);
     } catch {
       return apiError('TOKEN_INVALID', 400);
+    }
+
+    // ── Per-user rate limit ───────────────────────────────────────────────────
+    if (!protectedRouteRateLimiter.check(id)) {
+      debugLog(`[Protected API] Rate limit exceeded for user ${id}`);
+      return apiError('RATE_LIMITED', 429);
     }
 
     // ── Resolve action ────────────────────────────────────────────────────────

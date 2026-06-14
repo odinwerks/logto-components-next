@@ -78,12 +78,9 @@ describe('AuthErrorBanner', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('calls router.replace to strip auth_error param on dismiss', () => {
+  it('calls router.replace to strip auth_error param automatically on mount', () => {
     searchParams = new URLSearchParams('auth_error=access_denied');
     render(<AuthErrorBanner />);
-
-    const dismissButton = screen.getByRole('button', { name: /dismiss error/i });
-    fireEvent.click(dismissButton);
 
     expect(mockReplace).toHaveBeenCalledOnce();
     // After removing auth_error, params is empty, so it should use window.location.pathname

@@ -5,10 +5,11 @@ import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw } from 'lucide-react';
+import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe, Loader2 } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
+import { useFocusTrap } from '../shared/focus-trap';
 import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache';
 import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
@@ -102,16 +103,20 @@ export function SessionsTab({
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
   const [viewState, setViewState] = useState<'unverified' | 'loaded'>('unverified');
 
+  // GC ALL modal state (Task 1)
+  const [showGcAllModal, setShowGcAllModal] = useState(false);
+  const [gcAllLoading, setGcAllLoading] = useState(false);
+
+  const gcAllDialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(gcAllDialogRef, () => {
+    if (showGcAllModal && !gcAllLoading) setShowGcAllModal(false);
+  });
+
   // Persists the revoke target through failed attempts so retries send the correct session ID
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
 
-  const [currentTime, setCurrentTime] = useState(() => Date.now());
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(Date.now()), 60_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const isVerificationValid = verificationRecordId && currentTime < verificationExpiry;
+  // eslint-disable-next-line react-hooks/purity
+  const isVerificationValid = verificationRecordId && Date.now() < verificationExpiry;
 
   // Auto-invalidate verification when it expires, forcing re-verification
   useEffect(() => {
@@ -130,10 +135,13 @@ export function SessionsTab({
   const openMapModal = useCallback((geo: GeoLocation, ip: string) => {
     setMapModalGeo(geo);
     setMapModalIp(ip);
-  }, []);
+  }, [setMapModalGeo, setMapModalIp]);
 
   const handleLocate = useCallback(async (ip: string) => {
     if (!ip) return;
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('geo-consent', 'true');
+    }
     const cached = getCachedGeo(ip);
     if (cached) { openMapModal(cached, ip); return; }
     setLocatingIp(ip);
@@ -154,7 +162,7 @@ export function SessionsTab({
       return;
     }
     const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
-    const expiresAt = ts + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS;
+    const expiresAt = ts; // ts is already Logto's expiresAt
     setVerificationRecordId(vid);
     setVerificationTimestamp(ts);
     setVerificationExpiry(expiresAt);
@@ -173,7 +181,20 @@ export function SessionsTab({
     setSessions(sessionsResult.data);
     setViewState('loaded');
     setLoading(false);
-  }, [onVerifyPassword, onGetSessionsWithDeviceMeta, onError, t]);
+  }, [
+    onVerifyPassword,
+    onGetSessionsWithDeviceMeta,
+    onError,
+    t,
+    setModalStep,
+    setModalError,
+    setVerificationRecordId,
+    setVerificationTimestamp,
+    setVerificationExpiry,
+    setLoading,
+    setSessions,
+    setViewState
+  ]);
 
   const loadSessions = useCallback(async (verification?: { recordId: string; timestamp: number }) => {
     const recordId = verification?.recordId ?? verificationRecordId;
@@ -207,17 +228,7 @@ export function SessionsTab({
       return;
     }
     await loadSessions();
-  }, [loadSessions, isVerificationValid]);
-
-  const handleRevokeAll = useCallback(async () => {
-    // Always require password confirmation for revoke all - the password modal
-    // serves as both confirmation and verification.
-    setRevokingId('__all__');
-    revokeTargetRef.current = { kind: 'all' };
-    setModalPurpose('revoke');
-    setModalStep({ kind: 'password' });
-    setModalError('');
-  }, []);
+  }, [loadSessions, isVerificationValid, setMapModalGeo, setMapModalIp, setViewState]);
 
   const startViewVerification = () => {
     setModalPurpose('view');
@@ -268,7 +279,7 @@ export function SessionsTab({
       vts = verifyResult.data.verificationTimestamp;
       setVerificationRecordId(vid);
       setVerificationTimestamp(vts);
-      setVerificationExpiry(vts + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS);
+      setVerificationExpiry(vts); // vts IS the expiresAt
     }
 
     const target = revokeTargetRef.current;
@@ -278,6 +289,7 @@ export function SessionsTab({
     }
 
     if (target.kind === 'all') {
+      setRevokingAll(true);
       const revokeResult = await onRevokeAllOtherSessions(vid, vts);
       if (!revokeResult.ok) {
         setModalError(revokeResult.error);
@@ -290,6 +302,7 @@ export function SessionsTab({
       if (!revokeResult.ok) {
         setModalError(revokeResult.error);
         setModalStep({ kind: 'password' });
+        setRevokingId(null);
         setRevokingAll(false);
         return;
       }
@@ -311,6 +324,19 @@ export function SessionsTab({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatFullDateTime = (input: number | string) => {
+    const date = typeof input === 'string' ? new Date(input) : new Date(input < 1e12 ? input * 1000 : input);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${day}.${month}.${year} at ${hours}:${minutes} ${ampm}`;
   };
 
   const getSessionTitle = (session: LogtoSession): string => {
@@ -373,28 +399,196 @@ export function SessionsTab({
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{
-            background: T.bg,
-            border: `1px solid ${T.border}`,
-            borderRadius: DASHBOARD_RADIUS,
-            height: '5.5rem',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 0.875rem',
-            gap: '0.75rem',
-            opacity: 1 - i * 0.2,
-          }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.25rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '55%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
-              <div style={{ height: '0.5rem', borderRadius: '0.25rem', background: T.raised, width: '35%', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15 + 0.1}s` }} />
+        {[0, 1, 2].map(i => {
+          const isCurrent = i === 0;
+          return (
+            <div key={i} style={{
+              background: T.bg,
+              border: `1px solid ${T.border}`,
+              borderRadius: DASHBOARD_RADIUS,
+              display: 'flex',
+              alignItems: 'stretch',
+              overflow: 'hidden',
+              minHeight: isMobile ? 'auto' : '5.5rem',
+              padding: isMobile ? '0.75rem 0.75rem' : '0 0.875rem',
+              opacity: 1 - i * 0.2,
+            }}>
+              {/* 1. OS Icon placeholder */}
+              <div style={{
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                padding: isMobile ? '0 0 0 0' : '0.5rem 1.25rem 0.5rem 0.125rem',
+                marginRight: isMobile ? '0.75rem' : '0'
+              }}>
+                <div style={{
+                  width: isMobile ? '3rem' : '3rem',
+                  height: isMobile ? '3rem' : '3rem',
+                  borderRadius: '0.25rem',
+                  background: T.raised,
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                  animationDelay: `${i * 0.15}s`
+                }} />
+              </div>
+
+              {/* 2. Text Content placeholder */}
+              <div style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                padding: isMobile ? '0' : '0.5rem 1rem',
+                gap: isMobile ? '0.25rem' : '0.375rem',
+              }}>
+                {/* Title */}
+                <div style={{
+                  height: isMobile ? '0.625rem' : '0.75rem',
+                  borderRadius: '0.25rem',
+                  background: T.raised,
+                  width: '55%',
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                  animationDelay: `${i * 0.15}s`
+                }} />
+                {/* Signed In Timestamp */}
+                <div style={{
+                  height: '0.5rem',
+                  borderRadius: '0.25rem',
+                  background: T.raised,
+                  width: isMobile ? '70%' : '45%',
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                  animationDelay: `${i * 0.15 + 0.1}s`
+                }} />
+                {/* Expires Timestamp */}
+                <div style={{
+                  height: '0.5rem',
+                  borderRadius: '0.25rem',
+                  background: T.raised,
+                  width: isMobile ? '50%' : '35%',
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                  animationDelay: `${i * 0.15 + 0.2}s`
+                }} />
+                {/* Last Active (only if showLastActive) */}
+                {showLastActive && (
+                  <div style={{
+                    height: '0.5rem',
+                    borderRadius: '0.25rem',
+                    background: T.raised,
+                    width: isMobile ? '40%' : '30%',
+                    animation: 'pulse 1.4s ease-in-out infinite',
+                    animationDelay: `${i * 0.15 + 0.3}s`
+                  }} />
+                )}
+              </div>
+
+              {/* 3. Right-aligned button/action area */}
+              <div style={{
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: isMobile ? 'flex-end' : 'center',
+                padding: isMobile ? '0' : '0.5rem 0.375rem 0.5rem 0',
+                gap: '0.375rem',
+              }}>
+                {isCurrent ? (
+                  isMobile ? (
+                    // Globe icon placeholder for "This Device"
+                    <button
+                      aria-label={t.sessions.thisDevice}
+                      style={{
+                        width: '2rem',
+                        height: '2rem',
+                        borderRadius: '0.25rem',
+                        border: `1px solid ${c.borderColor}`,
+                        background: c.bgTertiary,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'default',
+                        opacity: 0.6,
+                      }}
+                      disabled
+                    >
+                      <Globe size={16} color={T.muted} />
+                    </button>
+                  ) : (
+                    // Desktop This Device Badge skeleton/placeholder
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontFamily: T.font,
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      padding: '0.3125rem 0.75rem',
+                      borderRadius: '0.25rem',
+                      whiteSpace: 'nowrap',
+                      border: `1px solid ${c.borderColor}`,
+                      background: c.bgTertiary,
+                      color: T.muted,
+                      opacity: 0.6,
+                    }}>
+                      {t.sessions.thisDevice}
+                    </span>
+                  )
+                ) : (
+                  isMobile ? (
+                    // Other Device Revoke Trash button placeholder
+                    <div style={{
+                      width: '1.75rem',
+                      height: '1.75rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      animation: 'pulse 1.4s ease-in-out infinite',
+                      animationDelay: `${i * 0.15}s`
+                    }} />
+                  ) : (
+                    // Desktop Other Device Revoke button placeholder
+                    <div style={{
+                      width: '4rem',
+                      height: '1.75rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      animation: 'pulse 1.4s ease-in-out infinite',
+                      animationDelay: `${i * 0.15}s`
+                    }} />
+                  )
+                )}
+
+                {/* Map Button Placeholder */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  marginTop: isMobile ? '0.25rem' : '0.375rem',
+                }}>
+                  <button
+                    disabled
+                    aria-label={t.sessions.ipLocation}
+                    title={t.sessions.ipLocation}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '1.25rem',
+                      height: '1.25rem',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      color: T.muted,
+                      padding: 0,
+                      opacity: 0.4,
+                      cursor: 'default',
+                    }}
+                  >
+                    <MapPin size={10} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ width: '5rem', height: '5.5rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
-            <div style={{ width: '4rem', height: '1.75rem', borderRadius: '0.25rem', background: T.raised, flexShrink: 0, animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -414,51 +608,81 @@ export function SessionsTab({
           {t.sessions.description}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-          {sessions.some(s => s.meta?.isCurrent) && (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={handleRevokeAll}
-              disabled={revokingAll || loading || revokingId === '__all__'}
-              mode={mode}
-              colors={c}
-            >
-              {revokingAll ? t.common.loading : t.sessions.revokeAll}
-            </Button>
+          {isMobile ? (
+            <>
+              {sessions.some(s => s.meta?.isCurrent) && (
+                <button
+                  onClick={() => setShowGcAllModal(true)}
+                  disabled={revokingAll || loading}
+                  aria-label={t.sessions.gcAllConfirmTitle}
+                  style={{
+                    width: '2rem',
+                    height: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: c.errorBg,
+                    border: `1px solid ${c.accentRed}38`,
+                    borderRadius: '0.25rem',
+                    cursor: (revokingAll || loading) ? 'not-allowed' : 'pointer',
+                    color: c.accentRed,
+                    opacity: (revokingAll || loading) ? 0.45 : 1,
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={1.5} />
+                </button>
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                aria-label={t.sessions.refreshData}
+                style={{
+                  width: '2rem',
+                  height: '2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: c.bgTertiary,
+                  border: `1px solid ${c.borderColor}`,
+                  borderRadius: '0.25rem',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  color: c.textSecondary,
+                  opacity: loading ? 0.45 : 1,
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <RefreshCw size={14} strokeWidth={1.5} />
+              </button>
+            </>
+          ) : (
+            <>
+              {sessions.some(s => s.meta?.isCurrent) && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setShowGcAllModal(true)}
+                  disabled={revokingAll || loading}
+                  mode={mode}
+                  colors={c}
+                >
+                  {revokingAll ? t.common.loading : t.sessions.revokeAll}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleRefresh}
+                disabled={loading}
+                mode={mode}
+                colors={c}
+              >
+                {loading ? t.common.loading : t.sessions.refreshData}
+              </Button>
+            </>
           )}
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            style={{
-              fontFamily: T.font,
-              fontSize: '0.6875rem',
-              fontWeight: 500,
-              color: T.muted,
-              background: 'none',
-              border: `1px solid ${T.border}`,
-              borderRadius: DASHBOARD_RADIUS,
-              padding: '0.3125rem 0.75rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              transition: 'background 0.15s, color 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-                e.currentTarget.style.color = T.text;
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'none';
-              e.currentTarget.style.color = T.muted;
-            }}
-          >
-            <RefreshCw size={12} strokeWidth={1.5} />
-            {t.sessions.refreshData}
-          </button>
         </div>
       </div>
 
@@ -503,11 +727,19 @@ export function SessionsTab({
                 height: isMobile ? 'auto' : 'auto',
                 minHeight: isMobile ? 'auto' : '5.5rem',
               }}>
-                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: isMobile ? '0.75rem 0 0.75rem 0.75rem' : '0.5rem 1.25rem 0.5rem 1rem' }}>
-                  <OsIcon os={os} deviceType={deviceType} size={isMobile ? 32 : 48} />
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: isMobile ? '3rem' : 'auto',
+                  padding: isMobile ? '0.75rem 0 0.75rem 0.75rem' : '0.5rem 1.25rem 0.5rem 1rem',
+                  boxSizing: 'content-box',
+                }}>
+                  <OsIcon os={os} deviceType={deviceType} size={isMobile ? 48 : 48} />
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.75rem' : '0.5rem 1rem' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.25rem 0.75rem 0.75rem' : '0.5rem 1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: isMobile ? '0.25rem' : '0.375rem' }}>
                     <h3 style={{
                       fontFamily: T.font,
@@ -543,7 +775,13 @@ export function SessionsTab({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: isMobile ? '0.625rem' : '0.75rem', color: T.muted }}>
-                    <span>{isMobile ? formatDate(session.payload.loginTs) : `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`}</span>
+                    <span>
+                      {isMobile ? (
+                        <>Signed in: {formatFullDateTime(session.payload.loginTs)}</>
+                      ) : (
+                        `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`
+                      )}
+                    </span>
                   </div>
 
                   <div style={{ marginTop: '0.125rem', fontSize: isMobile ? '0.625rem' : '0.6875rem', color: T.sub }}>
@@ -567,33 +805,47 @@ export function SessionsTab({
                   )}
                 </div>
 
-                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0.5rem 1.25rem 0.5rem 0', gap: '0.375rem' }}>
+                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? '0.75rem 0.75rem 0.75rem 0' : '0.5rem 1.25rem 0.5rem 0', gap: '0.375rem' }}>
                   {session.meta?.isCurrent ? (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      fontFamily: T.font,
-                      fontSize: isMobile ? '0.625rem' : '0.6875rem',
-                      fontWeight: 600,
-                      padding: isMobile ? '0.25rem 0.5rem' : '0.3125rem 0.75rem',
-                      borderRadius: '0.25rem',
-                      whiteSpace: 'nowrap',
-                      border: `1px solid ${c.accentGreen}`,
-                      background: `${c.accentGreen}33`,
-                      color: c.accentGreen,
-                    }}>
-                      {!isMobile && (
-                        <span style={{
-                          width: '0.4rem',
-                          height: '0.4rem',
-                          borderRadius: '50%',
-                          background: 'currentColor',
-                          display: 'inline-block',
-                        }} />
-                      )}
-                      {t.sessions.thisDevice}
-                    </span>
+                    isMobile ? (
+                      <button
+                        aria-label={t.sessions.thisDevice}
+                        style={{
+                          width: '2rem',
+                          height: '2rem',
+                          borderRadius: '0.25rem',
+                          border: `1px solid ${colors.borderColor}`,
+                          background: colors.bgTertiary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'default',
+                        }}
+                        disabled
+                      >
+                        <Globe size={16} color={T.greenText} />
+                      </button>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.3rem',
+                        fontFamily: T.font,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        padding: '0.3125rem 0.75rem',
+                        borderRadius: '0.25rem',
+                        whiteSpace: 'nowrap',
+                        border: `1px solid ${c.accentGreen}`,
+                        background: `${c.accentGreen}33`,
+                        color: c.accentGreen,
+                        width: '6.5rem',
+                        boxSizing: 'border-box',
+                      }}>
+                        {t.sessions.thisDevice}
+                      </span>
+                    )
                   ) : (
                     isMobile ? (
                       <button
@@ -601,16 +853,18 @@ export function SessionsTab({
                         disabled={!!revokingId || revokingAll}
                         aria-label={t.sessions.revoke}
                         style={{
-                          width: '1.75rem', height: '1.75rem',
+                          width: '2rem', height: '2rem',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: 'transparent',
-                          border: `1px solid ${T.border}`,
+                          background: c.errorBg,
+                          border: `1px solid ${c.accentRed}38`,
                           borderRadius: '0.25rem',
-                          color: T.muted,
-                          cursor: 'pointer',
+                          color: c.accentRed,
+                          cursor: (!!revokingId || revokingAll) ? 'not-allowed' : 'pointer',
+                          opacity: (!!revokingId || revokingAll) ? 0.45 : 1,
                           padding: 0,
+                          flexShrink: 0,
                         }}
-                      ><Trash2 size={12} /></button>
+                      ><Trash2 size={14} strokeWidth={1.5} /></button>
                     ) : (
                       <Button
                         size="sm"
@@ -619,58 +873,69 @@ export function SessionsTab({
                         disabled={!!revokingId || revokingAll}
                         mode={mode}
                         colors={c}
+                        style={{ width: '6.5rem' }}
                       >
                         {revokingId === session.payload.uid ? t.common.loading : t.sessions.revoke}
                       </Button>
                     )
                   )}
-                  {ip && (
+                  {ip && isMobile && (
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      marginTop: isMobile ? '0.25rem' : '0.375rem',
+                      marginTop: '0.25rem',
                     }}>
-                      <span style={{
-                        fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
-                        fontSize: '0.5625rem',
-                        color: T.muted,
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {ip}
-                      </span>
                       <button
                         onClick={() => handleLocate(ip)}
                         disabled={locatingIp === ip}
                         aria-label={t.sessions.ipLocation}
                         title={t.sessions.ipLocation}
                         style={{
+                          width: '2rem',
+                          height: '2rem',
+                          borderRadius: '0.25rem',
+                          border: `1px solid ${colors.borderColor}`,
+                          background: colors.bgTertiary,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          width: '1.25rem',
-                          height: '1.25rem',
-                          background: 'transparent',
-                          border: 'none',
-                          borderRadius: '0.25rem',
                           cursor: locatingIp === ip ? 'not-allowed' : 'pointer',
-                          color: locatingIp === ip ? T.muted : T.sub,
+                          color: colors.textSecondary,
                           padding: 0,
                           opacity: locatingIp === ip ? 0.5 : 1,
                           flexShrink: 0,
                         }}
                       >
                         {locatingIp === ip ? (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-                              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/>
-                            </path>
-                          </svg>
+                          <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                         ) : (
-                          <MapPin size={10} strokeWidth={1.5} />
+                          <MapPin size={16} />
                         )}
                       </button>
                     </div>
+                  )}
+                  {ip && !isMobile && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleLocate(ip)}
+                      disabled={locatingIp === ip}
+                      mode={mode}
+                      colors={c}
+                      aria-label={t.sessions.ipLocation}
+                      title={t.sessions.ipLocation}
+                      style={{ width: '6.5rem' }}
+                    >
+                      {locatingIp === ip ? (
+                        <>
+                          <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          {t.common.loading}
+                        </>
+                      ) : (
+                        t.sessions.viewMap
+                      )}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -703,6 +968,71 @@ export function SessionsTab({
           t={t}
           onClose={() => { setMapModalGeo(null); setMapModalIp(''); }}
         />
+      )}
+
+      {/* GC ALL Confirmation Modal (Task 1) */}
+      {showGcAllModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => !gcAllLoading && setShowGcAllModal(false)}
+        >
+          <div
+            ref={gcAllDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gc-all-title"
+            style={{
+              background: T.bg,
+              border: `1px solid ${T.border}`,
+              borderRadius: DASHBOARD_RADIUS,
+              padding: '1.5rem',
+              width: 'min(92vw, 420px)',
+              fontFamily: T.font,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="gc-all-title" style={{ fontSize: '1rem', fontWeight: 600, color: T.text, margin: '0 0 1rem 0' }}>
+              {t.sessions.gcAllConfirmTitle}
+            </h3>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+              <Button
+                variant="secondary"
+                onClick={() => setShowGcAllModal(false)}
+                disabled={gcAllLoading}
+                mode={mode}
+                colors={c}
+              >
+                {t.common.close}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  setGcAllLoading(true);
+                  revokeTargetRef.current = { kind: 'all' };
+                  setModalPurpose('revoke');
+                  setModalStep({ kind: 'password' });
+                  setModalError('');
+                  setShowGcAllModal(false);
+                  setGcAllLoading(false);
+                }}
+                disabled={gcAllLoading}
+                mode={mode}
+                colors={c}
+              >
+                {gcAllLoading ? t.common.loading : t.common.yes}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

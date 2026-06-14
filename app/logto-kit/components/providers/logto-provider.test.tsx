@@ -75,7 +75,7 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
     expect(screen.getByLabelText('Close dashboard')).toBeInTheDocument();
   });
 
-  it('shows X button on mobile (portrait/narrow) when dashboard is open', () => {
+  it('hides X button on mobile (portrait/narrow) when dashboard is open', () => {
     // Override matchMedia for portrait/narrow (mobile) mode
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches:
@@ -94,7 +94,44 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
       mobile: <div>mobile-dashboard</div>,
     });
 
-    // X close button should be present on mobile regardless of orientation
-    expect(screen.getByLabelText('Close dashboard')).toBeInTheDocument();
+    // X close button should NOT be present on mobile (back button handles it)
+    expect(
+      screen.queryByLabelText('Close dashboard'),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('LogtoProvider contextValue memoization (LOG-002)', () => {
+  it('returns the same context value reference on re-renders if dependencies do not change', () => {
+    const contextValues: unknown[] = [];
+
+    function TestConsumer() {
+      const contextValue = useLogto();
+      useEffect(() => {
+        contextValues.push(contextValue);
+      }, [contextValue]);
+      return null;
+    }
+
+    const { rerender } = render(
+      <LogtoProvider userData={mockUserData}>
+        <TestConsumer />
+      </LogtoProvider>
+    );
+
+    expect(contextValues).toHaveLength(1);
+    const firstContextValue = contextValues[0];
+    expect(firstContextValue).not.toBeNull();
+
+    // Re-render with same props
+    rerender(
+      <LogtoProvider userData={mockUserData}>
+        <TestConsumer />
+      </LogtoProvider>
+    );
+
+    // If memoized, contextValues should still have length 1 because the effect did not re-run
+    expect(contextValues).toHaveLength(1);
+    expect(contextValues[0]).toBe(firstContextValue);
   });
 });

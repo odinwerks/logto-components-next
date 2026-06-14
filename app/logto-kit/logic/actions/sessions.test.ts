@@ -18,9 +18,13 @@ vi.mock('./request', () => ({
   makeRequest: vi.fn(),
 }));
 
-vi.mock('../errors', () => ({
-  throwOnApiError: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('../errors', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../errors')>();
+  return {
+    ...actual,
+    throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock('../debug', () => ({
   debugLog: vi.fn(),
@@ -144,11 +148,10 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data[0].meta?.isCurrent).toBe(false);
   });
 
-  it('returns sessions with empty userId when token introspection fails (BUG-006)', async () => {
-    // Simulate introspection failure (e.g., LOGTO_INTROSPECTION_URL not configured)
-    vi.mocked(introspectToken).mockRejectedValue(
-      new Error('Logto introspection not configured')
-    );
+  it('sets meta.userId to empty string without calling introspection (perf fix)', async () => {
+    // Introspection was previously called to populate meta.userId, adding a
+    // sequential 10 s network round-trip on every Sessions tab load. It is now
+    // removed because meta.userId is not rendered in any UI component.
     const session = mockSession('session-d', true);
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ sessions: [session] })
@@ -157,17 +160,43 @@ describe('getSessionsWithDeviceMeta', () => {
     const { getSessionsWithDeviceMeta } = await import('./sessions');
     const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
 
-    // Should NOT fail even though introspection failed
+    // Should succeed
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toHaveLength(1);
-    // userId should be empty string as fallback
+    // userId is always empty string — no introspection needed
     expect(result.data[0].meta?.userId).toBe('');
-    // BUG-003: Should log a warning so operators can detect misconfiguration
-    expect(warn).toHaveBeenCalledWith(
-      '[getSessionsWithDeviceMeta] Introspection failed, using empty userId:',
-      'Logto introspection not configured'
-    );
+    // Introspection must NOT be called from getSessionsWithDeviceMeta
+    expect(introspectToken).not.toHaveBeenCalled();
+    expect(getTokenForServerAction).not.toHaveBeenCalled();
+    // warn must NOT be called (no introspection error to log)
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('preserves error codes and does not swallow them as INTERNAL_ERROR (BUG-014)', async () => {
+    const processEnv = process.env as Record<string, string | undefined>;
+    const origEnv = processEnv.NODE_ENV;
+    processEnv.NODE_ENV = 'production';
+    try {
+      // Force throwOnApiError to throw a SanitizedError with 'FETCH_FAILED'
+      const { throwOnApiError } = await import('../errors');
+      vi.mocked(throwOnApiError).mockImplementationOnce(() => {
+        const err = new Error('FETCH_FAILED');
+        err.name = 'SanitizedError';
+        throw err;
+      });
+
+      vi.mocked(makeRequest).mockResolvedValue(mockJsonResponse({}, 500));
+
+      const { getSessionsWithDeviceMeta } = await import('./sessions');
+      const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe('FETCH_FAILED');
+    } finally {
+      processEnv.NODE_ENV = origEnv;
+    }
   });
 });
 
@@ -331,6 +360,40 @@ describe('revokeAllOtherSessions', () => {
     // The DELETE call should have received an AbortSignal
     expect(capturedSignals).toHaveLength(1);
     expect(capturedSignals[0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it('does not check verification expiration mid-loop during revokeAllOtherSessions (BUG-004)', async () => {
+    const currentSession = mockSession('current-uid', true);
+    const otherSession1 = mockSession('other-uid-1', false);
+    const otherSession2 = mockSession('other-uid-2', false);
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: [currentSession, otherSession1, otherSession2] });
+      }
+      return mockJsonResponse({}, 204);
+    });
+
+    // Mock Date.now to return an initial time for the first few calls (during initial checks and fetch),
+    // and then advance it past the 15s tolerance for all subsequent calls, simulating time passing/delay mid-loop.
+    const startTime = 1700000000000;
+    let callCount = 0;
+    const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
+      callCount++;
+      if (callCount <= 5) {
+        return startTime;
+      }
+      return startTime + 20000; // 20 seconds later (past 15s skew tolerance)
+    });
+
+    try {
+      const { revokeAllOtherSessions } = await import('./sessions');
+      // Pass a timestamp that is valid at startTime (1700000000000 - 5000 is within 15s tolerance of 1700000000000)
+      const result = await revokeAllOtherSessions('verification-record-id', startTime - 5000);
+      expect(result.ok).toBe(true);
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 });
 

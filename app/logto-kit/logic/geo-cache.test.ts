@@ -63,7 +63,11 @@ describe('fetchGeo', () => {
     
     const result = await fetchGeo('8.8.8.8');
     
-    expect(fetchMock).toHaveBeenCalledWith('https://ipapi.co/8.8.8.8/json/');
+    // The call now includes a signal option (timeout) - use objectContaining
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://ipapi.co/8.8.8.8/json/',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(result).not.toBeNull();
     expect(result?.lat).toBe(41.0082);
   });
@@ -99,5 +103,68 @@ describe('fetchGeo', () => {
     
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // LOGIC-BUG-001: IP validation guard tests
+  it('returns null and does not fetch for invalid IP (path traversal attempt)', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    
+    const result = await fetchGeo('../etc/passwd');
+    
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null and does not fetch for hostname (SSRF attempt)', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    
+    const result = await fetchGeo('internal.example.com');
+    
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts valid IPv4 address', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 1.0,
+        longitude: 2.0,
+        city: 'Test',
+        country_name: 'Testland',
+        region: 'Test Region',
+      }),
+    });
+    
+    const result = await fetchGeo('192.168.0.1');
+    
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://ipapi.co/192.168.0.1/json/',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(result).not.toBeNull();
+  });
+
+  it('accepts valid IPv6 address (::1)', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 1.0,
+        longitude: 2.0,
+        city: 'Local',
+        country_name: 'Local',
+        region: 'Local',
+      }),
+    });
+    
+    const result = await fetchGeo('::1');
+    
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://ipapi.co/::1/json/',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(result).not.toBeNull();
   });
 });

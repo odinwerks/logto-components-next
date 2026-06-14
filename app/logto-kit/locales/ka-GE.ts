@@ -64,6 +64,7 @@ export const kaGE: Translations = {
     passwordChanged: 'პაროლი წარმატებით შეიცვალა.',
     confirmDeleteAccount: 'შეიყვანეთ პაროლი თქვენი ანგარიშის სამუდამოდ წასაშლელად.',
     accountDeleted: 'თქვენი ანგარიში წაიშალა.',
+    accountDeletedFarewell: 'თქვენი ანგარიში წაიშალა. ნახვამდის!',
     deletingAccount: 'ანგარიში იშლება…',
     passwordChangeFailed: 'პაროლის შეცვლა ვერ მოხერხდა',
     reconfigure: 'თავიდან კონფიგურაცია',
@@ -342,8 +343,11 @@ export const kaGE: Translations = {
     viewOnGoogleMaps: 'Google Maps-ზე ნახვა',
     refreshData: 'განახლება',
     activeNow: 'ახლა აქტიური',
-    locationDisclosure: 'მდებარეობა დადგენილია IP-ით და შესაძლოა იყოს მიახლოებითი.',
+    locationDisclosure: 'მდებარეობა ძალიან მიახლოებითია. იგულისხმება 3 კმ რადიუსის ცდომილება.',
     externalMapDisclosure: 'რუკის ბმულები ხსნის გარე სერვისებს მიახლოებითი კოორდინატებით.',
+    gcAllConfirmTitle: 'დარწმუნებული ხართ, რომ გსურთ ეს სესიები გაუქმება?',
+    gcAllSuccess: 'ყველა სხვა სესია გაუქმებულია',
+    viewMap: 'რუქის ნახვა',
   },
 
   // Common
@@ -364,7 +368,8 @@ export const kaGE: Translations = {
     lightTheme: 'ნათელი',
     darkTheme: 'მუქი',
     systemTheme: 'სისტემური',
-    loggedInAs: 'შესულია როგორც',
+    loggedInAs: 'შესულია якო',
+    yes: 'კი',
   },
 
   // Sign-out modal (playful farewell flow)

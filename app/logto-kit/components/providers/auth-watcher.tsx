@@ -44,17 +44,17 @@ export default function AuthWatcher({
 
   useEffect(() => {
     const refresh = () => {
-      const now = Date.now();
-
-      // Rate-limit: don't fire within debounceMs of the last refresh
-      if (now - lastRefreshRef.current < debounceMs) return;
-
       // Cancel any pending refresh (in case two triggers fire close together)
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       // Schedule the refresh on the next tick so rapid-fire events collapse
       timeoutRef.current = setTimeout(() => {
-        lastRefreshRef.current = Date.now();
+        const now = Date.now();
+
+        // Rate-limit: don't fire within debounceMs of the last refresh
+        if (now - lastRefreshRef.current < debounceMs) return;
+
+        lastRefreshRef.current = now;
         startTransition(() => {
           router.refresh();
         });

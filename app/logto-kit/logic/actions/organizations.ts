@@ -12,7 +12,12 @@ import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
 
 /**
- * Gets the user's permissions for a specific organization.
+ * Gets organization-scoped permissions for the current user.
+ * 
+ * Note: The org token is obtained directly from Logto's HTTPS token endpoint
+ * in this same request - it was not cached or passed through an intermediary,
+ * so signature verification is skipped per guards.ts policy. The token is
+ * consumed server-side only and never exposed to the client.
  *
  * Makes a direct HTTP call to Logto's /oidc/token endpoint (refresh_token grant
  * with organization_id) instead of going through the SDK's getOrganizationToken,

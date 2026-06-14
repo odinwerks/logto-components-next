@@ -16,23 +16,27 @@ const REFRESH_GAP_MS = 35;
 export function useRefreshable() {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const triggerRefresh = useCallback(() => {
+    if (!mountedRef.current) return;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
     setVisible(false);
     timerRef.current = setTimeout(() => {
-      setVisible(true);
+      if (mountedRef.current) setVisible(true);
     }, REFRESH_GAP_MS);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
   }, []);
 
   return { visible, triggerRefresh };

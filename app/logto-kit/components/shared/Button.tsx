@@ -18,6 +18,8 @@ export type ButtonProps = {
   style?: CSSProperties;
   mode: 'dark' | 'light';
   colors: ThemeColors;
+  title?: string;
+  'aria-label'?: string;
 };
 
 export function Button({
@@ -30,6 +32,8 @@ export function Button({
   style,
   mode,
   colors,
+  title,
+  'aria-label': ariaLabel,
 }: ButtonProps) {
   const [hovered, setHovered] = useState(false);
 
@@ -85,8 +89,10 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      title={title}
+      aria-label={ariaLabel}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       style={{
         ...s.base,
         ...(hovered && !disabled ? s.hover : {}),

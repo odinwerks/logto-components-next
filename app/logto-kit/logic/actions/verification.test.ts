@@ -197,30 +197,42 @@ describe('updateEmailWithVerification', () => {
 
   it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
     const { updateEmailWithVerification } = await import('./verification');
-    const withinTolerance = Date.now() - 15_000; // exactly 15 seconds ago (within tolerance)
-    const result = await updateEmailWithVerification(
-      'new@example.com',
-      'vr_identifier',
-      'vr_identity',
-      withinTolerance,
-    );
-    expect(result.ok).toBe(true);
-    expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+    const mockNow = 1234567890000;
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    try {
+      const withinTolerance = mockNow - 15_000; // exactly 15 seconds ago (within tolerance)
+      const result = await updateEmailWithVerification(
+        'new@example.com',
+        'vr_identifier',
+        'vr_identity',
+        withinTolerance,
+      );
+      expect(result.ok).toBe(true);
+      expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
     const { updateEmailWithVerification } = await import('./verification');
-    const justBeyondTolerance = Date.now() - 15_001; // 15.001 seconds ago (beyond tolerance)
-    const result = await updateEmailWithVerification(
-      'new@example.com',
-      'vr_identifier',
-      'vr_identity',
-      justBeyondTolerance,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error('Expected error');
-    expect(result.error).toBe('VERIFICATION_EXPIRED');
-    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    const mockNow = 1234567890000;
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    try {
+      const justBeyondTolerance = mockNow - 15_001; // 15.001 seconds ago (beyond tolerance)
+      const result = await updateEmailWithVerification(
+        'new@example.com',
+        'vr_identifier',
+        'vr_identity',
+        justBeyondTolerance,
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected error');
+      expect(result.error).toBe('VERIFICATION_EXPIRED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it('accepts when verificationTimestamp is in the future', async () => {
@@ -290,30 +302,42 @@ describe('updatePhoneWithVerification', () => {
 
   it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const withinTolerance = Date.now() - 15_000; // exactly 15 seconds ago (within tolerance)
-    const result = await updatePhoneWithVerification(
-      '+1234567890',
-      'vr_identifier',
-      'vr_identity',
-      withinTolerance,
-    );
-    expect(result.ok).toBe(true);
-    expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+    const mockNow = 1234567890000;
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    try {
+      const withinTolerance = mockNow - 15_000; // exactly 15 seconds ago (within tolerance)
+      const result = await updatePhoneWithVerification(
+        '+1234567890',
+        'vr_identifier',
+        'vr_identity',
+        withinTolerance,
+      );
+      expect(result.ok).toBe(true);
+      expect(vi.mocked(makeRequest)).toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const justBeyondTolerance = Date.now() - 15_001; // 15.001 seconds ago (beyond tolerance)
-    const result = await updatePhoneWithVerification(
-      '+1234567890',
-      'vr_identifier',
-      'vr_identity',
-      justBeyondTolerance,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error('Expected error');
-    expect(result.error).toBe('VERIFICATION_EXPIRED');
-    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    const mockNow = 1234567890000;
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    try {
+      const justBeyondTolerance = mockNow - 15_001; // 15.001 seconds ago (beyond tolerance)
+      const result = await updatePhoneWithVerification(
+        '+1234567890',
+        'vr_identifier',
+        'vr_identity',
+        justBeyondTolerance,
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected error');
+      expect(result.error).toBe('VERIFICATION_EXPIRED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it('accepts when verificationTimestamp is in the future', async () => {

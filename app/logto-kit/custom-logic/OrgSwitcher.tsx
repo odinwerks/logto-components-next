@@ -72,6 +72,7 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
           value={displaySelected}
           onChange={(e) => handleChange(e.target.value)}
           disabled={isLoading}
+          aria-label="Select organization"
         style={{
           width: '100%',
           padding: '0.5625rem 2.25rem 0.5625rem 0.75rem',

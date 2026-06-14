@@ -31,6 +31,58 @@ describe('introspectToken', () => {
     );
   });
 
+  // API-A03: client credentials must be in Basic Auth header, not the POST body
+  it('sends client credentials in the Authorization header (Basic Auth), not in the body', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    await introspectToken('my-token');
+
+    const [, options] = fetchSpy.mock.calls[0];
+    const headers = options?.headers as Record<string, string>;
+
+    // Authorization header must be present and use Basic scheme
+    expect(headers['Authorization']).toBeDefined();
+    expect(headers['Authorization']).toMatch(/^Basic /);
+
+    // Decode and verify it encodes clientId:clientSecret
+    const encoded = headers['Authorization'].replace('Basic ', '');
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    expect(decoded).toBe('client-id-123:super-secret-value');
+
+    // client_id and client_secret must NOT appear in the request body
+    const body = options?.body as string;
+    expect(body).not.toContain('client_id');
+    expect(body).not.toContain('client_secret');
+    // Only the token parameter should be in the body
+    expect(body).toContain('token=my-token');
+  });
+
+  it('encodes client credentials with special characters correctly', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client+with/special=chars');
+    vi.stubEnv('APP_SECRET', 'secret:with@special!chars');
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    await introspectToken('token');
+
+    const [, options] = fetchSpy.mock.calls[0];
+    const headers = options?.headers as Record<string, string>;
+    const encoded = headers['Authorization'].replace('Basic ', '');
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    expect(decoded).toBe('client+with/special=chars:secret:with@special!chars');
+  });
+
   describe('missing configuration', () => {
     it('throws when LOGTO_INTROSPECTION_URL is missing', async () => {
       vi.stubEnv('APP_ID', 'client-id-123');
@@ -53,8 +105,11 @@ describe('introspectToken', () => {
     });
 
     it('throws when APP_SECRET is missing', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('npm_lifecycle_event', 'build');
       vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
       vi.stubEnv('APP_ID', 'client-id-123');
+      vi.stubEnv('APP_SECRET', '');
 
       const { introspectToken } = await import('./utils');
       await expect(introspectToken('some-token')).rejects.toThrow(

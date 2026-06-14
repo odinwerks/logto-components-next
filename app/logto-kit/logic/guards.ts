@@ -51,6 +51,14 @@ import type { MfaType, VerificationType } from './types';
  */
 const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
 
+/**
+ * Asserts that a value is a safe user ID conforming to SAFE_ID_REGEX.
+ *
+ * Note (ACT-BUG-003): This function still exists and is intentionally preserved for backward compatibility
+ * and to avoid breaking existing mocks/tests across the test suite. Under the hood, it
+ * behaves identically to assertSafeLogtoId(id, 'userId') but throws a specific INVALID_USER_ID
+ * validation code for caller expectation consistency. New features should prefer assertSafeLogtoId.
+ */
 export function assertSafeUserId(id: unknown): asserts id is string {
   if (typeof id !== 'string' || !SAFE_ID_REGEX.test(id)) {
     throw new ValidationError('INVALID_USER_ID', 'userId');

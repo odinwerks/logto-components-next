@@ -20,7 +20,15 @@ import { audit, type AuditEntry } from '../audit';
  * @throws {Error} 'VERIFICATION_EXPIRED' if Date.now() > timestamp + tolerance.
  */
 export function assertVerificationNotExpired(timestamp: number): void {
-  if (Date.now() > timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
+  const now = Date.now();
+  // Reject non-finite or impossibly far-future timestamps (bypass prevention).
+  // Logto's verification TTL is 10 minutes. No legitimate expiresAt will be
+  // more than 11 minutes from now. MAX_SAFE_INTEGER and similar are rejected.
+  if (!Number.isFinite(timestamp) || timestamp > now + 11 * 60 * 1000) {
+    throw new Error('VERIFICATION_EXPIRED');
+  }
+  // Original staleness check
+  if (now > timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
     throw new Error('VERIFICATION_EXPIRED');
   }
 }
