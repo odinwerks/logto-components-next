@@ -19,6 +19,13 @@ export async function updateUserPassword(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active) {
+      throw new Error('UNAUTHORIZED');
+    }
+    const userId = introspection.sub ?? 'unknown';
+
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
     assertVerificationNotExpired(verificationTimestamp);
     if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {
@@ -34,8 +41,6 @@ export async function updateUserPassword(
     await throwOnApiError(res, 'PASSWORD_UPDATE_FAILED', 'Update password', true);
 
     // Audit (best-effort - failure must not break the main action)
-    const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
-    auditSafe(introspection.sub ?? 'unknown', 'password.change');
+    auditSafe(userId, 'password.change');
   });
 }
