@@ -9,6 +9,15 @@ vi.mock('../../logic/actions', () => ({
   updateUserCustomData: vi.fn(),
 }));
 
+// Mock AuthPromptModal to isolate the conditional render test
+vi.mock('../client/AuthPromptModal', () => ({
+  AuthPromptModal: ({ routeTo }: { routeTo?: string }) => (
+    <div data-testid="auth-prompt-modal" data-route-to={routeTo ?? ''}>
+      Auth Prompt
+    </div>
+  ),
+}));
+
 const mockUserData: UserData = {
   id: 'test-user',
   username: 'testuser',
@@ -225,5 +234,100 @@ describe('LogtoProvider unauthenticated mode', () => {
 
     // Should not throw when called with opts
     expect(() => act(() => { capturedOpenDashboard?.({ routeTo: '/profile' }); })).not.toThrow();
+  });
+});
+
+describe('LogtoProvider auth-conditional dashboard (Task 5)', () => {
+  /** Helper to set up a non-portrait (desktop) matchMedia mock. */
+  function mockDesktopMatchMedia() {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockDesktopMatchMedia();
+  });
+
+  it('shows AuthPromptModal when dashboard opened while unauthenticated (no userData)', () => {
+    render(
+      <LogtoProvider dashboard={<div data-testid="real-dashboard">Dashboard</div>}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    // Should show AuthPromptModal, not the real dashboard
+    expect(screen.getByTestId('auth-prompt-modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('real-dashboard')).not.toBeInTheDocument();
+  });
+
+  it('passes routeTo to AuthPromptModal when unauthenticated', () => {
+    function DashboardOpenerWithRoute() {
+      const { openDashboard } = useLogto();
+      useEffect(() => {
+        openDashboard({ routeTo: '/protected-page' });
+      }, [openDashboard]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider dashboard={<div data-testid="real-dashboard">Dashboard</div>}>
+        <DashboardOpenerWithRoute />
+      </LogtoProvider>
+    );
+
+    const modal = screen.getByTestId('auth-prompt-modal');
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute('data-route-to', '/protected-page');
+  });
+
+  it('shows real dashboard content when authenticated (has userData)', () => {
+    render(
+      <LogtoProvider userData={mockUserData} dashboard={<div data-testid="real-dashboard">Dashboard</div>}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    // DashboardRouter renders both desktop+mobile slots, so the node appears twice.
+    // Confirm at least one real dashboard element is visible.
+    const dashboardEls = screen.getAllByTestId('real-dashboard');
+    expect(dashboardEls.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByTestId('auth-prompt-modal')).not.toBeInTheDocument();
+  });
+
+  it('shows AuthPromptModal even without dashboard prop when unauthenticated', () => {
+    // No dashboard prop — but user is unauthenticated
+    render(
+      <LogtoProvider>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    // AuthPromptModal should still appear
+    expect(screen.getByTestId('auth-prompt-modal')).toBeInTheDocument();
+  });
+
+  it('passes undefined routeTo to AuthPromptModal when openDashboard called without opts', () => {
+    render(
+      <LogtoProvider dashboard={<div data-testid="real-dashboard">Dashboard</div>}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    const modal = screen.getByTestId('auth-prompt-modal');
+    expect(modal).toBeInTheDocument();
+    // data-route-to should be empty string (our mock maps undefined to '')
+    expect(modal).toHaveAttribute('data-route-to', '');
   });
 });

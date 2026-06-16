@@ -9,6 +9,7 @@ import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './pr
 import { UserDataProvider } from './user-data-context';
 import { DashboardRouter, useIsPortrait } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
+import { AuthPromptModal } from '../client/AuthPromptModal';
 import { X } from 'lucide-react';
 
 interface LogtoContextValue {
@@ -122,12 +123,12 @@ function LogtoProviderContent({
     <LogtoContext.Provider value={contextValue}>
       <UserDataProvider userData={userData ?? null}>
         {children}
-        {dashboardState.isOpen && normalizedDashboard && (
+        {dashboardState.isOpen && (normalizedDashboard || !isAuthenticated) && (
           <DashboardDialog
             mode={mode}
             onClose={closeDashboard}
-            desktop={normalizedDashboard.desktop}
-            mobile={normalizedDashboard.mobile}
+            desktop={normalizedDashboard?.desktop}
+            mobile={normalizedDashboard?.mobile}
             routeTo={dashboardState.routeTo}
           />
         )}
@@ -138,25 +139,34 @@ function LogtoProviderContent({
 
 /** Inner component for the dashboard overlay dialog.
  *  Rendered only when the dashboard is open, so useFocusTrap activates on mount
- *  and restores focus on unmount. */
+ *  and restores focus on unmount.
+ *
+ *  When the user is unauthenticated, renders `AuthPromptModal` instead of the
+ *  regular dashboard content and passes `routeTo` so the sign-in redirect
+ *  returns the user to the intended page. */
 function DashboardDialog({
   mode,
   onClose,
   desktop,
   mobile,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   routeTo,
 }: {
   mode: 'dark' | 'light';
   onClose: () => void;
-  desktop: ReactNode;
-  mobile: ReactNode;
-  /** Route to navigate to when the dashboard opens. Used by Task 5 (auth modal routing). */
+  desktop?: ReactNode;
+  mobile?: ReactNode;
+  /** Route to navigate to after sign-in when the user is unauthenticated. */
   routeTo?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
   const isMobile = useIsPortrait();
+  const { isAuthenticated } = useLogto();
+
+  // When unauthenticated, show the auth prompt modal instead of the dashboard.
+  if (!isAuthenticated) {
+    return <AuthPromptModal routeTo={routeTo} />;
+  }
 
   return (
     <div
