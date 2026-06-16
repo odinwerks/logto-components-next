@@ -137,6 +137,19 @@ interface DashboardClientProps {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
+const subscribePrefersReducedMotion = (callback: () => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+};
+
+const getSnapshotPrefersReducedMotion = () => {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+const getServerSnapshotPrefersReducedMotion = () => false;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardClient({
@@ -174,21 +187,16 @@ export function DashboardClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
-  onSignOut,
+  onSignOut: _onSignOut,
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const { mode, colors } = useThemeMode();
 
   const prefersReducedMotion = useSyncExternalStore(
-    (callback) => {
-      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-      mq.addEventListener('change', callback);
-      return () => mq.removeEventListener('change', callback);
-    },
-    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    () => false
+    subscribePrefersReducedMotion,
+    getSnapshotPrefersReducedMotion,
+    getServerSnapshotPrefersReducedMotion
   );
 
   // ── Language ───────────────────────────────────────────────────────────────
@@ -233,9 +241,11 @@ export function DashboardClient({
     let targetTab: TabId | null = null;
 
     switch (event.key) {
+      case 'ArrowDown':
       case 'ArrowRight':
         targetTab = loadedTabs[(currentIndex + 1) % loadedTabs.length] ?? null;
         break;
+      case 'ArrowUp':
       case 'ArrowLeft':
         targetTab = loadedTabs[(currentIndex - 1 + loadedTabs.length) % loadedTabs.length] ?? null;
         break;
@@ -544,7 +554,7 @@ function NavButton({
   tabId: TabId;
   isActive: boolean;
   label: string;
-  Icon: React.ComponentType<{ size?: number; color?: string; 'aria-hidden'?: any }>;
+  Icon: React.ComponentType<{ size?: number; color?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
   colors: ThemeColors;
   themeMode: 'dark' | 'light';
   panelId: string;

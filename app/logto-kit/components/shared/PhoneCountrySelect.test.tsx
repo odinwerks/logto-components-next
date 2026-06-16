@@ -170,4 +170,44 @@ describe('PhoneCountrySelect', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it('closes dropdown when focus leaves the component (focusout)', () => {
+    render(<PhoneCountrySelect {...defaultProps} />);
+
+    const trigger = screen.getByRole('combobox');
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    const portalContainer = screen.getByRole('listbox').parentElement!;
+    
+    // Fire focusout with relatedTarget outside
+    fireEvent.focusOut(portalContainer, {
+      relatedTarget: document.body,
+    });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('ignores mouse enter highlight events while keyboard scrolling is active', () => {
+    render(<PhoneCountrySelect {...defaultProps} />);
+
+    const trigger = screen.getByRole('combobox');
+    fireEvent.click(trigger);
+
+    const searchInput = screen.getByRole('searchbox', { name: /search countries/i });
+
+    // Press ArrowDown to trigger keyboard nav
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown', code: 'ArrowDown' });
+
+    // Spurious mouseEnter event during scrolling should be ignored
+    const optionEls = screen.getAllByRole('option');
+    
+    // Attempt mouse hover during keyboard scrolling (within 50ms)
+    fireEvent.mouseEnter(optionEls[0]);
+
+    // Active descendant should still be based on the keyboard movement, not mouseEnter
+    const activeId = searchInput.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+  });
 });

@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
         // NOTE: Content-Security-Policy is intentionally omitted here.
         // It is set dynamically per-request in proxy.ts (the Next.js middleware)
         // using a per-request nonce, which removes 'unsafe-inline' from script-src.
-        source: '/(.*)',
+        source: '/:path*',
         headers: [
           {
             key: 'X-Content-Type-Options',

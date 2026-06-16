@@ -98,4 +98,58 @@ describe('RoleCard', () => {
       expect(screen.queryByText('My Role Description')).toBeNull();
     });
   });
+
+  it('resets fetchedRef and fetches new description when roleId changes', async () => {
+    mockGetRoleDetails.mockImplementation(async (roleId: string) => {
+      if (roleId === 'role-1') {
+        return { ok: true, data: { id: 'role-1', description: 'Description 1' } };
+      }
+      if (roleId === 'role-2') {
+        return { ok: true, data: { id: 'role-2', description: 'Description 2' } };
+      }
+      return { ok: false };
+    });
+
+    const { rerender } = render(
+      <RoleCard
+        name="Admin"
+        roleId="role-1"
+        colors={DARK_COLORS}
+        t={enUS}
+      />
+    );
+
+    const infoButton = screen.getByRole('button');
+
+    // Hover first role
+    await act(async () => {
+      fireEvent.mouseEnter(infoButton);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Description 1')).toBeInTheDocument();
+    });
+
+    // Unhover
+    await act(async () => {
+      fireEvent.mouseLeave(infoButton);
+    });
+
+    // Rerender with different roleId
+    rerender(
+      <RoleCard
+        name="User"
+        roleId="role-2"
+        colors={DARK_COLORS}
+        t={enUS}
+      />
+    );
+
+    // Hover second role
+    await act(async () => {
+      fireEvent.mouseEnter(infoButton);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Description 2')).toBeInTheDocument();
+    });
+  });
 });

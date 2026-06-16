@@ -4,6 +4,19 @@ import React, { useEffect, useState, useCallback, useSyncExternalStore } from 'r
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
 
+const subscribePrefersReducedMotion = (callback: () => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+};
+
+const getSnapshotPrefersReducedMotion = () => {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+const getServerSnapshotPrefersReducedMotion = () => false;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Single Toast
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,14 +32,9 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
 
   const prefersReducedMotion = useSyncExternalStore(
-    (callback) => {
-      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-      mq.addEventListener('change', callback);
-      return () => mq.removeEventListener('change', callback);
-    },
-    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    () => false
+    subscribePrefersReducedMotion,
+    getSnapshotPrefersReducedMotion,
+    getServerSnapshotPrefersReducedMotion
   );
 
   useEffect(() => {

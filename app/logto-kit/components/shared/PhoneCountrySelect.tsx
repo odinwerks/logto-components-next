@@ -35,6 +35,7 @@ export function PhoneCountrySelect({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const mountedRef = useRef(false);
+  const isKeyboardNavRef = useRef(false);
 
   const triggerId = useId();
   const listboxId = useId();
@@ -116,6 +117,43 @@ export function PhoneCountrySelect({
     };
   }, [isOpen, closeDropdown]);
 
+  useEffect(() => {
+    const handleFocusOut = (event: FocusEvent) => {
+      const relatedTarget = event.relatedTarget as Node | null;
+      if (relatedTarget) {
+        if (
+          (triggerRef.current && triggerRef.current.contains(relatedTarget)) ||
+          (dropdownRef.current && dropdownRef.current.contains(relatedTarget))
+        ) {
+          return;
+        }
+        closeDropdown(false);
+      } else {
+        // Fallback for null relatedTarget (e.g. clicking non-focusable elements)
+        setTimeout(() => {
+          const activeEl = document.activeElement;
+          if (
+            (triggerRef.current && triggerRef.current.contains(activeEl)) ||
+            (dropdownRef.current && dropdownRef.current.contains(activeEl))
+          ) {
+            return;
+          }
+          closeDropdown(false);
+        }, 0);
+      }
+    };
+
+    const dropdownEl = dropdownRef.current;
+    if (isOpen && dropdownEl) {
+      dropdownEl.addEventListener('focusout', handleFocusOut);
+    }
+    return () => {
+      if (dropdownEl) {
+        dropdownEl.removeEventListener('focusout', handleFocusOut);
+      }
+    };
+  }, [isOpen, closeDropdown]);
+
   const filteredCountries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return activeCountries;
@@ -186,12 +224,20 @@ export function PhoneCountrySelect({
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      isKeyboardNavRef.current = true;
       setHighlightedIndex((prev) =>
         prev < filteredCountries.length - 1 ? prev + 1 : prev
       );
+      setTimeout(() => {
+        isKeyboardNavRef.current = false;
+      }, 50);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      isKeyboardNavRef.current = true;
       setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      setTimeout(() => {
+        isKeyboardNavRef.current = false;
+      }, 50);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredCountries[highlightedIndex]) {
@@ -370,7 +416,11 @@ export function PhoneCountrySelect({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => selectCountry(country)}
-                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseEnter={() => {
+                      if (!isKeyboardNavRef.current) {
+                        setHighlightedIndex(index);
+                      }
+                    }}
                     style={{
                       ...itemStyle,
                       background: isHighlighted ? colors.bgTertiary : 'transparent',

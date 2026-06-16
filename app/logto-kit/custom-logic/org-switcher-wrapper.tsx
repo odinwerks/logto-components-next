@@ -12,16 +12,11 @@ interface OrgSwitcherWrapperProps {
 }
 
 export async function OrgSwitcherWrapper({ mode, colors, t }: OrgSwitcherWrapperProps) {
-  const { claims, isAuthenticated, userInfo } = await getLogtoContext(getLogtoConfig(), {
+  const { isAuthenticated, userInfo } = await getLogtoContext(getLogtoConfig(), {
     fetchUserInfo: true,
   });
 
-  if (!isAuthenticated || !claims?.organizations) {
-    return null;
-  }
-
-  const orgIds = claims.organizations as string[];
-  if (orgIds.length === 0) {
+  if (!isAuthenticated) {
     return null;
   }
 

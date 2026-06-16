@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId } from 'react';
 import type { ThemeColors } from '../../themes';
 import type { ReactNode, CSSProperties } from 'react';
 
@@ -35,7 +35,8 @@ export function Button({
   title,
   'aria-label': ariaLabel,
 }: ButtonProps) {
-  const [hovered, setHovered] = useState(false);
+  const buttonId = useId();
+  const className = `btn-${buttonId.replace(/:/g, '')}`;
 
   const isDark = mode === 'dark';
 
@@ -84,24 +85,43 @@ export function Button({
       ? btnSm
       : { padding: '0.5rem 1.125rem', fontSize: '0.8125rem', gap: '0.4375rem' };
 
+  const hoverBg = s.hover.background ? String(s.hover.background) : '';
+  const hoverColor = s.hover.color ? String(s.hover.color) : '';
+  const hoverBorderColor = s.hover.borderColor ? String(s.hover.borderColor) : (s.base.borderColor ? String(s.base.borderColor) : '');
+
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={ariaLabel}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      style={{
-        ...s.base,
-        ...(hovered && !disabled ? s.hover : {}),
-        ...(disabled ? s.disabled : {}),
-        ...sz,
-        ...style,
-      }}
-    >
-      {children}
-    </button>
+    <>
+      <style>{`
+        .${className}:hover:not(:disabled) {
+          background: ${hoverBg} !important;
+          color: ${hoverColor} !important;
+          border-color: ${hoverBorderColor} !important;
+        }
+        .${className}:focus-visible:not(:disabled) {
+          background: ${hoverBg} !important;
+          color: ${hoverColor} !important;
+          border-color: ${hoverBorderColor} !important;
+          outline: 0.125rem solid ${colors.textTertiary} !important;
+          outline-offset: 0.125rem !important;
+        }
+      `}</style>
+      <button
+        type={type}
+        id={buttonId}
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        aria-label={ariaLabel}
+        className={className}
+        style={{
+          ...s.base,
+          ...(disabled ? s.disabled : {}),
+          ...sz,
+          ...style,
+        }}
+      >
+        {children}
+      </button>
+    </>
   );
 }

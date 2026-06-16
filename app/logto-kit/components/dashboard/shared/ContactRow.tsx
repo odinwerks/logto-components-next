@@ -212,7 +212,17 @@ export function ContactRow({
     setStep({ kind: 'loading', message: t.mfa.verifyingCode });
     const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code, verificationTimestamp);
     if (isStaleOperation()) return;
-    if (!r.ok) { onError(r.error); setStep({ kind: 'password' }); return; }
+    if (!r.ok) {
+      onError(r.error);
+      setStep({
+        kind: 'code',
+        destination,
+        verificationId,
+        identityVerificationId,
+        verificationTimestamp,
+      });
+      return;
+    }
     onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
     close();
   };

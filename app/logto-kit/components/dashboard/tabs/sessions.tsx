@@ -14,7 +14,6 @@ import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache'
 import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { readEnv } from '../../../logic/env';
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
@@ -97,6 +96,7 @@ export function SessionsTab({
   const [locatingIp, setLocatingIp] = useState<string | null>(null);
   const [mapModalGeo, setMapModalGeo] = useState<GeoLocation | null>(null);
   const [mapModalIp, setMapModalIp] = useState<string>('');
+  const [showGeoConsentForIp, setShowGeoConsentForIp] = useState<string | null>(null);
 
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
   const [verificationTimestamp, setVerificationTimestamp] = useState<number>(0);
@@ -139,8 +139,9 @@ export function SessionsTab({
 
   const handleLocate = useCallback(async (ip: string) => {
     if (!ip) return;
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('geo-consent', 'true');
+    if (typeof window !== 'undefined' && window.sessionStorage.getItem('geo-consent') !== 'true') {
+      setShowGeoConsentForIp(ip);
+      return;
     }
     const cached = getCachedGeo(ip);
     if (cached) { openMapModal(cached, ip); return; }
@@ -159,6 +160,8 @@ export function SessionsTab({
     if (!verifyResult.ok) {
       setModalError(verifyResult.error);
       setModalStep({ kind: 'password' });
+      setViewState('unverified');
+      revokeTargetRef.current = null;
       return;
     }
     const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
@@ -175,6 +178,7 @@ export function SessionsTab({
       onError(sessionsResult.error);
       setVerificationRecordId(null);
       setVerificationExpiry(0);
+      setViewState('unverified');
       setLoading(false);
       return;
     }
@@ -256,63 +260,81 @@ export function SessionsTab({
   };
 
   const handlePasswordSubmit = async (password: string) => {
-    if (modalPurpose === 'view' && !isVerificationValid) {
-      await verifyAndLoad(password);
-      return;
-    }
-
-    setModalStep({ kind: 'loading', message: t.sessions.processing });
-    setModalError('');
-
-    let vid = verificationRecordId;
-    let vts = verificationTimestamp;
-    if (!vid || Date.now() >= verificationExpiry) {
-      const verifyResult = await onVerifyPassword(password);
-      if (!verifyResult.ok) {
-        setModalError(verifyResult.error);
-        setModalStep({ kind: 'password' });
-        setRevokingId(null);
-        setRevokingAll(false);
+    try {
+      if (modalPurpose === 'view' && !isVerificationValid) {
+        await verifyAndLoad(password);
         return;
       }
-      vid = verifyResult.data.verificationRecordId;
-      vts = verifyResult.data.verificationTimestamp;
-      setVerificationRecordId(vid);
-      setVerificationTimestamp(vts);
-      setVerificationExpiry(vts); // vts IS the expiresAt
-    }
 
-    const target = revokeTargetRef.current;
-    if (!target) {
+      setModalStep({ kind: 'loading', message: t.sessions.processing });
+      setModalError('');
+
+      let vid = verificationRecordId;
+      let vts = verificationTimestamp;
+      if (!vid || Date.now() >= verificationExpiry) {
+        const verifyResult = await onVerifyPassword(password);
+        if (!verifyResult.ok) {
+          setModalError(verifyResult.error);
+          setModalStep({ kind: 'password' });
+          setRevokingId(null);
+          setRevokingAll(false);
+          revokeTargetRef.current = null;
+          setViewState('unverified');
+          return;
+        }
+        vid = verifyResult.data.verificationRecordId;
+        vts = verifyResult.data.verificationTimestamp;
+        setVerificationRecordId(vid);
+        setVerificationTimestamp(vts);
+        setVerificationExpiry(vts); // vts IS the expiresAt
+      }
+
+      const target = revokeTargetRef.current;
+      if (!target) {
+        setModalStep(null);
+        revokeTargetRef.current = null;
+        return;
+      }
+
+      if (target.kind === 'all') {
+        setRevokingAll(true);
+        const revokeResult = await onRevokeAllOtherSessions(vid, vts);
+        if (!revokeResult.ok) {
+          setModalError(revokeResult.error);
+          setModalStep({ kind: 'password' });
+          setRevokingAll(false);
+          if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
+            setViewState('unverified');
+            setVerificationRecordId(null);
+            revokeTargetRef.current = null;
+          }
+          return;
+        }
+      } else {
+        const revokeResult = await onRevokeSession(target.id, vid, vts, 'firstParty');
+        if (!revokeResult.ok) {
+          setModalError(revokeResult.error);
+          setModalStep({ kind: 'password' });
+          setRevokingId(null);
+          setRevokingAll(false);
+          if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
+            setViewState('unverified');
+            setVerificationRecordId(null);
+            revokeTargetRef.current = null;
+          }
+          return;
+        }
+      }
+      onSuccess(t.sessions.revoked);
+      await loadSessions({ recordId: vid, timestamp: vts });
       setModalStep(null);
-      return;
+      revokeTargetRef.current = null;
+      setRevokingId(null);
+      setRevokingAll(false);
+    } catch (error) {
+      revokeTargetRef.current = null;
+      throw error;
     }
-
-    if (target.kind === 'all') {
-      setRevokingAll(true);
-      const revokeResult = await onRevokeAllOtherSessions(vid, vts);
-      if (!revokeResult.ok) {
-        setModalError(revokeResult.error);
-        setModalStep({ kind: 'password' });
-        setRevokingAll(false);
-        return;
-      }
-    } else {
-      const revokeResult = await onRevokeSession(target.id, vid, vts, 'firstParty');
-      if (!revokeResult.ok) {
-        setModalError(revokeResult.error);
-        setModalStep({ kind: 'password' });
-        setRevokingId(null);
-        setRevokingAll(false);
-        return;
-      }
-    }
-    onSuccess(t.sessions.revoked);
-    await loadSessions({ recordId: vid, timestamp: vts });
-    setModalStep(null);
-    revokeTargetRef.current = null;
-    setRevokingId(null);
-    setRevokingAll(false);
   };
 
   const formatDate = (input: number | string) => {
@@ -402,7 +424,7 @@ export function SessionsTab({
         {[0, 1, 2].map(i => {
           const isCurrent = i === 0;
           return (
-            <div key={i} style={{
+            <div key={`skeleton-${i}`} style={{
               background: T.bg,
               border: `1px solid ${T.border}`,
               borderRadius: DASHBOARD_RADIUS,
@@ -695,6 +717,50 @@ export function SessionsTab({
       }}>
         {t.sessions.locationDisclosure}
       </p>
+
+      {showGeoConsentForIp && (
+        <div style={{
+          background: T.surface,
+          border: `1px solid ${T.border}`,
+          borderRadius: DASHBOARD_RADIUS,
+          padding: '1rem',
+          margin: '0 0 1rem 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+          fontFamily: T.font,
+        }}>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: T.text, lineHeight: 1.5 }}>
+            Allow map feature to use your IP address for approximate geolocation lookup?
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowGeoConsentForIp(null)}
+              mode={mode}
+              colors={c}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const ip = showGeoConsentForIp;
+                setShowGeoConsentForIp(null);
+                if (typeof window !== 'undefined') {
+                  window.sessionStorage.setItem('geo-consent', 'true');
+                }
+                handleLocate(ip);
+              }}
+              mode={mode}
+              colors={c}
+            >
+              Allow
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {sessions.length === 0 ? (

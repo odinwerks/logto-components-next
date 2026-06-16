@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useId } from 'react';
+import { useState, useRef, useCallback, useId, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, Loader2 } from 'lucide-react';
 import { getRoleDetails } from '../../../logic/actions/roles';
@@ -31,6 +31,12 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
   const [resolvedDescription, setResolvedDescription] = useState<string | null | undefined>(description);
   const [loadingDesc, setLoadingDesc] = useState(false);
   const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    fetchedRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResolvedDescription(description);
+  }, [roleId, description]);
 
   const effectiveDescription = description !== undefined ? description : resolvedDescription;
 

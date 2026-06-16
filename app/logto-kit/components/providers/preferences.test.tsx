@@ -65,29 +65,29 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     }
 
     render(
-      <PreferencesProvider initialTheme="light">
+      <PreferencesProvider>
         <TestComponent />
       </PreferencesProvider>
     );
 
-    // It should respect sessionStorage and initialize to 'dark', not 'light'
+    // It should respect sessionStorage and initialize to 'dark' by fallback when initialTheme is omitted
     expect(renderedTheme).toBe('dark');
   });
 
-  it('does not overwrite cached theme in sessionStorage on mount', () => {
+  it('does not overwrite cached theme in sessionStorage on mount when initialTheme is omitted', () => {
     sessionStorage.setItem('theme-mode', 'dark');
 
     render(
-      <PreferencesProvider initialTheme="light">
+      <PreferencesProvider>
         <div>Test</div>
       </PreferencesProvider>
     );
 
-    // Since the write-on-mount useEffect is removed, the cached 'dark' should NOT be overwritten
+    // Since initialTheme is omitted, the cached 'dark' should NOT be overwritten
     expect(sessionStorage.getItem('theme-mode')).toBe('dark');
   });
 
-  it('listens for preferences-changed events and updates lang and org state dynamically', () => {
+  it('listens for preferences-changed events and updates lang state dynamically', () => {
     let renderedLang: string | undefined;
     let renderedOrg: string | null | undefined;
     
@@ -116,9 +116,9 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       window.dispatchEvent(new Event('preferences-changed'));
     });
 
-    // It should have reactive update
+    // It should have reactive update for lang, but NOT for org (BUG-M-011)
     expect(renderedLang).toBe('fr');
-    expect(renderedOrg).toBe('org_2');
+    expect(renderedOrg).toBe('org_1');
 
     // Also support CustomEvent detail
     act(() => {
@@ -128,7 +128,7 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     });
 
     expect(renderedLang).toBe('es');
-    expect(renderedOrg).toBe('org_3');
+    expect(renderedOrg).toBe('org_1');
   });
 
   it('keeps newest org selection when older persistence fails out of order', async () => {
@@ -268,7 +268,7 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     }
 
     render(
-      <PreferencesProvider initialTheme="dark" initialLang="en" initialOrgId="org_default">
+      <PreferencesProvider initialLang="en" initialOrgId="org_default">
         <TestComponent />
       </PreferencesProvider>
     );

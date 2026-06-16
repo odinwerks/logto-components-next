@@ -369,6 +369,7 @@ export const enUS: Translations = {
     darkTheme: 'Dark',
     systemTheme: 'System',
     loggedInAs: 'Logged in as',
+    openUserDashboard: 'Open user dashboard',
     yes: 'Yes',
   },
 

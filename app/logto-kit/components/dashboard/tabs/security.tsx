@@ -156,7 +156,7 @@ export function SecurityTab({
     if (!secretResult.ok) { onError(secretResult.error); closeTotp(); return; }
     const { secret } = secretResult.data;
     const account = userData.profile?.givenName || userData.username || 'user';
-    const totpUri = `otpauth://totp/${encodeURIComponent(ISSUER)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(ISSUER)}`;
+    const totpUri = `otpauth://totp/${encodeURIComponent(ISSUER)}:${encodeURIComponent(account)}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(ISSUER)}`;
     setTotpStep({ kind: 'totp-scan', secret, totpUri, identityVerificationId: identityResult.data.verificationRecordId, verificationTimestamp: identityResult.data.verificationTimestamp });
   };
 

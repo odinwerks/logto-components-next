@@ -605,7 +605,7 @@ export function BackupCodesModal({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `backup-codes-${Date.now()}.${ext}`; a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 150);
     onSuccess(format === 'txt' ? t.mfa.backupCodesDownloaded : t.mfa.backupCodesDownloadedHtml);
   };
 

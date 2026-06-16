@@ -475,6 +475,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         onDoubleClick={handleZoomReset}
         style={{
           width: `${displaySize}px`,

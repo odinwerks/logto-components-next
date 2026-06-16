@@ -384,6 +384,7 @@ export interface Translations {
     darkTheme: string;
     systemTheme: string;
     loggedInAs: string;
+    openUserDashboard: string;
     yes: string;
   };
 

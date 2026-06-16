@@ -317,7 +317,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     });
   });
 
-  it('handles code verification: error calls onError and closes', async () => {
+  it('handles code verification: error calls onError and stays on code step', async () => {
     const props = buildDefaults();
     (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
@@ -341,6 +341,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onError).toHaveBeenCalledWith('Invalid code');
+      expect(flowModalStep).toBe('code');
     });
   });
 

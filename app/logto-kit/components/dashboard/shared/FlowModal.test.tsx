@@ -231,6 +231,46 @@ describe('BackupCodesModal - theming', () => {
     expect(screen.getByText('ABC123')).toBeInTheDocument();
     expect(screen.getByText('DEF456')).toBeInTheDocument();
   });
+
+  it('downloads backup codes with delayed URL revocation', async () => {
+    vi.useFakeTimers();
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURLMock = vi.fn();
+
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+
+    URL.createObjectURL = createObjectURLMock;
+    URL.revokeObjectURL = revokeObjectURLMock;
+
+    try {
+      render(
+        <BackupCodesModal
+          codes={[{ code: 'ABC123', used: false }]}
+          isNew={true}
+          onDone={() => {}}
+          onSuccess={() => {}}
+          t={enUS}
+          mode="dark"
+          colors={DARK_COLORS}
+        />
+      );
+
+      const txtButton = screen.getByRole('button', { name: /\.txt/i });
+      fireEvent.click(txtButton);
+
+      expect(createObjectURLMock).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURLMock).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(150);
+
+      expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:mock-url');
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('FlowModal - Escape key dismissal', () => {

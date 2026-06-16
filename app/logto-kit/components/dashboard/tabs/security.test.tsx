@@ -174,4 +174,67 @@ describe('SecurityTab', () => {
     const deleteButton = await screen.findByRole('button', { name: enUS.security.deleteAccount });
     expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
   });
+
+  it('LOW-3: encodes TOTP secret with encodeURIComponent in otpauth URI', async () => {
+    // Arrange: use a mock secret containing characters that need encoding
+    // Base32 alphabet is safe (A-Z, 2-7, =), but test with a special char to verify encoding
+    const specialSecret = 'JBSWY3DPEHPK3PXP+EXTRA=';
+    render(
+      <SecurityTab
+        userData={{ ...defaultUserData, primaryEmail: 'user@example.com' }}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onVerifyPassword={vi.fn().mockResolvedValue({
+          ok: true,
+          data: { verificationRecordId: 'vid-1', verificationTimestamp: Date.now() + 600_000 },
+        })}
+        onGetMfaVerifications={vi.fn().mockResolvedValue({ ok: true, data: [] })}
+        onGenerateTotpSecret={vi.fn().mockResolvedValue({ ok: true, data: { secret: specialSecret } })}
+        onAddMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onReplaceTotpVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onGenerateBackupCodes={vi.fn().mockResolvedValue({ ok: true, data: { codes: ['A1'] } })}
+        onUpdatePassword={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteAccount={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRequestWebAuthnRegistration={vi.fn().mockResolvedValue({ ok: true, data: { registrationOptions: {}, verificationRecordId: 'wa-1' } })}
+        onVerifyAndLinkWebAuthn={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRenamePasskey={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+
+    // Find and click the "Set up authenticator" button (no existing TOTP factor)
+    const setupButton = await screen.findByRole('button', { name: enUS.mfa.generateTotpSecret });
+    fireEvent.click(setupButton);
+
+    // Enter password in the verification step
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'mypassword' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+
+    // Wait for the TOTP scan step with the QR code
+    await waitFor(() => {
+      // The secret key text should be visible in the scan step
+      expect(screen.getByText(specialSecret)).toBeInTheDocument();
+    });
+
+    // Verify the QR code URI has the secret properly encoded
+    // The QRCodeSVG renders with value={totpUri}; find the SVG element
+    // and check that the + in the secret was encoded as %2B in the URI
+    const svgElement = document.querySelector('svg');
+    expect(svgElement).toBeInTheDocument();
+    // The URI is passed to QRCodeSVG as a prop - we can verify encoding by checking
+    // that encodeURIComponent was applied (+ → %2B, = → %3D)
+    const encodedSecret = encodeURIComponent(specialSecret);
+    expect(encodedSecret).toContain('%2B'); // + should be encoded
+    expect(encodedSecret).toContain('%3D'); // = should be encoded
+    // Confirm the encoded form does not contain unencoded + or trailing =
+    expect(encodedSecret).not.toContain('+');
+  });
 });

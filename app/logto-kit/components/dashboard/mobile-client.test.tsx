@@ -175,6 +175,13 @@ describe('MobileClient menu layout', () => {
     expect(signOutDock.style.bottom).toContain('6rem');
   });
 
+  it('prevents overlap by making parent scrollable with bottom padding', () => {
+    render(<MobileClient {...requiredProps} />);
+    const mainStack = screen.getByTestId('mobile-main-stack');
+    const parent = mainStack.parentElement;
+    expect(parent).toHaveStyle({ overflowY: 'auto' });
+  });
+
   it('isolates crashing tab content with a fallback in tab view', async () => {
     shouldThrowProfileTab.value = true;
 

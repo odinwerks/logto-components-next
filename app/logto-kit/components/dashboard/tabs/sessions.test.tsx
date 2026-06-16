@@ -172,6 +172,9 @@ async function verifyAndLoadSessions() {
 describe('SessionsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.clear();
+    }
   });
 
   // ─── BUG 2: viewState='loaded' set before sessions fetch completes ───
@@ -653,7 +656,7 @@ describe('SessionsTab', () => {
       });
     });
 
-    it('automatically grants geo-consent and shows SessionMapModal with location info when map button is clicked', async () => {
+    it('requires geo-consent approval and shows SessionMapModal with location info when allowed', async () => {
       const mockGeo = {
         lat: 41.7151,
         lon: 44.8271,
@@ -671,7 +674,17 @@ describe('SessionsTab', () => {
       const mapBtn = screen.getAllByTitle(enUS.sessions.ipLocation)[0];
       await act(async () => { fireEvent.click(mapBtn); });
 
-      // sessionStorage 'geo-consent' should be set to 'true'
+      // sessionStorage 'geo-consent' should NOT be set to 'true' yet
+      expect(sessionStorage.getItem('geo-consent')).not.toBe('true');
+
+      // The inline consent prompt should be visible
+      expect(screen.getByText(/Allow map feature to use your IP address/)).toBeInTheDocument();
+
+      // Click "Allow" button
+      const allowBtn = screen.getByRole('button', { name: 'Allow' });
+      await act(async () => { fireEvent.click(allowBtn); });
+
+      // sessionStorage 'geo-consent' should be set to 'true' now
       expect(sessionStorage.getItem('geo-consent')).toBe('true');
 
       // Check if SessionMapModal is open with correct information
@@ -687,6 +700,22 @@ describe('SessionsTab', () => {
         expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnOpenStreetMap, 'i') })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnGoogleMaps, 'i') })).toBeInTheDocument();
       });
+    });
+
+    it('does not fetch geolocation and hides prompt if geo-consent is cancelled', async () => {
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      const mapBtn = screen.getAllByTitle(enUS.sessions.ipLocation)[0];
+      await act(async () => { fireEvent.click(mapBtn); });
+
+      expect(screen.getByText(/Allow map feature to use your IP address/)).toBeInTheDocument();
+
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      await act(async () => { fireEvent.click(cancelBtn); });
+
+      expect(screen.queryByText(/Allow map feature to use your IP address/)).not.toBeInTheDocument();
+      expect(sessionStorage.getItem('geo-consent')).not.toBe('true');
     });
   });
 

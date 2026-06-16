@@ -2,34 +2,39 @@
 
 import { useSyncExternalStore, type ReactNode } from 'react';
 
+const subscribeIsPortrait = (callback: () => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mqPortrait = window.matchMedia('(orientation: portrait)');
+  const mqNarrow = window.matchMedia('(max-width: 64rem)');
+
+  mqPortrait.addEventListener('change', callback);
+  mqNarrow.addEventListener('change', callback);
+
+  return () => {
+    mqPortrait.removeEventListener('change', callback);
+    mqNarrow.removeEventListener('change', callback);
+  };
+};
+
+const getSnapshotIsPortrait = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return (
+    window.matchMedia('(orientation: portrait)').matches ||
+    window.matchMedia('(max-width: 64rem)').matches
+  );
+};
+
+const getServerSnapshotIsPortrait = () => false;
+
 /**
  * Single-subscription hook that checks both portrait orientation AND narrow width.
  * Combines two MediaQueries into one useSyncExternalStore to avoid double subscriptions (BUG-026).
  */
 export function useIsPortrait(): boolean {
   return useSyncExternalStore(
-    (callback) => {
-      const mqPortrait = window.matchMedia('(orientation: portrait)');
-      const mqNarrow = window.matchMedia('(max-width: 64rem)');
-
-      mqPortrait.addEventListener('change', callback);
-      mqNarrow.addEventListener('change', callback);
-
-      return () => {
-        mqPortrait.removeEventListener('change', callback);
-        mqNarrow.removeEventListener('change', callback);
-      };
-    },
-    () => {
-      // Snapshot must be stable — read both and return combined result.
-      // Do NOT create new MediaQueryList objects here; read from the same
-      // ones created in the subscribe callback via window.matchMedia.
-      return (
-        window.matchMedia('(orientation: portrait)').matches ||
-        window.matchMedia('(max-width: 64rem)').matches
-      );
-    },
-    () => false // SSR fallback: render desktop on server (hidden by CSS media query on client)
+    subscribeIsPortrait,
+    getSnapshotIsPortrait,
+    getServerSnapshotIsPortrait
   );
 }
 

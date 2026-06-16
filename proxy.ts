@@ -28,14 +28,19 @@ function buildConnectSrc(): string {
     }
   }
 
-  return [
+  const sources = [
     "connect-src 'self'",
     logtoOrigin,
     'https://ipapi.co',
     'https://*.basemaps.cartocdn.com',
     'https://*.supabase.co',
-    'wss:',
-  ].join(' ');
+  ];
+
+  if (process.env.NODE_ENV === 'development') {
+    sources.push('ws://localhost:* wss://localhost:*');
+  }
+
+  return sources.join(' ');
 }
 
 /**
@@ -103,7 +108,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Generate a per-request nonce for CSP script-src
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('base64url');
   const cspHeader = buildCsp(nonce);
 
   // Request headers forwarded to the app (layout.tsx reads x-nonce)

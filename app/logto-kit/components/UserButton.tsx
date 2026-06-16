@@ -295,7 +295,8 @@ export function UserButton({
   };
 
   const labelPrefix = mounted ? t.common.loggedInAs : 'Logged in as';
-  const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : ""}. Open user dashboard`;
+  const labelSuffix = mounted ? t.common.openUserDashboard : 'Open user dashboard';
+  const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : ""}. ${labelSuffix}`;
 
   return (
     <button
@@ -385,10 +386,14 @@ export function UserCard({
     background: colors.bgSecondary,
     border: `1px solid ${colors.borderColor}`,
     borderRadius,
+    maxWidth: '100%',
+    boxSizing: 'border-box',
     transition: 'opacity 0.15s, transform 0.1s',
   };
 
   const label = mounted ? t.common.loggedInAs : 'Logged in as';
+  const labelSuffix = mounted ? t.common.openUserDashboard : 'Open user dashboard';
+  const ariaLabel = `${label} ${userData ? getDisplayName(userData) : ""}. ${labelSuffix}`;
 
   const renderContent = () => {
     if (loading || !userData) {
@@ -455,7 +460,7 @@ export function UserCard({
         transform: pressed ? 'scale(0.97)' : 'scale(1)',
       }}
       onClick={handleClick}
-      aria-label="Open user dashboard"
+      aria-label={ariaLabel}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}

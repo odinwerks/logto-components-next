@@ -374,6 +374,54 @@ describe('ProfileTab - behavioral', () => {
     expect(refreshData).not.toHaveBeenCalled();
   });
 
+  it('given_family mode - calls refreshData when profile update fails and the subsequent rollback of basic info fails', async () => {
+    const onUpdateBasicInfo = vi.fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false, error: 'Rollback failed' });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
+    const refreshData = vi.fn();
+    const onError = vi.fn();
+
+    mockReadEnv.mockImplementation((key: string) => {
+      if (key === 'NAME_TYPE') return 'given_family';
+      if (key === 'USER_SHAPE') return 'circle';
+      return undefined;
+    });
+
+    render(
+      <ProfileTab
+        userData={defaultUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        nameType="given_family"
+        onUpdateBasicInfo={onUpdateBasicInfo}
+        onUpdateAvatarUrl={resolvedActionResult}
+        onUpdateProfile={onUpdateProfile}
+        onVerifyPassword={resolvedVerifyPassword}
+        onSendEmailVerification={resolvedSendVerification}
+        onSendPhoneVerification={resolvedSendVerification}
+        onVerifyCode={resolvedVerifyCode}
+        onUpdateEmail={resolvedActionResult}
+        onUpdatePhone={resolvedActionResult}
+        onRemoveEmail={resolvedActionResult}
+        onRemovePhone={resolvedActionResult}
+        onSuccess={noop}
+        onError={onError}
+        refreshData={refreshData}
+      />,
+    );
+
+    const givenInput = screen.getByPlaceholderText('First name');
+    fireEvent.change(givenInput, { target: { value: 'Changed' } });
+
+    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    await act(async () => { fireEvent.click(saveBtn); });
+
+    expect(onError).toHaveBeenCalled();
+    expect(refreshData).toHaveBeenCalled();
+  });
+
   it('PersonalPermissionsBlock - re-fetches permissions on refresh (BUG-002)', async () => {
     mockLoadPersonalPermissions.mockClear();
     mockLoadPersonalPermissions.mockResolvedValue({

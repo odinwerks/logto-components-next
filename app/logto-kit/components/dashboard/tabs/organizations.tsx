@@ -106,7 +106,6 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
         aria-checked={isSelected}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        aria-describedby={showTooltip ? tooltipId : undefined}
         style={{
           padding: '0.625rem 2.25rem 0.625rem 0.75rem',
           background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
@@ -139,6 +138,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
         ref={triggerRef}
         type="button"
         aria-label="Organization info"
+        aria-describedby={showTooltip ? tooltipId : undefined}
         style={{
           position: 'absolute',
           right: '0.75rem',
@@ -152,7 +152,8 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
           border: 'none',
           padding: '0.25rem',
           margin: 0,
-          outline: 'none',
+          outline: isFocused ? `1px solid ${c.accentBlue}` : 'none',
+          borderRadius: '0.25rem',
           zIndex: 10,
           color: c.textTertiary,
         }}
@@ -268,7 +269,7 @@ function permsReducer(state: PermsState, action: PermsAction): PermsState {
   }
 }
 
-const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }: PermissionsBlockProps) => {
+const PermissionsBlock = ({ activeOrgId, colors, t, userData: _userData, scrollWell, mode }: PermissionsBlockProps) => {
   const c = colors;
   const { visible, triggerRefresh } = useRefreshable();
   const [permsState, dispatchPerms] = useReducer(permsReducer, initialPermsState);
@@ -456,7 +457,8 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData, scrollWell, mode }
                     border: 'none',
                     padding: 0,
                     margin: 0,
-                    outline: 'none',
+                    outline: focusedPerm === permission ? `1px solid ${c.accentBlue}` : 'none',
+                    borderRadius: '0.25rem',
                   }}
                 >
                   <Info size={14} />

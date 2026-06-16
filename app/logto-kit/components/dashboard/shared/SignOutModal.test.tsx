@@ -177,9 +177,9 @@ describe('SignOutModal', () => {
     render(<SignOutModal isOpen={true} onAbort={onAbort} mode="dark" colors={mockColors} t={mockT} />);
     
     expect(useFocusTrap).toHaveBeenCalled();
-    const [refCall, callbackCall] = (useFocusTrap as any).mock.calls[0];
+    const [refCall, callbackCall] = vi.mocked(useFocusTrap).mock.calls[0];
     expect(refCall.current).not.toBeNull();
-    expect(refCall.current.getAttribute('role')).toBe('dialog');
+    expect(refCall.current!.getAttribute('role')).toBe('dialog');
     expect(callbackCall).toBe(onAbort);
   });
 

@@ -369,6 +369,7 @@ export const kaGE: Translations = {
     darkTheme: 'მუქი',
     systemTheme: 'სისტემური',
     loggedInAs: 'შესულია якო',
+    openUserDashboard: 'მომხმარებლის დაშბორდის გახსნა',
     yes: 'კი',
   },
 

@@ -369,6 +369,7 @@ export const ukUA: Translations = {
     darkTheme: 'Темна',
     systemTheme: 'Системна',
     loggedInAs: 'Ви увійшли як',
+    openUserDashboard: 'Відкрити панель користувача',
     yes: 'Так',
   },
 

@@ -59,10 +59,15 @@ beforeEach(() => {
 
 // ── Helper for building same-origin requests ────────────────────────────────
 function makeRequest(body: object): NextRequest {
+  const bodyStr = JSON.stringify(body);
   return new NextRequest('http://localhost:3000/api/protected', {
     method: 'POST',
-    headers: { origin: 'http://localhost:3000', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: {
+      origin: 'http://localhost:3000',
+      'content-type': 'application/json',
+      'content-length': String(Buffer.from(bodyStr).length),
+    },
+    body: bodyStr,
   });
 }
 
@@ -71,7 +76,10 @@ describe('POST /api/protected - CSRF protection', () => {
   it('returns 403 for cross-origin POST', async () => {
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
-      headers: { origin: 'https://evil.com' },
+      headers: {
+        origin: 'https://evil.com',
+        'content-length': '0',
+      },
     });
     const { POST } = await import('./route');
     const res = await POST(req);
@@ -79,7 +87,12 @@ describe('POST /api/protected - CSRF protection', () => {
   });
 
   it('returns 403 when Origin header is missing', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', { method: 'POST' });
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        'content-length': '0',
+      },
+    });
     const { POST } = await import('./route');
     const res = await POST(req);
     expect(res.status).toBe(403);
@@ -544,6 +557,24 @@ describe('POST /api/protected - BUG-001 content-length check', () => {
 
     // Should not be 413 (may be other errors like missing token, but not payload too large)
     expect(res.status).not.toBe(413);
+  });
+
+  it('BUG-M-004: returns 413 PAYLOAD_TOO_LARGE when content-length is missing (chunked encoding)', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        // 'content-length' is intentionally omitted here
+      },
+      body: JSON.stringify({ action: 'test' }),
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(413);
+    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
   });
 });
 

@@ -250,6 +250,27 @@ describe('DashboardClient - userShape prop', () => {
     expect(profileTab).toHaveFocus();
   });
 
+  it('supports ArrowDown and ArrowUp keyboard navigation in tabs', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security', 'sessions']}
+      />,
+    );
+
+    const profileTab = screen.getByRole('tab', { name: 'Profile' });
+    const securityTab = screen.getByRole('tab', { name: 'Security' });
+
+    profileTab.focus();
+    fireEvent.keyDown(profileTab, { key: 'ArrowDown' });
+    expect(securityTab).toHaveAttribute('aria-selected', 'true');
+    expect(securityTab).toHaveFocus();
+
+    fireEvent.keyDown(securityTab, { key: 'ArrowUp' });
+    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+    expect(profileTab).toHaveFocus();
+  });
+
   it('isolates crashing tab content with an in-panel fallback', () => {
     shouldThrowProfileTab.value = true;
 

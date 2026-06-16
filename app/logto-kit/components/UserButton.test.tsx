@@ -101,7 +101,7 @@ describe('UserButton Accessibility and Shape Props', () => {
 
     render(<UserButton />);
     const button = screen.getByRole('button');
-    expect(button.getAttribute('aria-label')).toBe('Ви увійшли як John Doe. Open user dashboard');
+    expect(button.getAttribute('aria-label')).toBe('Ви увійшли як John Doe. Відкрити панель користувача');
   });
 
   it('uses target translation for UserCard label after mount', () => {
@@ -113,5 +113,43 @@ describe('UserButton Accessibility and Shape Props', () => {
 
     render(<UserCard />);
     expect(screen.getByText('Ви увійшли як')).toBeInTheDocument();
+  });
+
+  it('sets dynamic accessibility aria-label on UserCard button including user display name', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'en-US',
+      openDashboard: vi.fn(),
+    });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe', avatar: 'https://example.com/avatar.png' });
+
+    render(<UserCard />);
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+    expect(button.getAttribute('aria-label')).toBe('Logged in as John Doe. Open user dashboard');
+  });
+
+  it('uses target translation for UserCard aria-label after mount', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'uk-UA',
+      openDashboard: vi.fn(),
+    });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
+
+    render(<UserCard />);
+    const button = screen.getByRole('button');
+    expect(button.getAttribute('aria-label')).toBe('Ви увійшли як John Doe. Відкрити панель користувача');
+  });
+
+  it('applies responsive style properties on UserCard element wrapperStyle', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'en-US',
+      openDashboard: vi.fn(),
+    });
+    mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
+
+    render(<UserCard />);
+    const button = screen.getByRole('button');
+    expect(button.style.maxWidth).toBe('100%');
+    expect(button.style.boxSizing).toBe('border-box');
   });
 });

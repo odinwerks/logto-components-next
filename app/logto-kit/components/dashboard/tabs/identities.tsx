@@ -84,7 +84,7 @@ function identityDetail(t: Translations, identity: {
 function ProviderIcon({ target, textColor, t }: { target: string; textColor: string; t: Translations }) {
   const icon = PROVIDER_ICONS[target];
   if (icon) return (
-    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: '1.375rem', height: '1.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} role="img" aria-label={providerName(t, target)}>
       {icon(textColor)}
     </div>
   );

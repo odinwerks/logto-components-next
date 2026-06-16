@@ -15,14 +15,22 @@ function createStorageHelpers<T>(key: string) {
   return {
     get: (): T | null => {
       if (typeof window === 'undefined') return null;
-      return sessionStorage.getItem(key) as T | null;
+      try {
+        return sessionStorage.getItem(key) as T | null;
+      } catch {
+        return null;
+      }
     },
     set: (value: T) => {
       if (typeof window === 'undefined') return;
-      if (value === null) {
-        sessionStorage.removeItem(key);
-      } else {
-        sessionStorage.setItem(key, String(value));
+      try {
+        if (value === null) {
+          sessionStorage.removeItem(key);
+        } else {
+          sessionStorage.setItem(key, String(value));
+        }
+      } catch {
+        // Safe no-op on SecurityError
       }
     },
   };
@@ -83,7 +91,7 @@ const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
 export function PreferencesProvider({
   children,
-  initialTheme = 'dark',
+  initialTheme,
   initialLang,
   initialOrgId,
   onUpdateCustomData,
@@ -98,7 +106,7 @@ export function PreferencesProvider({
 }) {
   const serverDefaultLang = initialLang ?? getDefaultLang();
 
-  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme);
+  const [theme, setThemeState] = useState<'dark' | 'light'>(initialTheme ?? 'dark');
   const [lang, setLangState] = useState<string>(serverDefaultLang);
   const [asOrg, setAsOrgState] = useState<string | null>(initialOrgId ?? null);
 
@@ -116,18 +124,26 @@ export function PreferencesProvider({
   useEffect(() => {
     onUpdateCustomDataRef.current = onUpdateCustomData;
   }, [onUpdateCustomData]);
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (didSyncFromStorage.current) return;
     didSyncFromStorage.current = true;
-    const cachedTheme = getStoredTheme();
-    if (cachedTheme && cachedTheme !== themeRef.current) setThemeState(cachedTheme);
+    
+    if (initialTheme) {
+      setStoredTheme(initialTheme);
+      setThemeState(initialTheme);
+    } else {
+      const cachedTheme = getStoredTheme();
+      if (cachedTheme && cachedTheme !== themeRef.current) setThemeState(cachedTheme);
+    }
 
     const cachedLang = getStoredLang();
     if (cachedLang && cachedLang !== langRef.current) setLangState(cachedLang);
 
     const cachedOrg = getStoredOrg();
     if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
-  }, []);
+  }, [initialTheme]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     themeRef.current = theme;
@@ -155,20 +171,15 @@ export function PreferencesProvider({
     mediaQuery.addEventListener('change', handleChange);
 
     const handlePreferencesChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ lang?: string; asOrg?: string | null }>;
+      const customEvent = e as CustomEvent<{ lang?: string }>;
       const detail = customEvent.detail || {};
       
-      const hasDetail = 'lang' in detail || 'asOrg' in detail;
+      const hasDetail = 'lang' in detail;
       const newLang = hasDetail ? detail.lang : getStoredLang();
-      const newAsOrg = hasDetail ? detail.asOrg : getStoredOrg();
 
       if (newLang && newLang !== langRef.current) {
         setStoredLang(newLang);
         setLangState(newLang);
-      }
-      if (newAsOrg !== undefined && newAsOrg !== asOrgRef.current) {
-        setStoredOrg(newAsOrg);
-        setAsOrgState(newAsOrg);
       }
     };
 
@@ -299,7 +310,6 @@ export function PreferencesProvider({
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
     persistOrg({ theme: themeRef.current, lang: langRef.current, asOrg: newOrgId }, prev);
-    window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { asOrg: newOrgId } }));
   }, [persistOrg]);
 
   const value = useMemo(

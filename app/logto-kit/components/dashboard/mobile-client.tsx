@@ -23,6 +23,19 @@ import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft } from 'lucide-react';
 import { getTabLabel } from './tab-utils';
 
+const subscribePrefersReducedMotion = (callback: () => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+};
+
+const getSnapshotPrefersReducedMotion = () => {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+const getServerSnapshotPrefersReducedMotion = () => false;
+
 // ── Props ────────────────────────────────────────────────────────────────────
 
 interface MobileClientProps {
@@ -99,7 +112,7 @@ export function MobileClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
-  onSignOut,
+  onSignOut: _onSignOut,
 }: MobileClientProps) {
 
   const { mode, colors } = useThemeMode();
@@ -170,8 +183,8 @@ export function MobileClient({
           color: colors.textPrimary,
           fontFamily: FONT_MONO,
           position: 'relative',
-          overflow: 'hidden',
-          padding: '2rem 1rem',
+          overflowY: 'auto',
+          padding: '2rem 1rem calc(env(safe-area-inset-bottom, 0px) + 12rem)',
           boxSizing: 'border-box',
         }}
       >
@@ -483,13 +496,9 @@ function MobileMenuEntry({
   const isLast = index === total - 1;
 
   const prefersReducedMotion = useSyncExternalStore(
-    (callback) => {
-      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-      mq.addEventListener('change', callback);
-      return () => mq.removeEventListener('change', callback);
-    },
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    () => false
+    subscribePrefersReducedMotion,
+    getSnapshotPrefersReducedMotion,
+    getServerSnapshotPrefersReducedMotion
   );
 
   useEffect(() => {

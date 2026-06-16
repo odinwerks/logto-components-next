@@ -23,6 +23,7 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
   const router = useRouter();
   const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
   const isSwitchingRef = useRef(false);
 
   const c = colors;
@@ -49,17 +50,18 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
   }, [setAsOrg, router]);
 
   useEffect(() => {
-    if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current) {
+    if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current && !hasAutoSwitched) {
       isSwitchingRef.current = true;
+      setHasAutoSwitched(true);
       handleChange(organizations[0].id).finally(() => { isSwitchingRef.current = false; });
     }
-  }, [organizations, asOrg, currentOrgId, handleChange]);
+  }, [organizations, asOrg, currentOrgId, handleChange, hasAutoSwitched]);
 
   if (organizations.length === 0) {
     return null;
   }
 
-  if (organizations.length === 1 && !asOrg && !currentOrgId) {
+  if (organizations.length === 1 && !asOrg && !currentOrgId && !hasAutoSwitched) {
     return null;
   }
 

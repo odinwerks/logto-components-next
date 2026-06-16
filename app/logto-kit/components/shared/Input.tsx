@@ -1,26 +1,17 @@
 'use client';
 
 import type { ThemeColors } from '../../themes';
-import type { ChangeEvent, KeyboardEvent } from 'react';
+import type { ChangeEvent } from 'react';
 
-export type InputProps = {
-  id?: string;
-  name?: string;
-  type?: string;
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  style?: React.CSSProperties;
-  autoFocus?: boolean;
   suffix?: React.ReactNode;
-  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
-  disabled?: boolean;
-  maxLength?: number;
   hasError?: boolean;
   mode?: 'dark' | 'light';
   colors: ThemeColors;
   describedby?: string;
-};
+}
 
 export function Input({
   id,
@@ -39,6 +30,7 @@ export function Input({
   mode: _mode,
   colors,
   describedby,
+  ...props
 }: InputProps) {
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -77,6 +69,7 @@ export function Input({
         ...errorStyle,
         ...ext,
       }}
+      {...props}
     />
   );
 

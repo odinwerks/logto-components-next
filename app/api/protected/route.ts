@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../../logto-kit/action-registry';
 import { validateActionConfig } from '../../logto-kit/action-registry/validate-action-config';
 import { introspectToken, getCleanEndpoint } from '../../logto-kit/logic/utils';
-import { assertSafeUserId } from '../../logto-kit/logic/guards';
+import { assertSafeLogtoId } from '../../logto-kit/logic/guards';
 import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   try {
     // BUG-001: Reject oversized request bodies before parsing JSON.
     const contentLength = request.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > 1_048_576) {
+    if (!contentLength || parseInt(contentLength, 10) > 1_048_576) {
       return apiError('PAYLOAD_TOO_LARGE', 413);
     }
 
@@ -131,13 +131,13 @@ export async function POST(request: NextRequest) {
       : { sub: id };
 
     try {
-      assertSafeUserId(id);
+      assertSafeLogtoId(id, 'userId');
     } catch {
       return apiError('TOKEN_INVALID', 400);
     }
 
     // ── Per-user rate limit ───────────────────────────────────────────────────
-    if (!protectedRouteRateLimiter.check(id)) {
+    if (!(await protectedRouteRateLimiter.check(id))) {
       debugLog(`[Protected API] Rate limit exceeded for user ${id}`);
       return apiError('RATE_LIMITED', 429);
     }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const getLogtoContextMock = vi.fn();
@@ -180,5 +180,51 @@ describe('proxy error classification and logging', () => {
       '[Proxy] Unexpected error, redirecting to sign-in:',
       'Database connection lost',
     );
+  });
+});
+
+describe('proxy CSP fixes', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('BUG-M-002: generates a canonical base64url 16-byte random nonce', async () => {
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/callback');
+    const res = await proxy(req);
+
+    // Extract CSP and nonce
+    const csp = res.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    
+    const nonceMatch = csp!.match(/nonce-([a-zA-Z0-9_-]+)/);
+    expect(nonceMatch).toBeTruthy();
+    const nonce = nonceMatch![1];
+
+    // Canonical 16-byte base64url should be 22 chars and only have base64url chars (no +, /, or =)
+    expect(nonce.length).toBe(22);
+    expect(nonce).not.toContain('+');
+    expect(nonce).not.toContain('/');
+    expect(nonce).not.toContain('=');
+  });
+
+  it('BUG-M-003: connect-src does not contain bare wss: wildcard in production, and contains scoped ws/wss localhost in development', async () => {
+    const { proxy } = await import('./proxy');
+
+    // Test production env (or non-development)
+    vi.stubEnv('NODE_ENV', 'production');
+    const reqProd = new NextRequest('https://example.com/callback');
+    const resProd = await proxy(reqProd);
+    const cspProd = resProd.headers.get('Content-Security-Policy') || '';
+    expect(cspProd).not.toContain('wss:');
+    expect(cspProd).not.toContain('ws:');
+
+    // Test development env
+    vi.stubEnv('NODE_ENV', 'development');
+    const reqDev = new NextRequest('https://example.com/callback');
+    const resDev = await proxy(reqDev);
+    const cspDev = resDev.headers.get('Content-Security-Policy') || '';
+    expect(cspDev).toContain('ws://localhost:* wss://localhost:*');
+    expect(cspDev).not.toMatch(/\bwss:\b/); // should not contain bare wss:
   });
 });

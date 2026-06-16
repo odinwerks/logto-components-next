@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useReducer } from 'react';
+import { useState, useCallback, useRef, useEffect, useReducer, useId } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
@@ -317,6 +317,9 @@ export function ProfileTab({
 }: ProfileTabProps) {
   const isMobile = mobmode === 1;
   const isDark = mode === 'dark';
+  const usernameId = useId();
+  const firstNameId = useId();
+  const lastNameId = useId();
   const c = colors;
   const ty = {
     fontSans: "'DM Sans', system-ui, sans-serif",
@@ -395,7 +398,16 @@ export function ProfileTab({
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
           // Attempt rollback of name update since profile update failed
-          try { await onUpdateBasicInfo({ name: userData.name ?? '' }); } catch { /* rollback best-effort */ }
+          try {
+            const rollbackResult = await onUpdateBasicInfo({ name: userData.name ?? '' });
+            if (!rollbackResult.ok) {
+              console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
+              refreshData();
+            }
+          } catch (err) {
+            console.warn('[ProfileTab] Rollback failed with exception:', err);
+            refreshData();
+          }
           onError(profileResult.error);
           return;
         }
@@ -415,7 +427,16 @@ export function ProfileTab({
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) {
             // Attempt rollback of name/username update since profile update failed
-            try { await onUpdateBasicInfo({ name: userData.name ?? '', username: userData.username ?? '' }); } catch { /* rollback best-effort */ }
+            try {
+              const rollbackResult = await onUpdateBasicInfo({ name: userData.name ?? '', username: userData.username ?? '' });
+              if (!rollbackResult.ok) {
+                console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
+                refreshData();
+              }
+            } catch (err) {
+              console.warn('[ProfileTab] Rollback failed with exception:', err);
+              refreshData();
+            }
             onError(profileResult.error);
             return;
           }
@@ -886,9 +907,10 @@ export function ProfileTab({
                 {/* Username row - shown in username and full modes */}
                 {(nameType === 'username' || nameType === 'full') && (
                   <div style={{ width: '100%' }}>
-                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
+                    <label htmlFor={usernameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
                       <Input
+                        id={usernameId}
                         value={username}
                         onChange={e => setUsername(e.target.value)}
                         placeholder={t.profile.usernamePlaceholder}
@@ -912,10 +934,11 @@ export function ProfileTab({
                 {/* Given/Family grid - shown in given_family and full modes */}
                 {(nameType === 'given_family' || nameType === 'full') && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
-                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
-                    <label style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
+                    <label htmlFor={firstNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
+                    <label htmlFor={lastNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
                     <div />
                     <Input
+                      id={firstNameId}
                       value={givenName}
                       onChange={e => setGivenName(e.target.value)}
                       placeholder={t.profile.firstNamePlaceholder}
@@ -923,6 +946,7 @@ export function ProfileTab({
                       style={{ padding: '0.375rem 0.75rem' }}
                     />
                     <Input
+                      id={lastNameId}
                       value={familyName}
                       onChange={e => setFamilyName(e.target.value)}
                       placeholder={t.profile.lastNamePlaceholder}
@@ -949,6 +973,7 @@ export function ProfileTab({
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(nameType === 'username' || nameType === 'full') && (
                     <Input
+                      id={usernameId}
                       value={username}
                       onChange={e => setUsername(e.target.value)}
                       placeholder={t.profile.usernamePlaceholder}
@@ -959,6 +984,7 @@ export function ProfileTab({
                   {(nameType === 'given_family' || nameType === 'full') && (
                     <>
                       <Input
+                        id={firstNameId}
                         value={givenName}
                         onChange={e => setGivenName(e.target.value)}
                         placeholder={t.profile.firstNamePlaceholder}
@@ -966,6 +992,7 @@ export function ProfileTab({
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                       />
                       <Input
+                        id={lastNameId}
                         value={familyName}
                         onChange={e => setFamilyName(e.target.value)}
                         placeholder={t.profile.lastNamePlaceholder}

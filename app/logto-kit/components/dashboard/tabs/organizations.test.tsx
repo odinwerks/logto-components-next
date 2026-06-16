@@ -501,3 +501,62 @@ describe('OrganizationsTab - BUG-021 organization list container role', () => {
     expect(radiogroup).toBeInTheDocument();
   });
 });
+
+describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue(true);
+  });
+
+  it('verifies that aria-describedby is removed from the main radio button and only exists on the info button', async () => {
+    renderOrganizations();
+
+    // The main radio button
+    const mainRadioButtons = screen.getAllByRole('radio');
+    const mainRadioButton = mainRadioButtons[0];
+    expect(mainRadioButton).not.toHaveAttribute('aria-describedby');
+
+    // The info button
+    const infoButtons = screen.getAllByRole('button', { name: /Organization info/i });
+    const infoButton = infoButtons[0];
+    
+    // Focus to trigger tooltip
+    await act(async () => {
+      fireEvent.focus(infoButton);
+    });
+
+    await waitFor(() => {
+      expect(infoButton).toHaveAttribute('aria-describedby');
+    });
+  });
+
+  it('verifies focus ring is conditional on active focus state', async () => {
+    renderOrganizations();
+
+    const infoButtons = screen.getAllByRole('button', { name: /Organization info/i });
+    const infoButton = infoButtons[0];
+
+    // Initially should not have outline style
+    expect(infoButton.style.outline).toBe('none');
+
+    // Focus on the info button
+    await act(async () => {
+      fireEvent.focus(infoButton);
+    });
+
+    await waitFor(() => {
+      expect(infoButton.style.outline).not.toBe('none');
+      expect(infoButton.style.outline).toContain('solid');
+    });
+
+    // Blur the info button
+    await act(async () => {
+      fireEvent.blur(infoButton);
+    });
+
+    await waitFor(() => {
+      expect(infoButton.style.outline).toBe('none');
+    });
+  });
+});
