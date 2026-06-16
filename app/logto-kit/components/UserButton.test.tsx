@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { UserButton, UserCard } from './UserButton';
 
 // Mock Logto provider hooks
@@ -7,6 +7,14 @@ const mockUseLogto = vi.fn();
 vi.mock('./providers/logto-provider', () => ({
   useLogto: () => mockUseLogto(),
 }));
+
+const mockOpenDashboard = vi.fn();
+
+const defaultUseLogtoValue = {
+  lang: 'en-US',
+  openDashboard: mockOpenDashboard,
+  isAuthenticated: true,
+};
 
 // Mock UserDataProvider hook
 const mockUseUserDataContext = vi.fn();
@@ -40,7 +48,7 @@ describe('UserButton Accessibility and Shape Props', () => {
 
   it('sets accessibility aria-label on UserButton button including user display name', () => {
     mockUseLogto.mockReturnValue({
-      lang: 'en-US',
+      ...defaultUseLogtoValue,
       openDashboard: vi.fn(),
     });
     mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe', avatar: 'https://example.com/avatar.png' });
@@ -151,5 +159,23 @@ describe('UserButton Accessibility and Shape Props', () => {
     const button = screen.getByRole('button');
     expect(button.style.maxWidth).toBe('100%');
     expect(button.style.boxSizing).toBe('border-box');
+  });
+
+  it('renders fallback avatar and opens dashboard when unauthenticated', () => {
+    mockUseLogto.mockReturnValue({
+      ...defaultUseLogtoValue,
+      isAuthenticated: false,
+      openDashboard: mockOpenDashboard,
+    });
+    mockUseUserDataContext.mockReturnValue(null);
+
+    render(<UserButton />);
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+    // Unauthenticated: should immediately show FallbackAvatar, not LoadingPlaceholder (no pulse animation)
+    const avatar = button.firstChild as HTMLElement;
+    expect(avatar.style.animation).not.toContain('pulse');
+    fireEvent.click(button);
+    expect(mockOpenDashboard).toHaveBeenCalled();
   });
 });

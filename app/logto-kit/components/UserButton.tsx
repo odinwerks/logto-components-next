@@ -74,7 +74,7 @@ interface UseUserDisplayOptions {
 function useUserDisplay(opts: UseUserDisplayOptions) {
   const { colors: contextColors } = useThemeMode();
   const colors = opts.colors ?? contextColors;
-  const { openDashboard, lang } = useLogto();
+  const { openDashboard, lang, isAuthenticated } = useLogto();
   const contextUserData = useUserDataContext();
 
   const [showFallback, setShowFallback] = useState(false);
@@ -89,20 +89,24 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
   // Derive userData and loading during render — no state sync needed
   const userData = opts.userData ?? contextUserData ?? null;
 
+  // When explicitly unauthenticated, skip loading and show fallback immediately.
+  // When isAuthenticated is undefined (unknown/loading), preserve existing behavior.
+  const isExplicitlyUnauthenticated = isAuthenticated === false;
+
   // Derive showFallback at render: suppress fallback once userData is available
-  const effectiveShowFallback = userData ? false : showFallback;
+  const effectiveShowFallback = userData ? false : (isExplicitlyUnauthenticated || showFallback);
   const loading = !userData && !effectiveShowFallback;
 
   // Timeout-only effect — only starts the timer; never calls setState with a derived value
   useEffect(() => {
-    if (userData) return; // timer is irrelevant once data arrives
+    if (userData || isExplicitlyUnauthenticated) return; // timer is irrelevant once data arrives or auth state is known
     const timeout = setTimeout(() => {
       if (isMountedRef.current) {
         setShowFallback(true);
       }
     }, 1500);
     return () => clearTimeout(timeout);
-  }, [userData]);
+  }, [userData, isExplicitlyUnauthenticated]);
 
   const t = useMemo(
     () => locales[lang as keyof typeof locales] ?? locales['en-US'],
