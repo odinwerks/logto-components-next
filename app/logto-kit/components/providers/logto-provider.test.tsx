@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { LogtoProvider, useLogto } from './logto-provider';
 import type { UserData } from '../../logic/types';
@@ -133,5 +133,97 @@ describe('LogtoProvider contextValue memoization (LOG-002)', () => {
     // If memoized, contextValues should still have length 1 because the effect did not re-run
     expect(contextValues).toHaveLength(1);
     expect(contextValues[0]).toBe(firstContextValue);
+  });
+});
+
+describe('LogtoProvider unauthenticated mode', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  it('renders children when unauthenticated (no userData)', () => {
+    render(
+      <LogtoProvider dashboard={<div data-testid="dashboard">Dashboard</div>}>
+        <div data-testid="children">Children</div>
+      </LogtoProvider>
+    );
+
+    expect(screen.getByTestId('children')).toBeInTheDocument();
+    // Dashboard should NOT be shown until openDashboard() is called
+    expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
+  });
+
+  it('exposes isAuthenticated=false when no userData is provided', () => {
+    let capturedIsAuthenticated: boolean | undefined;
+
+    function IsAuthChecker() {
+      const { isAuthenticated } = useLogto();
+      useEffect(() => {
+        capturedIsAuthenticated = isAuthenticated;
+      }, [isAuthenticated]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider>
+        <IsAuthChecker />
+      </LogtoProvider>
+    );
+
+    expect(capturedIsAuthenticated).toBe(false);
+  });
+
+  it('exposes isAuthenticated=true when userData is provided', () => {
+    let capturedIsAuthenticated: boolean | undefined;
+
+    function IsAuthChecker() {
+      const { isAuthenticated } = useLogto();
+      useEffect(() => {
+        capturedIsAuthenticated = isAuthenticated;
+      }, [isAuthenticated]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider userData={mockUserData}>
+        <IsAuthChecker />
+      </LogtoProvider>
+    );
+
+    expect(capturedIsAuthenticated).toBe(true);
+  });
+
+  it('openDashboard accepts opts with routeTo', () => {
+    let capturedOpenDashboard: ((opts?: { routeTo?: string }) => void) | undefined;
+
+    function DashboardOpenerCapture() {
+      const { openDashboard } = useLogto();
+      useEffect(() => {
+        capturedOpenDashboard = openDashboard;
+      }, [openDashboard]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider>
+        <DashboardOpenerCapture />
+      </LogtoProvider>
+    );
+
+    // Should not throw when called with opts
+    expect(() => act(() => { capturedOpenDashboard?.({ routeTo: '/profile' }); })).not.toThrow();
   });
 });

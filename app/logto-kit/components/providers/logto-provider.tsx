@@ -20,7 +20,8 @@ interface LogtoContextValue {
   setLang: (lang: string) => void;
   asOrg: string | null;
   setAsOrg: (orgId: string | null) => void;
-  openDashboard: () => void;
+  isAuthenticated: boolean;
+  openDashboard: (opts?: { routeTo?: string }) => void;
   closeDashboard: () => void;
 }
 
@@ -36,8 +37,11 @@ export function useLogto(): LogtoContextValue {
 
 export interface LogtoProviderProps {
   children: ReactNode;
-  userData: UserData;
-  dashboard?: { desktop: ReactNode; mobile: ReactNode };
+  /** User data from a successful auth fetch. Pass `null` or omit when unauthenticated. */
+  userData?: UserData | null;
+  /** Dashboard content. Accepts a single ReactNode (rendered for both desktop and mobile)
+   *  or a `{ desktop, mobile }` object for responsive layouts. */
+  dashboard?: ReactNode | { desktop: ReactNode; mobile: ReactNode };
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
@@ -45,23 +49,48 @@ export interface LogtoProviderProps {
   initialOrgId?: string | null;
 }
 
+/** Normalise the `dashboard` prop to `{ desktop, mobile }` so DashboardDialog always gets the same shape. */
+function normalizeDashboard(
+  dashboard: ReactNode | { desktop: ReactNode; mobile: ReactNode } | undefined,
+): { desktop: ReactNode; mobile: ReactNode } | undefined {
+  if (!dashboard) return undefined;
+  if (
+    typeof dashboard === 'object' &&
+    dashboard !== null &&
+    'desktop' in (dashboard as object) &&
+    'mobile' in (dashboard as object)
+  ) {
+    return dashboard as { desktop: ReactNode; mobile: ReactNode };
+  }
+  // Single ReactNode — use the same node for both orientations
+  return { desktop: dashboard as ReactNode, mobile: dashboard as ReactNode };
+}
+
 function LogtoProviderContent({
   userData,
   dashboard,
   children,
 }: {
-  userData: UserData;
-  dashboard?: { desktop: ReactNode; mobile: ReactNode };
+  userData?: UserData | null;
+  dashboard?: ReactNode | { desktop: ReactNode; mobile: ReactNode };
   children: ReactNode;
 }) {
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string }>({
+    isOpen: false,
+  });
 
   const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
   const { asOrg, setAsOrg } = useOrgMode();
 
-  const openDashboard = useCallback(() => setIsDashboardOpen(true), []);
-  const closeDashboard = useCallback(() => setIsDashboardOpen(false), []);
+  const isAuthenticated = !!userData;
+
+  const openDashboard = useCallback((opts?: { routeTo?: string }) => {
+    setDashboardState({ isOpen: true, routeTo: opts?.routeTo });
+  }, []);
+  const closeDashboard = useCallback(() => setDashboardState({ isOpen: false }), []);
+
+  const normalizedDashboard = useMemo(() => normalizeDashboard(dashboard), [dashboard]);
 
   const contextValue = useMemo<LogtoContextValue>(() => ({
     mode,
@@ -72,6 +101,7 @@ function LogtoProviderContent({
     setLang,
     asOrg,
     setAsOrg,
+    isAuthenticated,
     openDashboard,
     closeDashboard,
   }), [
@@ -83,16 +113,23 @@ function LogtoProviderContent({
     setLang,
     asOrg,
     setAsOrg,
+    isAuthenticated,
     openDashboard,
     closeDashboard,
   ]);
 
   return (
     <LogtoContext.Provider value={contextValue}>
-      <UserDataProvider userData={userData}>
+      <UserDataProvider userData={userData ?? null}>
         {children}
-        {isDashboardOpen && dashboard && (
-          <DashboardDialog mode={mode} onClose={closeDashboard} desktop={dashboard.desktop} mobile={dashboard.mobile} />
+        {dashboardState.isOpen && normalizedDashboard && (
+          <DashboardDialog
+            mode={mode}
+            onClose={closeDashboard}
+            desktop={normalizedDashboard.desktop}
+            mobile={normalizedDashboard.mobile}
+            routeTo={dashboardState.routeTo}
+          />
         )}
       </UserDataProvider>
     </LogtoContext.Provider>
@@ -107,11 +144,15 @@ function DashboardDialog({
   onClose,
   desktop,
   mobile,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  routeTo,
 }: {
   mode: 'dark' | 'light';
   onClose: () => void;
   desktop: ReactNode;
   mobile: ReactNode;
+  /** Route to navigate to when the dashboard opens. Used by Task 5 (auth modal routing). */
+  routeTo?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);

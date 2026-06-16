@@ -10,7 +10,7 @@ export function UserDataProvider({
   userData,
 }: {
   children: ReactNode;
-  userData: UserData;
+  userData: UserData | null;
 }) {
   return (
     <UserDataContext.Provider value={userData}>
