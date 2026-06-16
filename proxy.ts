@@ -89,13 +89,71 @@ const WIPE_NONCE_TTL_SECONDS = 60;
 // These paths are public (no session needed). They are either:
 //   - Auth-initiation routes (sign-in, callback) - must be reachable pre-auth
 //   - Cookie/session management (wipe) - GET for convenience, POST enforces checkSameOrigin
+//   - Docs/demo pages - renderable without auth (layout shows auth modal when unauthenticated)
 // Note: Sign-out is handled by the signOutUser() Server Action, not an API route.
 //   Server Actions have built-in origin validation, so no separate route or CSRF guard needed.
-const PUBLIC_PATHS = [
+const PUBLIC_PATHS = new Set([
+  // Auth routes
   '/callback',
   '/api/auth/sign-in',
   '/api/wipe',
-];
+
+  // Docs topic routes — generated from CONTENT_REGISTRY in app/(docs)/[topic]/[section]/page.tsx
+  // Getting Started
+  '/getting-started/pre-requisites',
+  '/getting-started/clone-install',
+  '/getting-started/env-setup',
+  '/getting-started/backend-selection',
+  '/getting-started/avatar-upload',
+  '/getting-started/logto-console',
+  '/getting-started/replace-the-demo',
+  // UserButton demo
+  '/user-button/specs',
+  '/user-button/examples',
+  // Dashboard docs
+  '/dashboard/internals',
+  '/dashboard/provider-sync',
+  '/dashboard/tab-structure',
+  '/dashboard/rendering',
+  '/dashboard/mobile',
+  // Tabs & Flows docs
+  '/tabs-and-flows/overview',
+  '/tabs-and-flows/profile',
+  '/tabs-and-flows/preferences',
+  '/tabs-and-flows/security',
+  '/tabs-and-flows/sessions',
+  '/tabs-and-flows/identities',
+  '/tabs-and-flows/organizations',
+  // RBAC demo
+  '/rbac/ui-protected',
+  '/rbac/api',
+  // Calculator demo
+  '/calculator/overview',
+  '/calculator/rbac-design',
+  '/calculator/api-authorization',
+  '/calculator/live-demo',
+  // Anatomy docs
+  '/anatomy/providers',
+  '/anatomy/theme',
+  '/anatomy/i18n',
+  '/anatomy/primitives',
+  '/anatomy/async-patterns',
+  // Security docs
+  '/security/error-handling',
+  '/security/input-guards',
+  '/security/logging',
+]);
+
+/**
+ * Returns true if `pathname` is a public path that does not require authentication.
+ * Performs exact matching (with and without trailing slash) against PUBLIC_PATHS.
+ */
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PATHS.has(pathname)) return true;
+  // Strip trailing slash and check again
+  if (pathname.endsWith('/') && PUBLIC_PATHS.has(pathname.slice(0, -1))) return true;
+  return false;
+}
 
 const getClient = () => new LogtoClient(getLogtoConfig());
 
@@ -116,7 +174,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('x-nonce', nonce);
 
   // Skip public paths (exact match or with trailing slash) - apply CSP but skip auth check
-  if (PUBLIC_PATHS.some(path => pathname === path || pathname === path + '/')) {
+  if (isPublicPath(pathname)) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('Content-Security-Policy', cspHeader);
     return response;
