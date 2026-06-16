@@ -5,6 +5,9 @@ import './globals.css';
 import AuthWatcher from './logto-kit/components/providers/auth-watcher';
 import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
 import { LangSync } from './logto-kit/components/LangSync';
+import { LogtoProvider } from './logto-kit/components/providers/logto-provider';
+import { Dashboard } from './logto-kit/components/dashboard';
+import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -71,10 +74,12 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable} ${dmSans.variable}`}>
-        <AuthWatcher />
-        <SessionHeartbeat />
-        {children}
-        <LangSync />
+        <LogtoProvider dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}>
+          <AuthWatcher />
+          <SessionHeartbeat />
+          {children}
+          <LangSync />
+        </LogtoProvider>
       </body>
     </html>
   );
