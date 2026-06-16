@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, ArrowLeft } from 'lucide-react';
+import { Menu, ArrowLeft, X } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
 import { NAV_ITEMS } from './nav-data';
@@ -198,7 +198,7 @@ export default function MobileDocsNav() {
               <div style={{
                 position: 'fixed',
                  bottom: '1rem',
-                 right: '4.15rem',
+                 right: '7.3rem',
                  width: '2.5rem',
                  height: '2.5rem',
                 display: 'flex',
@@ -214,7 +214,7 @@ export default function MobileDocsNav() {
                 <button
                   type="button"
                   onClick={() => setStage('index')}  // Go back to index, not close
-                  style={triggerStyle}
+                  style={{ ...triggerStyle, right: '4.15rem' }}
                   aria-label="Back to topics"
                 >
                   <ArrowLeft size={18} />
@@ -248,13 +248,23 @@ export default function MobileDocsNav() {
               <button
                 type="button"
                 onClick={() => setStage('topics')}
-                style={triggerStyle}
+                style={{ ...triggerStyle, right: '4.15rem' }}
                 aria-label="Back to topics"
               >
                  <ArrowLeft size={18} />
               </button>
             </div>
           )}
+
+          {/* Dedicated close button (X icon) that calls setIsOpen(false) without router.push('/') */}
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            style={triggerStyle}
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
         </div>
       )}
     </>

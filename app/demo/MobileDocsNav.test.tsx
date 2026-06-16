@@ -139,4 +139,22 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // Verify overlay is closed and 'Open navigation' button is visible again
     expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
   });
+
+  it('closes the overlay directly without redirecting when clicking close button', () => {
+    render(<MobileDocsNav />);
+
+    // Open navigation
+    const openBtn = screen.getByRole('button', { name: 'Open navigation' });
+    fireEvent.click(openBtn);
+
+    // Click Close navigation button (X icon)
+    const closeBtn = screen.getByRole('button', { name: 'Close navigation' });
+    fireEvent.click(closeBtn);
+
+    // Verify router was NOT called
+    expect(pushMock).not.toHaveBeenCalled();
+
+    // Verify overlay is closed and 'Open navigation' button is visible again
+    expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
+  });
 });

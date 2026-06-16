@@ -123,4 +123,54 @@ describe('CalculatorClient', () => {
       expect(btnSin).not.toBeDisabled();
     });
   });
+
+  it('loads state from sessionStorage in useEffect on mount to avoid hydration mismatch', async () => {
+    const savedState = {
+      expr: '123+',
+      curToken: '456',
+      isRad: false,
+      invOn: false,
+      justEvaled: false,
+      openParens: 0,
+      lastWasOp: true,
+      lastWasClose: false,
+      isCalculating: false,
+    };
+    window.sessionStorage.setItem('calc-state', JSON.stringify(savedState));
+
+    render(<CalculatorClient />);
+
+    await waitFor(() => {
+      expect(screen.getByText('456')).toBeInTheDocument();
+      expect(screen.getByText('123+ 456')).toBeInTheDocument();
+    });
+  });
+
+  it('avoids double-firing backspace on mobile touch events', async () => {
+    render(<CalculatorClient />);
+
+    // Enter "123"
+    fireEvent.click(screen.getByRole('button', { name: '1' }));
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+
+    expect(screen.getAllByText('123').length).toBeGreaterThan(0);
+
+    const backspaceBtn = screen.getByText('⌫');
+
+    // Simulate mobile touch sequence:
+    // 1. touchstart
+    fireEvent.touchStart(backspaceBtn);
+    // 2. mousedown (browser emulates this unless preventDefault() is called in touchstart)
+    fireEvent.mouseDown(backspaceBtn);
+
+    // 3. touchend
+    fireEvent.touchEnd(backspaceBtn);
+    // 4. mouseup (emulated)
+    fireEvent.mouseUp(backspaceBtn);
+
+    // If fixed, only ONE delete should have occurred, leaving "12"
+    // If bug exists, TWO deletes occurred, leaving "1"
+    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
+  });
 });

@@ -66,7 +66,7 @@ export default async function DocsLayout({ children }) {
   return (
     <header style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
       <span>Hello, {userData.name}</span>
-      <UserButton size="36px" />
+      <UserButton Size="36px" />
       <button onClick={openDashboard}>Settings Dashboard</button>
     </header>
   );

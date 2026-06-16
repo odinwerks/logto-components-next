@@ -269,11 +269,20 @@ async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {
 // ============================================================================
 
 export function CalculatorClient() {
-  const [state, setState] = useState<CalcState>(loadState);
+  const [state, setState] = useState<CalcState>(DEFAULT_STATE);
+  const isLoadedRef = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const backspaceRef = useRef<HTMLButtonElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
+  const lastTouchTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const loaded = loadState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState(loaded);
+    isLoadedRef.current = true;
+  }, []);
 
   const { asOrg } = useOrgMode();
   const userData = useUserDataContext();
@@ -312,7 +321,9 @@ export function CalculatorClient() {
   const isScientificDisabled = hasScientific === false;
 
   useEffect(() => {
-    saveState(state);
+    if (isLoadedRef.current) {
+      saveState(state);
+    }
   }, [state]);
 
   const flush = useCallback(() => {
@@ -578,7 +589,17 @@ export function CalculatorClient() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [act, smartParen, flush, handleEquals, state.isCalculating, isScientificDisabled]);
 
-  const handleBackspaceMouseDown = () => {
+  const handleBackspaceMouseDown = (e?: React.MouseEvent | React.TouchEvent) => {
+    const now = Date.now();
+    if (e && 'touches' in e) {
+      e.preventDefault();
+      lastTouchTimeRef.current = now;
+    } else if (now - lastTouchTimeRef.current < 1000) {
+      return;
+    }
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
     isLongPressRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
@@ -586,9 +607,17 @@ export function CalculatorClient() {
     }, 500);
   };
 
-  const handleBackspaceMouseUp = () => {
+  const handleBackspaceMouseUp = (e?: React.MouseEvent | React.TouchEvent) => {
+    const now = Date.now();
+    if (e && 'touches' in e) {
+      e.preventDefault();
+      lastTouchTimeRef.current = now;
+    } else if (now - lastTouchTimeRef.current < 1000) {
+      return;
+    }
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
     if (!isLongPressRef.current) {
       act('del', null);
