@@ -19,10 +19,13 @@
 // ============================================================================
 
 interface RateLimiterInstance {
-  /** Returns true if the request is allowed, false if rate-limited. */
-  check(key: string): boolean;
+  /**
+   * Returns true if the request is allowed, false if rate-limited.
+   * Async because Redis check must be awaited for atomic distributed behavior.
+   */
+  check(key: string): Promise<boolean>;
   /** Resets the rate limit counter for the given key. */
-  reset(key: string): void;
+  reset(key: string): Promise<void>;
 }
 
 interface LockManagerInstance {
@@ -52,9 +55,9 @@ interface RateLimiterOptions {
 // ============================================================================
 
 interface Backend {
-  // Rate limiting
-  rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): boolean;
-  rateLimitReset(namespace: string, key: string): void;
+  // Rate limiting — async to support Redis atomic Lua script
+  rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): Promise<boolean>;
+  rateLimitReset(namespace: string, key: string): Promise<void>;
 
   // Locking
   lockAcquire(namespace: string, key: string): Promise<() => void>;
@@ -74,10 +77,13 @@ const DEFAULT_LOCK_TIMEOUT_MS = 30_000;
 
 class InMemoryBackend implements Backend {
   private readonly rateLimits = new Map<string, { count: number; resetAt: number }>();
-  private readonly locks = new Map<string, Map<string, Promise<void>>>();
+  private readonly locks = new Map<string, Map<string, { promise: Promise<void>; resolve: () => void }>>();
   private readonly tokens = new Map<string, { token: string; expiresAt: number }>();
 
-  private getLockNamespace(namespace: string): Map<string, Promise<void>> {
+  /** Maximum lock entries per namespace before rejecting new acquisitions (HIGH-3). */
+  private readonly MAX_LOCK_ENTRIES_PER_NAMESPACE = 1000;
+
+  private getLockNamespace(namespace: string): Map<string, { promise: Promise<void>; resolve: () => void }> {
     let ns = this.locks.get(namespace);
     if (!ns) {
       ns = new Map();
@@ -86,7 +92,7 @@ class InMemoryBackend implements Backend {
     return ns;
   }
 
-  rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): boolean {
+  async rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): Promise<boolean> {
     const mapKey = `${namespace}:${key}`;
     const now = Date.now();
     const entry = this.rateLimits.get(mapKey);
@@ -99,20 +105,28 @@ class InMemoryBackend implements Backend {
     return true;
   }
 
-  rateLimitReset(namespace: string, key: string): void {
+  async rateLimitReset(namespace: string, key: string): Promise<void> {
     this.rateLimits.delete(`${namespace}:${key}`);
   }
 
   async lockAcquire(namespace: string, key: string): Promise<() => void> {
     const ns = this.getLockNamespace(namespace);
 
+    // Capacity check (HIGH-3): if namespace is at max and key is not already locked, reject
+    if (ns.size >= this.MAX_LOCK_ENTRIES_PER_NAMESPACE && !ns.has(key)) {
+      throw new Error(
+        `Lock manager at capacity (${this.MAX_LOCK_ENTRIES_PER_NAMESPACE}) for namespace '${namespace}'. Try again later.`
+      );
+    }
+
     // Wait for any existing lock on this key with timeout
     while (true) {
       const existing = ns.get(key);
       if (!existing) break;
 
+      let timerId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
+        timerId = setTimeout(
           () =>
             reject(
               new Error(
@@ -123,24 +137,45 @@ class InMemoryBackend implements Backend {
         );
       });
 
-      await Promise.race([existing.catch(() => {}), timeoutPromise]);
+      try {
+        await Promise.race([existing.promise.catch(() => {}), timeoutPromise]);
+      } catch (timeoutErr) {
+        // If this was a timeout, the lock may be abandoned. Forcibly evict
+        // the stale entry so subsequent callers are not permanently blocked.
+        const stillThere = ns.get(key);
+        if (stillThere === existing) {
+          ns.delete(key); // Forcibly evict stale/abandoned lock
+        }
+        throw timeoutErr;  // Re-throw to caller
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
     }
 
     let release!: () => void;
     const promise = new Promise<void>((resolve) => {
       release = resolve;
     });
-    ns.set(key, promise);
+    ns.set(key, { promise, resolve: release });
 
     return () => {
-      ns.delete(key);
-      release();
+      const entry = ns.get(key);
+      if (entry && entry.promise === promise) {
+        ns.delete(key);
+        release();
+      }
     };
   }
 
   lockRelease(namespace: string, key: string): void {
     const ns = this.locks.get(namespace);
-    if (ns) ns.delete(key);
+    if (ns) {
+      const entry = ns.get(key);
+      if (entry) {
+        entry.resolve();
+        ns.delete(key);
+      }
+    }
   }
 
   tokenGet(key: string): string | null {
@@ -166,66 +201,86 @@ class InMemoryBackend implements Backend {
 // Redis backend
 // ============================================================================
 
+/**
+ * Atomic Lua script for Redis rate limiting.
+ *
+ * Increments the counter for the given key. Sets the expiry on first increment.
+ * Returns 1 if the request is allowed (count <= max), 0 if rate-limited.
+ *
+ * Atomicity: INCR and EXPIRE run in the same Lua execution context — no race
+ * between the two Redis calls. The expiry is only set on the first increment
+ * (count === 1) so it doesn't reset the window on subsequent requests.
+ */
+const RATE_LIMIT_LUA_SCRIPT = `
+local key = KEYS[1]
+local max = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local current = redis.call('INCR', key)
+if current == 1 then
+  redis.call('EXPIRE', key, window)
+end
+if current <= max then
+  return 1
+else
+  return 0
+end
+`;
+
 class RedisBackend implements Backend {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly client: any;
+
+  /**
+   * Per-instance fallback in-memory rate limiter for degraded mode.
+   *
+   * When Redis throws during rateLimitCheck, we log a warning and fall back
+   * to this local in-memory map. This is DEGRADED MODE — not fail-closed.
+   * The fallback is bounded to prevent unbounded memory growth.
+   *
+   * NOTE: In a multi-instance deployment, degraded mode only enforces per-instance
+   * limits (not global distributed limits). This is intentional and documented.
+   * The alternative (fail-closed) would deny all requests when Redis is down,
+   * which is worse for availability in most deployments.
+   */
+  private readonly _fallbackRateLimits = new Map<string, { count: number; resetAt: number }>();
+  private static readonly FALLBACK_MAP_MAX_ENTRIES = 10_000;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(client: any) {
     this.client = client;
   }
 
-  /**
-   * WARNING: DESIGN LIMITATION OF SYNCHRONOUS CONTRACT (BUG-008)
-   *
-   * The createRateLimiter public interface defines a synchronous `check(key: string): boolean` method.
-   * Because of this synchronous signature, we cannot block and await Redis responses (such as INCR/EXPIRE).
-   *
-   * CONCURRENCY & MULTI-INSTANCE IMPACTS:
-   * 1. This method fires asynchronous commands to Redis (`client.incr` + `expire`) as fire-and-forget background tasks.
-   * 2. It immediately returns a decision based on a LOCAL in-memory shadow map (`_shadowRateLimitCheck`).
-   * 3. In a multi-instance production environment, instances DO NOT share the in-memory shadow map synchronously.
-   *    Each instance limits requests locally per-process, while pushing counts to Redis asynchronously.
-   * 4. Therefore, cross-instance requests are not perfectly synchronized in real-time, which may allow temporary
-   *    rate-limiting slides (e.g., clients hitting different instances could slightly exceed the maximum rate
-   *    before the background Redis write and TTL expire).
-   *
-   * MIGRATION/RECOMMENDATION:
-   * If strict global distributed rate-limiting is required, migrate `createRateLimiter` to an asynchronous signature:
-   * `check(key: string): Promise<boolean>` and await Redis operations directly instead of relying on the shadow map.
-   */
-  rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): boolean {
-    // Redis rate limiting is async; we perform a best-effort synchronous read
-    // via a fire-and-forget pattern. For truly atomic Redis rate limiting we
-    // would need to make check() async. As per spec, check() returns boolean.
-    // We use an in-memory shadow for synchronous return value, and schedule
-    // the Redis write asynchronously for durability/distribution.
-    //
-    // For production multi-instance deployments, prefer an async check() API.
-    // This implementation fulfils the spec's synchronous interface contract.
+  async rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): Promise<boolean> {
     const mapKey = `rl:${namespace}:${key}`;
     const windowSec = Math.ceil(windowMs / 1000);
 
-    // Fire-and-forget Redis INCR + EXPIRE; return value from in-memory shadow
-    void (async () => {
-      try {
-        const count = await this.client.incr(mapKey);
-        if (count === 1) {
-          await this.client.expire(mapKey, windowSec);
-        }
-      } catch {
-        // Redis errors are non-fatal for rate limiting
-      }
-    })();
-
-    // Synchronous shadow map for immediate return
-    return this._shadowRateLimitCheck(namespace, key, windowMs, max);
+    try {
+      const result = await this.client.eval(
+        RATE_LIMIT_LUA_SCRIPT,
+        1,
+        mapKey,
+        String(max),
+        String(windowSec),
+      );
+      return result === 1;
+    } catch (err) {
+      // Redis error during rate limit check: DEGRADED MODE.
+      // Fall back to per-instance in-memory rate limiter rather than fail-closed.
+      // This preserves availability when Redis is temporarily unavailable,
+      // at the cost of distributed enforcement (each instance enforces independently).
+      console.warn(
+        `[RateLimit] Redis unavailable for key "${mapKey}" — falling back to per-instance in-memory limit. ` +
+        `Original error: ${(err as Error).message}`,
+      );
+      return this._fallbackRateLimitCheck(namespace, key, windowMs, max);
+    }
   }
 
-  // In-memory shadow for synchronous return from Redis-backed rate limiter
-  private readonly _shadowMap = new Map<string, { count: number; resetAt: number }>();
-
-  private _shadowRateLimitCheck(
+  /**
+   * Per-instance in-memory rate limit check for degraded mode.
+   * Bounded to FALLBACK_MAP_MAX_ENTRIES to prevent memory exhaustion.
+   */
+  private _fallbackRateLimitCheck(
     namespace: string,
     key: string,
     windowMs: number,
@@ -233,9 +288,17 @@ class RedisBackend implements Backend {
   ): boolean {
     const mapKey = `${namespace}:${key}`;
     const now = Date.now();
-    const entry = this._shadowMap.get(mapKey);
+    const entry = this._fallbackRateLimits.get(mapKey);
+
     if (!entry || now > entry.resetAt) {
-      this._shadowMap.set(mapKey, { count: 1, resetAt: now + windowMs });
+      // Evict oldest entry if at capacity before adding new one
+      if (!entry && this._fallbackRateLimits.size >= RedisBackend.FALLBACK_MAP_MAX_ENTRIES) {
+        const firstKey = this._fallbackRateLimits.keys().next().value;
+        if (firstKey !== undefined) {
+          this._fallbackRateLimits.delete(firstKey);
+        }
+      }
+      this._fallbackRateLimits.set(mapKey, { count: 1, resetAt: now + windowMs });
       return true;
     }
     if (entry.count >= max) return false;
@@ -243,10 +306,10 @@ class RedisBackend implements Backend {
     return true;
   }
 
-  rateLimitReset(namespace: string, key: string): void {
+  async rateLimitReset(namespace: string, key: string): Promise<void> {
     const mapKey = `rl:${namespace}:${key}`;
     void this.client.del(mapKey).catch(() => {});
-    this._shadowMap.delete(`${namespace}:${key}`);
+    this._fallbackRateLimits.delete(`${namespace}:${key}`);
   }
 
   async lockAcquire(namespace: string, key: string): Promise<() => void> {
@@ -354,6 +417,9 @@ async function initRedisBackend(redisUrl: string): Promise<Backend> {
  * Returns the active backend, initializing it on first call.
  * - No REDIS_URL → in-memory (silent)
  * - REDIS_URL set → Redis (fail fast on connection error)
+ *
+ * During the Redis init window, uses in-memory backend as a stand-in.
+ * A warning is logged because rate limits during this window are per-instance only.
  */
 function getBackend(): Backend {
   if (_backend) return _backend;
@@ -370,9 +436,8 @@ function getBackend(): Backend {
   // a temporary stand-in, then replace once connection is established.
   // For fail-fast behavior, we throw if the connection has already failed.
   //
-  // NOTE: Because Redis init is async but our API is synchronous, we
-  // eagerly start the connection and fall back to in-memory until Redis
-  // is ready. If Redis fails, subsequent calls will throw.
+  // NOTE: During the Redis init window, rate limits are per-instance only.
+  // A warning is logged to alert operators.
   const tempBackend = new InMemoryBackend();
   _backend = tempBackend;
 
@@ -402,19 +467,23 @@ function getBackend(): Backend {
  *
  * Uses count+reset semantics (fixed window).
  *
+ * The `check` method is async to support atomic Redis Lua script execution.
+ * When Redis is unavailable, falls back to per-instance in-memory limiting
+ * (degraded mode) with a warning log — does NOT fail-closed.
+ *
  * @example
  * const limiter = createRateLimiter({ name: 'protected-route', windowMs: 60_000, max: 10 });
- * if (!limiter.check(userId)) return error('RATE_LIMITED', 429);
+ * if (!(await limiter.check(userId))) return error('RATE_LIMITED', 429);
  */
 export function createRateLimiter(options: RateLimiterOptions): RateLimiterInstance {
   const { name, windowMs, max } = options;
 
   return {
-    check(key: string): boolean {
+    async check(key: string): Promise<boolean> {
       return getBackend().rateLimitCheck(name, key, windowMs, max);
     },
-    reset(key: string): void {
-      getBackend().rateLimitReset(name, key);
+    async reset(key: string): Promise<void> {
+      return getBackend().rateLimitReset(name, key);
     },
   };
 }

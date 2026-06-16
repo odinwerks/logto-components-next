@@ -17,8 +17,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createLogger, type TypedLogger } from './logger';
+import { logger, type TypedLogger } from './logger';
 import { LOG_EVENTS } from './log-events';
+import { scrubLogString } from './scrub-log-string';
 
 /**
  * Type for an API route handler function.
@@ -41,7 +42,7 @@ export function withLogger(handler: ApiHandler) {
     const startTime = performance.now();
 
     // Create a child logger with the request ID bound
-    const requestLogger = createLogger().child({
+    const requestLogger = logger.child({
       requestId,
       method: request.method,
       path: request.nextUrl.pathname,
@@ -66,9 +67,9 @@ export function withLogger(handler: ApiHandler) {
       const duration = Math.round(performance.now() - startTime);
       const message = error instanceof Error ? error.message : String(error);
 
-      // Log error
+      // Log error — scrub the message and omit the stack to prevent credential leaks
       requestLogger.error(LOG_EVENTS.API_ERROR, `${request.method} ${request.nextUrl.pathname} failed`, {
-        error: message,
+        error: scrubLogString(message),
         duration,
       });
 

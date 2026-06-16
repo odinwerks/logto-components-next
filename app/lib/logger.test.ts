@@ -85,6 +85,26 @@ describe('logger', () => {
       expect(parsed.path).toBe('/api/protected');
     });
 
+    it('redacts sensitive information in stdout', async () => {
+      const { createLogger } = await import('./logger');
+      const logger = createLogger({ level: 'debug' });
+
+      logger.info(LOG_EVENTS.AUTH_SIGN_IN, 'Login attempt', {
+        password: 'super-secret-password',
+        nested: {
+          token: 'some-token',
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastLine = capturedLines[capturedLines.length - 1];
+      const parsed = JSON.parse(lastLine);
+
+      expect(parsed.password).toBe('[REDACTED]');
+      expect(parsed.nested.token).toBe('[REDACTED]');
+    });
+
     it('respects log level filtering', async () => {
       const { createLogger } = await import('./logger');
       const logger = createLogger({ level: 'warn' });
@@ -121,6 +141,28 @@ describe('logger', () => {
       expect(parsed.requestId).toBe('req-abc-123');
       expect(parsed.component).toBe('auth');
     });
+
+    it('redacts stack, error, access_token, refresh_token from log context', async () => {
+      const { createLogger } = await import('./logger');
+      const logger = createLogger({ level: 'debug' });
+
+      logger.error(LOG_EVENTS.API_ERROR, 'Failure with credentials', {
+        stack: 'Error: secret at line 1',
+        error: 'some error detail',
+        access_token: 'raw-access-token-value',
+        refresh_token: 'raw-refresh-token-value',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastLine = capturedLines[capturedLines.length - 1];
+      const parsed = JSON.parse(lastLine);
+
+      expect(parsed.stack).toBe('[REDACTED]');
+      expect(parsed.error).toBe('[REDACTED]');
+      expect(parsed.access_token).toBe('[REDACTED]');
+      expect(parsed.refresh_token).toBe('[REDACTED]');
+    });
   });
 
   describe('getDefaultLevel', () => {
@@ -144,6 +186,45 @@ describe('logger', () => {
 
       const { getDefaultLevel } = await import('./logger');
       expect(getDefaultLevel()).toBe('warn');
+    });
+  });
+
+  describe('createWebhookDestination (HTTPS enforcement)', () => {
+    it('throws when given an http:// URL in production (non-localhost)', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const { createLogger } = await import('./logger');
+
+      expect(() =>
+        createLogger({ webhookUrl: 'http://external-webhook.example.com/log' })
+      ).toThrow('LOGGING_WEBHOOK_URL must use HTTPS in production');
+    });
+
+    it('allows https:// URL in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const { createLogger } = await import('./logger');
+
+      // Should not throw
+      expect(() =>
+        createLogger({ webhookUrl: 'https://external-webhook.example.com/log' })
+      ).not.toThrow();
+    });
+
+    it('allows http://localhost in production (local exception)', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const { createLogger } = await import('./logger');
+
+      expect(() =>
+        createLogger({ webhookUrl: 'http://localhost:3001/log' })
+      ).not.toThrow();
+    });
+
+    it('allows http:// URLs in non-production environments', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const { createLogger } = await import('./logger');
+
+      expect(() =>
+        createLogger({ webhookUrl: 'http://dev-webhook.local/log' })
+      ).not.toThrow();
     });
   });
 });

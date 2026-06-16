@@ -96,6 +96,51 @@ describe('with-logger', () => {
       (p: Record<string, unknown>) => p.event === 'API_ERROR'
     );
     expect(errorLogs.length).toBeGreaterThanOrEqual(1);
+    // stack field must be absent (security: stack traces can contain credentials)
+    expect(errorLogs[0].stack).toBeUndefined();
+    // error message should be present but scrubbed
+    expect(errorLogs[0].error).toBeDefined();
+  });
+
+  it('scrubs bearer tokens from error messages before logging', async () => {
+    const { withLogger } = await import('./with-logger');
+
+    // Simulate an error whose message contains a credential
+    const sensitiveError = new Error('Request failed: Bearer eySecretToken99 was rejected');
+    const handler = vi.fn().mockRejectedValue(sensitiveError);
+
+    const wrapped = withLogger(handler);
+    const request = new NextRequest('http://localhost/api/test', {
+      method: 'POST',
+    });
+
+    await expect(wrapped(request)).rejects.toThrow();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // The raw log output must not contain the bearer token
+    const rawOutput = capturedLines.join('\n');
+    expect(rawOutput).not.toContain('eySecretToken99');
+    expect(rawOutput).not.toContain('Bearer eySecretToken99');
+
+    // But the log line should still have a redacted error field
+    const parsedLines = capturedLines
+      .filter((l) => l.trim())
+      .map((l) => {
+        try { return JSON.parse(l); } catch { return null; }
+      })
+      .filter(Boolean);
+
+    const errorLogs = parsedLines.filter(
+      (p: Record<string, unknown>) => p.event === 'API_ERROR'
+    );
+    expect(errorLogs.length).toBeGreaterThanOrEqual(1);
+    // stack must be absent
+    expect(errorLogs[0].stack).toBeUndefined();
+    // error field should be present
+    expect(errorLogs[0].error).toBeDefined();
+    // credential must be redacted
+    expect(errorLogs[0].error).not.toContain('eySecretToken99');
   });
 
   it('includes duration in response log', async () => {

@@ -41,7 +41,8 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 // ============================================================================
 
 // IMPORTANT: Sensitive keys (token, password, secret, key, authorization,
-// apiKey) are automatically redacted. Do NOT log credentials in any form.
+// apiKey, api_key, accessToken, refreshToken, idToken, m2mToken) are automatically
+// redacted via Pino native redact and the custom redactSensitive function. Do NOT log credentials in any form.
 const SENSITIVE_KEYS =
   /^(token|password|secret|key|authorization|apiKey|api_key|accessToken|refreshToken|idToken|m2mToken)$/i;
 
@@ -76,8 +77,31 @@ function redactSensitive(obj: unknown): unknown {
  * Creates a pino destination stream that also sends logs to a webhook URL.
  * Uses a simple batching approach: sends every log individually (no batching
  * complexity needed for this use case).
+ *
+ * Security:
+ * - Enforces HTTPS for the webhook URL in production (localhost is exempt).
+ * - Non-JSON log lines are scrubbed rather than forwarded verbatim.
  */
 function createWebhookDestination(webhookUrl: string) {
+  // Enforce HTTPS for webhook URL in production
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const parsed = new URL(webhookUrl);
+      const isLocalhost =
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === '[::1]';
+      if (parsed.protocol !== 'https:' && !isLocalhost) {
+        throw new Error(
+          `LOGGING_WEBHOOK_URL must use HTTPS in production. Got: ${parsed.protocol}`
+        );
+      }
+    } catch (e) {
+      if ((e as Error).message.includes('LOGGING_WEBHOOK_URL')) throw e;
+      // Invalid URL — let it fail naturally when fetch is called
+    }
+  }
+
   let pending = false;
   const queue: string[] = [];
 
@@ -96,7 +120,9 @@ function createWebhookDestination(webhookUrl: string) {
           try {
             return redactSensitive(JSON.parse(line));
           } catch {
-            return { raw: line };
+            // Non-JSON line: do NOT forward the raw string (it may contain
+            // un-redacted credentials that bypassed structured logging).
+            return { raw: '[non-JSON log line — content scrubbed]' };
           }
         })),
         signal: AbortSignal.timeout(5000),
@@ -149,6 +175,23 @@ export function createLogger(config: LoggerConfig = {}): TypedLogger {
       level: (label) => ({ level: label }),
     },
     timestamp: pino.stdTimeFunctions.isoTime,
+    redact: {
+      paths: [
+        // Core sensitive keys
+        'token', 'password', 'secret', 'key', 'authorization', 'apiKey', 'api_key', 'accessToken', 'refreshToken', 'idToken', 'm2mToken',
+        '*.token', '*.password', '*.secret', '*.key', '*.authorization', '*.apiKey', '*.api_key', '*.accessToken', '*.refreshToken', '*.idToken', '*.m2mToken',
+        '*.*.token', '*.*.password', '*.*.secret', '*.*.key', '*.*.authorization', '*.*.apiKey', '*.*.api_key', '*.*.accessToken', '*.*.refreshToken', '*.*.idToken', '*.*.m2mToken',
+        // Stack traces and error details (can contain credentials from Error.message / Error.stack)
+        'stack', 'error',
+        '*.stack', '*.error',
+        '*.*.stack', '*.*.error',
+        // OAuth / OIDC token field names (snake_case variants)
+        'access_token', 'refresh_token', 'id_token', 'code', 'state',
+        '*.access_token', '*.refresh_token', '*.id_token', '*.code',
+        '*.*.access_token', '*.*.refresh_token',
+      ],
+      censor: '[REDACTED]',
+    },
   };
 
   if (isDevelopment) {
