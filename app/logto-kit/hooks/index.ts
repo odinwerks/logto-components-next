@@ -22,5 +22,6 @@ export { useOrgRoles } from './use-org-roles';
 export type { UseOrgRolesOptions, UseOrgRolesReturn } from './use-org-roles';
 export { useOrgPermissions } from './use-org-permissions';
 export type { UseOrgPermissionsOptions, UseOrgPermissionsReturn } from './use-org-permissions';
+export { useAuthGatedAction } from './use-auth-gated-action';
 export * from './sessions';
 export * from './security';
