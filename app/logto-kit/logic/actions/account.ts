@@ -88,6 +88,13 @@ export async function deleteUserAccount(
     const mgmtToken = await getManagementApiToken();
     const cleanEndpoint = getCleanEndpoint();
 
+    // NOTE: Logto internally revokes all tokens and sessions during user deletion.
+    // The DELETE /api/users/{userId} endpoint (Logto Management API) calls
+    // signOutUser(userId) before deletion, which revokes:
+    //   - AccessTokens, RefreshTokens, Sessions, OIDC session extensions
+    // Source: packages/core/src/routes/admin-user/basics.ts in Logto OSS.
+    // The ?revokeGrants=true query parameter does NOT exist in the Management API.
+    // Logto's internal revocation is automatic and cannot be bypassed.
     const deleteRes = await fetch(`${cleanEndpoint}/api/users/${encodeURIComponent(userId)}`, {
       method: 'DELETE',
       headers: {

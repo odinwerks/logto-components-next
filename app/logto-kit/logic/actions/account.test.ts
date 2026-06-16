@@ -117,6 +117,9 @@ describe('deleteUserAccount', () => {
         }),
       }),
     );
+    // Logto internally revokes tokens/sessions on DELETE — no ?revokeGrants=true needed
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(fetchCall[0]).not.toContain('revokeGrants');
   });
 
   // ── SECURITY: timestamp is required ─────────────────────────────────────
@@ -192,5 +195,24 @@ describe('deleteUserAccount', () => {
     expect(mockCookiesSet).toHaveBeenCalledWith('logto_active', '', { maxAge: 0, path: '/' });
     expect(mockCookiesSet).toHaveBeenCalledWith('logto-active-org', '', { maxAge: 0, path: '/' });
     expect(mockCookiesSet).not.toHaveBeenCalledWith('other_cookie', expect.anything(), expect.anything());
+  });
+
+  // MED-2: Logto internally revokes tokens/sessions during user deletion.
+  // The DELETE /api/users/{userId} endpoint calls signOutUser(userId) before deletion,
+  // which revokes AccessTokens, RefreshTokens, Sessions, and OIDC session extensions.
+  // No ?revokeGrants=true parameter is required (it does not exist in the API).
+  it('MED-2: does not append revokeGrants query param - Logto handles internal revocation', async () => {
+    const { deleteUserAccount } = await import('./account');
+    const freshTs = Date.now() + 60000;
+
+    const result = await deleteUserAccount('verif_record_1', freshTs);
+
+    expect(result.ok).toBe(true);
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    const url = fetchCall[0] as string;
+    // Logto internally revokes all grants/tokens during DELETE /api/users/{userId}
+    // Do NOT append ?revokeGrants=true - it is unsupported and would be ignored or error
+    expect(url).not.toContain('revokeGrants');
+    expect(url).toContain('/api/users/user-test-123');
   });
 });

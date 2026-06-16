@@ -322,14 +322,16 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
 
         if (!scopesRes.ok) {
           const text = await scopesRes.text().catch(() => '');
-          throw new Error(`Management API returned ${scopesRes.status} for role ${role.id} scopes: ${text.substring(0, 200)}`);
+          warn(`[getUserScopes] Management API returned ${scopesRes.status} for role ${role.id} scopes: ${text.substring(0, 200)}`);
+          throw new Error(`Management API returned ${scopesRes.status}`);
         }
 
         try {
           return (await scopesRes.json()) as RoleScope[];
         } catch {
           const text = await scopesRes.text().catch(() => '');
-          throw new Error(`Management API returned non-JSON for role ${role.id} scopes: ${text.substring(0, 200)}`);
+          warn(`[getUserScopes] Management API returned non-JSON for role ${role.id} scopes: ${text.substring(0, 200)}`);
+          throw new Error('Management API returned non-JSON');
         }
       })
     );

@@ -9,7 +9,7 @@ export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>
     const data = await fn();
     return { ok: true, data };
   } catch (err) {
-    const isDebug = process.env.DEBUG_ACTIONS === 'true' || process.env.NODE_ENV === 'test';
+    const isDebug = (process.env.DEBUG_ACTIONS === 'true' && process.env.NODE_ENV !== 'production') || process.env.NODE_ENV === 'test';
     // Preserve pre-sanitized errors (e.g. sanitize() in errors.ts sets name='SanitizedError')
     // so intentional codes like 'UNAUTHORIZED' survive the double-wrap.
     if (!isDebug && err instanceof Error && (err.name === 'SanitizedError' || err.name === 'ValidationError')) {

@@ -14,6 +14,10 @@ vi.mock('../guards', () => ({
   assertSafeLogtoId: vi.fn(),
 }));
 
+vi.mock('../log', () => ({
+  warn: vi.fn(),
+}));
+
 vi.mock('./tokens', () => ({
   getTokenForServerAction: vi.fn().mockResolvedValue('mock-access-token'),
 }));
@@ -21,6 +25,7 @@ vi.mock('./tokens', () => ({
 import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
+import { warn } from '../log';
 
 const mockJsonResponse = <T>(data: T, status = 200): Response =>
   ({
@@ -205,5 +210,52 @@ describe('getRoleDetails session authentication', () => {
         headers: { Authorization: 'Bearer mock-m2m-token' },
       })
     );
+  });
+});
+
+describe('getUserScopes error handling', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://auth.example.org');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('warns with raw details but throws a clean status-only error when scopes fetch fails', async () => {
+    // 1. Roles fetch returns one role
+    fetchSpy.mockResolvedValueOnce(mockJsonResponse([makeRole('role-123', 'Admin')]));
+    // 2. Scopes fetch returns 500 with secret/raw details
+    fetchSpy.mockResolvedValueOnce({
+      status: 500,
+      ok: false,
+      text: async () => 'Super Secret Raw Backend Error Details',
+    } as Response);
+
+        const { getUserScopes } = await import('./roles');
+    const result = await getUserScopes();
+
+    // Since all parallel scope fetches failed, it throws an error and returns ok: false
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected failure');
+    expect(result.error).toContain('All scope fetches failed');
+
+    // The raw details MUST be logged via warn
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Super Secret Raw Backend Error Details'));
+
+    // But the rejected promise's error message (which was logged or used) must NOT embed the raw details
+    // It should be a clean status-only message: "Management API returned 500"
+    const warnCalls = vi.mocked(warn).mock.calls;
+    const scopeFetchFailCall = warnCalls.find(call => typeof call[0] === 'string' && call[0].includes('[getUserScopes] Scope fetch failed for a role'));
+    expect(scopeFetchFailCall).toBeDefined();
+    expect(scopeFetchFailCall![0]).toContain('Management API returned 500');
+    expect(scopeFetchFailCall![0]).not.toContain('Super Secret Raw Backend Error Details');
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAvatarUpload } from './use-avatar-upload';
 import { uploadAvatar } from '../logic/actions';
+import type { DataResult } from '../logic/actions/safe';
 
 vi.mock('../logic/actions', () => ({
   uploadAvatar: vi.fn(),
@@ -39,8 +40,8 @@ describe('useAvatarUpload', () => {
   });
 
   it('should prevent concurrent uploads', async () => {
-    let resolveUpload: (value: any) => void = () => {};
-    const delayPromise = new Promise<any>((resolve) => {
+    let resolveUpload: (value: DataResult<{ url: string }>) => void = () => {};
+    const delayPromise = new Promise<DataResult<{ url: string }>>((resolve) => {
       resolveUpload = resolve;
     });
 

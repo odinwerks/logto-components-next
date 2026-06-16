@@ -200,6 +200,60 @@ describe('getSessionsWithDeviceMeta', () => {
   });
 });
 
+describe('getUserSessions response shape assertions', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+  });
+
+  it('handles standard data.sessions structure', async () => {
+    const session = mockSession('session-1');
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [session] })
+    );
+
+    const { getUserSessions } = await import('./sessions');
+    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].payload.uid).toBe('session-1');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('handles direct array data structure', async () => {
+    const session = mockSession('session-1');
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse([session])
+    );
+
+    const { getUserSessions } = await import('./sessions');
+    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].payload.uid).toBe('session-1');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns and returns empty list on unexpected response structure', async () => {
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ unexpectedField: 'some-value' })
+    );
+
+    const { getUserSessions } = await import('./sessions');
+    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toEqual([]);
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
 // ============================================================================
 // revokeAllOtherSessions - safety guard + selective revocation
 // ============================================================================
@@ -449,5 +503,103 @@ describe('verificationTimestamp staleness checks', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+  });
+});
+
+// ============================================================================
+// LOW-2: Single session revocation defaults to revokeGrantsTarget='all'
+// ============================================================================
+
+describe('revokeUserSession default revokeGrantsTarget (LOW-2)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+    vi.mocked(makeRequest).mockResolvedValue({
+      status: 204,
+      ok: true,
+      json: vi.fn().mockResolvedValue({}),
+    } as unknown as Response);
+  });
+
+  it('passes revokeGrantsTarget=all by default (LOW-2 security default)', async () => {
+    const capturedRequests: Array<{ path: string; opts?: Record<string, unknown> }> = [];
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      capturedRequests.push({ path, opts: opts as Record<string, unknown> });
+      return {
+        status: 204,
+        ok: true,
+        json: vi.fn().mockResolvedValue({}),
+      } as unknown as Response;
+    });
+
+    const { revokeUserSession } = await import('./sessions');
+    const result = await revokeUserSession('session-abc', 'verif-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
+    expect(deleteReq).toBeDefined();
+    // The query object should include revokeGrantsTarget=all
+    expect(deleteReq?.opts?.query).toEqual({ revokeGrantsTarget: 'all' });
+  });
+
+  it('allows overriding revokeGrantsTarget to firstParty when explicitly passed', async () => {
+    const capturedRequests: Array<{ path: string; opts?: Record<string, unknown> }> = [];
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      capturedRequests.push({ path, opts: opts as Record<string, unknown> });
+      return {
+        status: 204,
+        ok: true,
+        json: vi.fn().mockResolvedValue({}),
+      } as unknown as Response;
+    });
+
+    const { revokeUserSession } = await import('./sessions');
+    const result = await revokeUserSession('session-abc', 'verif-id', Date.now() + 60000, 'firstParty');
+
+    expect(result.ok).toBe(true);
+    const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
+    expect(deleteReq?.opts?.query).toEqual({ revokeGrantsTarget: 'firstParty' });
+  });
+
+  it('revokeAllOtherSessions still uses firstParty (intentional for bulk revocation)', async () => {
+    const currentSession = {
+      payload: { exp: 9999999999, iat: 1700000000, jti: 'jti-current', uid: 'current-uid', kind: 'Session' as const, loginTs: 1700000000, accountId: 'acct_1' },
+      lastSubmission: { interactionEvent: 'SignIn' as const, userId: 'user_1', verificationRecords: [], signInContext: { userAgent: '', ip: '1.2.3.4' } },
+      clientId: 'app_1',
+      accountId: 'acct_1',
+      expiresAt: 9999999999,
+      meta: null,
+      isCurrent: true,
+    };
+    const otherSession = {
+      payload: { exp: 9999999999, iat: 1700000000, jti: 'jti-other', uid: 'other-uid', kind: 'Session' as const, loginTs: 1700000000, accountId: 'acct_1' },
+      lastSubmission: { interactionEvent: 'SignIn' as const, userId: 'user_1', verificationRecords: [], signInContext: { userAgent: '', ip: '2.3.4.5' } },
+      clientId: 'app_1',
+      accountId: 'acct_1',
+      expiresAt: 9999999999,
+      meta: null,
+      isCurrent: false,
+    };
+
+    const capturedRequests: Array<{ path: string; opts?: Record<string, unknown> }> = [];
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      capturedRequests.push({ path, opts: opts as Record<string, unknown> });
+      if (!opts?.method || opts.method === 'GET') {
+        return { status: 200, ok: true, json: vi.fn().mockResolvedValue({ sessions: [currentSession, otherSession] }) } as unknown as Response;
+      }
+      return { status: 204, ok: true, json: vi.fn().mockResolvedValue({}) } as unknown as Response;
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verif-id', Date.now() + 60000);
+
+    expect(result.ok).toBe(true);
+    const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
+    // revokeAllOtherSessions intentionally uses 'firstParty' - do NOT change this
+    expect(deleteReq?.opts?.query).toEqual({ revokeGrantsTarget: 'firstParty' });
   });
 });

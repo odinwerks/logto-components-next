@@ -59,10 +59,10 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
       throw new Error('Cannot determine user ID for TOTP secret generation');
     }
     const userId = claims.sub;
-    assertSafeLogtoId(userId);
+    assertSafeLogtoId(userId, 'userId');
 
     // Rate limit check (1 request per 10s per user)
-    if (!totpGenerationRateLimiter.check(userId)) {
+    if (!(await totpGenerationRateLimiter.check(userId))) {
       throw plainCode('MFA_ENROLL_FAILED');
     }
 
@@ -215,7 +215,7 @@ export async function generateBackupCodes(
       throw new Error('Cannot determine user ID for backup codes generation');
     }
     const userId = claims.sub;
-    assertSafeLogtoId(userId);
+    assertSafeLogtoId(userId, 'userId');
 
     const releaseLock = await backupCodesLockManager.acquire(userId);
 
@@ -320,6 +320,13 @@ export async function replaceTotpVerification(
 
     // ── Staleness check (defense in depth) ────────────────────────────────
     assertVerificationNotExpired(verificationTimestamp);
+
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+      throw new ValidationError('INVALID_INPUT', 'verification.code');
+    }
+    if (typeof secret !== 'string' || secret.length === 0 || secret.length > 64) {
+      throw new ValidationError('INVALID_INPUT', 'verification.secret');
+    }
 
     const res = await makeRequest('/api/my-account/mfa-verifications/totp', {
       method: 'PUT',

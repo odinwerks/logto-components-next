@@ -10,6 +10,7 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { assertVerificationNotExpired } from './helpers';
+import { warn } from '../log';
 
 // ============================================================================
 // User Agent Parsing
@@ -55,7 +56,15 @@ export async function getUserSessionsInternal(
   });
   await throwOnApiError(res, 'FETCH_FAILED', 'get-sessions');
   const data = await res.json();
-  const sessions = (data.sessions ?? []) as LogtoSession[];
+  let sessions: LogtoSession[];
+  if (Array.isArray(data)) {
+    sessions = data as LogtoSession[];
+  } else if (data && typeof data === 'object' && Array.isArray(data.sessions)) {
+    sessions = data.sessions as LogtoSession[];
+  } else {
+    warn('Unexpected getUserSessions response shape:', data);
+    sessions = [];
+  }
   debugLog(`[getUserSessions] Received ${sessions.length} sessions from Logto`);
   return sessions;
 }
@@ -134,7 +143,7 @@ export async function revokeUserSessionInternal(
   sessionId: string,
   identityVerificationRecordId: string,
   verificationTimestamp: number,
-  revokeGrantsTarget?: 'all' | 'firstParty',
+  revokeGrantsTarget: 'all' | 'firstParty' = 'all',
   signal?: AbortSignal,
   skipVerificationCheck = false,
 ): Promise<void> {
@@ -170,16 +179,26 @@ export async function revokeUserSessionInternal(
 
 /**
  * Revokes a user session.
+ *
+ * Security default (LOW-2): `revokeGrantsTarget` defaults to `'all'` to ensure
+ * that when a user revokes a single session (a deliberate security action), all
+ * OAuth grants associated with that session are also revoked. Callers that need
+ * to preserve third-party grants may pass `'firstParty'` explicitly.
+ *
+ * Note: `revokeAllOtherSessions` uses `'firstParty'` intentionally — bulk
+ * revocation with 'all' could revoke third-party grants the user did not intend.
+ * Only single-session UI actions use the 'all' default.
+ *
  * @param sessionId - The session ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
  * @param verificationTimestamp - Verification record creation timestamp.
- * @param revokeGrantsTarget - Optional target for grant revocation.
+ * @param revokeGrantsTarget - Target for grant revocation. Defaults to 'all'.
  */
 export async function revokeUserSession(
   sessionId: string,
   identityVerificationRecordId: string,
   verificationTimestamp: number,
-  revokeGrantsTarget?: 'all' | 'firstParty',
+  revokeGrantsTarget: 'all' | 'firstParty' = 'all',
   signal?: AbortSignal,
 ): Promise<ActionResult> {
   return safeAction(async () => {

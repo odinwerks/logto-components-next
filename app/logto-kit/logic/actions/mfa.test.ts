@@ -126,7 +126,6 @@ vi.mock('../../../lib/distributed-state', () => {
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { introspectToken } from '../utils';
-import { getTokenForServerAction } from './tokens';
 
 // ============================================================================
 // Imports under test
@@ -677,5 +676,27 @@ describe('replaceTotpVerification authorized pattern', () => {
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('UNAUTHORIZED');
+  });
+
+  it('rejects if secret or code are invalid', async () => {
+    // Test invalid secret: length 0
+    const r1 = await replaceTotpVerification('', '123456', 'vrec-123', validTimestamp);
+    expect(r1.ok).toBe(false);
+    if (!r1.ok) expect(r1.error).toContain('INVALID_INPUT');
+
+    // Test invalid secret: length > 64
+    const r2 = await replaceTotpVerification('a'.repeat(65), '123456', 'vrec-123', validTimestamp);
+    expect(r2.ok).toBe(false);
+    if (!r2.ok) expect(r2.error).toContain('INVALID_INPUT');
+
+    // Test invalid code: not 6 digits
+    const r3 = await replaceTotpVerification('sec', '12345', 'vrec-123', validTimestamp);
+    expect(r3.ok).toBe(false);
+    if (!r3.ok) expect(r3.error).toContain('INVALID_INPUT');
+
+    // Test invalid code: non-digits
+    const r4 = await replaceTotpVerification('sec', '12345a', 'vrec-123', validTimestamp);
+    expect(r4.ok).toBe(false);
+    if (!r4.ok) expect(r4.error).toContain('INVALID_INPUT');
   });
 });

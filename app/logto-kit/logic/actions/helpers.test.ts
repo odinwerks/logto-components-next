@@ -47,7 +47,7 @@ describe('assertVerificationNotExpired', () => {
   });
 
   it('throws VERIFICATION_EXPIRED for implausibly far-future timestamps', () => {
-    const farFuture = Date.now() + 12 * 60 * 1000; // 12 minutes in the future (TTL is 10 mins)
+    const farFuture = Date.now() + 65 * 60 * 1000; // 65 minutes in the future (TTL is 10 mins, cap is 60 mins)
     expect(() => assertVerificationNotExpired(farFuture)).toThrow('VERIFICATION_EXPIRED');
   });
 
@@ -233,5 +233,59 @@ describe('createLockManager', () => {
     }
 
     expect(manager.locks.size).toBe(0);
+  });
+
+  // HIGH-3: Stale lock eviction on timeout
+  it('forcibly evicts stale lock entry when waiter times out', async () => {
+    const manager = createLockManager();
+
+    // Create a lock that will never be released (simulates a hung holder)
+    let neverRelease!: () => void;
+    const neverResolvingPromise = new Promise<void>((resolve) => {
+      neverRelease = resolve;
+    });
+
+    // Manually set the hung promise directly into the lock map
+    // (simulating a caller that acquired but never released)
+    manager.locks.set('hung-key', neverResolvingPromise);
+
+    // Now try to acquire the same key — should time out
+    await expect(
+      manager.acquire('hung-key', 100)  // 100ms timeout
+    ).rejects.toThrow(/timed out/i);
+
+    // After timeout, the stale entry should be evicted from the map
+    expect(manager.locks.has('hung-key')).toBe(false);
+
+    // Clean up the never-releasing promise
+    neverRelease();
+  });
+
+  it('does not permanently block subsequent callers after a hung lock is evicted', async () => {
+    const manager = createLockManager();
+
+    // Set up a hung lock
+    let neverRelease!: () => void;
+    const neverResolvingPromise = new Promise<void>((resolve) => {
+      neverRelease = resolve;
+    });
+    manager.locks.set('evict-key', neverResolvingPromise);
+
+    // First waiter times out and triggers eviction
+    await expect(
+      manager.acquire('evict-key', 50)
+    ).rejects.toThrow(/timed out/i);
+
+    // Verify eviction happened
+    expect(manager.locks.has('evict-key')).toBe(false);
+
+    // Second caller should be able to acquire the lock successfully now
+    const release = await manager.acquire('evict-key');
+    expect(manager.locks.has('evict-key')).toBe(true);
+    release();
+    expect(manager.locks.has('evict-key')).toBe(false);
+
+    // Clean up
+    neverRelease();
   });
 });

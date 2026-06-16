@@ -76,7 +76,7 @@ export async function triggerRateLimiterCleanupForTesting(): Promise<void> {
   // No-op: centralized in-memory rate limiter uses lazy TTL cleanup.
 }
 
-function checkRateLimit(userId: string): boolean {
+function checkRateLimit(userId: string): Promise<boolean> {
   return avatarUploadRateLimiter.check(userId);
 }
 
@@ -356,7 +356,7 @@ export async function uploadAvatar(
   }
 
   // ── Rate limit (S3/MinIO backend only - Logto has its own) ────────────
-  if (!checkRateLimit(userId)) {
+  if (!(await checkRateLimit(userId))) {
     throw plainCode('UPLOAD_RATE_LIMITED');
   }
 

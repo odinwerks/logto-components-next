@@ -23,8 +23,8 @@ export function assertVerificationNotExpired(timestamp: number): void {
   const now = Date.now();
   // Reject non-finite or impossibly far-future timestamps (bypass prevention).
   // Logto's verification TTL is 10 minutes. No legitimate expiresAt will be
-  // more than 11 minutes from now. MAX_SAFE_INTEGER and similar are rejected.
-  if (!Number.isFinite(timestamp) || timestamp > now + 11 * 60 * 1000) {
+  // more than 60 minutes from now. MAX_SAFE_INTEGER and similar are rejected.
+  if (!Number.isFinite(timestamp) || timestamp > now + 60 * 60 * 1000) {
     throw new Error('VERIFICATION_EXPIRED');
   }
   // Original staleness check
@@ -95,11 +95,25 @@ export function createLockManager(maxEntries = 1000) {
       const existing = locks.get(key);
       if (!existing) break;
 
+      let timerId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error(`Lock acquisition timed out for key '${key}' after ${timeoutMs}ms`)), timeoutMs);
+        timerId = setTimeout(() => reject(new Error(`Lock acquisition timed out for key '${key}' after ${timeoutMs}ms`)), timeoutMs);
       });
 
-      await Promise.race([existing.catch(() => {}), timeoutPromise]);
+      try {
+        await Promise.race([existing.catch(() => {}), timeoutPromise]);
+      } catch (timeoutErr) {
+        // If this was a timeout, the lock may be abandoned. Check if the same
+        // promise is still there and forcibly evict it so subsequent callers
+        // are not permanently blocked by a hung lock holder.
+        const stillThere = locks.get(key);
+        if (stillThere === existing) {
+          locks.delete(key); // Forcibly evict stale/abandoned lock
+        }
+        throw timeoutErr;  // Re-throw to caller
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
     }
 
     let release!: () => void;
