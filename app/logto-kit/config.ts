@@ -196,23 +196,51 @@ let pendingTokenPromise: Promise<string> | null = null;
 
 // Exponential backoff state for M2M token retries (API-A05)
 let m2mRetryCount = 0;
-const M2M_MAX_RETRY_DELAY_MS = 30_000; // 30 seconds ceiling
+const M2M_MAX_RETRY_DELAY_MS = 5_000;  // 5 seconds ceiling (circuit breaker handles prolonged outages)
 const M2M_BASE_DELAY_MS = 500;         // 500 ms base
 
+// Circuit breaker state (HIGH-2): prevents hammering a degraded Logto instance
+const M2M_CIRCUIT_OPEN_THRESHOLD = 5;  // consecutive failures before opening
+const M2M_CIRCUIT_RESET_MS = 30_000;   // 30 s before allowing a probe
+let m2mCircuitOpenAt: number | null = null;  // timestamp when circuit opened; null = circuit closed
+
+// Max pending waiters (HIGH-2): limit burst load on a degraded Logto
+const M2M_MAX_PENDING_WAITERS = 25;  // > 25 concurrent callers: immediate rejection
+let m2mPendingWaiters = 0;
+
 function getM2mBackoffDelay(): number {
-  // Exponential backoff: 500ms * 2^n, capped at 30 s
+  // Exponential backoff: 500ms * 2^n, capped at 5 s
   return Math.min(M2M_BASE_DELAY_MS * Math.pow(2, m2mRetryCount), M2M_MAX_RETRY_DELAY_MS);
 }
 
 export async function getManagementApiToken(): Promise<string> {
+  // Circuit breaker: fail fast if circuit is open and reset window hasn't elapsed
+  if (m2mCircuitOpenAt !== null && Date.now() < m2mCircuitOpenAt + M2M_CIRCUIT_RESET_MS) {
+    throw new Error('M2M_TOKEN_CIRCUIT_OPEN');
+  }
+  // Allow probe after reset window elapses: close circuit and reset retry count
+  if (m2mCircuitOpenAt !== null && Date.now() >= m2mCircuitOpenAt + M2M_CIRCUIT_RESET_MS) {
+    m2mCircuitOpenAt = null;
+    m2mRetryCount = 0;
+  }
+
   // Return cached token if still valid (expires 60s before token expiry)
   if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt) {
     return cachedM2MToken.token;
   }
 
-  // If a fetch is already in flight, coalesce onto it
-  if (pendingTokenPromise) {
-    return pendingTokenPromise;
+  // If a fetch is already in flight, coalesce onto it with waiter cap
+  if (pendingTokenPromise !== null) {
+    m2mPendingWaiters++;
+    if (m2mPendingWaiters > M2M_MAX_PENDING_WAITERS) {
+      m2mPendingWaiters--;
+      throw new Error('M2M_TOKEN_OVERLOADED');
+    }
+    try {
+      return await pendingTokenPromise;
+    } finally {
+      m2mPendingWaiters--;
+    }
   }
 
   const appId = process.env.LOGTO_M2M_APP_ID?.trim();
@@ -262,19 +290,30 @@ export async function getManagementApiToken(): Promise<string> {
       const errorText = await res.text();
       warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
       m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
+      // Open circuit if consecutive failure threshold reached
+      if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
+        m2mCircuitOpenAt = Date.now();
+        warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
+      }
       throw new Error('Management API token request failed');
     }
 
     const data = await res.json();
     if (!data.access_token) {
       m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
+      // Open circuit if consecutive failure threshold reached
+      if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
+        m2mCircuitOpenAt = Date.now();
+        warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
+      }
       throw new Error(
         `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
       );
     }
 
-    // Success: reset backoff counter
+    // Success: reset backoff counter and close circuit
     m2mRetryCount = 0;
+    m2mCircuitOpenAt = null;
 
     // Cache the token with dynamic TTL based on expires_in with a 60s buffer
     const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;

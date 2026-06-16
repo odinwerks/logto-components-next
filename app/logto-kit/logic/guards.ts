@@ -32,8 +32,9 @@
  */
 
 import { decodeAccessToken, type AccessTokenClaims } from '@logto/js';
-import { ValidationError } from './validation';
+import { ValidationError, SAFE_ID_REGEX } from './validation';
 import type { MfaType, VerificationType } from './types';
+import { getLangAllowlist } from './lang-allowlist';
 
 // ============================================================================
 // ID format guards
@@ -49,7 +50,7 @@ import type { MfaType, VerificationType } from './types';
  * `/`, `?`, `#`, `%`, null byte) is rejected to prevent path/query injection
  * when these IDs are interpolated into URLs.
  */
-const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
+export { SAFE_ID_REGEX };
 
 /**
  * Asserts that a value is a safe user ID conforming to SAFE_ID_REGEX.
@@ -186,6 +187,21 @@ export function pickPreferences(input: unknown): PreferencesShape {
   const out: PreferencesShape = {};
   const src = input as Record<string, unknown>;
 
+  // Explicitly blocked keys — these must never be set via the generic customData
+  // update path regardless of whether they appear in PREFERENCES_ALLOWED_KEYS.
+  //
+  // geoConsent / geo_consent: Geo-consent is stored in sessionStorage and controlled
+  // only by the dedicated geo-lookup consent flow. It must not be set via customData
+  // to prevent client-side consent forgery that could trigger server-side side effects.
+  //
+  // __proto__ / constructor: prototype pollution prevention.
+  const BLOCKED_PREF_KEYS = new Set(['geoConsent', 'geo_consent', '__proto__', 'constructor']);
+  for (const key of Object.keys(src)) {
+    if (BLOCKED_PREF_KEYS.has(key)) {
+      throw new ValidationError('BLOCKED_PREFERENCE_KEY', `Preferences.${key}`);
+    }
+  }
+
   for (const key of PREFERENCES_ALLOWED_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(src, key)) continue;
     const value = src[key];
@@ -205,7 +221,10 @@ export function pickPreferences(input: unknown): PreferencesShape {
         throw new ValidationError('INVALID_THEME_MODE', 'Preferences.theme');
       }
     } else if (key === 'lang') {
-      if (typeof value === 'string' && /^[A-Za-z0-9_-]{1,16}$/.test(value)) {
+      // LOW-1: Restrict lang to the configured allowlist (LANG_AVAILABLE env var).
+      // Falls back to ['en-US', 'ka-GE', 'uk-UA'] when LANG_AVAILABLE is unset.
+      const allowed = getLangAllowlist();
+      if (typeof value === 'string' && allowed.has(value)) {
         out.lang = value;
       } else {
         throw new ValidationError('INVALID_LANGUAGE', 'Preferences.lang');

@@ -167,4 +167,18 @@ describe('fetchGeo', () => {
     );
     expect(result).not.toBeNull();
   });
+
+  it('rejects invalid IPv6 address containing triple colons (::: )', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    const result = await fetchGeo(':::');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid IPv4 address containing leading zeros', async () => {
+    sessionStorageMock.getItem.mockReturnValue('true');
+    const result = await fetchGeo('192.168.01.1');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

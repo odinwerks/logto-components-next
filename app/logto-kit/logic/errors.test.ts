@@ -247,6 +247,18 @@ describe('safeAction', () => {
     });
     expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' });
   });
+
+  it('ignores DEBUG_ACTIONS=true and sanitizes standard errors in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DEBUG_ACTIONS', 'true');
+    const { safeAction } = await import('./actions/safe');
+    
+    const stdErr = new Error('Secret details');
+    const result = await safeAction(async () => {
+      throw stdErr;
+    });
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' });
+  });
 });
 
 describe('isAuthError', () => {

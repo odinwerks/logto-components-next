@@ -32,3 +32,63 @@ export const isDev: boolean = ENV === 'development' || ENV === 'test';
  * CERTAIN we're not in prod") explicit at the call site.
  */
 export const isProd: boolean = !isDev;
+
+// ============================================================================
+// Startup guard: warn operators who deploy with NODE_ENV != production
+// ============================================================================
+
+/**
+ * Checks whether a URL points to localhost / 127.0.0.1 / [::1].
+ * Returns false for empty strings or invalid URLs (so they don't trigger warnings).
+ */
+function isLocalhostUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Module-level startup guard. Fires once when this module is first imported.
+ *
+ * Warns (does NOT throw) when:
+ *   - NODE_ENV is not "production", AND
+ *   - BASE_URL or ENDPOINT is a non-localhost URL
+ *
+ * This catches the common misconfiguration where an operator copies .env.example
+ * and deploys to a live server without changing NODE_ENV. The warning is visible
+ * in server logs and can be caught by log-monitoring alerts.
+ *
+ * Does NOT warn during tests (NODE_ENV=test) to keep test output clean.
+ */
+if (
+  typeof process !== 'undefined' &&
+  process.env.NODE_ENV !== 'production' &&
+  process.env.NODE_ENV !== 'test'
+) {
+  const baseUrl = process.env.BASE_URL || process.env.APP_URL || '';
+  const endpoint = process.env.ENDPOINT || '';
+
+  if (baseUrl && !isLocalhostUrl(baseUrl)) {
+    console.warn(
+      '[SECURITY] NODE_ENV is not "production" but BASE_URL is a non-localhost URL: ' +
+        baseUrl +
+        '. Cookies will NOT have the Secure flag. ' +
+        'Set NODE_ENV=production for all live deployments.',
+    );
+  }
+  if (endpoint && !isLocalhostUrl(endpoint)) {
+    console.warn(
+      '[SECURITY] NODE_ENV is not "production" but ENDPOINT is a non-localhost URL: ' +
+        endpoint +
+        '. Set NODE_ENV=production for all live deployments.',
+    );
+  }
+}

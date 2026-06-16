@@ -21,7 +21,7 @@ export function formatPhone(raw: string): string {
     '34': (d: string) => `+34 ${d.slice(2,5)} ${d.slice(5,7)} ${d.slice(7)}`,
     '39': (d: string) => `+39 ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8)}`,
     '44': (d: string) => d.length <= 2 ? `+44 ${d.slice(2)}` : d.length <= 6 ? `+44 ${d.slice(2,5)} ${d.slice(5)}` : d.length <= 9 ? `+44 ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8)}` : `+44 ${d.slice(2,4)} ${d.slice(4,7)} ${d.slice(7)}`,
-    '49': (d: string) => d.length <= 3 ? `+49 ${d.slice(2)}` : d.length <= 7 ? `+49 ${d.slice(2,5)} ${d.slice(5)}` : `+49 ${d.slice(2,5)} ${d.slice(5)}`,
+    '49': (d: string) => d.length <= 3 ? `+49 ${d.slice(2)}` : d.length <= 7 ? `+49 ${d.slice(2,5)} ${d.slice(5)}` : `+49 ${d.slice(2,5)} ${groupFromRight(d.slice(5))}`,
     '55': (d: string) => `+55 ${d.slice(2,4)} ${d.slice(4,9)} ${d.slice(9)}`,
     '61': (d: string) => `+61 ${d.slice(2,3)} ${d.slice(3,7)} ${d.slice(7)}`,
     '62': (d: string) => `+62 ${d.slice(2,5)} ${d.slice(5,9)} ${d.slice(9)}`,

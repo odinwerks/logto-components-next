@@ -435,3 +435,143 @@ describe('getManagementApiToken exponential backoff (API-A05)', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 });
+
+// HIGH-2: M2M Token Circuit Breaker
+describe('getManagementApiToken circuit breaker (HIGH-2)', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('APP_SECRET', 'dummy-app-secret');
+    vi.stubEnv('APP_ID', 'test-app-id');
+    vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+    vi.stubEnv('LOGTO_M2M_APP_ID', 'm2m-app-id');
+    vi.stubEnv('LOGTO_M2M_APP_SECRET', 'm2m-app-secret');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('circuit opens after 5 consecutive failures and rejects immediately without waiting', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: false, text: async () => 'server error', status: 500 } as unknown as Response);
+
+    const { getManagementApiToken } = await import('./config');
+
+    // Trigger 5 consecutive failures
+    for (let i = 0; i < 5; i++) {
+      const p = getManagementApiToken();
+      // Advance timers to skip any backoff delays
+      vi.advanceTimersByTime(60_000);
+      await expect(p).rejects.toThrow('Management API token request failed');
+    }
+
+    // Fetch was called for each of the 5 failures
+    expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(5);
+
+    // 6th call: circuit is open — must throw M2M_TOKEN_CIRCUIT_OPEN without calling fetch
+    const callsBeforeCircuit = fetchSpy.mock.calls.length;
+    await expect(getManagementApiToken()).rejects.toThrow('M2M_TOKEN_CIRCUIT_OPEN');
+    // No additional fetch call should be made
+    expect(fetchSpy.mock.calls.length).toBe(callsBeforeCircuit);
+  });
+
+  it('circuit closes and allows a probe after reset window', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: false, text: async () => 'server error', status: 500 } as unknown as Response);
+
+    const { getManagementApiToken } = await import('./config');
+
+    // Trigger 5 failures to open the circuit
+    for (let i = 0; i < 5; i++) {
+      const p = getManagementApiToken();
+      vi.advanceTimersByTime(60_000);
+      await expect(p).rejects.toThrow();
+    }
+
+    // Confirm circuit is open
+    await expect(getManagementApiToken()).rejects.toThrow('M2M_TOKEN_CIRCUIT_OPEN');
+
+    // Now mock fetch to succeed
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: 'recovered-token', expires_in: 3600 }),
+    } as Response);
+
+    // Advance past the reset window (30s)
+    vi.advanceTimersByTime(30_001);
+
+    // Probe should be allowed and succeed
+    const token = await getManagementApiToken();
+    expect(token).toBe('recovered-token');
+  });
+
+  it('waiter cap rejects the 26th concurrent caller immediately', async () => {
+    // Make the fetch hang indefinitely so all callers pile up on pendingTokenPromise.
+    vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
+
+    const { getManagementApiToken } = await import('./config');
+
+    // Calls work as follows:
+    //   Call 1: sees pendingTokenPromise=null, creates it, becomes the "owner"
+    //   Calls 2-26: see pendingTokenPromise!=null, become waiters 1-25 (m2mPendingWaiters 1..25)
+    //   Call 27: becomes waiter 26, m2mPendingWaiters increments to 26 > 25, rejects immediately
+    //
+    // We need 27 total calls: 1 owner + 25 allowed waiters + 1 rejected waiter.
+    const promises: Promise<string>[] = [];
+    for (let i = 0; i < 27; i++) {
+      promises.push(getManagementApiToken());
+    }
+
+    // The 27th call (index 26) should be rejected immediately with M2M_TOKEN_OVERLOADED.
+    // We don't need to flush timers — the rejection happens synchronously in the
+    // increment/check branch before any await.
+    await expect(promises[26]).rejects.toThrow('M2M_TOKEN_OVERLOADED');
+  }, 10_000);
+
+  it('successful token fetch resets circuit and retry count', async () => {
+    vi.spyOn(global, 'fetch')
+      // 3 failures first
+      .mockResolvedValueOnce({ ok: false, text: async () => 'err', status: 500 } as unknown as Response)
+      .mockResolvedValueOnce({ ok: false, text: async () => 'err', status: 500 } as unknown as Response)
+      .mockResolvedValueOnce({ ok: false, text: async () => 'err', status: 500 } as unknown as Response)
+      // Then success
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'reset-token', expires_in: 3600 }),
+      } as Response)
+      // After cache expires: another success (no backoff expected, counter was reset)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'second-token', expires_in: 3600 }),
+      } as Response);
+
+    const { getManagementApiToken } = await import('./config');
+
+    // 3 failures
+    for (let i = 0; i < 3; i++) {
+      const p = getManagementApiToken();
+      vi.advanceTimersByTime(60_000);
+      await expect(p).rejects.toThrow();
+    }
+
+    // Success (advance past backoff)
+    const p = getManagementApiToken();
+    vi.advanceTimersByTime(60_000);
+    const token = await p;
+    expect(token).toBe('reset-token');
+
+    // Expire the cache
+    vi.advanceTimersByTime((3600 - 60) * 1000 + 1);
+
+    // Next call: no backoff (retry count reset), no circuit open, succeeds immediately
+    const nextToken = await getManagementApiToken();
+    expect(nextToken).toBe('second-token');
+  });
+});

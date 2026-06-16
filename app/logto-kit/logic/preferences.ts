@@ -5,10 +5,7 @@
 // ============================================================================
 
 import type { UserData } from './types';
-import { pickPreferences } from './guards';
-
-// Same regex used in guards.ts for Logto ID validation
-const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
+import { pickPreferences, SAFE_ID_REGEX } from './guards';
 
 export interface UserPreferences {
   theme: 'dark' | 'light';

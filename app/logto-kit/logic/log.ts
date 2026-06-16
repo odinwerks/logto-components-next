@@ -37,6 +37,7 @@
 
 import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
 import { createLogger, type TypedLogger } from '../../lib/logger';
+import { scrubArgs } from '../../lib/scrub-log-string';
 
 // ============================================================================
 // Backend selection
@@ -104,7 +105,7 @@ function formatMessage(args: unknown[]): { msg: string; detail?: string } {
 
 export function log(...args: unknown[]): void {
   if (useConsole) {
-    try { console.log(...args); } catch { /* best-effort */ }
+    try { console.log(...scrubArgs(args)); } catch { /* best-effort */ }
   }
   if (usePino) {
     const { msg, detail } = formatMessage(args);
@@ -118,7 +119,7 @@ export function log(...args: unknown[]): void {
 
 export function warn(...args: unknown[]): void {
   if (useConsole) {
-    try { console.warn(...args); } catch { /* best-effort */ }
+    try { console.warn(...scrubArgs(args)); } catch { /* best-effort */ }
   }
   if (usePino) {
     const { msg, detail } = formatMessage(args);
@@ -132,7 +133,7 @@ export function warn(...args: unknown[]): void {
 
 export function error(...args: unknown[]): void {
   if (useConsole) {
-    try { console.error(...args); } catch { /* best-effort */ }
+    try { console.error(...scrubArgs(args)); } catch { /* best-effort */ }
   }
   if (usePino) {
     const { msg, detail } = formatMessage(args);
@@ -146,7 +147,7 @@ export function error(...args: unknown[]): void {
 
 export function debug(...args: unknown[]): void {
   if (useConsole) {
-    try { console.debug(...args); } catch { /* best-effort */ }
+    try { console.debug(...scrubArgs(args)); } catch { /* best-effort */ }
   }
   if (usePino) {
     const { msg, detail } = formatMessage(args);
@@ -175,7 +176,7 @@ export function debug(...args: unknown[]): void {
 export const logEvent: TypedLogger = {
   info(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.log(`[${event}]`, msg, Object.keys(context).length ? context : ''); } catch { /* best-effort */ }
+      try { console.log(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
     }
     if (usePino) {
       getPinoLogger().info(event, msg, context);
@@ -183,7 +184,7 @@ export const logEvent: TypedLogger = {
   },
   warn(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.warn(`[${event}]`, msg, Object.keys(context).length ? context : ''); } catch { /* best-effort */ }
+      try { console.warn(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
     }
     if (usePino) {
       getPinoLogger().warn(event, msg, context);
@@ -191,7 +192,7 @@ export const logEvent: TypedLogger = {
   },
   error(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.error(`[${event}]`, msg, Object.keys(context).length ? context : ''); } catch { /* best-effort */ }
+      try { console.error(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
     }
     if (usePino) {
       getPinoLogger().error(event, msg, context);
@@ -199,7 +200,7 @@ export const logEvent: TypedLogger = {
   },
   debug(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.debug(`[${event}]`, msg, Object.keys(context).length ? context : ''); } catch { /* best-effort */ }
+      try { console.debug(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
     }
     if (usePino) {
       getPinoLogger().debug(event, msg, context);
@@ -211,25 +212,25 @@ export const logEvent: TypedLogger = {
     return {
       info(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.log(`[${event}]`, msg, { ...bindings, ...context }); } catch { /* best-effort */ }
+          try { console.log(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
         }
         if (usePino) pinoChild.info(event, msg, { ...bindings, ...context });
       },
       warn(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.warn(`[${event}]`, msg, { ...bindings, ...context }); } catch { /* best-effort */ }
+          try { console.warn(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
         }
         if (usePino) pinoChild.warn(event, msg, { ...bindings, ...context });
       },
       error(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.error(`[${event}]`, msg, { ...bindings, ...context }); } catch { /* best-effort */ }
+          try { console.error(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
         }
         if (usePino) pinoChild.error(event, msg, { ...bindings, ...context });
       },
       debug(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.debug(`[${event}]`, msg, { ...bindings, ...context }); } catch { /* best-effort */ }
+          try { console.debug(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
         }
         if (usePino) pinoChild.debug(event, msg, { ...bindings, ...context });
       },

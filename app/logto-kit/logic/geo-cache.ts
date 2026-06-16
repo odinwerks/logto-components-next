@@ -37,8 +37,8 @@ export function clearGeoCache(): void {
   cache.clear();
 }
 
-// IPv4 regex: four decimal octets (0-255)
-const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+// IPv4 regex: four decimal octets (0-255) with leading zeros disallowed
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/;
 // IPv6 regex: simplified validation (covers full notation and common compressed forms)
 const IPV6_REGEX = /^(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
 
@@ -47,10 +47,35 @@ const IPV6_REGEX = /^(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
  * Prevents SSRF / path-traversal via URL interpolation (LOGIC-BUG-001).
  */
 function isValidIp(ip: string): boolean {
-  return IPV4_REGEX.test(ip) || IPV6_REGEX.test(ip);
+  if (IPV4_REGEX.test(ip)) {
+    return true;
+  }
+  if (!IPV6_REGEX.test(ip)) {
+    return false;
+  }
+  try {
+    const url = new URL(`http://[${ip}]`);
+    return url.hostname === `[${ip.toLowerCase()}]`;
+  } catch {
+    return false;
+  }
 }
 
 const inFlight = new Map<string, Promise<GeoLocation | null>>();
+
+/**
+ * Well-known cloud infrastructure / metadata IPs that must never be sent to
+ * external geolocation APIs. These are internal infrastructure endpoints:
+ *   - 169.254.169.254: AWS, GCP, Azure Instance Metadata Service (IMDS)
+ *   - 100.100.100.200: Alibaba Cloud IMDS
+ *   - 192.0.0.192: RFC 7526 NAT64 well-known prefix
+ * Blocking these prevents a user from triggering lookups for infrastructure IPs.
+ */
+const BLOCKED_GEO_IPS = new Set([
+  '169.254.169.254', // AWS/GCP/Azure IMDS
+  '100.100.100.200', // Alibaba Cloud IMDS
+  '192.0.0.192',     // RFC 7526 NAT64
+]);
 
 export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   if (typeof window === 'undefined') return null;
@@ -58,6 +83,9 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
 
   // Validate IP format before interpolating into the URL (SSRF / path-traversal guard)
   if (!isValidIp(ip)) return null;
+
+  // Block cloud metadata / infrastructure IPs from being sent to external geo APIs
+  if (BLOCKED_GEO_IPS.has(ip)) return null;
 
   // Check user consent before geolocation lookup
   const consent = sessionStorage.getItem('geo-consent');

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   assertSafeUserId,
   assertSafeLogtoId,
@@ -173,13 +173,59 @@ describe('pickPreferences', () => {
     const result = pickPreferences({
       asOrg: 'org-456',
       isAdmin: true,             // unknown key - dropped
-      __proto__: { evil: true }, // prototype pollution attempt - dropped
-      constructor: 'overwrite',  // dropped
     });
     expect(result).not.toHaveProperty('isAdmin');
-    expect(result).not.toHaveProperty('__proto__');
-    expect(result).not.toHaveProperty('constructor');
     expect(result.asOrg).toBe('org-456');
+  });
+
+  it('throws BLOCKED_PREFERENCE_KEY for __proto__ (prototype pollution prevention)', () => {
+    // Note: Object literal { __proto__: ... } in JS sets the prototype chain,
+    // so Object.keys() does not return '__proto__' for that syntax.
+    // The real risk is JSON.parse('{"__proto__": {...}}') which creates an enumerable key.
+    // Simulate the JSON.parse path by using Object.create(null) + property assignment:
+    const maliciousObj = Object.create(null) as Record<string, unknown>;
+    Object.defineProperty(maliciousObj, '__proto__', {
+      value: { evil: true },
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+    expect(() => pickPreferences(maliciousObj)).toThrow(ValidationError);
+    const err = (() => {
+      try { pickPreferences(maliciousObj); }
+      catch (e) { return e as ValidationError; }
+    })();
+    expect(err?.message).toBe('BLOCKED_PREFERENCE_KEY');
+  });
+
+  it('throws BLOCKED_PREFERENCE_KEY for constructor (prototype pollution prevention)', () => {
+    expect(() =>
+      pickPreferences({ constructor: 'overwrite' } as Record<string, unknown>),
+    ).toThrow(ValidationError);
+  });
+
+  it('MED-4: throws BLOCKED_PREFERENCE_KEY for geoConsent (must not be set via customData)', () => {
+    expect(() =>
+      pickPreferences({ geoConsent: true } as Record<string, unknown>),
+    ).toThrow(ValidationError);
+    const err = (() => {
+      try { pickPreferences({ geoConsent: true } as Record<string, unknown>); }
+      catch (e) { return e as ValidationError; }
+    })();
+    expect(err?.message).toBe('BLOCKED_PREFERENCE_KEY');
+    expect(err?.field).toBe('Preferences.geoConsent');
+  });
+
+  it('MED-4: throws BLOCKED_PREFERENCE_KEY for geo_consent (underscore variant)', () => {
+    expect(() =>
+      pickPreferences({ geo_consent: 'true' } as Record<string, unknown>),
+    ).toThrow(ValidationError);
+    const err = (() => {
+      try { pickPreferences({ geo_consent: 'true' } as Record<string, unknown>); }
+      catch (e) { return e as ValidationError; }
+    })();
+    expect(err?.message).toBe('BLOCKED_PREFERENCE_KEY');
+    expect(err?.field).toBe('Preferences.geo_consent');
   });
 
   it('accepts null for asOrg (deselect org)', () => {
@@ -218,6 +264,61 @@ describe('pickPreferences', () => {
 
   it('throws for array input', () => {
     expect(() => pickPreferences([])).toThrow(ValidationError);
+  });
+});
+
+// ============================================================================
+// LOW-1: Language Preference Allowlist
+// ============================================================================
+
+describe('pickPreferences lang allowlist (LOW-1)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('accepts lang values that are in the default allowlist (en-US, ka-GE, uk-UA)', () => {
+    // Default fallback when LANG_AVAILABLE is unset
+    expect(() => pickPreferences({ lang: 'en-US' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'ka-GE' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'uk-UA' })).not.toThrow();
+  });
+
+  it('rejects lang values that are not in the allowlist', () => {
+    // 'de-DE' is not in the default allowlist
+    expect(() => pickPreferences({ lang: 'de-DE' })).toThrow(ValidationError);
+    const err = (() => {
+      try { pickPreferences({ lang: 'de-DE' }); }
+      catch (e) { return e as ValidationError; }
+    })();
+    expect(err?.message).toBe('INVALID_LANGUAGE');
+  });
+
+  it('falls back to default allowlist when LANG_AVAILABLE is unset', () => {
+    vi.stubEnv('LANG_AVAILABLE', '');
+    // Import fresh getLangAllowlist after env change
+    vi.resetModules();
+    // Use pickPreferences directly — it calls getLangAllowlist() which reads env at call time
+    // Default allowlist: en-US, ka-GE, uk-UA
+    expect(() => pickPreferences({ lang: 'en-US' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'de-DE' })).toThrow(ValidationError);
+  });
+
+  it('accepts lang when LANG_AVAILABLE env var includes the value', () => {
+    vi.stubEnv('LANG_AVAILABLE', 'en-US,de-DE,fr-FR');
+    vi.resetModules();
+    // After module reset, re-import to pick up new env
+    // Note: guards.ts imports lang-allowlist at module load but calls getLangAllowlist()
+    // at runtime, so the env is read on each call
+    expect(() => pickPreferences({ lang: 'de-DE' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'fr-FR' })).not.toThrow();
+  });
+
+  it('handles malformed LANG_AVAILABLE (commas only, spaces) by falling back to defaults', () => {
+    vi.stubEnv('LANG_AVAILABLE', ',,  ,');
+    vi.resetModules();
+    // Should fall back to default list
+    expect(() => pickPreferences({ lang: 'en-US' })).not.toThrow();
   });
 });
 
