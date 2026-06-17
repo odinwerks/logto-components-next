@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
 import { getLogtoConfig } from './app/logto-kit/config';
-import { isAuthError, isInvalidGrantError, isTransientError } from './app/logto-kit/logic/errors';
-import { error as logError, warn as logWarn, log } from './app/logto-kit/logic/log';
+import { isInvalidGrantError, isTransientError } from './app/logto-kit/logic/errors';
+import { warn as logWarn, log } from './app/logto-kit/logic/log';
 
 /**
  * Builds the connect-src CSP directive using the configured Logto endpoint.
@@ -86,75 +86,6 @@ const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 const WIPE_NONCE_TTL_SECONDS = 60;
 
-// These paths are public (no session needed). They are either:
-//   - Auth-initiation routes (sign-in, callback) - must be reachable pre-auth
-//   - Cookie/session management (wipe) - GET for convenience, POST enforces checkSameOrigin
-//   - Docs/demo pages - renderable without auth (layout shows auth modal when unauthenticated)
-// Note: Sign-out is handled by the signOutUser() Server Action, not an API route.
-//   Server Actions have built-in origin validation, so no separate route or CSRF guard needed.
-const PUBLIC_PATHS = new Set([
-  // Auth routes
-  '/callback',
-  '/api/auth/sign-in',
-  '/api/wipe',
-
-  // Docs topic routes — generated from CONTENT_REGISTRY in app/(docs)/[topic]/[section]/page.tsx
-  // Getting Started
-  '/getting-started/pre-requisites',
-  '/getting-started/clone-install',
-  '/getting-started/env-setup',
-  '/getting-started/backend-selection',
-  '/getting-started/avatar-upload',
-  '/getting-started/logto-console',
-  '/getting-started/replace-the-demo',
-  // UserButton demo
-  '/user-button/specs',
-  '/user-button/examples',
-  // Dashboard docs
-  '/dashboard/internals',
-  '/dashboard/provider-sync',
-  '/dashboard/tab-structure',
-  '/dashboard/rendering',
-  '/dashboard/mobile',
-  // Tabs & Flows docs
-  '/tabs-and-flows/overview',
-  '/tabs-and-flows/profile',
-  '/tabs-and-flows/preferences',
-  '/tabs-and-flows/security',
-  '/tabs-and-flows/sessions',
-  '/tabs-and-flows/identities',
-  '/tabs-and-flows/organizations',
-  // RBAC demo
-  '/rbac/ui-protected',
-  '/rbac/api',
-  // Calculator demo
-  '/calculator/overview',
-  '/calculator/rbac-design',
-  '/calculator/api-authorization',
-  '/calculator/live-demo',
-  // Anatomy docs
-  '/anatomy/providers',
-  '/anatomy/theme',
-  '/anatomy/i18n',
-  '/anatomy/primitives',
-  '/anatomy/async-patterns',
-  // Security docs
-  '/security/error-handling',
-  '/security/input-guards',
-  '/security/logging',
-]);
-
-/**
- * Returns true if `pathname` is a public path that does not require authentication.
- * Performs exact matching (with and without trailing slash) against PUBLIC_PATHS.
- */
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  // Strip trailing slash and check again
-  if (pathname.endsWith('/') && PUBLIC_PATHS.has(pathname.slice(0, -1))) return true;
-  return false;
-}
-
 const getClient = () => new LogtoClient(getLogtoConfig());
 
 export async function proxy(request: NextRequest) {
@@ -173,23 +104,12 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
 
-  // Skip public paths (exact match or with trailing slash) - apply CSP but skip auth check
-  if (isPublicPath(pathname)) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('Content-Security-Policy', cspHeader);
-    return response;
-  }
-
   try {
-    // Auth check - use fetchUserInfo to detect deleted accounts
-    const context = await getClient().getLogtoContext(request, { fetchUserInfo: true });
+    // Attempt to get Logto context to handle session error recovery.
+    // Authentication is NOT enforced — unauthenticated users are allowed through.
+    await getClient().getLogtoContext(request, { fetchUserInfo: true });
 
-    if (!context.isAuthenticated) {
-      // Not authenticated - redirect to sign-in
-      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
-    }
-
-    // Authenticated - proceed with nonce and CSP headers
+    // Proceed with nonce and CSP headers regardless of auth state
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('Content-Security-Policy', cspHeader);
     return response;
@@ -201,11 +121,11 @@ export async function proxy(request: NextRequest) {
       log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
       // Nonce is required so only this middleware-triggered flow can wipe via GET.
-      const nonce = crypto.randomUUID();
+      const wipeNonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
-      wipeUrl.searchParams.set('nonce', nonce);
+      wipeUrl.searchParams.set('nonce', wipeNonce);
       const response = NextResponse.redirect(wipeUrl);
-      response.cookies.set(WIPE_NONCE_COOKIE, nonce, {
+      response.cookies.set(WIPE_NONCE_COOKIE, wipeNonce, {
         httpOnly: true,
         sameSite: 'lax',
         secure: request.nextUrl.protocol === 'https:',
@@ -218,11 +138,11 @@ export async function proxy(request: NextRequest) {
     // Handle invalid_grant (server-side grant revocation, e.g. session revoked elsewhere)
     if (isInvalidGrantError(error)) {
       logWarn('[Proxy] invalid_grant detected, redirecting to wipe:', errorMessage);
-      const nonce = crypto.randomUUID();
+      const wipeNonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
-      wipeUrl.searchParams.set('nonce', nonce);
+      wipeUrl.searchParams.set('nonce', wipeNonce);
       const response = NextResponse.redirect(wipeUrl);
-      response.cookies.set(WIPE_NONCE_COOKIE, nonce, {
+      response.cookies.set(WIPE_NONCE_COOKIE, wipeNonce, {
         httpOnly: true,
         sameSite: 'lax',
         secure: request.nextUrl.protocol === 'https:',
@@ -232,20 +152,17 @@ export async function proxy(request: NextRequest) {
       return response;
     }
 
-    // Classification of remaining errors
-    if (isAuthError(error)) {
-      logError('[Proxy] Auth error, redirecting to sign-in:', errorMessage);
-      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
-    }
-
     if (isTransientError(error)) {
       logWarn('[Proxy] Transient error, returning 503:', errorMessage);
       return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 });
     }
 
-    // Any other unexpected error
-    logError('[Proxy] Unexpected error, redirecting to sign-in:', errorMessage);
-    return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+    // Any other error from the Logto client (e.g. network, config): allow through.
+    // The app itself will handle the unauthenticated state.
+    logWarn('[Proxy] Non-critical error from Logto client, allowing request through:', errorMessage);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', cspHeader);
+    return response;
   }
 }
 

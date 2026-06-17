@@ -128,24 +128,6 @@ describe('proxy error classification and logging', () => {
     errorMock.mockReset();
   });
 
-  it('handles auth errors by redirecting to sign-in and logging error', async () => {
-    const authError = new Error('needsAuth');
-    getLogtoContextMock.mockRejectedValue(authError);
-
-    const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/protected');
-    const res = await proxy(req);
-
-    expect(res.status).toBe(307);
-    const location = res.headers.get('location');
-    expect(location).toContain('/api/auth/sign-in');
-
-    expect(errorMock).toHaveBeenCalledWith(
-      '[Proxy] Auth error, redirecting to sign-in:',
-      'needsAuth',
-    );
-  });
-
   it('handles transient errors by returning 503 and logging warn', async () => {
     const transientError = new Error('fetch failed');
     getLogtoContextMock.mockRejectedValue(transientError);
@@ -164,84 +146,15 @@ describe('proxy error classification and logging', () => {
     );
   });
 
-  it('handles unexpected errors by redirecting to sign-in and logging error', async () => {
+  it('allows through on non-critical Logto client errors and logs a warning', async () => {
     const unexpectedError = new Error('Database connection lost');
     getLogtoContextMock.mockRejectedValue(unexpectedError);
 
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/protected');
+    const req = new NextRequest('https://example.com/some-route');
     const res = await proxy(req);
 
-    expect(res.status).toBe(307);
-    const location = res.headers.get('location');
-    expect(location).toContain('/api/auth/sign-in');
-
-    expect(errorMock).toHaveBeenCalledWith(
-      '[Proxy] Unexpected error, redirecting to sign-in:',
-      'Database connection lost',
-    );
-  });
-});
-
-describe('proxy public paths whitelist', () => {
-  beforeEach(() => {
-    getLogtoContextMock.mockReset();
-  });
-
-  it.each([
-    // Auth routes (pre-existing)
-    ['/callback'],
-    ['/api/auth/sign-in'],
-    ['/api/wipe'],
-    // Getting Started docs
-    ['/getting-started/pre-requisites'],
-    ['/getting-started/clone-install'],
-    ['/getting-started/env-setup'],
-    ['/getting-started/backend-selection'],
-    ['/getting-started/avatar-upload'],
-    ['/getting-started/logto-console'],
-    ['/getting-started/replace-the-demo'],
-    // UserButton demo
-    ['/user-button/specs'],
-    ['/user-button/examples'],
-    // Dashboard docs
-    ['/dashboard/internals'],
-    ['/dashboard/provider-sync'],
-    ['/dashboard/tab-structure'],
-    ['/dashboard/rendering'],
-    ['/dashboard/mobile'],
-    // Tabs & Flows docs
-    ['/tabs-and-flows/overview'],
-    ['/tabs-and-flows/profile'],
-    ['/tabs-and-flows/preferences'],
-    ['/tabs-and-flows/security'],
-    ['/tabs-and-flows/sessions'],
-    ['/tabs-and-flows/identities'],
-    ['/tabs-and-flows/organizations'],
-    // RBAC demo
-    ['/rbac/ui-protected'],
-    ['/rbac/api'],
-    // Calculator demo
-    ['/calculator/overview'],
-    ['/calculator/rbac-design'],
-    ['/calculator/api-authorization'],
-    ['/calculator/live-demo'],
-    // Anatomy docs
-    ['/anatomy/providers'],
-    ['/anatomy/theme'],
-    ['/anatomy/i18n'],
-    ['/anatomy/primitives'],
-    ['/anatomy/async-patterns'],
-    // Security docs
-    ['/security/error-handling'],
-    ['/security/input-guards'],
-    ['/security/logging'],
-  ])('allows unauthenticated access to public path: %s', async (publicPath) => {
-    const { proxy } = await import('./proxy');
-    const req = new NextRequest(`https://example.com${publicPath}`);
-    const res = await proxy(req);
-
-    // Should not redirect to sign-in (200 or any non-307 to /api/auth/sign-in)
+    // Should pass through (not redirect to sign-in)
     expect(res.status).not.toBe(307);
     const location = res.headers.get('location');
     if (location) {
@@ -251,46 +164,45 @@ describe('proxy public paths whitelist', () => {
     // CSP should still be set
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
 
-    // getLogtoContext should NOT have been called (skipped for public paths)
-    expect(getLogtoContextMock).not.toHaveBeenCalled();
+    expect(warnMock).toHaveBeenCalledWith(
+      '[Proxy] Non-critical error from Logto client, allowing request through:',
+      'Database connection lost',
+    );
+  });
+});
+
+describe('proxy allows all routes without authentication', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
   });
 
-  it('allows unauthenticated access to public path with trailing slash', async () => {
+  it('allows unauthenticated access to any route', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/getting-started/pre-requisites/');
+    const req = new NextRequest('https://example.com/some-protected-route');
     const res = await proxy(req);
 
+    // Should NOT redirect to sign-in
     expect(res.status).not.toBe(307);
     const location = res.headers.get('location');
     if (location) {
       expect(location).not.toContain('/api/auth/sign-in');
     }
-    expect(getLogtoContextMock).not.toHaveBeenCalled();
+
+    // CSP should be set
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('redirects unauthenticated access to non-public route to sign-in', async () => {
-    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+  it('allows authenticated access to any route', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: true, userInfo: { sub: 'user123' } });
 
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/protected-route');
+    const req = new NextRequest('https://example.com/dashboard');
     const res = await proxy(req);
 
-    expect(res.status).toBe(307);
-    const location = res.headers.get('location');
-    expect(location).toContain('/api/auth/sign-in');
-  });
-
-  it('does not whitelist unlisted routes under known topics', async () => {
-    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
-
-    const { proxy } = await import('./proxy');
-    // /getting-started/unknown-section is NOT in PUBLIC_PATHS
-    const req = new NextRequest('https://example.com/getting-started/unknown-section');
-    const res = await proxy(req);
-
-    expect(res.status).toBe(307);
-    const location = res.headers.get('location');
-    expect(location).toContain('/api/auth/sign-in');
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 });
 
