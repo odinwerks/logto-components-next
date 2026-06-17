@@ -268,10 +268,23 @@ class RedisBackend implements Backend {
       // Fall back to per-instance in-memory rate limiter rather than fail-closed.
       // This preserves availability when Redis is temporarily unavailable,
       // at the cost of distributed enforcement (each instance enforces independently).
-      console.warn(
-        `[RateLimit] Redis unavailable for key "${mapKey}" — falling back to per-instance in-memory limit. ` +
-        `Original error: ${(err as Error).message}`,
-      );
+      const errMsg = (err as Error).message ?? '';
+      const isAuthError = errMsg.includes('WRONGPASS') || errMsg.includes('NOAUTH');
+      if (isAuthError) {
+        // Auth failures are logged at ERROR level — operators must fix the password.
+        // The fallback is still used so the app stays up, but the misconfiguration
+        // is surfaced loudly. In high-assurance deployments, re-throw here instead.
+        console.error(
+          `[RateLimit] Redis authentication failed for key "${mapKey}" — ` +
+          `check REDIS_PASSWORD. Falling back to per-instance in-memory limit. ` +
+          `Original error: ${errMsg}`,
+        );
+      } else {
+        console.warn(
+          `[RateLimit] Redis unavailable for key "${mapKey}" — falling back to per-instance in-memory limit. ` +
+          `Original error: ${errMsg}`,
+        );
+      }
       return this._fallbackRateLimitCheck(namespace, key, windowMs, max);
     }
   }
@@ -447,8 +460,12 @@ function getBackend(): Backend {
       _backend = redisBackend;
     })
     .catch((err: Error) => {
+      const isAuthError = err.message.includes('WRONGPASS') || err.message.includes('NOAUTH');
+      const authHint = isAuthError
+        ? ' This is a Redis authentication failure — check that REDIS_PASSWORD is set correctly.'
+        : '';
       _backendInitError = new Error(
-        `REDIS_URL is set but Redis connection failed: ${err.message}. ` +
+        `REDIS_URL is set but Redis connection failed: ${err.message}.${authHint} ` +
           'Fix the Redis connection or unset REDIS_URL to use in-memory backend.',
       );
       // Replace backend with an error-throwing proxy

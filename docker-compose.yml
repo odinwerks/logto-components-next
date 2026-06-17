@@ -71,6 +71,9 @@ services:
       - LOGGING_WEBHOOK_URL=${LOGGING_WEBHOOK_URL}
       # ── Fallback URLs ──────────────────────────────────────────
       - APP_URL=${APP_URL}
+      # ── Redis (distributed rate limiting / locking / token cache) ────────────
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       # ── Sign-out redirect delay (server-side) ──────────────────
       - SIGNOUT_REDIRECT_DELAY=${SIGNOUT_REDIRECT_DELAY}
     healthcheck:
@@ -102,11 +105,15 @@ services:
   # locking, and token caching via app/lib/distributed-state.ts.
   # Remove or comment out this service if you are not using Redis.
   redis:
-    image: redis:latest
+    image: redis:7-alpine
+    container_name: logto-dash-redis
+    command: redis-server --requirepass "${REDIS_PASSWORD}"
     networks:
       - dash-net
     ports:
-      - "2998:2998"
+      - "127.0.0.1:2998:6379"
+    env_file:
+      - .env
     restart: unless-stopped
 
 volumes: {}

@@ -110,6 +110,67 @@ These are blocked before any request is made to `ipapi.co`.
 
 ---
 
+## Redis Hardening
+
+### requirepass (Authentication)
+
+Redis **MUST** run with `requirepass` enabled. An unauthenticated Redis instance
+allows any process on the host (or network) to read rate-limit state, distributed
+locks, and cached M2M tokens — or to flush/tamper with them.
+
+- `REDIS_PASSWORD` must be generated with `openssl rand -base64 32`.
+- Store it only in `.env` (or a secrets manager). **Never commit it to source control.**
+- The `REDIS_URL` must embed the password: `redis://:${REDIS_PASSWORD}@localhost:2998`
+- If `REDIS_PASSWORD` is missing or wrong, Redis rejects all connections.
+  This is the desired "fail closed" behavior — do **not** suppress auth errors.
+
+### Loopback-only port binding
+
+In `docker-compose.yml` the Redis port is bound to the loopback interface only:
+
+```yaml
+ports:
+  - "127.0.0.1:2998:6379"
+```
+
+This ensures Redis is unreachable from other hosts on the same network.
+Never use `0.0.0.0:2998:6379` (or the shorthand `2998:2998`) in production.
+
+### Additional hardening for government / production deployments
+
+For high-assurance or government deployments:
+
+1. **Host firewall** — Enforce a host-level `iptables`/`nftables` rule that drops
+   connections to port 2998 from all sources except the application process (defense
+   in depth beyond loopback binding).
+2. **TLS** — Configure Redis with `tls-port` and a self-signed or CA-signed certificate
+   so traffic on the loopback is encrypted. Update `REDIS_URL` to use `rediss://`.
+3. **Redis ACL** — Replace the single `requirepass` with Redis 6+ ACL rules that grant
+   the application user only the commands it actually uses (`EVAL`, `GET`, `SET`, `DEL`,
+   `EXPIRE`, `PING`). This limits blast radius if the application is compromised.
+4. **Disable dangerous commands** — In `redis.conf`, add:
+   ```
+   rename-command CONFIG ""
+   rename-command DEBUG ""
+   rename-command FLUSHALL ""
+   rename-command FLUSHDB ""
+   ```
+5. **Separate Redis instance** — Use a dedicated Redis instance for this application,
+   not one shared with other workloads.
+
+### Auth failure behavior in the application
+
+`app/lib/distributed-state.ts` logs a warning when Redis is unavailable and falls
+back to per-instance in-memory rate limiting (degraded mode, not fail-closed).
+An authentication failure (`WRONGPASS` / `NOAUTH`) will also trigger this fallback.
+
+For government or security-critical deployments where the in-memory fallback is
+unacceptable (e.g., you require distributed rate limiting), patch `initRedisBackend`
+to re-throw auth errors rather than falling back. The error message will contain
+`WRONGPASS` or `NOAUTH` to help operators diagnose misconfiguration quickly.
+
+---
+
 ## AGENTS.md Security Constraints
 
 The following security-critical patterns must never be modified without explicit review.
