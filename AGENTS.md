@@ -24,9 +24,10 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 ## Auth Redirect (`app/page.tsx`)
 
-- Unauthenticated users redirect to `/callback` from `page.tsx`, or `/api/auth/sign-in` from the proxy middleware.
-- The Logto SDK's `handleSignIn()` in the callback route handles BOTH OAuth callback AND sign-in initiation when no OAuth params are present.
-- Do NOT add state/param guards before `handleSignIn()`  the SDK needs to see the raw request params to decide what to do.
+- `app/page.tsx` always redirects to `/getting-started/pre-requisites` (the demo landing page). It does NOT redirect unauthenticated users to sign-in — unauthenticated users are allowed through and see an anonymous UserButton; clicking it opens the main auth modal.
+- Sign-in is initiated exclusively by `signIn()` from `@logto/next/server-actions` (called in `app/api/auth/sign-in/route.ts`). The `handleSignIn()` function in `app/callback/route.ts` ONLY completes the OAuth callback — it is not called for sign-in initiation.
+- `proxy.ts` (Next.js middleware) does NOT enforce authentication. It allows all requests through and only handles session error recovery (stale cookies, invalid_grant) and sets CSP headers.
+- Do NOT add state/param guards before `handleSignIn()` in the callback route — the SDK needs to see the raw request params to process the OAuth response.
 
 ## Env Vars
 

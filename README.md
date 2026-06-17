@@ -16,8 +16,65 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
-- **Route Protection**: Middleware (`proxy.ts`) checks authentication before page rendering and redirects unauthenticated requests to sign-in.
+- **Open Browsing with Auth Modal**: All routes are accessible without signing in. Unauthenticated visitors see an anonymous UserButton; clicking it opens the main auth modal. Auth-gated features open the modal inline instead of showing an error.
 - **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated.
+
+## Prerequisites
+
+Before running the app locally you need:
+
+| Requirement | Notes |
+|-------------|-------|
+| **Node.js 18+** | Required by Next.js 16 |
+| **A Logto instance** | OSS (self-hosted) or Logto Cloud; you need an App ID/Secret and an M2M App ID/Secret |
+| **Redis 7+** *(optional)* | Needed for distributed rate limiting, per-user in-process locks across multiple instances, and M2M token caching. Not required for a single-instance dev setup. |
+| **Docker + Docker Compose** *(optional)* | Only if you want to run Redis via `docker compose` or deploy the full stack |
+
+### Redis Setup (local dev)
+
+**1. Generate a password** (do this once):
+
+```bash
+openssl rand -base64 32
+```
+
+**2. Add to `.env`**:
+
+```env
+REDIS_PASSWORD=<paste-generated-password-here>
+REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:2998
+```
+
+> `REDIS_URL` uses the variable-substitution form so the password appears in only one place. Copy it exactly as shown.
+
+**3. Start Redis** (Docker):
+
+```bash
+docker compose up -d redis
+```
+
+This starts `redis:7-alpine` bound to `127.0.0.1:2998` (loopback-only) with `requirepass` enforced.
+
+> If you prefer not to use Redis at all, omit `REDIS_URL` from `.env`. The app falls back to per-process in-memory state (rate limiting, locks), which is fine for a single-instance dev setup.
+
+### Dev Setup
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Copy the example env file and fill in your values
+cp .env.example .env.local
+
+# 3. (Optional) Start Redis
+docker compose up -d redis
+
+# 4. Start the dev server
+npm run dev
+# → http://localhost:3000
+```
+
+The app opens at `/getting-started/pre-requisites`. Sign-in is optional — all routes are browseable anonymously. Click the **UserButton** (top-right avatar) to sign in.
 
 ## Project Structure
 
@@ -597,6 +654,22 @@ No S3 configuration required. Logto handles upload, storage, and cleanup interna
 ### NEXT_PUBLIC_* Variants
 
 All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`.
+
+### Redis Configuration
+
+Redis is optional but recommended for multi-instance deployments. It provides distributed rate limiting, per-user operation serialization, and M2M token caching.
+
+```env
+# Generate with: openssl rand -base64 32
+REDIS_PASSWORD=<generated-password>
+
+# Variable-substitution form — password appears only once
+REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:2998
+```
+
+When `REDIS_URL` is not set, the app falls back to per-process in-memory state. This is fine for single-instance dev, but not safe for multi-instance production.
+
+The Docker Compose `redis` service uses `redis:7-alpine`, binds to the loopback interface only (`127.0.0.1:2998:6379`), and enforces `requirepass` via the `REDIS_PASSWORD` env var.
 
 ### Docker-Only Variables
 
@@ -1568,36 +1641,42 @@ LOAD_TABS=user,custom-data,2fa,devices,identities,organization
 
 This section explains how to integrate and extend the dashboard. The Dashboard is a Server Component passed as a JSX prop to LogtoProvider, which renders it as a centered modal.
 
-### Where Auth Happens
+### Authentication Model
 
-All route protection happens in `proxy.ts` (which serves as Next.js middleware - Next.js 16 allows custom middleware file names). This runs BEFORE the page renders, so unauthenticated users never even see the page - they get redirected to sign-in first.
+The app uses an **open browsing** model — all routes are accessible without signing in. Authentication is opt-in, triggered by user action.
+
+- **`proxy.ts`** (Next.js middleware) does **NOT** enforce authentication. It allows all requests through and only handles session error recovery (stale cookies, `invalid_grant`) and sets per-request CSP headers.
+- **Unauthenticated users** see an anonymous `UserButton` (generic user icon). Clicking it opens the main auth modal (sign-in / sign-up).
+- **Auth-gated features** (e.g., the calculator demo) open the main auth modal with a "Read Only Mode" option when the user is not signed in — they do not show an inline fallback error.
+- **Sign-in** is initiated exclusively by `signIn()` from `@logto/next/server-actions`, called in `GET /api/auth/sign-in`. The `handleSignIn()` function in `app/callback/route.ts` **only** completes the OAuth callback after Logto redirects back.
+- **Protected Server Actions** reject unauthenticated calls explicitly with `UNAUTHENTICATED`. The middleware does not gate server action calls.
 
 > **CSP connect-src**: `next.config.ts` dynamically builds the `connect-src` CSP directive from the `ENDPOINT` env var (no hardcoded domains). Allowed external domains: `ipapi.co` (IP geolocation), `basemaps.cartocdn.com` (map tiles), `supabase.co` (avatar storage), `wss:` (HMR in dev).
 
-Here's the basic flow:
+Basic request flow:
+
 ```
-Request → proxy.ts → Check auth via Logto SDK →
-  → Not authenticated → Redirect to /api/auth/sign-in
-  → Authenticated → Render page
+Request → proxy.ts
+  → Session error (stale cookie / invalid_grant) → redirect to /api/wipe
+  → Any other state (authed or not) → pass through to page/route handler
 ```
 
-### Making Routes Public
+### Making Routes Require Auth
 
-By default, all routes require authentication. To add public routes (like a landing page), edit the `PUBLIC_PATHS` array in `proxy.ts`:
+All routes are public by default. If you want to protect a specific route (redirect unauthenticated users to sign-in), add a server-side auth check inside the page component using `getLogtoContext()`. Example:
 
 ```typescript
-// proxy.ts
-const PUBLIC_PATHS = [
-  '/callback',           // OAuth callback - must be public
-  '/api/auth/sign-in',   // Sign-in endpoint - must be public
-  '/api/auth/sign-out', // Sign-out endpoint - must be public
-  '/api/wipe',          // Cookie wipe - useful for debugging
-  '/landing',           // Your public landing page
-  '/about',             // Another public page
-];
-```
+// app/admin/page.tsx
+import { getLogtoContext } from '@logto/next/server-actions';
+import { getLogtoConfig } from '../logto-kit/config';
+import { redirect } from 'next/navigation';
 
-Note: This requires a code change. ENV-based configuration would be nice but doesn't exist yet.
+export default async function AdminPage() {
+  const { isAuthenticated } = await getLogtoContext(getLogtoConfig());
+  if (!isAuthenticated) redirect('/api/auth/sign-in');
+  // ...
+}
+```
 
 ### Using the Dashboard Component
 

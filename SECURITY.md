@@ -171,6 +171,33 @@ to re-throw auth errors rather than falling back. The error message will contain
 
 ---
 
+## Authentication Boundary
+
+### Open Browsing Model
+
+All routes are accessible without signing in. `proxy.ts` (Next.js middleware) does **NOT** enforce authentication — it only handles session error recovery (stale cookies, `invalid_grant`) and sets per-request CSP headers. Unauthenticated requests are allowed through to page and route handlers.
+
+**Consequence**: there is no security boundary at the middleware layer. Any page that must be restricted must perform its own server-side auth check (e.g., `getLogtoContext()`).
+
+### Protected Server Actions (Authentication Boundary)
+
+Protected Server Actions explicitly reject unauthenticated callers with the `UNAUTHENTICATED` error code. This is the primary server-side authentication boundary.
+
+All destructive mutations (profile updates, account deletion, session revocation, MFA enrollment, etc.) are implemented as Server Actions wrapped with `safeAction`. The first thing each action does is introspect the session cookie and extract the authenticated `sub`. If no valid session exists, the action returns `{ ok: false, error: 'UNAUTHENTICATED' }` before any mutation occurs.
+
+**Key invariants:**
+- User ID is **always** derived from session token introspection, never from client input (IDOR prevention).
+- Unauthenticated calls never reach mutation logic — they short-circuit at the session check.
+- `safeAction` wraps every exported server action to guarantee a consistent `{ ok, error }` / `{ ok, data }` discriminated union return type.
+
+### Auth-Gated UI Features
+
+Client components that require authentication (e.g., the calculator demo) render the main auth modal when the user is unauthenticated rather than exposing an error message or silently doing nothing. The `<Protected>` component and the `CalculatorPanel` component follow this pattern: they open the sign-in modal and optionally show a "Read Only Mode" button.
+
+This is a UX pattern, not a security boundary. The actual security boundary remains the Server Action layer described above.
+
+---
+
 ## AGENTS.md Security Constraints
 
 The following security-critical patterns must never be modified without explicit review.
