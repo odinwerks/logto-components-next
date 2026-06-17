@@ -1,5 +1,3 @@
-'use server';
-
 import 'server-only';
 
 import { getLogtoContext } from '@logto/next/server-actions';

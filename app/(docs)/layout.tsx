@@ -7,7 +7,7 @@ import DocsLayoutClient from './layout-client';
 import { DocsErrorFallback } from './docs-error-fallback';
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
-  const result = await fetchDashboardDataCached();
+  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
 
   if (!result.success) {
     // Unauthenticated users (needsAuth) are allowed to view public docs routes.
