@@ -98,6 +98,7 @@ const WIPE_NONCE_TTL_SECONDS = 60;
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
+  if (pathname === '/docs' || pathname.startsWith('/docs/')) return true;
   return false;
 }
 

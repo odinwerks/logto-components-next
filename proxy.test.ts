@@ -208,11 +208,40 @@ describe('proxy choke-point: public vs protected routes', () => {
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('redirects unauthenticated access to /docs/foo to sign-in', async () => {
+  it('allows unauthenticated access to /docs/foo', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/docs/foo');
+    const res = await proxy(req);
+
+    // Should NOT redirect to sign-in
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('redirects unauthenticated access to /api/foo to sign-in', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/foo');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    const location = res.headers.get('location');
+    expect(location).toBeTruthy();
+    expect(location).toContain('/api/auth/sign-in');
+  });
+
+  it('redirects unauthenticated access to /random/foo to sign-in', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/random/foo');
     const res = await proxy(req);
 
     expect(res.status).toBe(307);

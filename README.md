@@ -16,7 +16,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
-- **Proxy Choke-Point Auth**: The Next.js middleware (`proxy.ts`) is the network-level authentication boundary. Only `/` (landing page) and `/demo/*` (demo routes) are publicly accessible. All other routes redirect unauthenticated users to sign-in. The landing page uses modal UX for protected navigation — clicking a protected link opens the sign-in modal instead of triggering a redirect.
+- **Proxy Choke-Point Auth**: The Next.js middleware (`proxy.ts`) is the network-level authentication boundary. Only `/` (minimal redirect), `/docs/*` (documentation), and `/demo/*` (demo routes) are publicly accessible. All other routes redirect unauthenticated users to sign-in.
 - **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated.
 
 ## Prerequisites
@@ -82,11 +82,12 @@ The proxy (`proxy.ts`) is the primary authentication choke point:
 
 | Path | Access |
 |------|--------|
-| `/` | Public — landing page |
-| `/demo` and `/demo/*` | Public — demo app and documentation |
+| `/` | Public — redirects to `/getting-started/pre-requisites` |
+| `/docs` and `/docs/*` | Public — official documentation pages |
+| `/demo` and `/demo/*` | Public — interactive demo app |
 | Everything else | **Requires authentication** |
 
-Unauthenticated users who access a protected URL directly (or via browser refresh) are redirected to `/api/auth/sign-in` by the proxy. The landing page provides modal-based navigation: protected links call `openDashboard({ routeTo: ... })` instead of navigating directly, so the sign-in modal appears inline rather than causing a hard redirect.
+Unauthenticated users who access a protected URL directly (or via browser refresh) are redirected to `/api/auth/sign-in` by the proxy.
 
 ## Project Structure
 

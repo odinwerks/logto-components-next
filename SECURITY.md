@@ -178,7 +178,8 @@ to re-throw auth errors rather than falling back. The error message will contain
 `proxy.ts` (Next.js middleware) is the **network-level security boundary**. It enforces authentication before requests reach page handlers or API routes.
 
 **Public paths** (no authentication required):
-- `/` — landing page
+- `/` — redirects to documentation page (`/getting-started/pre-requisites`)
+- `/docs` and `/docs/*` — official documentation pages
 - `/demo` and `/demo/*` — demo app
 
 **All other paths** are protected. Unauthenticated requests are redirected to `/api/auth/sign-in` before the page or route handler runs.
