@@ -8,7 +8,7 @@ import { LangSync } from './logto-kit/components/LangSync';
 import { LogtoProvider } from './logto-kit/components/providers/logto-provider';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
-import { fetchDashboardData } from './logto-kit/logic/actions';
+import { fetchDashboardDataCached } from './logto-kit/logic/cached-dashboard';
 import { getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
 import { getMainLocale } from './logto-kit/locales';
@@ -52,7 +52,7 @@ export default async function RootLayout({
   // Fetch user data in an auth-tolerant way: no redirect on unauthenticated,
   // errors are handled gracefully. This provides userData to LogtoProvider
   // so isAuthenticated and user preferences work for ALL routes.
-  const result = await fetchDashboardData({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
   const userData = result.success ? result.userData : null;
   const defaultThemeMode = getDefaultThemeMode();
   const defaultLocale = getMainLocale();

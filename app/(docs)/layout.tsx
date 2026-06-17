@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 import React, { Suspense } from 'react';
-import { fetchDashboardData } from '../logto-kit/logic/actions';
+import { fetchDashboardDataCached } from '../logto-kit/logic/cached-dashboard';
 import { AuthErrorBanner } from '../logto-kit/components/auth-error-banner';
 import DocsLayoutClient from './layout-client';
 import { DocsErrorFallback } from './docs-error-fallback';
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
-  const result = await fetchDashboardData();
+  const result = await fetchDashboardDataCached();
 
   if (!result.success) {
     // Unauthenticated users (needsAuth) are allowed to view public docs routes.
