@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useLogto } from './logto-kit/components/providers/logto-provider';
 import { UserButton } from './logto-kit/components/UserButton';
 
@@ -67,7 +68,7 @@ export default function HomePage() {
 
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           {/* Demo is public — direct link is safe */}
-          <a
+          <Link
             href="/demo"
             style={{
               padding: '0.625rem 1.25rem',
@@ -80,7 +81,7 @@ export default function HomePage() {
             }}
           >
             View Demo
-          </a>
+          </Link>
 
           {/* Protected route — triggers auth modal when unauthenticated */}
           <button
