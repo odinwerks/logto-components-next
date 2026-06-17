@@ -16,7 +16,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
-- **Proxy Choke-Point Auth**: The Next.js middleware (`proxy.ts`) is the network-level authentication boundary. Only `/` (minimal redirect), `/docs/*` (documentation), and `/demo/*` (demo routes) are publicly accessible. All other routes redirect unauthenticated users to sign-in.
+- **Proxy Choke-Point Auth**: The Next.js middleware (`proxy.ts`) is the network-level authentication boundary. Only `/` (minimal redirect), `/docs/*` (documentation), `/demo/*` (demo routes), `/api/auth/sign-in`, `/callback`, and `/api/wipe` are publicly accessible. All other routes redirect unauthenticated users to sign-in.
 - **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated.
 
 ## Prerequisites
@@ -85,6 +85,9 @@ The proxy (`proxy.ts`) is the primary authentication choke point:
 | `/` | Public — redirects to `/getting-started/pre-requisites` |
 | `/docs` and `/docs/*` | Public — official documentation pages |
 | `/demo` and `/demo/*` | Public — interactive demo app |
+| `/api/auth/sign-in` | Public — OAuth sign-in initiator |
+| `/callback` | Public — OAuth callback receiver |
+| `/api/wipe` | Public — session/cookie cleaning route |
 | Everything else | **Requires authentication** |
 
 Unauthenticated users who access a protected URL directly (or via browser refresh) are redirected to `/api/auth/sign-in` by the proxy.

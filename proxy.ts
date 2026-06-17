@@ -92,6 +92,10 @@ const WIPE_NONCE_TTL_SECONDS = 60;
  * Public paths:
  * - `/` (exact) — the landing page
  * - `/demo` and `/demo/*` — demo pages (intentionally public for unauthenticated visitors)
+ * - `/docs` and `/docs/*` — docs pages
+ * - `/api/auth/sign-in` — sign-in flow entry point
+ * - `/callback` — OAuth callback handler
+ * - `/api/wipe` — cookie cleaning route (protected by its own origin guard)
  *
  * All other paths are protected and require authentication.
  */
@@ -99,6 +103,9 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
   if (pathname === '/docs' || pathname.startsWith('/docs/')) return true;
+  if (pathname === '/api/auth/sign-in') return true;
+  if (pathname === '/callback') return true;
+  if (pathname === '/api/wipe') return true;
   return false;
 }
 

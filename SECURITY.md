@@ -181,6 +181,9 @@ to re-throw auth errors rather than falling back. The error message will contain
 - `/` — redirects to documentation page (`/getting-started/pre-requisites`)
 - `/docs` and `/docs/*` — official documentation pages
 - `/demo` and `/demo/*` — demo app
+- `/api/auth/sign-in` — OAuth sign-in entry point
+- `/callback` — OAuth callback handler
+- `/api/wipe` — cookie cleaning route (protected by its own origin guard)
 
 **All other paths** are protected. Unauthenticated requests are redirected to `/api/auth/sign-in` before the page or route handler runs.
 
