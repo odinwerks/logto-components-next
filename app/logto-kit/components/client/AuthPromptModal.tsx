@@ -11,11 +11,13 @@ import { LogIn } from 'lucide-react';
 
 export interface AuthPromptModalProps {
   routeTo?: string;
+  /** Controls button label. 'mandatory' shows "Read Only Mode"; otherwise shows "Cancel". */
+  mode?: 'optional' | 'mandatory';
 }
 
-export function AuthPromptModal({ routeTo }: AuthPromptModalProps) {
+export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProps) {
   const { closeDashboard } = useLogto();
-  const { mode, colors } = useThemeMode();
+  const { mode: themeMode, colors } = useThemeMode();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -92,14 +94,14 @@ export function AuthPromptModal({ routeTo }: AuthPromptModalProps) {
             gap: '0.5rem',
           }}
         >
-          <Button onClick={closeDashboard} mode={mode} colors={colors}>
-            Cancel
+          <Button onClick={closeDashboard} mode={themeMode} colors={colors}>
+            {authMode === 'mandatory' ? 'Read Only Mode' : 'Cancel'}
           </Button>
           <Button
             aria-label="Sign in"
             variant="primary"
             onClick={handleSignIn}
-            mode={mode}
+            mode={themeMode}
             colors={colors}
           >
             Sign In <LogIn size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />

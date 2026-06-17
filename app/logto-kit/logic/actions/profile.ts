@@ -2,7 +2,7 @@
 
 import { makeRequest } from './request';
 import { patchMyAccount } from './shared';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import {
   assertNameField,
   assertUsername,
@@ -16,6 +16,8 @@ import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { getCleanEndpoint } from '../utils';
 import { warn } from '../log';
 import { createLockManager } from '../../../lib/distributed-state';
+import { getTokenForServerAction } from './tokens';
+import { introspectToken } from '../utils';
 
 export async function updateUserBasicInfo(updates: {
   name?: string;
@@ -23,6 +25,13 @@ export async function updateUserBasicInfo(updates: {
   avatar?: string;
 }): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertNameField(updates.name, 'name');
     assertUsername(updates.username);
     assertHttpUrl(updates.avatar, 'avatar');
@@ -40,6 +49,13 @@ export async function updateUserProfile(profile: {
   familyName?: string;
 }): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertNameField(profile.givenName, 'givenName');
     assertNameField(profile.familyName, 'familyName');
 
@@ -86,7 +102,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     // Get user ID for per-user locking
     const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
     if (!isAuthenticated || !claims?.sub) {
-      throw new Error('Cannot determine user ID for customData update');
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = claims.sub;
     assertSafeUserId(userId);
@@ -151,6 +167,13 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
 
 export async function updateAvatarUrl(avatarUrl: string): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     if (avatarUrl) assertHttpUrl(avatarUrl, 'avatar');
     await patchMyAccount({ avatar: avatarUrl || null }, 'Avatar update failed');
   });

@@ -27,7 +27,7 @@ describe('useAuthGatedAction', () => {
       result.current(action, '/demo/calculator')();
     });
 
-    expect(mockOpenDashboard).toHaveBeenCalledWith({ routeTo: '/demo/calculator' });
+    expect(mockOpenDashboard).toHaveBeenCalledWith({ routeTo: '/demo/calculator', mode: 'mandatory' });
     expect(action).not.toHaveBeenCalled();
   });
 
@@ -39,7 +39,7 @@ describe('useAuthGatedAction', () => {
       result.current(action)();
     });
 
-    expect(mockOpenDashboard).toHaveBeenCalledWith({ routeTo: undefined });
+    expect(mockOpenDashboard).toHaveBeenCalledWith({ routeTo: undefined, mode: 'mandatory' });
     expect(action).not.toHaveBeenCalled();
   });
 

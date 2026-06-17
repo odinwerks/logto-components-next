@@ -10,6 +10,9 @@ import { useLogto } from '../components/providers/logto-provider';
  * When the user is unauthenticated, the dashboard auth-prompt modal is opened
  * instead, with an optional `routeTo` redirect after sign-in.
  *
+ * By default, the modal opens in `'mandatory'` mode, showing a "Read Only Mode"
+ * button instead of "Cancel" to communicate that the action requires sign-in.
+ *
  * @example
  * ```tsx
  * const authGated = useAuthGatedAction();
@@ -26,7 +29,7 @@ export function useAuthGatedAction() {
     <Args extends unknown[]>(action: (...args: Args) => void, routeTo?: string) =>
       (...args: Args) => {
         if (!isAuthenticated) {
-          openDashboard({ routeTo });
+          openDashboard({ routeTo, mode: 'mandatory' });
           return;
         }
         action(...args);

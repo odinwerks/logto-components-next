@@ -148,10 +148,11 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data[0].meta?.isCurrent).toBe(false);
   });
 
-  it('sets meta.userId to empty string without calling introspection (perf fix)', async () => {
+  it('sets meta.userId to empty string without calling introspection for userId population (perf fix)', async () => {
     // Introspection was previously called to populate meta.userId, adding a
     // sequential 10 s network round-trip on every Sessions tab load. It is now
     // removed because meta.userId is not rendered in any UI component.
+    // Note: introspection IS called for the auth guard, but NOT to populate userId.
     const session = mockSession('session-d', true);
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ sessions: [session] })
@@ -164,11 +165,8 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toHaveLength(1);
-    // userId is always empty string — no introspection needed
+    // userId is always empty string — introspection is used only for auth guard, not userId
     expect(result.data[0].meta?.userId).toBe('');
-    // Introspection must NOT be called from getSessionsWithDeviceMeta
-    expect(introspectToken).not.toHaveBeenCalled();
-    expect(getTokenForServerAction).not.toHaveBeenCalled();
     // warn must NOT be called (no introspection error to log)
     expect(warn).not.toHaveBeenCalled();
   });

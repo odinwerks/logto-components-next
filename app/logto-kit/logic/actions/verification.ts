@@ -12,6 +12,8 @@ import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
 import { getCountryFilter } from '../../config';
 import { assertVerificationNotExpired } from './helpers';
+import { getTokenForServerAction } from './tokens';
+import { introspectToken } from '../utils';
 
 /**
  * Normalizes phone numbers by stripping all non-digit characters.
@@ -32,6 +34,13 @@ function cleanPhoneNumber(phone: string): string {
 
 export async function verifyPasswordForIdentity(password: string): Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     // Guard: password must be a non-empty string with reasonable length
     if (typeof password !== 'string' || password.length === 0 || password.length > 256) {
       throw new ValidationError('INVALID_INPUT', 'password');
@@ -95,6 +104,13 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
 
 export async function sendEmailVerificationCode(email: string): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     if (typeof email !== 'string' || email.length === 0 || email.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new ValidationError('INVALID_INPUT', 'email');
     }
@@ -117,6 +133,13 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
 
 export async function sendPhoneVerificationCode(phone: string): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     const countryFilter = getCountryFilter();
     const cleanedPhone = cleanPhoneNumber(phone);
     if (typeof cleanedPhone !== 'string' || cleanedPhone.length === 0 || cleanedPhone.length > 20) {
@@ -147,6 +170,13 @@ export async function verifyVerificationCode(
   code: string
 ): Promise<DataResult<{ verificationRecordId: string }>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     const countryFilter = getCountryFilter();
     // Validate all client-supplied inputs at the trust boundary.
     assertVerificationType(type);
@@ -198,6 +228,13 @@ export async function updateEmailWithVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
@@ -224,6 +261,13 @@ export async function updatePhoneWithVerification(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     const countryFilter = getCountryFilter();
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
@@ -252,6 +296,13 @@ export async function removeUserEmail(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
@@ -273,6 +324,13 @@ export async function removeUserPhone(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────

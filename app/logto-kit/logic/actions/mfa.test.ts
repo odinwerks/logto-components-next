@@ -346,7 +346,7 @@ describe('addMfaVerification', () => {
     expect(callBody).toHaveProperty('newIdentifierVerificationRecordId', 'vrec-abc123');
   });
 
-  it('rejects with UNAUTHORIZED if token introspection is inactive', async () => {
+  it('rejects with UNAUTHENTICATED if token introspection is inactive', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: false });
     const r = await addMfaVerification(
       {
@@ -357,10 +357,10 @@ describe('addMfaVerification', () => {
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toContain('UNAUTHORIZED');
+    expect(r.error).toContain('UNAUTHENTICATED');
   });
 
-  it('rejects with UNAUTHORIZED if sub is missing in token introspection', async () => {
+  it('rejects with UNAUTHENTICATED if sub is missing in token introspection', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: true });
     const r = await addMfaVerification(
       {
@@ -371,7 +371,7 @@ describe('addMfaVerification', () => {
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toContain('UNAUTHORIZED');
+    expect(r.error).toContain('UNAUTHENTICATED');
   });
 });
 
@@ -636,12 +636,12 @@ describe('deleteMfaVerification authorized pattern', () => {
     );
   });
 
-  it('rejects with UNAUTHORIZED if token is inactive or missing sub', async () => {
+  it('rejects with UNAUTHENTICATED if token is inactive or missing sub', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: false });
     const r = await deleteMfaVerification('v-123', 'vrec-123', validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toContain('UNAUTHORIZED');
+    expect(r.error).toContain('UNAUTHENTICATED');
   });
 });
 
@@ -670,12 +670,12 @@ describe('replaceTotpVerification authorized pattern', () => {
     );
   });
 
-  it('rejects with UNAUTHORIZED if token is inactive or missing sub', async () => {
+  it('rejects with UNAUTHENTICATED if token is inactive or missing sub', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: false });
     const r = await replaceTotpVerification('sec', '123456', 'vrec-123', validTimestamp);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toContain('UNAUTHORIZED');
+    expect(r.error).toContain('UNAUTHENTICATED');
   });
 
   it('rejects if secret or code are invalid', async () => {

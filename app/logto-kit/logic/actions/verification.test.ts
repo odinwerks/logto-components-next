@@ -20,6 +20,19 @@ vi.mock('./request', () => ({
 
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  plainCode: vi.fn((code: string) => {
+    const err = new Error(code);
+    err.name = 'SanitizedError';
+    return err;
+  }),
+}));
+
+vi.mock('./tokens', () => ({
+  getTokenForServerAction: vi.fn().mockResolvedValue('mock-access-token'),
+}));
+
+vi.mock('../utils', () => ({
+  introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', active: true }),
 }));
 
 // ============================================================================
@@ -28,6 +41,8 @@ vi.mock('../errors', () => ({
 
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
+import { getTokenForServerAction } from './tokens';
+import { introspectToken } from '../utils';
 
 // ============================================================================
 // Test Helpers
@@ -48,6 +63,8 @@ const mockJsonResponse = (data: unknown, status = 200): Response =>
 describe('verifyPasswordForIdentity', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ verificationRecordId: 'verif_test123' })
     );
@@ -167,6 +184,25 @@ describe('verifyPasswordForIdentity', () => {
     await verifyPasswordForIdentity('');
     expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
+
+  it('returns UNAUTHENTICATED when session token is inactive', async () => {
+    vi.mocked(introspectToken).mockResolvedValueOnce({ active: false, sub: undefined });
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity('ValidPassword1!');
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHENTICATED');
+    // makeRequest must NOT be called before auth check passes
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('returns UNAUTHENTICATED when no session token is available', async () => {
+    vi.mocked(getTokenForServerAction).mockRejectedValueOnce(new Error('No access token available for Account API'));
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity('ValidPassword1!');
+    expect(result.ok).toBe(false);
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
 });
 
 // ============================================================================
@@ -176,6 +212,8 @@ describe('verifyPasswordForIdentity', () => {
 describe('updateEmailWithVerification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(mockJsonResponse({}));
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
   });
@@ -281,6 +319,8 @@ describe('updateEmailWithVerification', () => {
 describe('updatePhoneWithVerification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(mockJsonResponse({}));
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
   });
@@ -430,6 +470,8 @@ describe('updatePhoneWithVerification', () => {
 describe('sendPhoneVerificationCode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ verificationRecordId: 'verif_phone123' })
     );
@@ -515,6 +557,8 @@ describe('sendPhoneVerificationCode', () => {
 describe('verifyVerificationCode with phone', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ verificationRecordId: 'verif_ok' })
     );
@@ -612,6 +656,8 @@ describe('verifyVerificationCode with phone', () => {
 describe('Country Gating on Phone Verification Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ verificationRecordId: 'verif_123' })
     );

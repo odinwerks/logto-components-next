@@ -6,9 +6,11 @@ vi.mock('@/app/logto-kit/logic/actions/auth', () => ({
   signInUser: vi.fn(),
 }));
 
+const mockCloseDashboard = vi.fn();
+
 vi.mock('@/app/logto-kit/components/providers/logto-provider', () => ({
   useLogto: () => ({
-    closeDashboard: vi.fn(),
+    closeDashboard: mockCloseDashboard,
   }),
 }));
 
@@ -52,5 +54,37 @@ describe('AuthPromptModal', () => {
     render(<AuthPromptModal routeTo="/docs/foo" />);
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
     expect(signInUser).toHaveBeenCalledWith('/docs/foo');
+  });
+
+  it('renders "Cancel" button in default (optional) mode', () => {
+    render(<AuthPromptModal />);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /read only mode/i })).not.toBeInTheDocument();
+  });
+
+  it('renders "Read Only Mode" button when mode is mandatory', () => {
+    render(<AuthPromptModal mode="mandatory" />);
+    expect(screen.getByRole('button', { name: /read only mode/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+  });
+
+  it('renders "Cancel" button when mode is optional', () => {
+    render(<AuthPromptModal mode="optional" />);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /read only mode/i })).not.toBeInTheDocument();
+  });
+
+  it('calls closeDashboard when "Read Only Mode" button is clicked', () => {
+    mockCloseDashboard.mockClear();
+    render(<AuthPromptModal mode="mandatory" />);
+    fireEvent.click(screen.getByRole('button', { name: /read only mode/i }));
+    expect(mockCloseDashboard).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls closeDashboard when "Cancel" button is clicked', () => {
+    mockCloseDashboard.mockClear();
+    render(<AuthPromptModal />);
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(mockCloseDashboard).toHaveBeenCalledTimes(1);
   });
 });

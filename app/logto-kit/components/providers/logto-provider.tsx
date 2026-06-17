@@ -22,7 +22,7 @@ interface LogtoContextValue {
   asOrg: string | null;
   setAsOrg: (orgId: string | null) => void;
   isAuthenticated: boolean;
-  openDashboard: (opts?: { routeTo?: string }) => void;
+  openDashboard: (opts?: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => void;
   closeDashboard: () => void;
 }
 
@@ -76,7 +76,7 @@ function LogtoProviderContent({
   dashboard?: ReactNode | { desktop: ReactNode; mobile: ReactNode };
   children: ReactNode;
 }) {
-  const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string }>({
+  const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string; mode?: 'optional' | 'mandatory' }>({
     isOpen: false,
   });
 
@@ -86,8 +86,8 @@ function LogtoProviderContent({
 
   const isAuthenticated = !!userData;
 
-  const openDashboard = useCallback((opts?: { routeTo?: string }) => {
-    setDashboardState({ isOpen: true, routeTo: opts?.routeTo });
+  const openDashboard = useCallback((opts?: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => {
+    setDashboardState({ isOpen: true, routeTo: opts?.routeTo, mode: opts?.mode });
   }, []);
   const closeDashboard = useCallback(() => setDashboardState({ isOpen: false }), []);
 
@@ -130,6 +130,7 @@ function LogtoProviderContent({
             desktop={normalizedDashboard?.desktop}
             mobile={normalizedDashboard?.mobile}
             routeTo={dashboardState.routeTo}
+            authMode={dashboardState.mode}
           />
         )}
       </UserDataProvider>
@@ -150,6 +151,7 @@ function DashboardDialog({
   desktop,
   mobile,
   routeTo,
+  authMode,
 }: {
   mode: 'dark' | 'light';
   onClose: () => void;
@@ -157,6 +159,8 @@ function DashboardDialog({
   mobile?: ReactNode;
   /** Route to navigate to after sign-in when the user is unauthenticated. */
   routeTo?: string;
+  /** Auth prompt display mode. 'mandatory' shows "Read Only Mode" instead of "Cancel". */
+  authMode?: 'optional' | 'mandatory';
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
@@ -165,7 +169,7 @@ function DashboardDialog({
 
   // When unauthenticated, show the auth prompt modal instead of the dashboard.
   if (!isAuthenticated) {
-    return <AuthPromptModal routeTo={routeTo} />;
+    return <AuthPromptModal routeTo={routeTo} mode={authMode} />;
   }
 
   return (

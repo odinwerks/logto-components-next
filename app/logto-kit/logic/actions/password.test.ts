@@ -16,6 +16,11 @@ vi.mock('./request', () => ({
 
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  plainCode: vi.fn((code: string) => {
+    const err = new Error(code);
+    err.name = 'SanitizedError';
+    return err;
+  }),
 }));
 
 vi.mock('../audit', () => ({
@@ -51,12 +56,12 @@ describe('updateUserPassword', () => {
     expect(res.ok).toBe(true);
   });
 
-  it('fails with UNAUTHORIZED when token is inactive', async () => {
+  it('fails with UNAUTHENTICATED when token is inactive', async () => {
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-123', active: false });
 
     const res = await updateUserPassword('new-secure-password', 'vrec-123', Date.now());
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('Expected failure');
-    expect(res.error).toBe('UNAUTHORIZED');
+    expect(res.error).toBe('UNAUTHENTICATED');
   });
 });

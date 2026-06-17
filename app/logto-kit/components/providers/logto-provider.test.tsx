@@ -11,8 +11,8 @@ vi.mock('../../logic/actions', () => ({
 
 // Mock AuthPromptModal to isolate the conditional render test
 vi.mock('../client/AuthPromptModal', () => ({
-  AuthPromptModal: ({ routeTo }: { routeTo?: string }) => (
-    <div data-testid="auth-prompt-modal" data-route-to={routeTo ?? ''}>
+  AuthPromptModal: ({ routeTo, mode }: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => (
+    <div data-testid="auth-prompt-modal" data-route-to={routeTo ?? ''} data-mode={mode ?? ''}>
       Auth Prompt
     </div>
   ),
@@ -329,5 +329,79 @@ describe('LogtoProvider auth-conditional dashboard (Task 5)', () => {
     expect(modal).toBeInTheDocument();
     // data-route-to should be empty string (our mock maps undefined to '')
     expect(modal).toHaveAttribute('data-route-to', '');
+  });
+});
+
+describe('LogtoProvider modal mode passing (auth-gated hardening)', () => {
+  function mockDesktopMatchMedia() {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockDesktopMatchMedia();
+  });
+
+  it('passes mode=mandatory to AuthPromptModal when openDashboard is called with mode mandatory', () => {
+    function DashboardOpenerWithMode() {
+      const { openDashboard } = useLogto();
+      useEffect(() => {
+        openDashboard({ routeTo: '/protected', mode: 'mandatory' });
+      }, [openDashboard]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider dashboard={<div>Dashboard</div>}>
+        <DashboardOpenerWithMode />
+      </LogtoProvider>
+    );
+
+    const modal = screen.getByTestId('auth-prompt-modal');
+    expect(modal).toHaveAttribute('data-mode', 'mandatory');
+    expect(modal).toHaveAttribute('data-route-to', '/protected');
+  });
+
+  it('passes mode=optional to AuthPromptModal when openDashboard is called with mode optional', () => {
+    function DashboardOpenerWithOptional() {
+      const { openDashboard } = useLogto();
+      useEffect(() => {
+        openDashboard({ mode: 'optional' });
+      }, [openDashboard]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider dashboard={<div>Dashboard</div>}>
+        <DashboardOpenerWithOptional />
+      </LogtoProvider>
+    );
+
+    const modal = screen.getByTestId('auth-prompt-modal');
+    expect(modal).toHaveAttribute('data-mode', 'optional');
+  });
+
+  it('passes empty mode to AuthPromptModal when openDashboard called without mode', () => {
+    render(
+      <LogtoProvider dashboard={<div>Dashboard</div>}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    const modal = screen.getByTestId('auth-prompt-modal');
+    // data-mode should be empty string (our mock maps undefined to '')
+    expect(modal).toHaveAttribute('data-mode', '');
   });
 });

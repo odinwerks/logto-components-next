@@ -7,7 +7,7 @@ import { debugLog } from '../debug';
 import { assertSafeLogtoId, assertRevokeGrantsTarget } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { assertVerificationNotExpired } from './helpers';
 import { warn } from '../log';
@@ -80,6 +80,13 @@ export async function getUserSessions(
   verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     return getUserSessionsInternal(verificationRecordId, verificationTimestamp);
   });
 }
@@ -95,6 +102,13 @@ export async function getSessionsWithDeviceMeta(
   verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     const sessions = await getUserSessionsInternal(verificationRecordId, verificationTimestamp);
 
     // userId is a display-only metadata field in SessionMeta. Token introspection
@@ -202,6 +216,13 @@ export async function revokeUserSession(
   signal?: AbortSignal,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     await revokeUserSessionInternal(
       sessionId,
       identityVerificationRecordId,
@@ -228,6 +249,13 @@ export async function revokeAllOtherSessions(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
     assertVerificationNotExpired(verificationTimestamp);
     debugLog('[revokeAllOtherSessions] Fetching sessions');
@@ -237,8 +265,6 @@ export async function revokeAllOtherSessions(
     // Identify current session via token introspection.
     // The introspection `sid` claim is the OIDC session UID - matches payload.uid.
     // Fall back to isCurrent flag if sid is absent.
-    const token = await getTokenForServerAction();
-    const introspection = await introspectToken(token);
     const currentSid = introspection.sid;  // session UID, matches payload.uid
 
     const currentSession = currentSid
@@ -309,6 +335,13 @@ export async function getUserGrants(
   verificationTimestamp: number,
 ): Promise<DataResult<unknown[]>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
     assertVerificationNotExpired(verificationTimestamp);
     const res = await makeRequest('/api/my-account/grants', {
@@ -332,6 +365,13 @@ export async function revokeUserGrant(
   verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
     assertSafeLogtoId(grantId, 'grantId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
     assertVerificationNotExpired(verificationTimestamp);

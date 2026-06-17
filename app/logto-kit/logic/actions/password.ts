@@ -1,7 +1,7 @@
 'use server';
 
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import { assertSafeLogtoId } from '../guards';
 import { ValidationError } from '../validation';
 import { getTokenForServerAction } from './tokens';
@@ -22,7 +22,7 @@ export async function updateUserPassword(
     const sessionToken = await getTokenForServerAction();
     const introspection = await introspectToken(sessionToken);
     if (!introspection.active) {
-      throw new Error('UNAUTHORIZED');
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = introspection.sub ?? 'unknown';
 

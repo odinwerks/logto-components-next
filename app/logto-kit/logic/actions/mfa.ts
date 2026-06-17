@@ -30,6 +30,11 @@ const totpGenerationRateLimiter = createRateLimiter({
  */
 export async function getMfaVerifications(): Promise<DataResult<MfaVerification[]>> {
   return safeAction(async () => {
+    // ── Explicit auth check ───────────────────────────────────────────────
+    const token = await getTokenForServerAction();
+    const intro = await introspectToken(token);
+    if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
+
     const res = await makeRequest('/api/my-account/mfa-verifications');
     
     await throwOnApiError(res, 'FETCH_FAILED', 'get-mfa');
@@ -56,7 +61,7 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
     // Rate limit check
     const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
     if (!isAuthenticated || !claims?.sub) {
-      throw new Error('Cannot determine user ID for TOTP secret generation');
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = claims.sub;
     assertSafeLogtoId(userId, 'userId');
@@ -89,7 +94,7 @@ export async function addMfaVerification(
   return safeAction(async () => {
     const token = await getTokenForServerAction();
     const intro = await introspectToken(token);
-    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
     assertMfaType(verification.type);
@@ -176,7 +181,7 @@ export async function deleteMfaVerification(
   return safeAction(async () => {
     const token = await getTokenForServerAction();
     const intro = await introspectToken(token);
-    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
     assertSafeLogtoId(verificationId, 'verificationId');
@@ -212,7 +217,7 @@ export async function generateBackupCodes(
     // Get user ID for per-user locking
     const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
     if (!isAuthenticated || !claims?.sub) {
-      throw new Error('Cannot determine user ID for backup codes generation');
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = claims.sub;
     assertSafeLogtoId(userId, 'userId');
@@ -313,7 +318,7 @@ export async function replaceTotpVerification(
   return safeAction(async () => {
     const token = await getTokenForServerAction();
     const intro = await introspectToken(token);
-    if (!intro.active || !intro.sub) throw new Error('UNAUTHORIZED');
+    if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');

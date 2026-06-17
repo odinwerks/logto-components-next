@@ -20,6 +20,11 @@ vi.mock('./tokens', () => ({
   getTokenForServerAction: vi.fn().mockResolvedValue('mock-access-token'),
 }));
 
+vi.mock('../utils', () => ({
+  getCleanEndpoint: vi.fn().mockReturnValue('https://logto.example.com'),
+  introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', active: true }),
+}));
+
 vi.mock('@logto/next/server-actions', () => ({
   getLogtoContext: vi.fn(),
 }));
@@ -76,10 +81,6 @@ vi.mock('../../config', () => ({
   }),
 }));
 
-vi.mock('../utils', () => ({
-  getCleanEndpoint: vi.fn().mockReturnValue('https://logto.example.com'),
-}));
-
 // ============================================================================
 // Imports of mocked modules
 // ============================================================================
@@ -87,7 +88,8 @@ vi.mock('../utils', () => ({
 import { throwOnApiError } from '../errors';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getManagementApiToken } from '../../config';
-import { getCleanEndpoint } from '../utils';
+import { getCleanEndpoint, introspectToken } from '../utils';
+import { getTokenForServerAction } from './tokens';
 
 // ============================================================================
 // Helpers
@@ -129,6 +131,8 @@ describe('updateUserCustomData', () => {
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(getLogtoContext).mockResolvedValue({
       claims: { sub: 'user-test-123' },
       isAuthenticated: true,
@@ -618,6 +622,8 @@ describe('updateAvatarUrl', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
   });
 
   it('passes a valid absolute HTTP URL through to patchMyAccount', async () => {
