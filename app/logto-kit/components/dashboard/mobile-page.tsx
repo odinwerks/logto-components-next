@@ -28,7 +28,6 @@ import {
   verifyAndLinkWebAuthn,
   renamePasskey,
 } from '../../logic/actions';
-import { redirect } from 'next/navigation';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
 import { DARK_COLORS, FONT_MONO } from '../../themes';
 import { getSupportedLangs } from '../../logic/i18n';
@@ -46,11 +45,14 @@ export async function MobileDashboard() {
 
   const errorColors = DARK_COLORS;
 
-  const result = await fetchDashboardData();
+  const result = await fetchDashboardData({ tolerateAuthErrors: true });
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
-      redirect('/callback');
+      // Unauthenticated: render nothing. The auth dialog/prompt is handled by
+      // the parent layout or trigger component. Do NOT redirect here because
+      // all routes are publicly accessible since the proxy whitelist was removed.
+      return null;
     }
     return (
       <div
