@@ -178,4 +178,29 @@ describe('UserButton Accessibility and Shape Props', () => {
     fireEvent.click(button);
     expect(mockOpenDashboard).toHaveBeenCalled();
   });
+
+  it('shows "Unauthenticated" text in UserCard when isAuthenticated is false and no user data', () => {
+    mockUseLogto.mockReturnValue({
+      ...defaultUseLogtoValue,
+      isAuthenticated: false,
+      openDashboard: mockOpenDashboard,
+    });
+    mockUseUserDataContext.mockReturnValue(null);
+
+    render(<UserCard />);
+    expect(screen.getByText('Unauthenticated')).toBeInTheDocument();
+  });
+
+  it('shows "..." in UserCard while loading (isAuthenticated undefined, no user data yet)', () => {
+    mockUseLogto.mockReturnValue({
+      lang: 'en-US',
+      openDashboard: mockOpenDashboard,
+      isAuthenticated: undefined,
+    });
+    mockUseUserDataContext.mockReturnValue(null);
+
+    render(<UserCard />);
+    // While loading (before 1500ms timeout), should not show Unauthenticated
+    expect(screen.queryByText('Unauthenticated')).not.toBeInTheDocument();
+  });
 });

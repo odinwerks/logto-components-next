@@ -122,7 +122,7 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
     }
   }, [opts.do, openDashboard]);
 
-  return { userData, loading, showFallback: effectiveShowFallback, imageFailed, setImageFailed, colors, t, handleClick };
+  return { userData, loading, showFallback: effectiveShowFallback, isExplicitlyUnauthenticated, imageFailed, setImageFailed, colors, t, handleClick };
 }
 
 // ─── Fallback avatar ─────────────────────────────────────────────────────────
@@ -371,7 +371,7 @@ export function UserCard({
   colors: providedColors,
   do: customAction,
 }: UserCardProps) {
-  const { userData, loading, showFallback, imageFailed, setImageFailed, colors, t, handleClick } =
+  const { userData, loading, showFallback, isExplicitlyUnauthenticated, imageFailed, setImageFailed, colors, t, handleClick } =
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
   const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
@@ -402,6 +402,7 @@ export function UserCard({
   const renderContent = () => {
     if (loading || !userData) {
       if (showFallback) {
+        const nameText = isExplicitlyUnauthenticated ? 'Unauthenticated' : '...';
         return (
           <>
             <FallbackAvatar Size={Size} shape={shape} colors={colors} />
@@ -410,7 +411,7 @@ export function UserCard({
                 {label}
               </span>
               <span style={{ fontFamily: 'var(--ldd-font-sans)', fontSize: 'var(--ldd-size-md)', fontWeight: 'var(--ldd-weight-medium)', color: colors.textPrimary }}>
-                ...
+                {nameText}
               </span>
             </div>
           </>
