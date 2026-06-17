@@ -73,6 +73,7 @@ export default async function RootLayout({
         */}
         <script
           nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               try {
