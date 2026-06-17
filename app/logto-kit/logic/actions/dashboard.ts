@@ -74,9 +74,16 @@ function handleAuthFetchError(err: unknown, label: string): never {
 /**
  * Fetches dashboard data for the authenticated user.
  * Used in RSC (React Server Components).
+ *
+ * @param opts.tolerateAuthErrors - When true, auth errors return `{ success: false, needsAuth: true }`
+ *   instead of redirecting. Use in layouts that render for both authenticated and
+ *   unauthenticated users (e.g., root layout, public pages).
  * @returns DashboardResult containing user data (no access token - kept server-side).
  */
-export async function fetchDashboardData(): Promise<DashboardResult> {
+export async function fetchDashboardData(
+  opts?: { tolerateAuthErrors?: boolean },
+): Promise<DashboardResult> {
+  const tolerateAuthErrors = opts?.tolerateAuthErrors ?? false;
   try {
     const result = await fetchWithRetry(async (): Promise<DashboardResult> => {
       // Removed redundant getTokenForServerAction() - getLogtoContext handles refresh internally
@@ -145,12 +152,18 @@ export async function fetchDashboardData(): Promise<DashboardResult> {
     });
 
     return result;
-  } catch (error) {
-    if (isAuthError(error)) {
-      handleAuthFetchError(error, 'Dashboard data fetch error');
+  } catch (err) {
+    if (isAuthError(err)) {
+      if (tolerateAuthErrors) {
+        // In auth-tolerant mode (e.g., root layout for public pages), return needsAuth
+        // instead of redirecting so the page can render in anonymous mode.
+        warn('[fetchDashboardData] Auth error tolerated (anonymous mode):', err instanceof Error ? err.message : err);
+        return { success: false, needsAuth: true };
+      }
+      handleAuthFetchError(err, 'Dashboard data fetch error');
     }
     // For non-auth errors, return a fetch error instead of redirecting
-    warn('[fetchDashboardData] Non-auth error:', error instanceof Error ? error.message : error);
+    warn('[fetchDashboardData] Non-auth error:', err instanceof Error ? err.message : err);
     return { success: false, error: 'FETCH_FAILED' };
   }
 }

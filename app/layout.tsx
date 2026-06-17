@@ -8,6 +8,10 @@ import { LangSync } from './logto-kit/components/LangSync';
 import { LogtoProvider } from './logto-kit/components/providers/logto-provider';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
+import { fetchDashboardData } from './logto-kit/logic/actions';
+import { getDefaultThemeMode } from './logto-kit/themes';
+import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
+import { getMainLocale } from './logto-kit/locales';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -45,6 +49,18 @@ export default async function RootLayout({
 }) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
+  // Fetch user data in an auth-tolerant way: no redirect on unauthenticated,
+  // errors are handled gracefully. This provides userData to LogtoProvider
+  // so isAuthenticated and user preferences work for ALL routes.
+  const result = await fetchDashboardData({ tolerateAuthErrors: true });
+  const userData = result.success ? result.userData : null;
+  const defaultThemeMode = getDefaultThemeMode();
+  const defaultLocale = getMainLocale();
+  const userPrefs = userData ? getPreferencesFromUserData(userData) : null;
+  const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
+  const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
+  const resolvedOrg   = userPrefs?.asOrg ?? null;
+
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
@@ -74,7 +90,13 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable} ${dmSans.variable}`}>
-        <LogtoProvider dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}>
+        <LogtoProvider
+          userData={userData}
+          dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
+          initialTheme={resolvedTheme}
+          initialLang={resolvedLang}
+          initialOrgId={resolvedOrg}
+        >
           <AuthWatcher />
           <SessionHeartbeat />
           {children}

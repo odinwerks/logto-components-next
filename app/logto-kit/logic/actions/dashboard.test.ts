@@ -195,4 +195,12 @@ describe('fetchDashboardData', () => {
     expect(mockGetLogtoContext).toHaveBeenCalledTimes(1);
     expect(mockRedirect).not.toHaveBeenCalled();
   });
+
+  it('returns needsAuth instead of redirecting when tolerateAuthErrors=true', async () => {
+    mockGetLogtoContext.mockRejectedValueOnce(new Error('needsAuth'));
+
+    const res = await fetchDashboardData({ tolerateAuthErrors: true });
+    expect(res).toEqual({ success: false, needsAuth: true });
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
 });
