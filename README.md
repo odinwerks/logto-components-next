@@ -16,7 +16,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Auto-Refresh on Preference Change**: When theme or language is changed, tabs automatically refresh to display the latest data from the server.
 - **Tab Configuration**: You can select which tabs to display and their order via an ENV variable.
 - **Cookie Recovery**: Automatic handling of stale cookie contexts via `/api/wipe` (supports GET for browser redirect flow and POST for CSRF-safe programmatic use).
-- **Open Browsing with Auth Modal**: All routes are accessible without signing in. Unauthenticated visitors see an anonymous UserButton; clicking it opens the main auth modal. Auth-gated features open the modal inline instead of showing an error.
+- **Proxy Choke-Point Auth**: The Next.js middleware (`proxy.ts`) is the network-level authentication boundary. Only `/` (landing page) and `/demo/*` (demo routes) are publicly accessible. All other routes redirect unauthenticated users to sign-in. The landing page uses modal UX for protected navigation — clicking a protected link opens the sign-in modal instead of triggering a redirect.
 - **Debug Logging**: All sensitive debug output (tokens, IPs, introspection) is production-gated.
 
 ## Prerequisites
@@ -74,7 +74,19 @@ npm run dev
 # → http://localhost:3000
 ```
 
-The app opens at `/getting-started/pre-requisites`. Sign-in is optional — all routes are browseable anonymously. Click the **UserButton** (top-right avatar) to sign in.
+The app opens at `/` (landing page). Sign in is required to access protected routes (docs, settings, etc.). Click the **UserButton** (top-right avatar) or any protected navigation link to open the sign-in modal.
+
+## Route Protection
+
+The proxy (`proxy.ts`) is the primary authentication choke point:
+
+| Path | Access |
+|------|--------|
+| `/` | Public — landing page |
+| `/demo` and `/demo/*` | Public — demo app and documentation |
+| Everything else | **Requires authentication** |
+
+Unauthenticated users who access a protected URL directly (or via browser refresh) are redirected to `/api/auth/sign-in` by the proxy. The landing page provides modal-based navigation: protected links call `openDashboard({ routeTo: ... })` instead of navigating directly, so the sign-in modal appears inline rather than causing a hard redirect.
 
 ## Project Structure
 
@@ -1643,40 +1655,45 @@ This section explains how to integrate and extend the dashboard. The Dashboard i
 
 ### Authentication Model
 
-The app uses an **open browsing** model — all routes are accessible without signing in. Authentication is opt-in, triggered by user action.
+The app uses a **proxy choke-point** model — `proxy.ts` (Next.js middleware) is the network-level authentication boundary.
 
-- **`proxy.ts`** (Next.js middleware) does **NOT** enforce authentication. It allows all requests through and only handles session error recovery (stale cookies, `invalid_grant`) and sets per-request CSP headers.
-- **Unauthenticated users** see an anonymous `UserButton` (generic user icon). Clicking it opens the main auth modal (sign-in / sign-up).
-- **Auth-gated features** (e.g., the calculator demo) open the main auth modal with a "Read Only Mode" option when the user is not signed in — they do not show an inline fallback error.
+**Public routes** (no authentication required):
+- `/` — landing page
+- `/demo` and `/demo/*` — demo app and documentation
+
+**Protected routes** (everything else): unauthenticated users are redirected to `/api/auth/sign-in` by the proxy before the page handler is reached.
+
+- **`proxy.ts`** enforces authentication for all non-public paths. It also handles session error recovery (stale cookies, `invalid_grant`) and sets per-request CSP headers.
+- **Unauthenticated users** on the landing page see an anonymous `UserButton` (generic user icon). Clicking it or any protected navigation button opens the main auth modal.
+- **Auth-gated features** (e.g., the calculator demo) open the main auth modal with a "Read Only Mode" option when the user is not signed in.
 - **Sign-in** is initiated exclusively by `signIn()` from `@logto/next/server-actions`, called in `GET /api/auth/sign-in`. The `handleSignIn()` function in `app/callback/route.ts` **only** completes the OAuth callback after Logto redirects back.
-- **Protected Server Actions** reject unauthenticated calls explicitly with `UNAUTHENTICATED`. The middleware does not gate server action calls.
-
-> **CSP connect-src**: `next.config.ts` dynamically builds the `connect-src` CSP directive from the `ENDPOINT` env var (no hardcoded domains). Allowed external domains: `ipapi.co` (IP geolocation), `basemaps.cartocdn.com` (map tiles), `supabase.co` (avatar storage), `wss:` (HMR in dev).
+- **Protected Server Actions** reject unauthenticated calls explicitly with `UNAUTHENTICATED` — a second security layer inside the choke point.
 
 Basic request flow:
 
 ```
 Request → proxy.ts
   → Session error (stale cookie / invalid_grant) → redirect to /api/wipe
-  → Any other state (authed or not) → pass through to page/route handler
+  → Unauthenticated + non-public path → redirect to /api/auth/sign-in
+  → Authenticated or public path → pass through to page/route handler
 ```
 
-### Making Routes Require Auth
+### Adding New Public Routes
 
-All routes are public by default. If you want to protect a specific route (redirect unauthenticated users to sign-in), add a server-side auth check inside the page component using `getLogtoContext()`. Example:
+By default all new routes are protected. To make a route publicly accessible (no authentication required), add it to `isPublicPath()` in `proxy.ts`:
 
 ```typescript
-// app/admin/page.tsx
-import { getLogtoContext } from '@logto/next/server-actions';
-import { getLogtoConfig } from '../logto-kit/config';
-import { redirect } from 'next/navigation';
-
-export default async function AdminPage() {
-  const { isAuthenticated } = await getLogtoContext(getLogtoConfig());
-  if (!isAuthenticated) redirect('/api/auth/sign-in');
-  // ...
+// proxy.ts
+function isPublicPath(pathname: string): boolean {
+  if (pathname === '/') return true;
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
+  // Add your public path:
+  if (pathname === '/about') return true;
+  return false;
 }
 ```
+
+Note: adding a route to `isPublicPath()` only bypasses the proxy redirect. Server Actions and API routes accessed from those pages still enforce their own auth checks.
 
 ### Using the Dashboard Component
 

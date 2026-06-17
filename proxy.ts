@@ -86,6 +86,21 @@ const STALE_COOKIE_ERROR = 'Cookies can only be modified';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 const WIPE_NONCE_TTL_SECONDS = 60;
 
+/**
+ * Returns true if the given pathname is a public (unauthenticated-accessible) path.
+ *
+ * Public paths:
+ * - `/` (exact) — the landing page
+ * - `/demo` and `/demo/*` — demo pages (intentionally public for unauthenticated visitors)
+ *
+ * All other paths are protected and require authentication.
+ */
+function isPublicPath(pathname: string): boolean {
+  if (pathname === '/') return true;
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
+  return false;
+}
+
 const getClient = () => new LogtoClient(getLogtoConfig());
 
 export async function proxy(request: NextRequest) {
@@ -105,11 +120,16 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('x-nonce', nonce);
 
   try {
-    // Attempt to get Logto context to handle session error recovery.
-    // Authentication is NOT enforced — unauthenticated users are allowed through.
-    await getClient().getLogtoContext(request, { fetchUserInfo: true });
+    // Attempt to get Logto context to handle session error recovery and auth check.
+    const context = await getClient().getLogtoContext(request, { fetchUserInfo: true });
 
-    // Proceed with nonce and CSP headers regardless of auth state
+    // If unauthenticated and on a protected route, redirect to sign-in.
+    if (!context.isAuthenticated && !isPublicPath(pathname)) {
+      const signInUrl = new URL('/api/auth/sign-in', request.url);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // Proceed with nonce and CSP headers
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('Content-Security-Policy', cspHeader);
     return response;

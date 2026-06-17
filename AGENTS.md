@@ -24,9 +24,11 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 ## Auth Redirect (`app/page.tsx`)
 
-- `app/page.tsx` always redirects to `/getting-started/pre-requisites` (the demo landing page). It does NOT redirect unauthenticated users to sign-in — unauthenticated users are allowed through and see an anonymous UserButton; clicking it opens the main auth modal.
+- `app/page.tsx` is the **public landing page**. It renders a minimal entry point for unauthenticated users — it does NOT redirect to sign-in, and it does NOT redirect to `/getting-started/pre-requisites`.
+- Unauthenticated visitors see an anonymous UserButton on the landing page; clicking it opens the main auth modal.
+- Protected navigation links on the landing page call `openDashboard({ routeTo: path })` so the sign-in modal appears inline instead of triggering a hard redirect.
 - Sign-in is initiated exclusively by `signIn()` from `@logto/next/server-actions` (called in `app/api/auth/sign-in/route.ts`). The `handleSignIn()` function in `app/callback/route.ts` ONLY completes the OAuth callback — it is not called for sign-in initiation.
-- `proxy.ts` (Next.js middleware) does NOT enforce authentication. It allows all requests through and only handles session error recovery (stale cookies, invalid_grant) and sets CSP headers.
+- `proxy.ts` (Next.js middleware) **enforces authentication**. It is the network-level choke point: only `/` and `/demo/*` are public; all other routes redirect unauthenticated users to `/api/auth/sign-in`. It also handles session error recovery (stale cookies, invalid_grant) and sets CSP headers.
 - Do NOT add state/param guards before `handleSignIn()` in the callback route — the SDK needs to see the raw request params to process the OAuth response.
 
 ## Env Vars

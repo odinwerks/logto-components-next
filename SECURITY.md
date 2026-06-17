@@ -173,15 +173,27 @@ to re-throw auth errors rather than falling back. The error message will contain
 
 ## Authentication Boundary
 
-### Open Browsing Model
+### Proxy Choke-Point (Outer Boundary)
 
-All routes are accessible without signing in. `proxy.ts` (Next.js middleware) does **NOT** enforce authentication — it only handles session error recovery (stale cookies, `invalid_grant`) and sets per-request CSP headers. Unauthenticated requests are allowed through to page and route handlers.
+`proxy.ts` (Next.js middleware) is the **network-level security boundary**. It enforces authentication before requests reach page handlers or API routes.
 
-**Consequence**: there is no security boundary at the middleware layer. Any page that must be restricted must perform its own server-side auth check (e.g., `getLogtoContext()`).
+**Public paths** (no authentication required):
+- `/` — landing page
+- `/demo` and `/demo/*` — demo app
 
-### Protected Server Actions (Authentication Boundary)
+**All other paths** are protected. Unauthenticated requests are redirected to `/api/auth/sign-in` before the page or route handler runs.
 
-Protected Server Actions explicitly reject unauthenticated callers with the `UNAUTHENTICATED` error code. This is the primary server-side authentication boundary.
+The proxy also handles:
+- **Stale cookie recovery**: detects the "Cookies can only be modified" error from the Logto SDK and redirects to `/api/wipe` to clear stale session cookies.
+- **`invalid_grant` recovery**: detects server-side grant revocation and redirects to `/api/wipe`.
+- **Transient errors**: Logto client fetch failures return HTTP 503.
+- **Per-request CSP nonce**: a unique base64url nonce is generated per request and injected as the `x-nonce` header for use by the layout's inline script.
+
+If the Logto client throws an unknown error (network/config), the request is **allowed through** rather than blocked — this prevents Logto misconfiguration from locking out all users. The page/route handler is responsible for re-checking auth in this case.
+
+### Protected Server Actions (Inner Boundary)
+
+Protected Server Actions explicitly reject unauthenticated callers with the `UNAUTHENTICATED` error code. This is the **second security layer** inside the proxy choke point.
 
 All destructive mutations (profile updates, account deletion, session revocation, MFA enrollment, etc.) are implemented as Server Actions wrapped with `safeAction`. The first thing each action does is introspect the session cookie and extract the authenticated `sub`. If no valid session exists, the action returns `{ ok: false, error: 'UNAUTHENTICATED' }` before any mutation occurs.
 

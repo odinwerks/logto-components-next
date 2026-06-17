@@ -171,16 +171,16 @@ describe('proxy error classification and logging', () => {
   });
 });
 
-describe('proxy allows all routes without authentication', () => {
+describe('proxy choke-point: public vs protected routes', () => {
   beforeEach(() => {
     getLogtoContextMock.mockReset();
   });
 
-  it('allows unauthenticated access to any route', async () => {
+  it('allows unauthenticated access to / (landing page)', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/some-protected-route');
+    const req = new NextRequest('https://example.com/');
     const res = await proxy(req);
 
     // Should NOT redirect to sign-in
@@ -189,9 +189,62 @@ describe('proxy allows all routes without authentication', () => {
     if (location) {
       expect(location).not.toContain('/api/auth/sign-in');
     }
-
-    // CSP should be set
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('allows unauthenticated access to /demo/foo', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/demo/foo');
+    const res = await proxy(req);
+
+    // Should NOT redirect to sign-in
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('redirects unauthenticated access to /docs/foo to sign-in', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/docs/foo');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    const location = res.headers.get('location');
+    expect(location).toBeTruthy();
+    expect(location).toContain('/api/auth/sign-in');
+  });
+
+  it('redirects unauthenticated access to /getting-started/foo to sign-in', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/getting-started/foo');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    const location = res.headers.get('location');
+    expect(location).toBeTruthy();
+    expect(location).toContain('/api/auth/sign-in');
+  });
+
+  it('redirects unauthenticated access to /dashboard to sign-in', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/dashboard');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    const location = res.headers.get('location');
+    expect(location).toBeTruthy();
+    expect(location).toContain('/api/auth/sign-in');
   });
 
   it('allows authenticated access to any route', async () => {
