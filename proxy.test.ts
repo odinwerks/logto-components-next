@@ -208,11 +208,43 @@ describe('proxy choke-point: public vs protected routes', () => {
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('allows unauthenticated access to /docs/foo', async () => {
+  it('allows unauthenticated access to /getting-started/pre-requisites', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/docs/foo');
+    const req = new NextRequest('https://example.com/getting-started/pre-requisites');
+    const res = await proxy(req);
+
+    // Should NOT redirect to sign-in
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('allows unauthenticated access to /user-button/specs', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/user-button/specs');
+    const res = await proxy(req);
+
+    // Should NOT redirect to sign-in
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('allows unauthenticated access to /security/error-handling (docs topic)', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/security/error-handling');
     const res = await proxy(req);
 
     // Should NOT redirect to sign-in
@@ -298,30 +330,36 @@ describe('proxy choke-point: public vs protected routes', () => {
     expect(location).toContain('/api/auth/sign-in');
   });
 
-  it('redirects unauthenticated access to /getting-started/foo to sign-in', async () => {
+  it('allows unauthenticated access to /getting-started/foo (docs topic path)', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/getting-started/foo');
     const res = await proxy(req);
 
-    expect(res.status).toBe(307);
+    // Docs route: should NOT redirect to sign-in (fixed: was incorrectly whitelisted as /docs/*)
+    expect(res.status).not.toBe(307);
     const location = res.headers.get('location');
-    expect(location).toBeTruthy();
-    expect(location).toContain('/api/auth/sign-in');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('redirects unauthenticated access to /dashboard to sign-in', async () => {
+  it('allows unauthenticated access to /dashboard (docs topic prefix)', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/dashboard');
     const res = await proxy(req);
 
-    expect(res.status).toBe(307);
+    // 'dashboard' is a docs topic prefix — proxy allows through (app will 404 without section)
+    expect(res.status).not.toBe(307);
     const location = res.headers.get('location');
-    expect(location).toBeTruthy();
-    expect(location).toContain('/api/auth/sign-in');
+    if (location) {
+      expect(location).not.toContain('/api/auth/sign-in');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
   it('allows authenticated access to any route', async () => {

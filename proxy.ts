@@ -87,12 +87,35 @@ const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 const WIPE_NONCE_TTL_SECONDS = 60;
 
 /**
+ * Top-level path segments served by the `app/(docs)/[topic]/[section]` route group.
+ *
+ * The Next.js parenthesized group `(docs)` is transparent in URLs, so docs pages
+ * are served at `/<topic>/<section>` — e.g. `/getting-started/pre-requisites`.
+ * There is NO `/docs/*` prefix in the actual URL.
+ *
+ * Source of truth: `app/demo/nav-data.tsx` → NAV_ITEMS[*].id
+ * and `app/(docs)/[topic]/[section]/page.tsx` → CONTENT_REGISTRY keys.
+ *
+ * Update this list whenever a new topic is added to NAV_ITEMS / CONTENT_REGISTRY.
+ */
+const DOCS_TOPIC_PREFIXES = new Set([
+  'getting-started',
+  'user-button',
+  'dashboard',
+  'tabs-and-flows',
+  'rbac',
+  'calculator',
+  'anatomy',
+  'security',
+]);
+
+/**
  * Returns true if the given pathname is a public (unauthenticated-accessible) path.
  *
  * Public paths:
  * - `/` (exact) — the landing page
  * - `/demo` and `/demo/*` — demo pages (intentionally public for unauthenticated visitors)
- * - `/docs` and `/docs/*` — docs pages
+ * - `/<topic>/*` — docs pages served by the `(docs)` route group (see DOCS_TOPIC_PREFIXES)
  * - `/api/auth/sign-in` — sign-in flow entry point
  * - `/callback` — OAuth callback handler
  * - `/api/wipe` — cookie cleaning route (protected by its own origin guard)
@@ -102,7 +125,10 @@ const WIPE_NONCE_TTL_SECONDS = 60;
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
-  if (pathname === '/docs' || pathname.startsWith('/docs/')) return true;
+  // Docs routes: the (docs) route group is transparent in URLs.
+  // E.g. /getting-started/pre-requisites, /user-button/specs, etc.
+  const firstSegment = pathname.split('/')[1]; // '' for '/', 'foo' for '/foo/bar'
+  if (firstSegment && DOCS_TOPIC_PREFIXES.has(firstSegment)) return true;
   if (pathname === '/api/auth/sign-in') return true;
   if (pathname === '/callback') return true;
   if (pathname === '/api/wipe') return true;

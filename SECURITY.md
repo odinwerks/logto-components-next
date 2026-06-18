@@ -179,7 +179,7 @@ to re-throw auth errors rather than falling back. The error message will contain
 
 **Public paths** (no authentication required):
 - `/` — redirects to documentation page (`/getting-started/pre-requisites`)
-- `/docs` and `/docs/*` — official documentation pages
+- Docs topic paths: `/getting-started/*`, `/user-button/*`, `/dashboard/*`, `/tabs-and-flows/*`, `/rbac/*`, `/calculator/*`, `/anatomy/*`, `/security/*` — served by the `(docs)` route group (Note: the Next.js parenthesized group is transparent in URLs; there is no `/docs/*` prefix)
 - `/demo` and `/demo/*` — demo app
 - `/api/auth/sign-in` — OAuth sign-in entry point
 - `/callback` — OAuth callback handler
