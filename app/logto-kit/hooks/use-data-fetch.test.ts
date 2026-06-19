@@ -129,4 +129,41 @@ describe('useDataFetch', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it('stale response does not overwrite newer result (BUG-M21 race condition)', async () => {
+    // fetcher#1 is slow, fetcher#2 resolves first
+    let resolveFirst!: (v: unknown) => void;
+    const firstFetch = new Promise((res) => { resolveFirst = res; });
+
+    let callCount = 0;
+    const fetcher = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return firstFetch;
+      return Promise.resolve({ id: 2 });
+    });
+
+    let id = 1;
+    const { result, rerender } = renderHook(() =>
+      useDataFetch({ fetcher, deps: [id] })
+    );
+
+    // First fetch is in flight
+    expect(result.current.isLoading).toBe(true);
+
+    // Change deps — triggers second fetch
+    id = 2;
+    rerender();
+
+    // Second fetch resolves immediately
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ id: 2 });
+    });
+
+    // Now resolve the stale first fetch
+    resolveFirst({ id: 1, stale: true });
+
+    // Data should still be from the second (newer) fetch
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.data).toEqual({ id: 2 });
+  });
 });

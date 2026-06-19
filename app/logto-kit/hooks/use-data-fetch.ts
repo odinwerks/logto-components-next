@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAsyncGuard } from './use-async-guard';
 
 /**
  * Options for `useDataFetch`.
@@ -40,6 +41,9 @@ interface UseDataFetchResult<T> {
  * Uses a stable `fetcherRef` so you can pass a new fetcher function each render
  * without invalidating the `execute` callback or triggering extra fetches.
  *
+ * Uses `useAsyncGuard` to prevent stale responses from a previous fetch
+ * (triggered by a deps change) overwriting results from a newer fetch.
+ *
  * @example
  * ```tsx
  * const { data, isLoading, error, refresh } = useDataFetch({
@@ -61,18 +65,28 @@ export function useDataFetch<T>(
   const fetcherRef = useRef(fetcher);
   useEffect(() => { fetcherRef.current = fetcher; }, [fetcher]);
 
+  // Guard against stale responses when deps change mid-flight.
+  // Destructure the stable callbacks so they can be used as useCallback deps
+  // without causing extra renders (each is a stable useCallback from useAsyncGuard).
+  const { capture: guardCapture, isStale: guardIsStale, bump: guardBump } = useAsyncGuard();
+
   const execute = useCallback(async () => {
+    const capturedGen = guardCapture();
     setIsLoading(true);
     setError(null);
     try {
       const result = await fetcherRef.current();
+      if (guardIsStale(capturedGen)) return;
       setData(result);
     } catch (err) {
+      if (guardIsStale(capturedGen)) return;
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setIsLoading(false);
+      if (!guardIsStale(capturedGen)) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [guardCapture, guardIsStale]);
 
   /* eslint-disable react-hooks/exhaustive-deps -- deps is intentionally dynamic; callers own the array */
   useEffect(() => {
@@ -80,6 +94,9 @@ export function useDataFetch<T>(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void execute();
     }
+    // Bump the guard on cleanup so any in-flight fetch for the old deps
+    // is treated as stale when the new fetch starts.
+    return () => { guardBump(); };
   }, deps);
   /* eslint-enable react-hooks/exhaustive-deps */
 
