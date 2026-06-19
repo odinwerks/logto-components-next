@@ -24,7 +24,7 @@ export function assertVerificationNotExpired(timestamp: number): void {
   const now = Date.now();
   // Reject non-finite or implausibly far-future timestamps (bypass prevention).
   // Logto's verification TTL is 10 minutes. No legitimate expiresAt will be
-  // more than 11 minutes from now (10 min TTL + 1 min clock-skew buffer).
+  // more than 30 minutes from now (10 min TTL + 20 min skew buffer).
   // MAX_SAFE_INTEGER and similar are rejected.
   if (!Number.isFinite(timestamp) || timestamp > now + LOGTO_VERIFICATION_MAX_FUTURE_MS) {
     throw new ValidationError('VERIFICATION_EXPIRED', 'verificationTimestamp');
