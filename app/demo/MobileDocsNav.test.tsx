@@ -107,14 +107,14 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // Open the nav
     fireEvent.click(openBtn);
 
-    // 2. Back button when on topics list (replaces X button)
-    const topicsBackBtn = screen.getByRole('button', { name: 'Back to topics' });
+    // 2. Back button when on topics list goes to homepage (BUG-L23 fix: label is now 'Back to homepage')
+    const topicsBackBtn = screen.getByRole('button', { name: 'Back to homepage' });
     expect(topicsBackBtn).toHaveAttribute('type', 'button');
 
     // Go to sections stage by clicking a topic
     fireEvent.click(screen.getByText('Topic A'));
 
-    // 3. ArrowLeft icon button (Back-to-topics)
+    // 3. ArrowLeft icon button on sections stage goes back to topics list
     const backBtn = screen.getByRole('button', { name: 'Back to topics' });
     expect(backBtn).toHaveAttribute('type', 'button');
   });
@@ -129,8 +129,8 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // Verify overlay is open and 'Open navigation' button is gone
     expect(screen.queryByRole('button', { name: 'Open navigation' })).toBeNull();
 
-    // Click Back to topics button (which sets stage to 'index')
-    const backBtn = screen.getByRole('button', { name: 'Back to topics' });
+    // Click Back to homepage button (BUG-L23: relabeled from 'Back to topics' to 'Back to homepage')
+    const backBtn = screen.getByRole('button', { name: 'Back to homepage' });
     fireEvent.click(backBtn);
 
     // Verify router pushed to '/'

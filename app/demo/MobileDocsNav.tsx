@@ -215,7 +215,7 @@ export default function MobileDocsNav() {
                   type="button"
                   onClick={() => setStage('index')}  // Go back to index, not close
                   style={{ ...triggerStyle, right: '4.15rem' }}
-                  aria-label="Back to topics"
+                  aria-label="Back to homepage"
                 >
                   <ArrowLeft size={18} />
                 </button>
