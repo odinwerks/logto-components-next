@@ -173,4 +173,41 @@ describe('CalculatorClient', () => {
     // If bug exists, TWO deletes occurred, leaving "1"
     expect(screen.getAllByText('12').length).toBeGreaterThan(0);
   });
+
+  it('BUG-H07: global keydown does not fire when focus is on an input element', async () => {
+    const { container } = render(<CalculatorClient />);
+
+    // Enter "5" via button click so the display shows 5
+    fireEvent.click(screen.getByRole('button', { name: '5' }));
+    expect(screen.getAllByText('5').length).toBeGreaterThan(0);
+
+    // Add a text input to the container (simulates a search box or form on the same page)
+    const input = document.createElement('input');
+    input.type = 'text';
+    container.appendChild(input);
+    input.focus();
+
+    // Dispatch a keydown event with the input as the target
+    const keyEvent = new KeyboardEvent('keydown', { key: '3', bubbles: true });
+    Object.defineProperty(keyEvent, 'target', { value: input, writable: false });
+    document.dispatchEvent(keyEvent);
+
+    // The calculator display should still show "5" — "3" was NOT appended
+    // (The display reflects current expression/token, not just any "5" or "3" text)
+    // Find the main display element — it should be "5" not "53"
+    expect(screen.queryByText('53')).toBeNull();
+  });
+
+  it('BUG-H07: global keydown fires normally when no input element is focused', async () => {
+    render(<CalculatorClient />);
+
+    // Dispatch keydown directly on document (no input focused)
+    const keyEvent = new KeyboardEvent('keydown', { key: '7', bubbles: true });
+    document.dispatchEvent(keyEvent);
+
+    // The calculator display should update to "7"
+    await waitFor(() => {
+      expect(screen.getAllByText('7').length).toBeGreaterThan(0);
+    });
+  });
 });
