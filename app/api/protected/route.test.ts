@@ -11,6 +11,7 @@ vi.mock('../../logto-kit/logic/utils', () => ({
   introspectToken: vi.fn().mockResolvedValue({
     active: true,
     sub: 'mock-user-id',
+    client_id: 'test-app-id',
     jti: 'mock-jti',
   }),
 }));
@@ -647,11 +648,12 @@ describe('POST /api/protected - BUG-009 token audience verification', () => {
     expect(res.status).not.toBe(401);
   });
 
-  it('allows request when client_id is not present in introspection', async () => {
+  it('returns 401 TOKEN_INVALID when client_id is absent from introspection (BUG-H02)', async () => {
     const { introspectToken } = await import('../../logto-kit/logic/utils');
     (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       active: true,
       sub: 'mock-user-id',
+      // client_id intentionally absent — must fail closed
     });
 
     (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
@@ -659,8 +661,10 @@ describe('POST /api/protected - BUG-009 token audience verification', () => {
     const req = makeRequest({ action: 'test' });
     const { POST } = await import('./route');
     const res = await POST(req);
+    const body = await res.json();
 
-    // Should not be 401 for audience
-    expect(res.status).not.toBe(401);
+    // Absent client_id must now be rejected (fail-closed)
+    expect(res.status).toBe(401);
+    expect(body.error).toBe('TOKEN_INVALID');
   });
 });

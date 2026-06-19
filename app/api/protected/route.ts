@@ -121,8 +121,9 @@ export async function POST(request: NextRequest) {
     }
 
     // BUG-009: Verify token audience matches this application's client_id.
+    // Fail-closed: reject tokens without client_id (BUG-H02).
     const logtoConfig = getLogtoConfig();
-    if (introspection.client_id && introspection.client_id !== logtoConfig.appId) {
+    if (!introspection.client_id || introspection.client_id !== logtoConfig.appId) {
       return apiError('TOKEN_INVALID', 401);
     }
 
