@@ -91,7 +91,8 @@ describe('OrgSwitcher auto-switching behavior', () => {
     fireEvent.change(select, { target: { value: '' } });
 
     await waitFor(() => {
-      expect(mockSetActiveOrg).not.toHaveBeenCalledWith('org_1');
+      // Fix for BUG-M12: setActiveOrg(null) must be called to persist personal-mode
+      expect(mockSetActiveOrg).toHaveBeenCalledWith(null);
       expect(mockSetAsOrg).toHaveBeenCalledWith(null);
     });
 
@@ -112,7 +113,8 @@ describe('OrgSwitcher auto-switching behavior', () => {
     expect(updatedSelect).not.toBeNull();
     expect(updatedSelect.value).toBe('');
     
-    // Ensure setActiveOrg('org_1') was not called again after manual change to ""
-    expect(mockSetActiveOrg).not.toHaveBeenCalled();
+    // Ensure setActiveOrg was called only with null (for personal-mode),
+    // and NOT called again with 'org_1' (no auto-re-switch on rerender)
+    expect(mockSetActiveOrg).not.toHaveBeenCalledWith('org_1');
   });
 });

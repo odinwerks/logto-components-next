@@ -36,6 +36,8 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
       if (orgIdToSet !== null) {
         const isValid = await setActiveOrg(orgIdToSet);
         if (!isValid) return;
+      } else {
+        await setActiveOrg(null);
       }
       
       startTransition(() => {
