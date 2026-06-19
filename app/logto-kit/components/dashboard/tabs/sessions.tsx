@@ -14,6 +14,7 @@ import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache'
 import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { readEnv } from '../../../logic/env';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
@@ -203,7 +204,9 @@ export function SessionsTab({
   const loadSessions = useCallback(async (verification?: { recordId: string; timestamp: number }) => {
     const recordId = verification?.recordId ?? verificationRecordId;
     const timestamp = verification?.timestamp ?? verificationTimestamp;
-    const hasValidVerification = verification ? (Date.now() < verification.timestamp) : isVerificationValid;
+    const hasValidVerification = verification
+      ? (Date.now() <= verification.timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS)
+      : isVerificationValid;
 
     if (!recordId || !hasValidVerification) return;
 

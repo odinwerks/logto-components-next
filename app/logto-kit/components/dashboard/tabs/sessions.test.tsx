@@ -802,7 +802,7 @@ describe('SessionsTab', () => {
 
   // ─── BUG-H05: loadSessions bypassed expiry check when `verification` param was passed ───
   describe('BUG-H05: loadSessions expiry validation with explicit verification param', () => {
-    it('skips the sessions fetch when provided verification timestamp is already expired', async () => {
+    it('proceeds with the sessions fetch when verification expiry timestamp is in the future (state path)', async () => {
       const onGetSessions = vi.fn().mockResolvedValue({
         ok: true,
         data: createdSessions,
@@ -822,6 +822,7 @@ describe('SessionsTab', () => {
 
       await verifyAndLoadSessions();
       await waitFor(() => { expect(screen.getByText('This device')).toBeDefined(); });
+
       // Sessions were fetched once (the initial verifyAndLoad path calls onGetSessions directly)
       expect(onGetSessions).toHaveBeenCalledTimes(1);
 
@@ -836,6 +837,42 @@ describe('SessionsTab', () => {
       });
     });
 
+    it('skips the sessions fetch when the verification timestamp is expired (past timestamp)', async () => {
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+
+      // Set up with an already-expired timestamp (1 second in the past, well outside skew tolerance)
+      const expiredTs = Date.now() - 1000;
+      const onVerifyPasswordExpired = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'expired-vid', verificationTimestamp: expiredTs },
+      });
+
+      renderSessionsTab({
+        onVerifyPassword: onVerifyPasswordExpired,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+      });
+
+      // verifyAndLoadSessions triggers onGetSessions directly via the callback path
+      await verifyAndLoadSessions();
+
+      // The direct callback invocation still calls onGetSessions (timestamp check happens inside loadSessions)
+      // Now trigger refresh, which calls loadSessions() with the state-stored expired timestamp
+      // isVerificationValid is computed from verificationExpiry which is expiredTs (past) — so it's false
+      // loadSessions should bail out early without calling onGetSessions again
+      const callCountAfterVerify = onGetSessions.mock.calls.length;
+
+      const refreshBtn = screen.getByRole('button', { name: /refresh/i });
+      await act(async () => { fireEvent.click(refreshBtn); });
+
+      // Allow any async state updates to settle
+      await act(async () => {});
+
+      // onGetSessions should NOT have been called an additional time
+      expect(onGetSessions).toHaveBeenCalledTimes(callCountAfterVerify);
+    });
     it('proceeds with the sessions fetch when verification timestamp is in the future', async () => {
       const futureTs = Date.now() + 10 * 60 * 1000;
       const onVerifyPassword = vi.fn().mockResolvedValue({
