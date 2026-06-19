@@ -32,15 +32,14 @@ export function useSessionGeoLocate({
     async (ip: string): Promise<void> => {
       if (!ip) return;
 
-      // Set consent before calling fetchGeo (which checks consent)
-      // NOTE: Geo-consent is stored in sessionStorage for the current browser session only.
-      // It controls whether the user's browser makes requests to ipapi.co.
-      // For government deployments requiring strict consent tracking, consider:
-      //   1. Disabling the geo-lookup feature entirely (remove 'sessions' tab geo button), or
-      //   2. Persisting consent to customData via a dedicated server-side consent action.
-      // sessionStorage can be forged by code with JS execution in the user's browser context,
-      // which is acceptable here because the only consequence is an external API call FROM
-      // the user's own browser — not a server-side data leak.
+      // INTENTIONAL: consent is recorded immediately when the user actively clicks "Locate"
+      // (the locate action IS the consent gesture). The lookup itself is cheap/fast, so
+      // deferring consent until after the network call would add unnecessary latency while
+      // providing no meaningful UX benefit. The consent flag persists for the browser
+      // session only (sessionStorage), not cross-session.
+      // NOTE: For deployments requiring explicit separate consent (e.g. government/regulated
+      // environments), consider adding a confirmation dialog before calling locate(), or
+      // disable the geo feature entirely by removing the geo button from the Sessions tab.
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('geo-consent', 'true');
       }
