@@ -99,5 +99,8 @@ opencode.json
 # Orchestrator artifacts
 .orch-artifacts/
 
+# Git worktrees
+.worktrees/
+
 # Session files
 session-ses_*.md
