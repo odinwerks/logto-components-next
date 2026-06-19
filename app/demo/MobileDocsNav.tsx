@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, ArrowLeft, X } from 'lucide-react';
+import { Menu, ArrowLeft } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
 import { NAV_ITEMS } from './nav-data';
@@ -265,15 +265,7 @@ export default function MobileDocsNav() {
             </div>
           )}
 
-          {/* Dedicated close button (X icon) that calls setIsOpen(false) without router.push('/') */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            style={triggerStyle}
-            aria-label="Close navigation"
-          >
-            <X size={18} />
-          </button>
+          {/* X button intentionally removed (Option B: no close-without-navigate) */}
         </div>
       )}
     </>

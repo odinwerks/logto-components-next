@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useMemo, useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
@@ -10,6 +10,8 @@ import { UserDataProvider } from './user-data-context';
 import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
+import { ToastContainer } from '../dashboard/shared/Toast';
+import type { ToastMessage } from '../dashboard/types';
 import { X } from 'lucide-react';
 
 interface LogtoContextValue {
@@ -71,10 +73,12 @@ function LogtoProviderContent({
   userData,
   dashboard,
   children,
+  onPersistErrorRef,
 }: {
   userData?: UserData | null;
   dashboard?: ReactNode | { desktop: ReactNode; mobile: ReactNode };
   children: ReactNode;
+  onPersistErrorRef: React.MutableRefObject<((msg: string) => void) | null>;
 }) {
   const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string; mode?: 'optional' | 'mandatory' }>({
     isOpen: false,
@@ -83,6 +87,31 @@ function LogtoProviderContent({
   const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
   const { asOrg, setAsOrg } = useOrgMode();
+
+  // ── Preference-error toast state ─────────────────────────────────────────
+  const [prefToasts, setPrefToasts] = useState<ToastMessage[]>([]);
+  const prefToastCounterRef = useRef(0);
+
+  const showPrefErrorToast = useCallback((message: string) => {
+    const toast: ToastMessage = {
+      id: `pref-toast-${Date.now()}-${++prefToastCounterRef.current}`,
+      type: 'error',
+      message,
+      duration: 6000,
+    };
+    setPrefToasts((prev) => [...prev, toast]);
+  }, []);
+
+  const dismissPrefToast = useCallback((id: string) => {
+    setPrefToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Register this component's showPrefErrorToast into the outer ref so
+  // LogtoProvider can route onPersistError calls here.
+  useEffect(() => {
+    onPersistErrorRef.current = showPrefErrorToast;
+    return () => { onPersistErrorRef.current = null; };
+  }, [onPersistErrorRef, showPrefErrorToast]);
 
   const isAuthenticated = !!userData;
 
@@ -133,8 +162,42 @@ function LogtoProviderContent({
             authMode={dashboardState.mode}
           />
         )}
+        {/* Provider-level preference error toasts */}
+        <ToastContainer
+          messages={prefToasts}
+          onDismiss={dismissPrefToast}
+          mode={mode}
+          colors={colors}
+        />
       </UserDataProvider>
     </LogtoContext.Provider>
+  );
+}
+
+/** Returns true when the viewport is portrait-oriented or narrower than 64rem (mobile). */
+function useIsPortrait(): boolean {
+  const subscribe = useCallback((callback: () => void) => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+    const mq1 = window.matchMedia('(orientation: portrait)');
+    const mq2 = window.matchMedia('(max-width: 64rem)');
+    mq1.addEventListener('change', callback);
+    mq2.addEventListener('change', callback);
+    return () => {
+      mq1.removeEventListener('change', callback);
+      mq2.removeEventListener('change', callback);
+    };
+  }, []);
+
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+      return (
+        window.matchMedia('(orientation: portrait)').matches ||
+        window.matchMedia('(max-width: 64rem)').matches
+      );
+    },
+    () => false,  // server snapshot
   );
 }
 
@@ -165,6 +228,7 @@ function DashboardDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
   const { isAuthenticated } = useLogto();
+  const isMobile = useIsPortrait();
 
   // When unauthenticated, show the auth prompt modal instead of the dashboard.
   if (!isAuthenticated) {
@@ -196,7 +260,7 @@ function DashboardDialog({
           flexDirection: 'column',
         }}
       >
-        {(
+        {!isMobile && (
           <button
             onClick={onClose}
             aria-label="Close dashboard"
@@ -240,6 +304,13 @@ export function LogtoProvider({
   onLangChange,
   initialOrgId,
 }: LogtoProviderProps) {
+  // Stable ref-based callback so PreferencesProvider and LogtoProviderContent
+  // share one identity-stable error handler without re-renders.
+  const onPersistErrorRef = useRef<((msg: string) => void) | null>(null);
+  const onPersistError = useCallback((msg: string) => {
+    onPersistErrorRef.current?.(msg);
+  }, []);
+
   return (
     <PreferencesProvider
       initialTheme={initialTheme}
@@ -247,10 +318,12 @@ export function LogtoProvider({
       onUpdateCustomData={onUpdateCustomData}
       onLangChange={onLangChange}
       initialOrgId={initialOrgId}
+      onPersistError={onPersistError}
     >
       <LogtoProviderContent
         userData={userData}
         dashboard={dashboard}
+        onPersistErrorRef={onPersistErrorRef}
       >
         {children}
       </LogtoProviderContent>

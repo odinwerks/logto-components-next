@@ -84,7 +84,7 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
     expect(screen.getByLabelText('Close dashboard')).toBeInTheDocument();
   });
 
-  it('shows X button on mobile (portrait/narrow) when dashboard is open (BUG-L18 fix: always visible)', () => {
+  it('hides X button on mobile (portrait/narrow) when dashboard is open', () => {
     // Override matchMedia for portrait/narrow (mobile) mode
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches:
@@ -103,10 +103,8 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
       mobile: <div>mobile-dashboard</div>,
     });
 
-    // X close button should now be present on mobile too (BUG-L18: touch close affordance)
-    expect(
-      screen.getByLabelText('Close dashboard'),
-    ).toBeInTheDocument();
+    // X close button should NOT appear on mobile (mobile dashboard has its own close affordance)
+    expect(screen.queryByLabelText('Close dashboard')).not.toBeInTheDocument();
   });
 });
 
@@ -403,5 +401,81 @@ describe('LogtoProvider modal mode passing (auth-gated hardening)', () => {
     const modal = screen.getByTestId('auth-prompt-modal');
     // data-mode should be empty string (our mock maps undefined to '')
     expect(modal).toHaveAttribute('data-mode', '');
+  });
+});
+
+describe('LogtoProvider preference persist error toast', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    const store: Record<string, string> = {};
+    vi.stubGlobal('sessionStorage', {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
+      removeItem: vi.fn((key: string) => { delete store[key]; }),
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false, media: query, onchange: null,
+        addEventListener: vi.fn(), removeEventListener: vi.fn(),
+        addListener: vi.fn(), removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  it('shows an error toast when theme persistence fails', async () => {
+    const failingUpdate = vi.fn(() => Promise.resolve({ ok: false, error: 'network_error' }));
+
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function ThemeToggler() {
+      const { setMode: sm } = useLogto();
+      // eslint-disable-next-line react-hooks/globals
+      setMode = sm;
+      return null;
+    }
+
+    render(
+      <LogtoProvider userData={mockUserData} onUpdateCustomData={failingUpdate}>
+        <ThemeToggler />
+      </LogtoProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    // An error toast should appear
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('status').textContent).toContain('Failed to save theme preference');
+  });
+
+  it('shows an error toast when lang persistence fails', async () => {
+    const failingUpdate = vi.fn(() => Promise.resolve({ ok: false, error: 'network_error' }));
+
+    let setLang: ((lang: string) => void) | null = null;
+
+    function LangToggler() {
+      const { setLang: sl } = useLogto();
+      // eslint-disable-next-line react-hooks/globals
+      setLang = sl;
+      return null;
+    }
+
+    render(
+      <LogtoProvider userData={mockUserData} onUpdateCustomData={failingUpdate}>
+        <LangToggler />
+      </LogtoProvider>
+    );
+
+    await act(async () => {
+      setLang?.('fr');
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('status').textContent).toContain('Failed to save language preference');
   });
 });

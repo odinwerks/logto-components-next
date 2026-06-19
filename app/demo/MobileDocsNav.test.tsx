@@ -117,6 +117,9 @@ describe('MobileDocsNav mobile layout regressions', () => {
     // 3. ArrowLeft icon button on sections stage goes back to topics list
     const backBtn = screen.getByRole('button', { name: 'Back to topics' });
     expect(backBtn).toHaveAttribute('type', 'button');
+
+    // 4. X "Close navigation" button no longer exists
+    expect(screen.queryByRole('button', { name: 'Close navigation' })).toBeNull();
   });
 
   it('closes the overlay and redirects to index when clicking back button on topics list', () => {
@@ -140,22 +143,15 @@ describe('MobileDocsNav mobile layout regressions', () => {
     expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
   });
 
-  it('closes the overlay directly without redirecting when clicking close button', () => {
+  it('does NOT render a "Close navigation" button (X button removed by design)', () => {
     render(<MobileDocsNav />);
 
     // Open navigation
     const openBtn = screen.getByRole('button', { name: 'Open navigation' });
     fireEvent.click(openBtn);
 
-    // Click Close navigation button (X icon)
-    const closeBtn = screen.getByRole('button', { name: 'Close navigation' });
-    fireEvent.click(closeBtn);
-
-    // Verify router was NOT called
-    expect(pushMock).not.toHaveBeenCalled();
-
-    // Verify overlay is closed and 'Open navigation' button is visible again
-    expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
+    // Close (X) button must NOT exist — user decision: Option B removes it
+    expect(screen.queryByRole('button', { name: 'Close navigation' })).toBeNull();
   });
 
   it('falls back to topics stage when selectedTopic has no sections (BUG-L20)', async () => {

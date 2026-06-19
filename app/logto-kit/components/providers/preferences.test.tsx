@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import type { ActionResult } from '../../logic/actions/safe';
@@ -308,8 +308,11 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
 
     expect(onUpdateCustomData).toHaveBeenCalled();
     const calls = onUpdateCustomData.mock.calls;
-    const lastCallPayload = (calls[calls.length - 1] as unknown[])[0] as { Preferences: { theme: string; lang: string } };
-    expect(lastCallPayload.Preferences.theme).toBe('light');
+    // After split writes, setMode sends { Preferences: { theme } } and
+    // setLang sends { Preferences: { lang } } as separate calls.
+    // The first call must be for theme (themeRef.current is updated synchronously).
+    const themeCallPayload = (calls[0] as unknown[])[0] as { Preferences: { theme: string } };
+    expect(themeCallPayload.Preferences.theme).toBe('light');
   });
 
   it('ignores invalid theme values from sessionStorage (BUG-L16)', () => {
@@ -450,5 +453,331 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
 
     expect(capturedLang).toBe('de');
     expect(sessionStorage.getItem('lang-mode')).toBe('de');
+  });
+});
+
+describe('PreferencesProvider persist error callbacks', () => {
+  beforeEach(() => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal('sessionStorage', {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
+      removeItem: vi.fn((key: string) => { delete store[key]; }),
+    });
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query) => ({
+      matches: false, media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(),
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('calls onPersistError with theme message when persistTheme fails', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: false, error: 'network_error' } as ActionResult));
+    const onPersistError = vi.fn();
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      setMode = theme.setMode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        onUpdateCustomData={onUpdateCustomData}
+        onPersistError={onPersistError}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).toHaveBeenCalledWith('Failed to save theme preference');
+  });
+
+  it('calls onPersistError with lang message when persistLang fails', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: false, error: 'network_error' } as ActionResult));
+    const onPersistError = vi.fn();
+    let setLang: ((lang: string) => void) | null = null;
+
+    function TestComponent() {
+      const lang = useLangMode();
+      setLang = lang.setLang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialLang="en"
+        onUpdateCustomData={onUpdateCustomData}
+        onPersistError={onPersistError}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setLang?.('fr');
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).toHaveBeenCalledWith('Failed to save language preference');
+  });
+
+  it('calls onPersistError with org message when persistOrg fails', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: false, error: 'network_error' } as ActionResult));
+    const onPersistError = vi.fn();
+    let setAsOrg: ((orgId: string | null) => void) | null = null;
+
+    function TestComponent() {
+      const org = useOrgMode();
+      setAsOrg = org.setAsOrg;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialOrgId="org_1"
+        onUpdateCustomData={onUpdateCustomData}
+        onPersistError={onPersistError}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setAsOrg?.('org_2');
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).toHaveBeenCalledWith('Failed to save organization preference');
+  });
+
+  it('calls onPersistError when persistTheme throws', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.reject(new Error('Network failure')));
+    const onPersistError = vi.fn();
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      setMode = theme.setMode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        onUpdateCustomData={onUpdateCustomData}
+        onPersistError={onPersistError}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).toHaveBeenCalledWith('Failed to save theme preference');
+  });
+
+  it('does not call onPersistError when persist succeeds', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    const onPersistError = vi.fn();
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      setMode = theme.setMode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        onUpdateCustomData={onUpdateCustomData}
+        onPersistError={onPersistError}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================================
+// Split preference writes — each persister sends only its own field
+// ============================================================================
+
+describe('split preference writes — each persister sends only its own field', () => {
+  beforeEach(() => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal('sessionStorage', {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
+      removeItem: vi.fn((key: string) => { delete store[key]; }),
+    });
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query) => ({
+      matches: false, media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(),
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('persistTheme sends only { Preferences: { theme } }', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      setMode = theme.setMode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en-US"
+        initialOrgId="org_1"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(onUpdateCustomData).toHaveBeenCalled());
+    const payload = (onUpdateCustomData.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    const prefs = payload.Preferences as Record<string, unknown>;
+    expect(Object.keys(prefs)).toEqual(['theme']);
+    expect(prefs.theme).toBe('light');
+    expect(prefs).not.toHaveProperty('lang');
+    expect(prefs).not.toHaveProperty('asOrg');
+  });
+
+  it('persistLang sends only { Preferences: { lang } }', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    let setLang: ((lang: string) => void) | null = null;
+
+    function TestComponent() {
+      const lang = useLangMode();
+      setLang = lang.setLang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en-US"
+        initialOrgId="org_1"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setLang?.('ka-GE');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(onUpdateCustomData).toHaveBeenCalled());
+    const payload = (onUpdateCustomData.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    const prefs = payload.Preferences as Record<string, unknown>;
+    expect(Object.keys(prefs)).toEqual(['lang']);
+    expect(prefs.lang).toBe('ka-GE');
+    expect(prefs).not.toHaveProperty('theme');
+    expect(prefs).not.toHaveProperty('asOrg');
+  });
+
+  it('persistOrg sends only { Preferences: { asOrg } }', async () => {
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    let setAsOrg: ((orgId: string | null) => void) | null = null;
+
+    function TestComponent() {
+      const org = useOrgMode();
+      setAsOrg = org.setAsOrg;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en-US"
+        initialOrgId="org_1"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setAsOrg?.('org_2');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(onUpdateCustomData).toHaveBeenCalled());
+    const payload = (onUpdateCustomData.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    const prefs = payload.Preferences as Record<string, unknown>;
+    expect(Object.keys(prefs)).toEqual(['asOrg']);
+    expect(prefs.asOrg).toBe('org_2');
+    expect(prefs).not.toHaveProperty('theme');
+    expect(prefs).not.toHaveProperty('lang');
+  });
+
+  it('stale lang does not block a theme write (split-write isolation)', async () => {
+    // This is the key regression test: if lang were still bundled, a stale/invalid lang
+    // value could cause pickPreferences to reject the entire payload including the valid theme.
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      setMode = theme.setMode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="ka-GE"
+        initialOrgId={null}
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    await act(async () => {
+      setMode?.('light');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(onUpdateCustomData).toHaveBeenCalled());
+    // Theme write must succeed and contain ONLY the theme field — no lang leakage
+    const payload = (onUpdateCustomData.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    const prefs = payload.Preferences as Record<string, unknown>;
+    expect(prefs).not.toHaveProperty('lang');
+    expect(prefs.theme).toBe('light');
   });
 });
