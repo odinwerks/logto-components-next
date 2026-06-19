@@ -415,6 +415,127 @@ describe('SessionsTab', () => {
     });
   });
 
+  describe('REGRESSION: revokingId cleared when onRevokeSession throws', () => {
+    it('clears revokingId even when onRevokeSession rejects with an exception', async () => {
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
+      });
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+      // Simulate a thrown exception (not a safeAction failure).
+      // handlePasswordSubmit re-throws after finally, so we capture the rejection here
+      // to prevent Vitest from treating it as an unhandled rejection.
+      let capturedRejection: unknown;
+      const onRevokeSession = vi.fn().mockImplementation(async () => {
+        throw new Error('Network failure');
+      });
+
+      renderSessionsTab({
+        onVerifyPassword,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+        onRevokeSession,
+      });
+
+      await verifyAndLoadSessions();
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      const revokeButtons = screen.getAllByRole('button', { name: 'Revoke' });
+      const nonCurrentRevokeBtn = revokeButtons[0];
+
+      await act(async () => {
+        fireEvent.click(nonCurrentRevokeBtn);
+      });
+
+      // Submit password — this triggers onRevokeSession which throws
+      const passwordInput = screen.getByPlaceholderText('Enter password');
+      fireEvent.change(passwordInput, { target: { value: 'test-password' } });
+
+      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+
+      // Intercept the unhandled rejection at the Node process level so Vitest
+      // doesn't flag it as an unhandled rejection error.
+      const captureRejection = (reason: unknown) => { capturedRejection = reason; };
+      process.on('unhandledRejection', captureRejection);
+      try {
+        await act(async () => {
+          fireEvent.click(modalSubmitBtn);
+        });
+
+        // Even though onRevokeSession threw, revokingId must be cleared (button re-enabled)
+        await waitFor(() => {
+          expect(nonCurrentRevokeBtn).not.toBeDisabled();
+        });
+      } finally {
+        process.off('unhandledRejection', captureRejection);
+      }
+
+      // Verify the rejection was the expected error
+      expect((capturedRejection as Error)?.message).toBe('Network failure');
+    });
+  });
+
+  describe('REGRESSION: gcAllLoading cleared after async onRevokeAllOtherSessions', () => {
+    it('gcAllLoading is false after onRevokeAllOtherSessions resolves', async () => {
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
+      });
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+      const onRevokeAllOtherSessions = vi.fn().mockResolvedValue({ ok: true });
+
+      renderSessionsTab({
+        onVerifyPassword,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+        onRevokeAllOtherSessions,
+      });
+
+      await verifyAndLoadSessions();
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      // Open GC ALL modal
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => {
+        fireEvent.click(gcAllBtn);
+      });
+
+      // Click confirm in the modal — this sets gcAllLoading=true and opens password modal
+      const confirmBtn = screen.getByRole('button', { name: enUS.common.yes });
+      await act(async () => {
+        fireEvent.click(confirmBtn);
+      });
+
+      // Submit password to trigger the actual async revoke
+      const passwordInput = screen.getByPlaceholderText('Enter password');
+      fireEvent.change(passwordInput, { target: { value: 'test-password' } });
+
+      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      await act(async () => {
+        fireEvent.click(modalSubmitBtn);
+      });
+
+      // After the async revoke completes, gcAllLoading must be false.
+      // The GC ALL button should be re-enabled (not disabled).
+      await waitFor(() => {
+        expect(onRevokeAllOtherSessions).toHaveBeenCalledTimes(1);
+      });
+
+      // The 'Revoke all other sessions' button must no longer be disabled
+      // (gcAllLoading=false means `disabled={gcAllLoading}` evaluates to false)
+      const gcAllBtnAfter = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      expect(gcAllBtnAfter).not.toBeDisabled();
+    });
+  });
+
   describe('BUG 1: re-verification uses fresh values', () => {
     it('reloads sessions with refreshed verification after revoke re-verification', async () => {
       const now = new Date('2026-01-01T00:00:00.000Z').getTime();

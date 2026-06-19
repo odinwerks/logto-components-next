@@ -337,6 +337,10 @@ export function SessionsTab({
     } catch (error) {
       revokeTargetRef.current = null;
       throw error;
+    } finally {
+      setRevokingId(null);
+      setRevokingAll(false);
+      setGcAllLoading(false);
     }
   };
 
@@ -1084,7 +1088,7 @@ export function SessionsTab({
               </Button>
               <Button
                 variant="danger"
-                onClick={async () => {
+                onClick={() => {
                   if (revokeTargetRef.current !== null) { setShowGcAllModal(false); return; }
                   setGcAllLoading(true);
                   revokeTargetRef.current = { kind: 'all' };
@@ -1092,7 +1096,6 @@ export function SessionsTab({
                   setModalStep({ kind: 'password' });
                   setModalError('');
                   setShowGcAllModal(false);
-                  setGcAllLoading(false);
                 }}
                 disabled={gcAllLoading}
                 mode={mode}
