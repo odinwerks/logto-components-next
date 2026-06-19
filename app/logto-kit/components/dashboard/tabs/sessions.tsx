@@ -203,7 +203,7 @@ export function SessionsTab({
   const loadSessions = useCallback(async (verification?: { recordId: string; timestamp: number }) => {
     const recordId = verification?.recordId ?? verificationRecordId;
     const timestamp = verification?.timestamp ?? verificationTimestamp;
-    const hasValidVerification = verification ? true : isVerificationValid;
+    const hasValidVerification = verification ? (Date.now() < verification.timestamp) : isVerificationValid;
 
     if (!recordId || !hasValidVerification) return;
 

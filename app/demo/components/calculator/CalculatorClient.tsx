@@ -551,6 +551,13 @@ export function CalculatorClient() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack keystrokes when the user is typing in an input field
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable
+      ) return;
       if (state.isCalculating) return;
       if (e.key >= '0' && e.key <= '9') { act('digit', e.key); return; }
       if (e.key === '.') { act('dot', null); return; }

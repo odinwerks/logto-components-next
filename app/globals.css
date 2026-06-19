@@ -53,13 +53,6 @@ select:focus-visible {
   outline-offset: 0.125rem;
 }
 
-/* Disable default focus outline */
-button:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-}
 
 /* Animations */
 @keyframes slideIn {

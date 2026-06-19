@@ -155,12 +155,14 @@ export default function ContentArea({ item }: ContentAreaProps) {
     // This is a "reset before fetch" pattern, not prop→state sync.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDocContent(null);
+    let active = true;
     const loader = DOC_REGISTRY[item.id];
     if (loader) {
       loader().then((mod) => {
-        setDocContent(() => mod.default);
+        if (active) setDocContent(() => mod.default);
       });
     }
+    return () => { active = false; };
   }, [item.id]);
 
   const colors = mounted ? (mode === 'dark'
