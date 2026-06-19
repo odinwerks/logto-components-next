@@ -58,7 +58,7 @@ export function useSessionRevocation({
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
   const [showGcAllModal, setShowGcAllModal] = useState(false);
-  const [gcAllLoading] = useState(false);
+  const [gcAllLoading, setGcAllLoading] = useState(false);
   const [revokeError, setRevokeError] = useState<string>('');
   const [revokeModalStep, setRevokeModalStep] = useState<
     { kind: 'password' } | { kind: 'loading'; message: string } | null
@@ -140,11 +140,13 @@ export function useSessionRevocation({
 
     if (target.kind === 'all') {
       setRevokingAll(true);
+      setGcAllLoading(true);
       const revokeResult = await onRevokeAllOtherSessionsRef.current(vid, vts);
       if (!revokeResult.ok) {
         setRevokeError(revokeResult.error);
         setRevokeModalStep({ kind: 'password' });
         setRevokingAll(false);
+        setGcAllLoading(false);
         return;
       }
     } else {
@@ -173,6 +175,7 @@ export function useSessionRevocation({
     revokeTargetRef.current = null;
     setRevokingId(null);
     setRevokingAll(false);
+    setGcAllLoading(false);
   }, []);
 
   const cancelRevoke = useCallback(() => {

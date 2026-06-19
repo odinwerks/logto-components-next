@@ -196,6 +196,60 @@ describe('useSessionRevocation', () => {
     expect(opts.onRevokeAllOtherSessions).toHaveBeenCalledWith('vid-1', FUTURE_EXPIRY);
   });
 
+  it('11. gcAllLoading is true while revoking all sessions (BUG-M20)', async () => {
+    let resolveRevoke: (val: { ok: boolean }) => void = () => {};
+    const revokePromise = new Promise<{ ok: boolean }>((resolve) => {
+      resolveRevoke = resolve;
+    });
+    const opts = makeOpts({
+      onRevokeAllOtherSessions: vi.fn().mockReturnValue(revokePromise),
+    });
+    const { result } = renderHook(() => useSessionRevocation(opts));
+
+    act(() => {
+      result.current.openGcAllModal();
+      result.current.confirmGcAll();
+    });
+
+    // gcAllLoading starts false
+    expect(result.current.gcAllLoading).toBe(false);
+
+    let passwordPromise: Promise<void>;
+    act(() => {
+      passwordPromise = result.current.handleRevokePassword('password');
+    });
+
+    // gcAllLoading is true while revoke is in flight
+    expect(result.current.gcAllLoading).toBe(true);
+
+    await act(async () => {
+      resolveRevoke({ ok: true });
+      await passwordPromise;
+    });
+
+    // gcAllLoading resets to false after success
+    expect(result.current.gcAllLoading).toBe(false);
+  });
+
+  it('12. gcAllLoading resets to false on revoke-all failure (BUG-M20)', async () => {
+    const opts = makeOpts({
+      onRevokeAllOtherSessions: vi.fn().mockResolvedValue({ ok: false, error: 'REVOKE_FAILED' }),
+    });
+    const { result } = renderHook(() => useSessionRevocation(opts));
+
+    act(() => {
+      result.current.openGcAllModal();
+      result.current.confirmGcAll();
+    });
+
+    await act(async () => {
+      await result.current.handleRevokePassword('password');
+    });
+
+    expect(result.current.gcAllLoading).toBe(false);
+    expect(result.current.revokeError).toBe('REVOKE_FAILED');
+  });
+
   it('10. closeGcAllModal: does not close modal if revokingAll is true', async () => {
     let resolveRevoke: (val: { ok: boolean }) => void = () => {};
     const revokePromise = new Promise<{ ok: boolean }>((resolve) => {
