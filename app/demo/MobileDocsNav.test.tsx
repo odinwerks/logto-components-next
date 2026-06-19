@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 
 const pushMock = vi.fn();
 
@@ -156,5 +156,35 @@ describe('MobileDocsNav mobile layout regressions', () => {
 
     // Verify overlay is closed and 'Open navigation' button is visible again
     expect(screen.getByRole('button', { name: 'Open navigation' })).not.toBeNull();
+  });
+
+  it('falls back to topics stage when selectedTopic has no sections (BUG-L20)', async () => {
+    // A topic with an empty sections array should trigger the guard
+    const { NAV_ITEMS } = await import('./nav-data');
+    const emptyTopic = NAV_ITEMS[0];
+    // Override sections to empty for this test via the mock
+    const originalSections = emptyTopic.sections;
+    // Temporarily patch the object (same reference is used inside the component)
+    (emptyTopic as { sections: string[] }).sections = [];
+
+    render(<MobileDocsNav />);
+
+    // Open nav and navigate to sections stage
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+
+    // The section stage guard should fire and return to topics stage
+    // (since Topic A now has no sections, clicking it sets stage to 'sections'
+    // which immediately triggers the guard back to 'topics')
+    await act(async () => {
+      fireEvent.click(screen.getByText('Topic A'));
+    });
+
+    // Should be back at topics stage — "Documentation" header is visible
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+    // The sections-stage header would show the topic label — it should NOT appear
+    // as we are back in topics stage (which also shows "Documentation")
+
+    // Restore
+    (emptyTopic as { sections: string[] }).sections = originalSections;
   });
 });

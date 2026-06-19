@@ -25,6 +25,15 @@ export default function MobileDocsNav() {
     }
   }, [stage, router, setIsOpen]);
 
+  // Guard: if the sections stage has no navigable items (selectedTopic is null or
+  // its sections list is empty), fall back to the topics stage to avoid a dead end.
+  useEffect(() => {
+    if (stage === 'sections' && (!selectedTopic || selectedTopic.sections.length === 0)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStage('topics');
+    }
+  }, [stage, selectedTopic]);
+
   const handleSectionClick = (topicId: string, section: string) => {
     router.push(`/${topicId}/${slugify(section)}`);
     setIsOpen(false);
