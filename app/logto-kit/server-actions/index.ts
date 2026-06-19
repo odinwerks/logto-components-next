@@ -1,3 +1,5 @@
+'use server';
+
 import { assertSafeLogtoId } from '../logic/guards';
 import {
   getUserRoles,

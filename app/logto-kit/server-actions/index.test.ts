@@ -20,3 +20,13 @@ describe('loadOrganizationUserRoles', () => {
     await expect(loadOrganizationUserRoles('../invalid/path')).rejects.toThrow(ValidationError);
   });
 });
+
+describe('server-actions/index module (BUG-M13)', () => {
+  it('has "use server" as the first line', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const filePath = path.resolve(__dirname, 'index.ts');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content.trimStart().startsWith("'use server'")).toBe(true);
+  });
+});
