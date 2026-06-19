@@ -2,16 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
-import { DARK_COLORS, FONT_MONO } from '../logto-kit/themes';
+import { FONT_MONO } from '../logto-kit/themes';
+import { useThemeMode } from '../logto-kit/components/providers/preferences';
 
 export function DocsErrorFallback({ message }: { message: string }) {
   const router = useRouter();
+  const { colors } = useThemeMode();
 
   const handleRetry = useCallback(() => {
     router.refresh();
   }, [router]);
-
-  const colors = DARK_COLORS;
 
   return (
     <div

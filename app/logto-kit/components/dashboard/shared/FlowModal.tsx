@@ -625,7 +625,7 @@ export function BackupCodesModal({
             <p style={{ fontFamily: T.font, fontWeight: 600, fontSize: '0.9375rem', color: T.text, marginBottom: '0.1875rem', letterSpacing: '-0.02em' }}>
               {isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')}
             </p>
-            <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>
+            <p id="backup-codes-desc" style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>
               {isNew ? t.mfa.saveTheseCodes : t.mfa.existingCodes}
             </p>
           </div>

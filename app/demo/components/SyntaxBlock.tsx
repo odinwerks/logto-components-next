@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Copy, Check, AlertCircle } from 'lucide-react';
+import { useThemeMode } from '../../logto-kit/components/providers/preferences';
 
 // ─── Token types ────────────────────────────────────────────────────────────
 
@@ -185,6 +186,22 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const { mode } = useThemeMode();
+
+  const isDark = mode === 'dark';
+
+  // Frame / chrome colors — theme-aware
+  // Note: COLORS (token highlighting) stays dark-only: code editors conventionally
+  // use dark syntax colors even on light backgrounds, matching VS Code Dark+.
+  const frameBorder   = isDark ? '#3c3c3c' : '#d1d5db';
+  const titleBg       = isDark ? '#252526' : '#f3f4f6';
+  const titleBorder   = isDark ? '#3c3c3c' : '#d1d5db';
+  const titleColor    = isDark ? '#808080' : '#6b7280';
+  const langColor     = isDark ? '#5a5a5a' : '#9ca3af';
+  const codeBg        = isDark ? '#1e1e1e' : '#f9fafb';
+  const copyBtnBg     = isDark ? '#2d2d2d' : '#ffffff';
+  const copyBtnBorder = isDark ? '#3c3c3c' : '#d1d5db';
+  const copyBtnColor  = isDark ? '#808080' : '#6b7280';
 
   const handleCopy = useCallback(async () => {
     try {
@@ -215,7 +232,7 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
 
   return (
     <div style={{
-      border: '1px solid #3c3c3c',
+      border: `1px solid ${frameBorder}`,
       borderRadius: '6px',
       overflow: 'hidden',
       marginBottom: '6px',
@@ -226,22 +243,22 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '6px 12px',
-          background: '#252526',
-          borderBottom: '1px solid #3c3c3c',
+          background: titleBg,
+          borderBottom: `1px solid ${titleBorder}`,
           fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
           fontSize: '0.6875rem',
-          color: '#808080',
+          color: titleColor,
           letterSpacing: '0.03em',
         }}>
           <span>{title}</span>
-          <span style={{ fontSize: '0.5625rem', color: '#5a5a5a', textTransform: 'uppercase' }}>{lang}</span>
+          <span style={{ fontSize: '0.5625rem', color: langColor, textTransform: 'uppercase' }}>{lang}</span>
         </div>
       )}
 
       <div
         style={{
           position: 'relative',
-          background: '#1e1e1e',
+          background: codeBg,
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -268,11 +285,11 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
             justifyContent: 'center',
             width: '28px',
             height: '28px',
-            background: '#2d2d2d',
-            border: '1px solid #3c3c3c',
+            background: copyBtnBg,
+            border: `1px solid ${copyBtnBorder}`,
             borderRadius: '4px',
             cursor: 'pointer',
-            color: copyFailed ? '#dc2626' : copied ? '#4ec9b0' : '#808080',
+            color: copyFailed ? '#dc2626' : copied ? '#4ec9b0' : copyBtnColor,
             opacity: hovered || copied || copyFailed ? 1 : 0,
             transform: `scale(${hovered || copied || copyFailed ? 1 : 0.9})`,
             transition: 'opacity 0.15s ease, transform 0.15s ease, color 0.15s ease',

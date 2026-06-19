@@ -214,12 +214,13 @@ export async function generateBackupCodes(
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    // Get user ID for per-user locking
-    const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
-    if (!isAuthenticated || !claims?.sub) {
+    // ── Explicit auth check (stronger than getLogtoContext) ────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
+    if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
-    const userId = claims.sub;
+    const userId = introspection.sub;
     assertSafeLogtoId(userId, 'userId');
 
     const releaseLock = await backupCodesLockManager.acquire(userId);
@@ -296,7 +297,14 @@ export async function getBackupCodes(
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    // ── Staleness check (defense in depth) ────────────────────────────────
+    // ── Explicit auth check ─────────────────────────────────────────────────
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
+    if (!introspection.active || !introspection.sub) {
+      throw plainCode('UNAUTHENTICATED');
+    }
+
+    // ── Staleness check (defense in depth) ──────────────────────────────────
     assertVerificationNotExpired(verificationTimestamp);
 
     const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {

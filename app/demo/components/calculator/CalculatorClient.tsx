@@ -271,6 +271,9 @@ async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {
 export function CalculatorClient() {
   const [state, setState] = useState<CalcState>(DEFAULT_STATE);
   const isLoadedRef = useRef(false);
+  // Use a ref to guard re-entrant handleEquals calls.
+  // Ref is checked synchronously — avoids stale-closure issues with state.isCalculating.
+  const isCalculatingRef = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const backspaceRef = useRef<HTMLButtonElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -296,7 +299,13 @@ export function CalculatorClient() {
       setHasScientific(false);
       return;
     }
-    const targetOrgId = asOrg || '5b6sw6p5uzti';
+    // asOrg is null when the user is not in org mode.
+    // When null, no org permissions are available — treat as no scientific access.
+    if (!asOrg) {
+      setHasScientific(false);
+      return;
+    }
+    const targetOrgId = asOrg;
     let cancelled = false;
     loadOrganizationPermissions(targetOrgId)
       .then((r) => {
@@ -364,6 +373,11 @@ export function CalculatorClient() {
   }, [flush]);
 
   const handleEquals = useCallback(async () => {
+    // Synchronous re-entrancy guard via ref — prevents last-write-wins race
+    // when user double-taps "=" before first evaluation completes.
+    if (isCalculatingRef.current) return;
+    isCalculatingRef.current = true;
+
     let exprToEval = state.expr + (state.curToken || '');
     const radMode = state.isRad;
     let parens = state.openParens;
@@ -373,6 +387,7 @@ export function CalculatorClient() {
     }
 
     if (!exprToEval) {
+      isCalculatingRef.current = false;
       return;
     }
 
@@ -408,6 +423,8 @@ export function CalculatorClient() {
         isCalculating: false,
         justEvaled: true,
       }));
+    } finally {
+      isCalculatingRef.current = false;
     }
   }, [state.expr, state.curToken, state.isRad, state.openParens]);
 
@@ -567,7 +584,7 @@ export function CalculatorClient() {
         target instanceof HTMLTextAreaElement ||
         target?.isContentEditable
       ) return;
-      if (state.isCalculating) return;
+      if (isCalculatingRef.current || state.isCalculating) return;
       if (e.key >= '0' && e.key <= '9') { act('digit', e.key); return; }
       if (e.key === '.') { act('dot', null); return; }
       if (e.key === '+') { act('op', '+'); return; }
@@ -884,7 +901,7 @@ export function CalculatorClient() {
           <div style={row4Style}>
             <button style={{ ...btnStyle, gridColumn: 'span 2' }} onClick={() => act('digit', '0')}>0</button>
             <button style={btnStyle} onClick={() => act('dot', null)}>.</button>
-            <button style={eqBtnStyle} onClick={() => { if (!state.isCalculating) handleEquals(); }}>=</button>
+            <button style={eqBtnStyle} onClick={() => { if (!isCalculatingRef.current && !state.isCalculating) handleEquals(); }}>=</button>
           </div>
         </div>
       </div>

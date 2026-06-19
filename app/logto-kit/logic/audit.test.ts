@@ -124,4 +124,42 @@ describe('audit', () => {
     expect(record).toHaveProperty('action', 'password.change');
     expect(record).toHaveProperty('resource', 'user-123');
   });
+
+  // ── BUG-M-007: Non-serializable metadata ─────────────────────────────────
+
+  it('does not throw when metadata contains a BigInt', async () => {
+    await expect(
+      audit({ actor: 'user1', action: 'test', metadata: { size: BigInt(999) } })
+    ).resolves.not.toThrow();
+  });
+
+  it('does not throw when metadata contains a circular reference', async () => {
+    const circ: Record<string, unknown> = {};
+    circ.self = circ;
+    await expect(
+      audit({ actor: 'user1', action: 'test', metadata: circ })
+    ).resolves.not.toThrow();
+  });
+
+  it('logs a partial record with _serializeError when metadata is non-serializable', async () => {
+    const circ: Record<string, unknown> = {};
+    circ.self = circ;
+    await audit({ actor: 'user-fallback', action: 'test.action', metadata: circ });
+
+    const callArgs = vi.mocked(log).mock.calls[0];
+    const record = JSON.parse(callArgs[1] as string);
+    expect(record).toHaveProperty('actor', 'user-fallback');
+    expect(record).toHaveProperty('action', 'test.action');
+    expect(record).toHaveProperty('_serializeError');
+    expect(record).not.toHaveProperty('metadata');
+  });
+
+  it('logs the full record when metadata is serializable', async () => {
+    await audit({ actor: 'user2', action: 'normal', metadata: { ip: '1.2.3.4' } });
+
+    const callArgs = vi.mocked(log).mock.calls[0];
+    const record = JSON.parse(callArgs[1] as string);
+    expect(record).toHaveProperty('metadata.ip', '1.2.3.4');
+    expect(record).not.toHaveProperty('_serializeError');
+  });
 });

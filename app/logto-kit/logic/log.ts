@@ -37,7 +37,7 @@
 
 import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
 import { createLogger, type TypedLogger } from '../../lib/logger';
-import { scrubArgs } from '../../lib/scrub-log-string';
+import { scrubArgs, scrubLogString } from '../../lib/scrub-log-string';
 
 // ============================================================================
 // Backend selection
@@ -87,16 +87,18 @@ function stringifyArgs(args: unknown[]): string {
 /**
  * Converts console-style arguments into a message string.
  * The first string argument is treated as a format prefix.
+ * Both msg and detail are scrubbed for credentials before reaching Pino.
  */
 function formatMessage(args: unknown[]): { msg: string; detail?: string } {
   if (args.length === 0) return { msg: '' };
   if (args.length === 1) {
-    return { msg: typeof args[0] === 'string' ? args[0] : String(args[0]) };
+    const raw = typeof args[0] === 'string' ? args[0] : String(args[0]);
+    return { msg: scrubLogString(raw) };
   }
   const [first, ...rest] = args;
   const prefix = typeof first === 'string' ? first : String(first);
   const detail = stringifyArgs(rest);
-  return { msg: prefix, detail };
+  return { msg: scrubLogString(prefix), detail: scrubLogString(detail) };
 }
 
 // ============================================================================

@@ -31,11 +31,14 @@ describe('introspectToken', () => {
     );
   });
 
-  // BUG-H03: audience check fails open when client_id absent
-  it('throws TOKEN_AUDIENCE_MISMATCH when appId is provided and client_id is absent (BUG-H03)', async () => {
+  // BUG-H02/H03: audience check fails open when client_id absent
+  it('throws UNAUTHORIZED when assertAudience is true and client_id is absent (fail-closed BUG-H02)', async () => {
     vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
     vi.stubEnv('APP_ID', 'client-id-123');
     vi.stubEnv('APP_SECRET', 'super-secret-value');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ active: true, sub: 'user-123' }), { status: 200 })
@@ -43,48 +46,60 @@ describe('introspectToken', () => {
     );
 
     const { introspectToken } = await import('./utils');
-    await expect(introspectToken('some-token', 'client-id-123')).rejects.toThrow('TOKEN_AUDIENCE_MISMATCH');
+    await expect(introspectToken('some-token', { assertAudience: true })).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'UNAUTHORIZED',
+    });
   });
 
-  it('throws TOKEN_AUDIENCE_MISMATCH when appId is provided and client_id mismatches (BUG-H03)', async () => {
+  it('throws UNAUTHORIZED when assertAudience is true and client_id mismatches (BUG-H03)', async () => {
     vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
     vi.stubEnv('APP_ID', 'client-id-123');
     vi.stubEnv('APP_SECRET', 'super-secret-value');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'other-app-id' }), { status: 200 })
     );
 
     const { introspectToken } = await import('./utils');
-    await expect(introspectToken('some-token', 'client-id-123')).rejects.toThrow('TOKEN_AUDIENCE_MISMATCH');
+    await expect(introspectToken('some-token', { assertAudience: true })).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'UNAUTHORIZED',
+    });
   });
 
-  it('does not throw when appId is provided and client_id matches (BUG-H03)', async () => {
+  it('does not throw when assertAudience is true and client_id matches (BUG-H03)', async () => {
     vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
     vi.stubEnv('APP_ID', 'client-id-123');
     vi.stubEnv('APP_SECRET', 'super-secret-value');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'client-id-123' }), { status: 200 })
     );
 
     const { introspectToken } = await import('./utils');
-    const result = await introspectToken('some-token', 'client-id-123');
+    const result = await introspectToken('some-token', { assertAudience: true });
     expect(result.client_id).toBe('client-id-123');
   });
 
-  it('does not check client_id when appId is not provided (backward compat)', async () => {
+  it('does not check client_id when assertAudience is not provided (backward compat)', async () => {
     vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
     vi.stubEnv('APP_ID', 'client-id-123');
     vi.stubEnv('APP_SECRET', 'super-secret-value');
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ active: true, sub: 'user-123' }), { status: 200 })
-      // No client_id — should NOT throw when appId is not supplied
+      // No client_id — should NOT throw when assertAudience is not supplied
     );
 
     const { introspectToken } = await import('./utils');
-    const result = await introspectToken('some-token'); // no appId
+    const result = await introspectToken('some-token'); // no options
     expect(result).toEqual({ active: true, sub: 'user-123' });
   });
 
@@ -220,6 +235,61 @@ describe('introspectToken', () => {
         'Logto introspection not configured'
       );
     });
+  });
+
+  // BUG-M-016: assertAudience option tests
+  it('throws UNAUTHORIZED when client_id does not match appId with assertAudience: true', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'my-app-id');
+    vi.stubEnv('APP_SECRET', 'my-app-secret');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'other-app-id' }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    await expect(introspectToken('some-token', { assertAudience: true })).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'UNAUTHORIZED',
+    });
+  });
+
+  it('does not throw when assertAudience is false (default) even with mismatched client_id', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'my-app-id');
+    vi.stubEnv('APP_SECRET', 'my-app-secret');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'other-app-id' }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    // No assertAudience → no mismatch check → should succeed
+    const result = await introspectToken('some-token');
+    expect(result.active).toBe(true);
+  });
+
+  it('does not throw when assertAudience is true and client_id matches appId', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'my-app-id');
+    vi.stubEnv('APP_SECRET', 'my-app-secret');
+    vi.stubEnv('ENDPOINT', 'https://example.com');
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'my-app-id' }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    const result = await introspectToken('some-token', { assertAudience: true });
+    expect(result.active).toBe(true);
   });
 });
 

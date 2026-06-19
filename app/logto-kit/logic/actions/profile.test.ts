@@ -679,3 +679,79 @@ describe('updateAvatarUrl', () => {
     );
   });
 });
+
+// ============================================================================
+// updateUserProfile — BUG-M-008: empty string filtering
+// ============================================================================
+
+describe('updateUserProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+  });
+
+  it('does not send PATCH when all profile fields are empty strings', async () => {
+    const { updateUserProfile } = await import('./profile');
+    const { makeRequest } = await import('./request');
+
+    const result = await updateUserProfile({ givenName: '', familyName: '' });
+
+    expect(result).toEqual({ ok: true });
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('filters empty strings from PATCH body', async () => {
+    const { updateUserProfile } = await import('./profile');
+    const { makeRequest } = await import('./request');
+
+    // makeRequest is mocked via vi.mock('./request') at top of file
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve('{}'),
+      statusText: 'OK',
+    } as unknown as Response);
+
+    await updateUserProfile({ givenName: 'Alice', familyName: '' });
+
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/profile',
+      expect.objectContaining({ body: { givenName: 'Alice' } }),
+    );
+    // familyName: '' must NOT appear in the body
+    const callBody = vi.mocked(makeRequest).mock.calls[0][1]?.body as Record<string, unknown>;
+    expect(callBody).not.toHaveProperty('familyName');
+  });
+
+  it('returns early without PATCH when both fields undefined', async () => {
+    const { updateUserProfile } = await import('./profile');
+    const { makeRequest } = await import('./request');
+
+    const result = await updateUserProfile({});
+
+    expect(result).toEqual({ ok: true });
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('sends PATCH when all fields are non-empty', async () => {
+    const { updateUserProfile } = await import('./profile');
+    const { makeRequest } = await import('./request');
+
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve('{}'),
+      statusText: 'OK',
+    } as unknown as Response);
+
+    await updateUserProfile({ givenName: 'Alice', familyName: 'Smith' });
+
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/profile',
+      expect.objectContaining({ body: { givenName: 'Alice', familyName: 'Smith' } }),
+    );
+  });
+});

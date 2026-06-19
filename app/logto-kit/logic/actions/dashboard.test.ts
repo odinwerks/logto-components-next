@@ -105,9 +105,11 @@ describe('isTransientError', () => {
     expect(isTransientError(new Error('fetch failed!'))).toBe(false);
   });
 
-  it('identifies HTTP status indicators with word boundaries in error messages', () => {
-    expect(isTransientError(new Error('Failed with status 500'))).toBe(true);
-    expect(isTransientError(new Error('429 Too Many Requests'))).toBe(true);
+  it('identifies HTTP status indicators with HTTP context in error messages', () => {
+    // BUG-M-006 fix: only match HTTP status codes when preceded by HTTP-specific context
+    expect(isTransientError(new Error('HTTP 500 Internal Server Error'))).toBe(true);
+    expect(isTransientError(new Error('API returned status: 429'))).toBe(true);
+    // These don't have HTTP context — intentionally no longer matched (BUG-M-006)
     expect(isTransientError(new Error('abc500xyz'))).toBe(false);
     expect(isTransientError(new Error('xyz429'))).toBe(false);
   });

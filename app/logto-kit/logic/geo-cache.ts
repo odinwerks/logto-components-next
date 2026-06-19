@@ -77,6 +77,28 @@ const BLOCKED_GEO_IPS = new Set([
   '192.0.0.192',     // RFC 7526 NAT64
 ]);
 
+/**
+ * Returns true for RFC-1918 private, loopback, and link-local addresses.
+ * These must never be forwarded to an external geolocation API.
+ */
+function isPrivateOrLoopbackIp(ip: string): boolean {
+  // IPv4 loopback
+  if (ip === '127.0.0.1' || ip.startsWith('127.')) return true;
+  // IPv6 loopback
+  if (ip === '::1' || ip === '0:0:0:0:0:0:0:1') return true;
+  // RFC-1918: 10.0.0.0/8
+  if (ip.startsWith('10.')) return true;
+  // RFC-1918: 172.16.0.0/12 (172.16.x.x – 172.31.x.x)
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+  // RFC-1918: 192.168.0.0/16
+  if (ip.startsWith('192.168.')) return true;
+  // Link-local: 169.254.0.0/16 (also includes IMDS 169.254.169.254 already in BLOCKED_GEO_IPS)
+  if (ip.startsWith('169.254.')) return true;
+  // IPv6 link-local: fe80::/10
+  if (/^fe[89ab]/i.test(ip)) return true;
+  return false;
+}
+
 export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   if (typeof window === 'undefined') return null;
   if (!ip) return null;
@@ -86,6 +108,9 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
 
   // Block cloud metadata / infrastructure IPs from being sent to external geo APIs
   if (BLOCKED_GEO_IPS.has(ip)) return null;
+
+  // Block private/loopback IPs: do not send internal addresses to external geo API
+  if (isPrivateOrLoopbackIp(ip)) return null;
 
   // Check user consent before geolocation lookup
   const consent = sessionStorage.getItem('geo-consent');

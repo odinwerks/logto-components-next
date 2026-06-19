@@ -28,8 +28,10 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
 
   return (
     <Suspense fallback={null}>
-      <AuthErrorBanner />
       <DocsLayoutClient>
+        <Suspense fallback={null}>
+          <AuthErrorBanner />
+        </Suspense>
         {children}
       </DocsLayoutClient>
     </Suspense>

@@ -9,6 +9,7 @@ import { plainCode } from '../errors';
 import { safeAction, type DataResult } from './safe';
 import { warn } from '../log';
 import { createRateLimiter } from '../../../lib/distributed-state';
+import { auditSafe } from './helpers';
 
 // ============================================================================
 // Constants
@@ -356,8 +357,7 @@ export async function uploadAvatar(
     }
 
     const data = (await res.json()) as { avatar?: string };
-    const { audit } = await import('../audit');
-    await audit({ actor: userId, action: 'avatar.upload', resource: userId });
+    auditSafe(userId, 'avatar.upload', userId);
 
     return { url: data.avatar ?? '' };
   }
@@ -383,8 +383,7 @@ export async function uploadAvatar(
 
   await deleteOldAvatars(bucket, userId, ext);
 
-  const { audit } = await import('../audit');
-  await audit({ actor: userId, action: 'avatar.upload', resource: userId });
+  auditSafe(userId, 'avatar.upload', userId);
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` };
   });

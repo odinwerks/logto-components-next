@@ -111,6 +111,25 @@ describe('scrubLogString', () => {
   it('handles empty string', () => {
     expect(scrubLogString('')).toBe('');
   });
+
+  // BUG-M-011: client_secret= and password= redaction
+  it('redacts client_secret= in form-encoded body', () => {
+    const result = scrubLogString('grant_type=client_credentials&client_secret=abc123secret');
+    expect(result).toContain('client_secret=[REDACTED]');
+    expect(result).not.toContain('abc123secret');
+  });
+
+  it('redacts password= in URL params', () => {
+    const result = scrubLogString('username=alice&password=hunter2me');
+    expect(result).toContain('password=[REDACTED]');
+    expect(result).not.toContain('hunter2me');
+  });
+
+  it('redacts password in JSON body', () => {
+    const result = scrubLogString('{"username":"alice","password":"verylongpassword123"}');
+    expect(result).toContain('password=[REDACTED]');
+    expect(result).not.toContain('verylongpassword123');
+  });
 });
 
 describe('scrubArgs', () => {

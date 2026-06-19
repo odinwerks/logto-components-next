@@ -162,3 +162,64 @@ describe('logEvent console path scrubbing', () => {
     expect(loggedOutput).toContain('access_token=[REDACTED]');
   });
 });
+
+describe('log.ts — Pino path scrubbing (BUG-M-001)', () => {
+  beforeEach(() => {
+    vi.stubEnv('LOG_BACKEND', 'pino');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('scrubs JWT from Pino msg field (single-arg call)', async () => {
+    const pinoLoggerMock = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+      raw: vi.fn(),
+    };
+    vi.doMock('../../lib/logger', () => ({
+      createLogger: vi.fn().mockReturnValue(pinoLoggerMock),
+    }));
+
+    const { warn } = await import('./log');
+    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.sig123';
+    warn(`Credential leak: ${jwt}`);
+
+    const calls = pinoLoggerMock.warn.mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const [, msg] = calls[0];
+    expect(msg).not.toContain('eyJhbGciOiJSUzI1NiJ9');
+    expect(msg).toContain('[JWT_REDACTED]');
+  });
+
+  it('scrubs access_token from Pino detail field (multi-arg call)', async () => {
+    const pinoLoggerMock = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+      raw: vi.fn(),
+    };
+    vi.doMock('../../lib/logger', () => ({
+      createLogger: vi.fn().mockReturnValue(pinoLoggerMock),
+    }));
+
+    const { warn } = await import('./log');
+    warn('Token exchange failed', 'access_token=supersecretaccesstoken');
+
+    const calls = pinoLoggerMock.warn.mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const [, , detail] = calls[0];
+    if (detail && typeof detail === 'object' && 'detail' in detail) {
+      expect((detail as { detail: string }).detail).not.toContain('supersecretaccesstoken');
+      expect((detail as { detail: string }).detail).toContain('access_token=[REDACTED]');
+    }
+  });
+});

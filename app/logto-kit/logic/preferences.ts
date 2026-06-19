@@ -6,6 +6,7 @@
 
 import type { UserData } from './types';
 import { pickPreferences, SAFE_ID_REGEX } from './guards';
+import { warn } from './log';
 
 export interface UserPreferences {
   theme: 'dark' | 'light';
@@ -43,8 +44,14 @@ export function getPreferencesFromUserData(userData: UserData): Partial<UserPref
   // Validate asOrg - null is a valid value meaning "be yourself"
   // Only accept safe Logto IDs to prevent injection via stored customData
   const hasAsOrg = 'asOrg' in prefs;
-  const asOrg: string | null =
-    typeof prefs.asOrg === 'string' && SAFE_ID_REGEX.test(prefs.asOrg) ? prefs.asOrg : null;
+  const asOrg: string | null = (() => {
+    if (typeof prefs.asOrg !== 'string') return null;
+    if (!SAFE_ID_REGEX.test(prefs.asOrg)) {
+      warn('[Preferences] Stored asOrg value failed SAFE_ID_REGEX validation; treating as null');
+      return null;
+    }
+    return prefs.asOrg;
+  })();
 
   // Return preferences if any key exists (even if all values resolve to defaults)
   if (!theme && !lang && !hasAsOrg) return null;

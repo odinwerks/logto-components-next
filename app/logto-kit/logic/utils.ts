@@ -32,15 +32,20 @@ export function truncateError(text: string, maxLength = 200): string {
 /**
  * Introspects an OIDC token to validate its active status and claims.
  * @param token - The access token to introspect.
- * @param appId - Optional application ID to validate token audience (client_id).
- *   When provided, the introspection response MUST contain a matching client_id.
- *   Tokens without client_id are rejected (fail-closed) to prevent bypass attacks.
+ * @param options - Optional configuration.
+ * @param options.assertAudience - When true, verifies the token's client_id matches
+ *   this app's appId (defense-in-depth for multi-app tenants). Fail-closed: tokens
+ *   without client_id are also rejected (BUG-H02). Defaults to false for backward
+ *   compatibility.
  * @returns The OIDC introspection response containing active status and claims.
  * @throws Error if introspection URL, APP_ID, or APP_SECRET are not configured.
  * @throws Error if the introspection request fails.
- * @throws Error if appId is provided and the token's client_id is absent or mismatched (BUG-H03).
+ * @throws Error if assertAudience is true and client_id is absent or mismatched.
  */
-export async function introspectToken(token: string, appId?: string): Promise<OidcIntrospectionResponse> {
+export async function introspectToken(
+  token: string,
+  options?: { assertAudience?: boolean },
+): Promise<OidcIntrospectionResponse> {
   let introspectionUrl = process.env.LOGTO_INTROSPECTION_URL;
   let clientId: string | undefined;
   let clientSecret: string | undefined;
@@ -111,19 +116,26 @@ export async function introspectToken(token: string, appId?: string): Promise<Oi
   try {
     const result = (await res.json()) as OidcIntrospectionResponse;
 
-    // BUG-H03: Fail-closed audience check. When appId is provided, the token's
-    // client_id MUST be present and match. An absent client_id is treated as a
-    // mismatch to prevent bypass attacks via tokens issued by other applications.
-    if (appId && (!result.client_id || result.client_id !== appId)) {
-      throw new Error('TOKEN_AUDIENCE_MISMATCH');
+    // Audience / client_id check (defense-in-depth for multi-app tenants).
+    // When assertAudience is true, verify the token was issued for this app.
+    // Fail-closed: tokens without client_id are also rejected (BUG-H02).
+    if (options?.assertAudience) {
+      let appId: string | undefined;
+      try {
+        appId = getLogtoConfig().appId;
+      } catch {
+        // Config unavailable during build/test — skip check
+      }
+      if (appId && (!result.client_id || result.client_id !== appId)) {
+        warn(`[introspectToken] client_id mismatch: expected ${appId}, got ${result.client_id ?? 'absent'}`);
+        throw sanitize(new Error('Audience mismatch'), { fallback: 'UNAUTHORIZED' });
+      }
     }
 
     return result;
-  } catch (e) {
-    // Re-throw audience mismatch errors as-is
-    if (e instanceof Error && e.message === 'TOKEN_AUDIENCE_MISMATCH') {
-      throw e;
-    }
+  } catch (err) {
+    // Re-throw SanitizedError from audience check
+    if (err instanceof Error && err.name === 'SanitizedError') throw err;
     throw new Error(
       'Introspection endpoint returned a non-JSON body. ' +
         'Check LOGTO_INTROSPECTION_URL points to the correct endpoint.'

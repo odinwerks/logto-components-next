@@ -327,7 +327,7 @@ class RedisBackend implements Backend {
 
   async lockAcquire(namespace: string, key: string): Promise<() => void> {
     const lockKey = `lock:${namespace}:${key}`;
-    const lockValue = `${Date.now()}-${Math.random()}`;
+    const lockValue = crypto.randomUUID();
     const ttlMs = DEFAULT_LOCK_TIMEOUT_MS;
 
     // Retry loop: SET NX with TTL
@@ -342,12 +342,18 @@ class RedisBackend implements Backend {
       );
       if (result === 'OK') {
         return async () => {
-          // Only delete if we still own the lock (value matches)
+          // Atomic ownership-check-then-delete via Lua script.
+          // Prevents non-owner release: only deletes if the stored value matches.
           try {
-            const current = await this.client.get(lockKey);
-            if (current === lockValue) {
-              await this.client.del(lockKey);
-            }
+            const luaScript = `
+              if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('del', KEYS[1])
+              else
+                return 0
+              end
+            `;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (this.client as any).eval(luaScript, 1, lockKey, lockValue);
           } catch {
             // Non-fatal: TTL will clean up
           }
@@ -362,9 +368,10 @@ class RedisBackend implements Backend {
     );
   }
 
-  lockRelease(namespace: string, key: string): void {
-    const lockKey = `lock:${namespace}:${key}`;
-    void this.client.del(lockKey).catch(() => {});
+  lockRelease(_namespace: string, _key: string): void {
+    // Deprecated: use the release function returned by lockAcquire instead.
+    // Direct DEL without ownership check risks releasing another owner's lock.
+    // This is a no-op to preserve the Backend interface contract.
   }
 
   tokenGet(key: string): string | null {
@@ -497,10 +504,23 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiterInsta
 
   return {
     async check(key: string): Promise<boolean> {
-      return getBackend().rateLimitCheck(name, key, windowMs, max);
+      try {
+        return await getBackend().rateLimitCheck(name, key, windowMs, max);
+      } catch (err) {
+        // Redis backend init failed — degrade gracefully to allow-through.
+        // Operators should fix Redis; users must not receive 500s due to infra issues.
+        console.warn(
+          `[RateLimiter] Backend unavailable for '${name}', degrading to allow-through: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return true; // allow the request
+      }
     },
     async reset(key: string): Promise<void> {
-      return getBackend().rateLimitReset(name, key);
+      try {
+        return await getBackend().rateLimitReset(name, key);
+      } catch {
+        // Degraded mode: ignore reset failures silently
+      }
     },
   };
 }

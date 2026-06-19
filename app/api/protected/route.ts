@@ -9,6 +9,7 @@ import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
 import { getManagementApiToken, getLogtoConfig } from '../../logto-kit/config';
 import { verifyPersonalAccess, verifyOrgAccess } from '../../logto-kit/logic/actions';
 import { createRateLimiter } from '../../lib/distributed-state';
+import { makeManagementFetch } from '../../logto-kit/logic/actions/management-request';
 
 // ── Per-user rate limiting ────────────────────────────────────────────────────
 // Protects Logto API quotas from exhaustion by a single user.
@@ -24,16 +25,12 @@ async function fetchUserAsOrg(userId: string): Promise<string | null> {
   try {
     const mgmtToken = await getManagementApiToken();
     const endpoint = getCleanEndpoint();
-    // BUG-015: Only request customData field to reduce response payload size.
-    // We only need customData.Preferences.asOrg — fetching the full user object
-    // is wasteful when the Management API supports field selection.
-    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}?fields=customData`;
+    // NOTE: Logto Management API GET /api/users/{id} does not support ?fields=
+    // parameter. The full user object is always returned. The parameter is removed.
+    const url = `${endpoint}/api/users/${encodeURIComponent(userId)}`;
 
     debugLog(`[Protected API] Fetching user ${userId} details from Management API`);
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${mgmtToken}` },
-      cache: 'no-store',
-    });
+    const res = await makeManagementFetch(url, { method: 'GET', token: mgmtToken });
 
     if (!res.ok) {
       debugError(`[Protected API] Failed to fetch user details for ${userId}: status ${res.status}`);
@@ -41,11 +38,10 @@ async function fetchUserAsOrg(userId: string): Promise<string | null> {
     }
 
     const user = (await res.json()) as {
-      custom_data?: { Preferences?: { asOrg?: string } };
       customData?: { Preferences?: { asOrg?: string } };
     };
 
-    return user.custom_data?.Preferences?.asOrg || user.customData?.Preferences?.asOrg || null;
+    return user.customData?.Preferences?.asOrg ?? null;
   } catch (error) {
     debugError(
       '[Protected API] Error in fetchUserAsOrg:',
@@ -73,10 +69,17 @@ export async function POST(request: NextRequest) {
   if (originError) return originError;
 
   try {
-    // BUG-001: Reject oversized request bodies before parsing JSON.
-    const contentLength = request.headers.get('content-length');
-    if (!contentLength || parseInt(contentLength, 10) > 1_048_576) {
-      return apiError('PAYLOAD_TOO_LARGE', 413);
+    // Body size guard: rejects requests with a declared Content-Length > 1 MiB.
+    // NOTE: This only checks the declared header, not the actual body bytes.
+    // Real body-size enforcement must be done at the reverse proxy level
+    // (e.g. nginx client_max_body_size 1m). Chunked requests without
+    // Content-Length are allowed through.
+    const contentLengthHeader = request.headers.get('content-length');
+    if (contentLengthHeader) {
+      const declared = parseInt(contentLengthHeader, 10);
+      if (!isNaN(declared) && declared > 1_048_576) {
+        return apiError('PAYLOAD_TOO_LARGE', 413);
+      }
     }
 
     const body: ProtectedRequestBody = await request.json();
@@ -140,7 +143,11 @@ export async function POST(request: NextRequest) {
     // ── Per-user rate limit ───────────────────────────────────────────────────
     if (!(await protectedRouteRateLimiter.check(id))) {
       debugLog(`[Protected API] Rate limit exceeded for user ${id}`);
-      return apiError('RATE_LIMITED', 429);
+      // RFC 7231: 429 SHOULD include Retry-After. We use a fixed window of 60s.
+      return NextResponse.json(
+        { error: 'RATE_LIMITED', data: null },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
     }
 
     // ── Resolve action ────────────────────────────────────────────────────────

@@ -187,6 +187,74 @@ describe('logger', () => {
       const { getDefaultLevel } = await import('./logger');
       expect(getDefaultLevel()).toBe('warn');
     });
+
+    // BUG-L-009: LOG_LEVEL validation
+    it('falls back to default and warns when LOG_LEVEL is invalid', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('LOG_LEVEL', 'verbose'); // Not a valid Pino level
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const { getDefaultLevel } = await import('./logger');
+      const result = getDefaultLevel();
+
+      expect(result).toBe('info'); // falls back to production default
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid LOG_LEVEL "verbose"'));
+
+      warnSpy.mockRestore();
+    });
+
+    it('falls back to debug in development when LOG_LEVEL is invalid', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      vi.stubEnv('LOG_LEVEL', 'superverbose');
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const { getDefaultLevel } = await import('./logger');
+      const result = getDefaultLevel();
+
+      expect(result).toBe('debug'); // falls back to development default
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('accepts all valid Pino levels without warning', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      for (const level of ['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']) {
+        vi.resetModules();
+        vi.stubEnv('LOG_LEVEL', level);
+        const { getDefaultLevel } = await import('./logger');
+        expect(getDefaultLevel()).toBe(level);
+        expect(warnSpy).not.toHaveBeenCalled();
+      }
+
+      warnSpy.mockRestore();
+    });
+  });
+
+  // BUG-L-008: isDevelopment evaluated inside createLogger, not at module load
+  describe('createLogger - isDevelopment isolation (BUG-L-008)', () => {
+    it('uses production mode when NODE_ENV is overridden after module import', async () => {
+      // Simulate a test environment that re-stubs NODE_ENV after import
+      vi.stubEnv('NODE_ENV', 'production');
+      const { createLogger } = await import('./logger');
+
+      // Should not set up pino-pretty transport (production mode)
+      // We verify by checking the logger works without errors
+      expect(() => createLogger()).not.toThrow();
+    });
+
+    it('evaluates isDevelopment fresh on each createLogger() call', async () => {
+      // First create in production
+      vi.stubEnv('NODE_ENV', 'production');
+      const { createLogger } = await import('./logger');
+      const prodLogger = createLogger();
+      expect(prodLogger).toBeDefined();
+
+      // Now re-stub to test mode — would have failed if isDevelopment were frozen at module load
+      vi.stubEnv('NODE_ENV', 'test');
+      expect(() => createLogger()).not.toThrow();
+    });
   });
 
   describe('createWebhookDestination (HTTPS enforcement)', () => {

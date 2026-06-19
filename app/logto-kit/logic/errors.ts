@@ -239,7 +239,10 @@ export function isInvalidGrantError(error: unknown): boolean {
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('invalid_grant')) {
+    // Anchored pattern: matches "error: invalid_grant" or "error=invalid_grant"
+    // Avoids false positives from error messages that mention invalid_grant
+    // in other contexts (e.g. "detected invalid_grant upstream in debug context").
+    if (/\berror[=:]\s*invalid_grant\b/i.test(error.message)) {
       return true;
     }
   }
@@ -277,8 +280,14 @@ export function isTransientError(error: unknown): boolean {
       return true;
     }
 
-    // HTTP status indicators with word boundaries (e.g. \b429\b, \b500\b, etc.)
-    if (/\b(429|5\d{2})\b/.test(error.message)) {
+    // HTTP status indicators: only match when preceded by HTTP-specific context.
+    // E.g. "HTTP 500", "HTTP status 500", "status: 429", "status 429",
+    //      "returned 503", "response 503" — NOT "SHA-512" or "processed 500 records".
+    if (/\b(?:HTTP(?:\s+\w+)?|status|returned|response)[:\s]+(?:429|5\d{2})\b/i.test(error.message)) {
+      return true;
+    }
+    // Also match "with status NNN" pattern
+    if (/\bwith\s+status\s+(?:429|5\d{2})\b/i.test(error.message)) {
       return true;
     }
 

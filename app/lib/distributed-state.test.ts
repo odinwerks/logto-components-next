@@ -517,3 +517,74 @@ describe('backend selection', () => {
     expect(await limiter.check('test-user')).toBe(true);
   });
 });
+
+// ============================================================================
+// BUG-M-002: Graceful degradation when Redis backend init fails
+// ============================================================================
+
+describe('createRateLimiter — graceful degradation on Redis init failure', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+    if (g[MOCK_KEY]) {
+      // Make connect fail so _backendInitError gets set
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('Redis init failed: ECONNREFUSED'));
+      g[MOCK_KEY]!.evalMock.mockClear();
+      g[MOCK_KEY]!.pingMock.mockClear();
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.REDIS_URL;
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+    }
+  });
+
+  it('check() returns true (allow-through) when backend init fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createRateLimiter } = await import('./distributed-state');
+    const limiter = createRateLimiter({ name: 'init-fail-test', windowMs: 60_000, max: 1 });
+
+    // Trigger init — uses tempBackend while Redis connects
+    await limiter.check('warmup');
+
+    // Wait for Redis init failure to propagate (_backendInitError gets set)
+    await new Promise((r) => setTimeout(r, 300));
+
+    // After init failure, _backend = null and _backendInitError is set.
+    // check() must NOT throw — must return true (allow-through)
+    const result = await limiter.check('user-test');
+    expect(result).toBe(true);
+
+    // Warning must have been logged
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Backend unavailable'),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('reset() does not throw when backend init fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createRateLimiter } = await import('./distributed-state');
+    const limiter = createRateLimiter({ name: 'reset-fail-test', windowMs: 60_000, max: 1 });
+
+    // Trigger init
+    await limiter.check('warmup');
+
+    // Wait for Redis init failure
+    await new Promise((r) => setTimeout(r, 300));
+
+    // reset() must NOT throw
+    await expect(limiter.reset('user-test')).resolves.toBeUndefined();
+
+    vi.restoreAllMocks();
+  });
+});

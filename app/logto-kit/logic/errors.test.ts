@@ -327,12 +327,15 @@ describe('isInvalidGrantError', () => {
     expect(isInvalidGrantError({ code: 'oauth.invalid_grant' })).toBe(true);
   });
 
-  it('returns true for Error with message containing invalid_grant', async () => {
+  it('returns true for Error with message matching anchored error= or error: pattern', async () => {
     const { isInvalidGrantError } = await import('./errors');
-    // The fallback message check catches any Error whose message literally contains 'invalid_grant'
-    expect(isInvalidGrantError(new Error('oidc.invalid_grant error'))).toBe(true);
+    // The anchored pattern requires "error:" or "error=" before invalid_grant
+    expect(isInvalidGrantError(new Error('error: invalid_grant'))).toBe(true);
+    expect(isInvalidGrantError(new Error('error=invalid_grant'))).toBe(true);
     // "Grant request is invalid." does NOT contain 'invalid_grant' — detection relies on the code property
     expect(isInvalidGrantError(new Error('Grant request is invalid.'))).toBe(false);
+    // Substring in non-error context (e.g. debug message) must NOT match
+    expect(isInvalidGrantError(new Error('oidc.invalid_grant error'))).toBe(false);
   });
 
   it('returns false for non-Grant errors', async () => {
@@ -346,6 +349,25 @@ describe('isInvalidGrantError', () => {
     const { isInvalidGrantError } = await import('./errors');
     expect(isInvalidGrantError(42)).toBe(false);
     expect(isInvalidGrantError(true)).toBe(false);
+  });
+
+  // BUG-M-005: Anchored pattern tests
+  it('returns false for error message containing invalid_grant as substring in non-error context', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    const err = new Error('Context: invalid_grant detected upstream');
+    expect(isInvalidGrantError(err)).toBe(false);
+  });
+
+  it('returns true for error message "error: invalid_grant"', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    const err = new Error('error: invalid_grant');
+    expect(isInvalidGrantError(err)).toBe(true);
+  });
+
+  it('returns true for error message "error=invalid_grant"', async () => {
+    const { isInvalidGrantError } = await import('./errors');
+    const err = new Error('error=invalid_grant');
+    expect(isInvalidGrantError(err)).toBe(true);
   });
 });
 
@@ -379,12 +401,37 @@ describe('isTransientError', () => {
     expect(isTransientError(new Error('fetch failed'))).toBe(true);
     expect(isTransientError(new Error('Request timed out'))).toBe(true);
 
+    // HTTP context-anchored patterns (BUG-M-006 fix: only match when HTTP context is present)
     expect(isTransientError(new Error('HTTP status 429'))).toBe(true);
-    expect(isTransientError(new Error('Internal server error (500)'))).toBe(true);
-    expect(isTransientError(new Error('503 Service Unavailable'))).toBe(true);
+    expect(isTransientError(new Error('HTTP 500 Internal Server Error'))).toBe(true);
+    expect(isTransientError(new Error('API returned status: 429'))).toBe(true);
     expect(isTransientError(new Error('Error code: ECONNREFUSED'))).toBe(true);
     expect(isTransientError(new Error('ETIMEDOUT connection'))).toBe(true);
     
+    // These no longer match because they lack HTTP context (BUG-M-006 fix)
+    expect(isTransientError(new Error('Internal server error (500)'))).toBe(false);
+    expect(isTransientError(new Error('503 Service Unavailable'))).toBe(false);
     expect(isTransientError(new Error('Something else'))).toBe(false);
+  });
+
+  // BUG-M-006: Ensure non-HTTP numbers don't match
+  it('does not match SHA-512 as transient error', async () => {
+    const { isTransientError } = await import('./errors');
+    expect(isTransientError(new Error('SHA-512 mismatch'))).toBe(false);
+  });
+
+  it('does not match "processed 500 records" as transient error', async () => {
+    const { isTransientError } = await import('./errors');
+    expect(isTransientError(new Error('processed 500 records'))).toBe(false);
+  });
+
+  it('still matches "HTTP 500" as transient error', async () => {
+    const { isTransientError } = await import('./errors');
+    expect(isTransientError(new Error('HTTP 500 Internal Server Error'))).toBe(true);
+  });
+
+  it('still matches "status: 429" as transient error', async () => {
+    const { isTransientError } = await import('./errors');
+    expect(isTransientError(new Error('API returned status: 429'))).toBe(true);
   });
 });

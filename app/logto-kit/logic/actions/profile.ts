@@ -57,9 +57,14 @@ export async function updateUserProfile(profile: {
     assertNameField(profile.givenName, 'givenName');
     assertNameField(profile.familyName, 'familyName');
 
+    const cleanProfile = Object.fromEntries(
+      Object.entries(profile).filter(([_, v]) => v !== undefined && v !== '')
+    );
+    if (Object.keys(cleanProfile).length === 0) return;
+
     const res = await makeRequest('/api/my-account/profile', {
       method: 'PATCH',
-      body: profile,
+      body: cleanProfile,
     });
     await throwOnApiError(res, 'UPDATE_FAILED', 'profile-update', true);
   });

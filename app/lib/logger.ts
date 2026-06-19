@@ -26,15 +26,25 @@ import { type LogEvent } from './log-events';
  * Returns the default log level based on the environment.
  * - Development: 'debug'
  * - Production: 'info'
+ * Validates LOG_LEVEL env var against valid Pino levels; falls back to default
+ * with a console warning if invalid.
  */
+
+const VALID_LOG_LEVELS = new Set<string>(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']);
+
 export function getDefaultLevel(): LevelWithSilent {
   if (process.env.LOG_LEVEL) {
-    return process.env.LOG_LEVEL as LevelWithSilent;
+    if (VALID_LOG_LEVELS.has(process.env.LOG_LEVEL)) {
+      return process.env.LOG_LEVEL as LevelWithSilent;
+    }
+    // Invalid level — warn and fall through to environment-based default
+    console.warn(
+      `[Logger] Invalid LOG_LEVEL "${process.env.LOG_LEVEL}". ` +
+      `Must be one of: ${[...VALID_LOG_LEVELS].join(', ')}. Falling back to default.`
+    );
   }
   return process.env.NODE_ENV === 'production' ? 'info' : 'debug';
 }
-
-const isDevelopment = process.env.NODE_ENV === 'development';
 
 // ============================================================================
 // Sensitive Key Redaction
@@ -171,6 +181,8 @@ export interface LoggerConfig {
  * @returns A Pino logger with typed methods for each log event
  */
 export function createLogger(config: LoggerConfig = {}): TypedLogger {
+  // Evaluate isDevelopment at call time (not module load time) to support test/edge isolation.
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const level = config.level ?? getDefaultLevel();
   const webhookUrl = config.webhookUrl ?? process.env.LOGGING_WEBHOOK_URL;
 

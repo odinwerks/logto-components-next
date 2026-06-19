@@ -1,6 +1,7 @@
 'use server';
 
 import { warn } from '../log';
+import { makeManagementFetch } from './management-request';
 
 type ScopeFetchResult<T> = { roleId: string; scopes: T[] };
 
@@ -23,10 +24,7 @@ export async function fetchRoleScopes<T>(
   const results = await Promise.allSettled(
     roleIds.map(async (roleId) => {
       const url = buildScopesUrl(roleId);
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${m2mToken}` },
-      });
+      const res = await makeManagementFetch(url, { method: 'GET', token: m2mToken });
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');

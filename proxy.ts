@@ -211,9 +211,13 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 });
     }
 
-    // Any other error from the Logto client (e.g. network, config): allow through.
-    // The app itself will handle the unauthenticated state.
-    logWarn('[Proxy] Non-critical error from Logto client, allowing request through:', errorMessage);
+    // Any other error from the Logto client (e.g. network, config).
+    // If the path is protected, redirect to sign-in to fail closed.
+    // Only allow through for public paths (docs, /, /demo).
+    logWarn('[Proxy] Non-critical error from Logto client:', errorMessage);
+    if (!isPublicPath(pathname)) {
+      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+    }
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('Content-Security-Policy', cspHeader);
     return response;

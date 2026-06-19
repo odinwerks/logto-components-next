@@ -47,12 +47,32 @@ export interface AuditEntry {
  *
  * To customise: create `app/logto-kit/audit-transport.ts` and
  * import + call it here conditionally.
+ *
+ * SECURITY: Custom transports that POST externally MUST:
+ *   - Use HTTPS (never HTTP) for the transport URL.
+ *   - Include an Authorization header (Bearer token or HMAC-SHA256 signature).
+ *   - Handle transport failures gracefully (do not throw — audit is best-effort).
+ *
+ * Failure to secure the transport endpoint can expose user activity logs.
  */
 export async function audit(entry: AuditEntry): Promise<void> {
-  const record = JSON.stringify({
-    ts: new Date().toISOString(),
-    ...entry,
-  });
+  let record: string;
+  try {
+    record = JSON.stringify({
+      ts: new Date().toISOString(),
+      ...entry,
+    });
+  } catch (serializeErr) {
+    // Non-serializable metadata (BigInt, circular reference, etc.)
+    // Fall back to a safe partial record without metadata.
+    record = JSON.stringify({
+      ts: new Date().toISOString(),
+      actor: entry.actor,
+      action: entry.action,
+      resource: entry.resource,
+      _serializeError: serializeErr instanceof Error ? serializeErr.message : 'non-serializable metadata',
+    });
+  }
 
   log('[AUDIT]', record);
 }

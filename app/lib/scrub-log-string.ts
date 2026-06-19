@@ -59,6 +59,18 @@ export function scrubLogString(s: string): string {
     'code=[REDACTED]',
   );
 
+  // client_secret=<value> (OAuth form-encoded bodies or JSON)
+  result = result.replace(
+    /client[_-]?secret["'\s]*[:=]["'\s]*[A-Za-z0-9\-_=.%+]+/gi,
+    'client_secret=[REDACTED]',
+  );
+
+  // password=<value> (form-encoded or JSON — minimum 4 chars to avoid "password=OK")
+  result = result.replace(
+    /password["'\s]*[:=]["'\s]*[^\s&"',;]{4,}/gi,
+    'password=[REDACTED]',
+  );
+
   return result;
 }
 

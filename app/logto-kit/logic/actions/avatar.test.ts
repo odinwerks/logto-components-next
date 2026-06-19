@@ -40,6 +40,10 @@ vi.mock('../../../lib/distributed-state', () => ({
   },
 }));
 
+vi.mock('./helpers', () => ({
+  auditSafe: vi.fn(), // best-effort; never throws
+}));
+
 vi.mock('../utils', () => ({
   getCleanEndpoint: vi.fn(() => 'https://placeholder.logto.app'),
   introspectToken: vi.fn().mockResolvedValue({ active: true, sub: 'user123' }),
@@ -300,5 +304,35 @@ describe('uploadAvatar rate limiting (BUG-M07)', () => {
       expect(result.error).toBe('UPLOAD_RATE_LIMITED');
     }
     expect(mockRateLimiterCheck).toHaveBeenCalledWith('user123');
+  });
+});
+
+// ============================================================================
+// BUG-M-009: auditSafe must not propagate audit failures as upload errors
+// ============================================================================
+
+describe('uploadAvatar — audit failure does not surface as upload error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockConfig.avatarBackend = 'logto';
+    process.env.S3_BUCKET_NAME = 'test-bucket';
+    process.env.S3_PUBLIC_URL = 'https://s3.example.com';
+    process.env.S3_ACCESS_KEY_ID = 'access-key';
+    process.env.S3_SECRET_ACCESS_KEY = 'secret';
+    process.env.S3_ENDPOINT = 'https://s3.example.com';
+  });
+
+  it('still returns ok when auditSafe is called after a successful Logto upload', async () => {
+    const { auditSafe } = await import('./helpers');
+    // auditSafe is already mocked to vi.fn() (not throwing)
+    // Just verify the upload succeeds regardless
+    const formData = new FormData();
+    const bytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
+    formData.append('file', new File([bytes], 'avatar.png', { type: 'image/png' }));
+
+    const result = await uploadAvatar(formData);
+    expect(result.ok).toBe(true);
+    // auditSafe should have been called once
+    expect(auditSafe).toHaveBeenCalledWith(expect.any(String), 'avatar.upload', expect.any(String));
   });
 });

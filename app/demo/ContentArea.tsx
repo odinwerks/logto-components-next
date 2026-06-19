@@ -6,6 +6,14 @@ import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
 const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
+  'getting-started': () => import('./content/getting-started/pre-requisites'),
+  'user-button':     () => import('./content/user-button/specs'),
+  'dashboard':       () => import('./content/dashboard/internals'),
+  'tabs-and-flows':  () => import('./content/tabs-and-flows/overview'),
+  'rbac':            () => import('./content/rbac/ui-protected'),
+  'calculator':      () => import('./content/calculator/overview'),
+  'anatomy':         () => import('./content/anatomy/providers'),
+  'security':        () => import('./content/security/error-handling'),
 };
 
 interface ContentAreaProps {
@@ -165,7 +173,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
     return () => { active = false; };
   }, [item.id]);
 
-  const colors = mounted ? (mode === 'dark'
+  const colors = mode === 'dark'
     ? {
         bg: '#0b0b0d',
         border: 'rgba(255,255,255,0.05)',
@@ -207,27 +215,6 @@ export default function ContentArea({ item }: ContentAreaProps) {
         cursor: '#9ca3af',
         footText: '#9ca3af',
         footDot: '#d1d5db',
-      })
-    : {
-        bg: '#0b0b0d',
-        border: 'rgba(255,255,255,0.05)',
-        borderLight: 'rgba(255,255,255,0.045)',
-        textMuted: 'rgba(255,255,255,0.2)',
-        text: 'rgba(255,255,255,0.46)',
-        title: 'rgba(255,255,255,0.88)',
-        desc: 'rgba(255,255,255,0.32)',
-        rule: 'rgba(255,255,255,0.055)',
-        sectBorder: 'rgba(255,255,255,0.058)',
-        sectBg: 'rgba(255,255,255,0.01)',
-        sectHeadBg: 'rgba(255,255,255,0.015)',
-        sectDot: 'rgba(255,255,255,0.18)',
-        sectLabel: 'rgba(255,255,255,0.28)',
-        phBorder: 'rgba(255,255,255,0.07)',
-        phBg: 'rgba(255,255,255,0.012)',
-        phText: 'rgba(255,255,255,0.14)',
-        cursor: 'rgba(255,255,255,0.22)',
-        footText: 'rgba(255,255,255,0.13)',
-        footDot: 'rgba(255,255,255,0.16)',
       };
 
   const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'auto' as const : 'auto' as const };

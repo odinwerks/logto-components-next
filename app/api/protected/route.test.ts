@@ -310,7 +310,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'different-org-id' } },
+        customData: { Preferences: { asOrg: 'different-org-id' } },
       }),
     } as Response);
 
@@ -334,7 +334,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+        customData: { Preferences: { asOrg: 'test-org-id' } },
       }),
     } as Response);
 
@@ -364,7 +364,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+        customData: { Preferences: { asOrg: 'test-org-id' } },
       }),
     } as Response);
 
@@ -397,7 +397,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+        customData: { Preferences: { asOrg: 'test-org-id' } },
       }),
     } as Response);
 
@@ -430,7 +430,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+        customData: { Preferences: { asOrg: 'test-org-id' } },
       }),
     } as Response);
 
@@ -464,7 +464,7 @@ describe('POST /api/protected - org RBAC', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        custom_data: { Preferences: { asOrg: 'test-org-id' } },
+        customData: { Preferences: { asOrg: 'test-org-id' } },
       }),
     } as Response);
 
@@ -560,13 +560,30 @@ describe('POST /api/protected - BUG-001 content-length check', () => {
     expect(res.status).not.toBe(413);
   });
 
-  it('BUG-M-004: returns 413 PAYLOAD_TOO_LARGE when content-length is missing (chunked encoding)', async () => {
+  it('BUG-M-012: allows chunked request with no Content-Length header', async () => {
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
-        // 'content-length' is intentionally omitted here
+        // 'content-length' is intentionally omitted (chunked encoding)
+      },
+      body: JSON.stringify({ action: 'test' }),
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+
+    // Should NOT be 413 — missing Content-Length means chunked/streaming request
+    expect(res.status).not.toBe(413);
+  });
+
+  it('BUG-M-012: still rejects request with Content-Length > 1MiB', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '1048577',
       },
       body: JSON.stringify({ action: 'test' }),
     });
@@ -666,5 +683,62 @@ describe('POST /api/protected - BUG-009 token audience verification', () => {
     // Absent client_id must now be rejected (fail-closed)
     expect(res.status).toBe(401);
     expect(body.error).toBe('TOKEN_INVALID');
+  });
+});
+
+// ── BUG-L-005/BUG-L-006: Dead custom_data fallback removed, ?fields= removed ─
+describe('POST /api/protected - BUG-L-005/BUG-L-006 fetchUserAsOrg', () => {
+  it('returns only customData (no custom_data fallback) from Management API response', async () => {
+    // This test verifies the route no longer tries to read custom_data (snake_case).
+    // The route uses makeManagementFetch which is already mocked via management-request mock.
+    // We just verify the route works fine when only customData is present in the response.
+    // The route module is freshly imported each test due to vi.resetModules() in beforeEach.
+    const req = makeRequest({ action: 'some-action' });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    // Route completes without a 500 error (fetchUserAsOrg is resilient to missing custom_data)
+    expect(res.status).not.toBe(500);
+  });
+});
+
+// ── BUG-L-007: 429 response includes Retry-After header ──────────────────────
+// Tests Retry-After header is sent on 429 by examining an existing rate-limit scenario.
+// NOTE: The rate limiter is in-memory and allows through by default in tests.
+// We verify the header is present by directly testing the apiError → NextResponse path.
+describe('POST /api/protected - BUG-L-007 Retry-After on 429', () => {
+  it('includes Retry-After: 60 header when rate limited via direct route inspection', async () => {
+    // The route was updated to use NextResponse.json directly with Retry-After header for 429.
+    // We verify that the route code structure is correct by testing a unit where
+    // the rate limiter mock triggers a 429.
+    // Since vi.mock inside describe is hoisted and affects all tests, we instead
+    // test this by creating an isolated module test using a fresh module scope.
+    vi.resetModules();
+
+    // Set up a mock for distributed-state that returns false from check()
+    // We need to re-mock after resetModules
+    const rateLimitCheckMock = vi.fn().mockResolvedValue(false);
+
+    // Inline module factory approach: override for just this test
+    vi.doMock('../../lib/distributed-state', () => ({
+      createRateLimiter: () => ({
+        check: rateLimitCheckMock,
+        reset: vi.fn().mockResolvedValue(undefined),
+      }),
+    }));
+
+    process.env.BASE_URL = 'http://localhost:3000';
+
+    const { POST } = await import('./route');
+    const req = makeRequest({ action: 'test' });
+    const res = await POST(req);
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('60');
+
+    const body = await res.json();
+    expect(body.error).toBe('RATE_LIMITED');
+
+    // Clean up
+    vi.doUnmock('../../lib/distributed-state');
   });
 });

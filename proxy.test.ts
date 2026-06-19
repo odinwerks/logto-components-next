@@ -146,7 +146,7 @@ describe('proxy error classification and logging', () => {
     );
   });
 
-  it('allows through on non-critical Logto client errors and logs a warning', async () => {
+  it('redirects protected routes to sign-in on unexpected (non-critical) Logto error', async () => {
     const unexpectedError = new Error('Database connection lost');
     getLogtoContextMock.mockRejectedValue(unexpectedError);
 
@@ -154,20 +154,51 @@ describe('proxy error classification and logging', () => {
     const req = new NextRequest('https://example.com/some-route');
     const res = await proxy(req);
 
-    // Should pass through (not redirect to sign-in)
-    expect(res.status).not.toBe(307);
+    // BUG-H-001 fix: protected routes must redirect to sign-in (fail-closed)
+    expect(res.status).toBe(307);
     const location = res.headers.get('location');
-    if (location) {
-      expect(location).not.toContain('/api/auth/sign-in');
-    }
-
-    // CSP should still be set
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(location).toBeTruthy();
+    expect(location).toContain('/api/auth/sign-in');
 
     expect(warnMock).toHaveBeenCalledWith(
-      '[Proxy] Non-critical error from Logto client, allowing request through:',
+      '[Proxy] Non-critical error from Logto client:',
       'Database connection lost',
     );
+  });
+});
+
+describe('proxy fail-closed on unclassified errors (BUG-H-001)', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+    warnMock.mockReset();
+    errorMock.mockReset();
+    logMock.mockReset();
+  });
+
+  it('redirects protected routes to sign-in on unexpected Logto error', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Some unknown SDK error'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/my-account/profile');
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/auth/sign-in');
+  });
+
+  it('allows public paths through on unexpected Logto error', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Some unknown SDK error'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/getting-started/pre-requisites');
+    const res = await proxy(req);
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('allows /demo through on unexpected Logto error', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Some unknown SDK error'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/demo/intro');
+    const res = await proxy(req);
+    expect(res.status).not.toBe(307);
   });
 });
 

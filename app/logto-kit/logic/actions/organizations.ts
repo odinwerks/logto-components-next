@@ -10,6 +10,7 @@ import { sanitize, plainCode } from '../errors';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
+import { makeManagementFetch } from './management-request';
 
 /**
  * Gets organization-scoped permissions for the current user.
@@ -76,6 +77,7 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
         Authorization: `Basic ${Buffer.from(`${config.appId}:${config.appSecret}`).toString('base64')}`,
       },
       body: body.toString(),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) {
@@ -214,10 +216,7 @@ export async function verifyOrgAccess(
     const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[verifyOrgAccess] Fetching org roles: ${rolesUrl}`);
 
-    const rolesRes = await fetch(rolesUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${m2mToken}` },
-    });
+    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
 
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
@@ -240,10 +239,7 @@ export async function verifyOrgAccess(
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await fetch(scopesUrl, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${m2mToken}` },
-        });
+        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
 
         if (!scopesRes.ok) {
           const text = await scopesRes.text().catch(() => '');
@@ -315,10 +311,7 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[getOrgPermissionsWithDescriptions] Fetching org roles: ${rolesUrl}`);
 
-    const rolesRes = await fetch(rolesUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${m2mToken}` },
-    });
+    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
 
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
@@ -336,10 +329,7 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await fetch(scopesUrl, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${m2mToken}` },
-        });
+        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
 
         if (!scopesRes.ok) {
           const text = await scopesRes.text().catch(() => '');

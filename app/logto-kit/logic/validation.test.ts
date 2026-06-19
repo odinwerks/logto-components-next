@@ -4,6 +4,7 @@ import {
   validatePassword,
   validateUsername,
   validateUrl,
+  validateE164,
   ValidationError,
 } from './validation';
 
@@ -140,5 +141,35 @@ describe('validateUrl', () => {
     }
     expect(error).toBeInstanceOf(ValidationError);
     expect(error?.message).toBe(mockTranslations.urlInvalidProtocol);
+  });
+});
+
+// BUG-L-002: validateE164 should strip all non-digits to match cleanPhoneNumber()
+describe('validateE164', () => {
+  it('accepts a plain E.164 phone number with +', () => {
+    // digits after stripping: 18005551234 — valid
+    expect(() => validateE164('+18005551234', mockTranslations)).not.toThrow();
+  });
+
+  it('accepts phone with spaces and dashes (common user input)', () => {
+    // +1 (800) 555-1234 → digits: 18005551234
+    expect(() => validateE164('+1 (800) 555-1234', mockTranslations)).not.toThrow();
+  });
+
+  it('accepts phone with only spaces and dashes stripped', () => {
+    expect(() => validateE164('+1-800-555-1234', mockTranslations)).not.toThrow();
+  });
+
+  it('throws for empty string after digit stripping', () => {
+    expect(() => validateE164('', mockTranslations)).toThrow(ValidationError);
+  });
+
+  it('throws for non-numeric-only input with no valid phone digits', () => {
+    expect(() => validateE164('abc', mockTranslations)).toThrow(ValidationError);
+  });
+
+  it('throws for number starting with 0 (not valid E.164 country code)', () => {
+    // Stripped digits: 01234567890 — starts with 0, fails /^[1-9]\d{1,14}$/
+    expect(() => validateE164('+01234567890', mockTranslations)).toThrow(ValidationError);
   });
 });

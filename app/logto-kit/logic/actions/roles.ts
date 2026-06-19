@@ -9,6 +9,7 @@ import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult, Oid
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize, plainCode } from '../errors';
+import { makeManagementFetch } from './management-request';
 
 interface ExpectedPrincipal {
   sub: string;
@@ -42,10 +43,7 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
 
     debugLog(`[getRoleDetails] Fetching role ${roleId} from ${url}`);
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await makeManagementFetch(url, { method: 'GET', token });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -85,10 +83,7 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
 
     debugLog(`[getOrganizationUserRoles] Fetching roles for user ${userId} in org ${orgId}`);
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await makeManagementFetch(url, { method: 'GET', token });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -122,12 +117,7 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
 
     debugLog(`[getUserRoles] Fetching roles for user ${userId} from ${url}`);
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await makeManagementFetch(url, { method: 'GET', token });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -209,10 +199,7 @@ export async function verifyPersonalAccess(
     const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[verifyPersonalAccess] Fetching personal roles: ${rolesUrl}`);
 
-    const rolesRes = await fetch(rolesUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${m2mToken}` },
-    });
+    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
 
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
@@ -231,10 +218,7 @@ export async function verifyPersonalAccess(
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await fetch(scopesUrl, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${m2mToken}` },
-        });
+        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
 
         if (!scopesRes.ok) {
           const text = await scopesRes.text().catch(() => '');
@@ -294,10 +278,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
     const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[getUserScopes] Fetching roles for user ${userId}`);
 
-    const rolesRes = await fetch(rolesUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
 
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
@@ -315,10 +296,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
 
-        const scopesRes = await fetch(scopesUrl, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token });
 
         if (!scopesRes.ok) {
           const text = await scopesRes.text().catch(() => '');

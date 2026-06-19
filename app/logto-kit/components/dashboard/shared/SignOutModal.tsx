@@ -138,6 +138,7 @@ export function SignOutModal({
     <Overlay onDismiss={handleAbort}>
       <div
         ref={dialogRef}
+        tabIndex={-1}
         style={{
           width: '100%',
           maxWidth: '27.5rem',

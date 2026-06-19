@@ -8,12 +8,16 @@ export class ValidationError extends Error {
   }
 }
 
-const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+const E164_REGEX = /^[1-9]\d{1,14}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 export function validateE164(phone: string, t: Translations['validation'], field = 'phone'): void {
-  const cleaned = phone.replace(/[\s-]/g, '');
+  // Strip all non-digit characters (including +, (, ), spaces, dashes)
+  // to match cleanPhoneNumber() in verification.ts.
+  // Note: The + is stripped here for validation purposes only;
+  // cleanPhoneNumber's digit-only output is what Logto actually receives.
+  const cleaned = phone.replace(/\D/g, '');
   if (!E164_REGEX.test(cleaned)) {
     throw new ValidationError(t.phoneE164Format, field);
   }
