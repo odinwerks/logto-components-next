@@ -2,6 +2,7 @@
 
 import { signIn, signOut } from '@logto/next/server-actions';
 import { logtoConfig, getLogtoConfig } from '../../config';
+import { sanitize } from '../errors';
 
 /**
  * Validates that routeTo is a safe same-origin relative path.
@@ -44,7 +45,25 @@ export async function signInUser(routeTo?: string): Promise<void> {
 
 /**
  * Signs out the current user.
+ *
+ * On success, `signOut()` throws `NEXT_REDIRECT` (a Next.js redirect pseudo-error)
+ * which is intentionally re-thrown so the router can handle it.
+ * Any other error is sanitized before propagating to prevent SDK internals from
+ * leaking across the Server Action boundary.
  */
 export async function signOutUser(): Promise<void> {
-  await signOut(getLogtoConfig());
+  try {
+    await signOut(getLogtoConfig());
+  } catch (err) {
+    // NEXT_REDIRECT is a control-flow pseudo-error that Next.js uses to perform
+    // server-side redirects. It must be re-thrown unchanged so the router can
+    // pick it up. All other errors are sanitized before propagating.
+    if (
+      err instanceof Error &&
+      (err.message === 'NEXT_REDIRECT' || (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT'))
+    ) {
+      throw err;
+    }
+    throw sanitize(err, { fallback: 'INTERNAL_ERROR' });
+  }
 }
