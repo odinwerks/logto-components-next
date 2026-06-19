@@ -310,4 +310,51 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     const lastCallPayload = (calls[calls.length - 1] as unknown[])[0] as { Preferences: { theme: string; lang: string } };
     expect(lastCallPayload.Preferences.theme).toBe('light');
   });
+
+  it('ignores invalid theme values from sessionStorage (BUG-L16)', () => {
+    // Simulate corrupted/unexpected theme value in sessionStorage
+    sessionStorage.setItem('theme-mode', 'purple');
+
+    let renderedTheme: 'dark' | 'light' | undefined;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      renderedTheme = theme.mode;
+      return <div>Theme: {theme.mode}</div>;
+    }
+
+    render(
+      <PreferencesProvider>
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    // Invalid cached theme should be ignored; component defaults to 'dark'
+    expect(renderedTheme).toBe('dark');
+  });
+
+  it('accepts only "dark" or "light" from sessionStorage — rejects arbitrary strings (BUG-L16)', () => {
+    const invalidValues = ['purple', 'auto', 'system', '1', 'Dark', 'DARK'];
+    for (const invalid of invalidValues) {
+      sessionStorage.setItem('theme-mode', invalid);
+
+      let renderedTheme: 'dark' | 'light' | undefined;
+
+      function TestComponent() {
+        const theme = useThemeMode();
+        renderedTheme = theme.mode;
+        return null;
+      }
+
+      const { unmount } = render(
+        <PreferencesProvider>
+          <TestComponent />
+        </PreferencesProvider>
+      );
+
+      // All invalid values should fall back to the default 'dark'
+      expect(renderedTheme, `Expected default 'dark' for invalid stored theme "${invalid}"`).toBe('dark');
+      unmount();
+    }
+  });
 });

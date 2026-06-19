@@ -41,7 +41,11 @@ const langStorage = createStorageHelpers<string>(LANG_STORAGE_KEY);
 const orgStorage = createStorageHelpers<string | null>(ORG_STORAGE_KEY);
 
 function getStoredTheme(): 'dark' | 'light' | null {
-  return themeStorage.get();
+  const raw = themeStorage.get();
+  // Validate at runtime: sessionStorage returns raw strings, so we must guard
+  // against corrupted or unexpected values before using the typed result.
+  if (raw === 'dark' || raw === 'light') return raw;
+  return null;
 }
 
 function setStoredTheme(theme: 'dark' | 'light') {
