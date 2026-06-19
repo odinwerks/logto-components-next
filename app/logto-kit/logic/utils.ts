@@ -41,7 +41,7 @@ export function truncateError(text: string, maxLength = 200): string {
  * @throws Error if appId is provided and the token's client_id is absent or mismatched (BUG-H03).
  */
 export async function introspectToken(token: string, appId?: string): Promise<OidcIntrospectionResponse> {
-  const url = process.env.LOGTO_INTROSPECTION_URL;
+  let introspectionUrl = process.env.LOGTO_INTROSPECTION_URL;
   let clientId: string | undefined;
   let clientSecret: string | undefined;
 
@@ -53,8 +53,18 @@ export async function introspectToken(token: string, appId?: string): Promise<Oi
     // If config resolution fails (e.g. missing required env vars), treat it as unconfigured
   }
 
+  // Derive introspection URL from endpoint when LOGTO_INTROSPECTION_URL is not set.
+  // LOGTO_INTROSPECTION_URL is optional — see .env.example.
+  if (!introspectionUrl) {
+    try {
+      introspectionUrl = `${getCleanEndpoint()}/oidc/token/introspection`;
+    } catch {
+      // endpoint also unavailable — will fail the guard below
+    }
+  }
+
   if (
-    !url ||
+    !introspectionUrl ||
     !clientId ||
     !clientSecret ||
     clientId === 'build-placeholder' ||
@@ -65,6 +75,8 @@ export async function introspectToken(token: string, appId?: string): Promise<Oi
         'APP_ID and APP_SECRET.'
     );
   }
+
+  const url = introspectionUrl;
 
   // RFC 7662 §2.1: client credentials MUST be sent via HTTP Basic Auth,
   // not in the request body, to avoid leaking secrets in server logs/proxies.

@@ -133,28 +133,30 @@ export function PreferencesProvider({
     if (didSyncFromStorage.current) return;
     didSyncFromStorage.current = true;
     
-    if (initialTheme) {
+    // Fix: cached user preference wins over server-provided initial value.
+    // Only fall back to server prop when no user selection is stored.
+    const cachedTheme = getStoredTheme();
+    if (cachedTheme) {
+      if (cachedTheme !== themeRef.current) setThemeState(cachedTheme);
+    } else if (initialTheme) {
       setStoredTheme(initialTheme);
       setThemeState(initialTheme);
-    } else {
-      const cachedTheme = getStoredTheme();
-      if (cachedTheme && cachedTheme !== themeRef.current) setThemeState(cachedTheme);
     }
 
-    if (initialLang) {
+    const cachedLang = getStoredLang();
+    if (cachedLang) {
+      if (cachedLang !== langRef.current) setLangState(cachedLang);
+    } else if (initialLang) {
       setStoredLang(initialLang);
       setLangState(initialLang);
-    } else {
-      const cachedLang = getStoredLang();
-      if (cachedLang && cachedLang !== langRef.current) setLangState(cachedLang);
     }
 
-    if (initialOrgId !== undefined) {
+    const cachedOrg = getStoredOrg();
+    if (cachedOrg !== null) {
+      if (cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
+    } else if (initialOrgId !== undefined) {
       setStoredOrg(initialOrgId ?? null);
       setAsOrgState(initialOrgId ?? null);
-    } else {
-      const cachedOrg = getStoredOrg();
-      if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
     }
   }, [initialTheme, initialLang, initialOrgId]);
   /* eslint-enable react-hooks/set-state-in-effect */
