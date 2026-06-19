@@ -417,6 +417,15 @@ export function CalculatorClient() {
 
       let newState = { ...prev };
 
+      // Reset from Error state when any new input (digit, op, fn) is pressed
+      if (newState.expr === 'Error' && (a === 'digit' || a === 'op' || a === 'dot' || a === 'fn')) {
+        newState = {
+          ...DEFAULT_STATE,
+          isRad: newState.isRad,
+          invOn: newState.invOn,
+        };
+      }
+
       if (newState.justEvaled && a === 'digit') {
         newState = {
           ...DEFAULT_STATE,
