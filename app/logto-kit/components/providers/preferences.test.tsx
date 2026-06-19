@@ -273,10 +273,11 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       </PreferencesProvider>
     );
 
-    // Post-mount (after layout effects), it should reconcile and have updated to the storage values
+    // BUG-L17 fix: when initialLang/initialOrgId are provided they win over sessionStorage.
+    // Theme has no initial prop, so sessionStorage 'light' wins over default 'dark'.
     expect(renderedTheme).toBe('light');
-    expect(renderedLang).toBe('fr');
-    expect(renderedOrg).toBe('org_stored');
+    expect(renderedLang).toBe('en');       // server prop wins over cached 'fr'
+    expect(renderedOrg).toBe('org_default'); // server prop wins over cached 'org_stored'
   });
 
   it('updates themeRef.current synchronously when setMode is called to prevent silent data corruption', () => {

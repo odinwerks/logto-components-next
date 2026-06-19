@@ -50,8 +50,8 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
   const c = colors;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const showTooltip = isHovered || isFocused;
+  const [isInfoFocused, setIsInfoFocused] = useState(false);
+  const showTooltip = isHovered || isInfoFocused;
   const tooltipId = useId();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
@@ -84,13 +84,13 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
     setIsHovered(false);
   }, []);
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
+  const handleInfoFocus = useCallback(() => {
+    setIsInfoFocused(true);
     openTooltip();
   }, [openTooltip]);
 
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
+  const handleInfoBlur = useCallback(() => {
+    setIsInfoFocused(false);
   }, []);
 
   return (
@@ -104,8 +104,6 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
         onClick={() => handleOrgClick(org.id)}
         role="radio"
         aria-checked={isSelected}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
         style={{
           padding: '0.625rem 2.25rem 0.625rem 0.75rem',
           background: isSelected ? `${c.accentBlue}15` : c.bgPrimary,
@@ -152,15 +150,15 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
           border: 'none',
           padding: '0.25rem',
           margin: 0,
-          outline: isFocused ? `1px solid ${c.accentBlue}` : 'none',
+          outline: isInfoFocused ? `1px solid ${c.accentBlue}` : undefined,
           borderRadius: '0.25rem',
           zIndex: 10,
           color: c.textTertiary,
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onFocus={handleInfoFocus}
+        onBlur={handleInfoBlur}
         onClick={(e) => {
           e.stopPropagation();
         }}
@@ -168,7 +166,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            setIsFocused((prev) => !prev);
+            setIsInfoFocused((prev) => !prev);
           }
         }}
       >

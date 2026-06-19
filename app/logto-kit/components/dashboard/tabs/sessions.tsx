@@ -1085,6 +1085,7 @@ export function SessionsTab({
               <Button
                 variant="danger"
                 onClick={async () => {
+                  if (revokeTargetRef.current !== null) { setShowGcAllModal(false); return; }
                   setGcAllLoading(true);
                   revokeTargetRef.current = { kind: 'all' };
                   setModalPurpose('revoke');

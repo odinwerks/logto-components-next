@@ -5,8 +5,7 @@
 
 /* Font loaded via next/font in layout.tsx - no @import needed */
 
-:root[data-theme="dark"],
-:root {
+:root[data-theme="dark"] {
   /* Backgrounds */
   --ldd-bg-page: #030404;
   --ldd-bg-primary: #111620;

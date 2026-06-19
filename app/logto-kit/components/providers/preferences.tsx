@@ -137,12 +137,22 @@ export function PreferencesProvider({
       if (cachedTheme && cachedTheme !== themeRef.current) setThemeState(cachedTheme);
     }
 
-    const cachedLang = getStoredLang();
-    if (cachedLang && cachedLang !== langRef.current) setLangState(cachedLang);
+    if (initialLang) {
+      setStoredLang(initialLang);
+      setLangState(initialLang);
+    } else {
+      const cachedLang = getStoredLang();
+      if (cachedLang && cachedLang !== langRef.current) setLangState(cachedLang);
+    }
 
-    const cachedOrg = getStoredOrg();
-    if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
-  }, [initialTheme]);
+    if (initialOrgId !== undefined) {
+      setStoredOrg(initialOrgId ?? null);
+      setAsOrgState(initialOrgId ?? null);
+    } else {
+      const cachedOrg = getStoredOrg();
+      if (cachedOrg && cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
+    }
+  }, [initialTheme, initialLang, initialOrgId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {

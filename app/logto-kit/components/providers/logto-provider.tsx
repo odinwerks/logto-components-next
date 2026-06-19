@@ -7,7 +7,7 @@ import type { ActionResult } from '../../logic/actions/safe';
 import { updateUserCustomData } from '../../logic/actions';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
-import { DashboardRouter, useIsPortrait } from '../dashboard/dashboard-router';
+import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
 import { X } from 'lucide-react';
@@ -164,7 +164,6 @@ function DashboardDialog({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
-  const isMobile = useIsPortrait();
   const { isAuthenticated } = useLogto();
 
   // When unauthenticated, show the auth prompt modal instead of the dashboard.
@@ -197,7 +196,7 @@ function DashboardDialog({
           flexDirection: 'column',
         }}
       >
-        {!isMobile && (
+        {(
           <button
             onClick={onClose}
             aria-label="Close dashboard"

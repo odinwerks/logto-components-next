@@ -399,7 +399,9 @@ export function ProfileTab({
         if (!profileResult.ok) {
           // Attempt rollback of name update since profile update failed
           try {
-            const rollbackResult = await onUpdateBasicInfo({ name: userData.name ?? '' });
+            const rollbackUpdates: { name?: string } = {};
+            if (userData.name != null) rollbackUpdates.name = userData.name;
+            const rollbackResult = await onUpdateBasicInfo(rollbackUpdates);
             if (!rollbackResult.ok) {
               console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
               refreshData();
@@ -428,7 +430,10 @@ export function ProfileTab({
           if (!profileResult.ok) {
             // Attempt rollback of name/username update since profile update failed
             try {
-              const rollbackResult = await onUpdateBasicInfo({ name: userData.name ?? '', username: userData.username ?? '' });
+              const rollbackUpdates: { name?: string; username?: string } = {};
+              if (userData.name != null) rollbackUpdates.name = userData.name;
+              if (userData.username != null) rollbackUpdates.username = userData.username;
+              const rollbackResult = await onUpdateBasicInfo(rollbackUpdates);
               if (!rollbackResult.ok) {
                 console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
                 refreshData();

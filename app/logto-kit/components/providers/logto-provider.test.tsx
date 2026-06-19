@@ -84,7 +84,7 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
     expect(screen.getByLabelText('Close dashboard')).toBeInTheDocument();
   });
 
-  it('hides X button on mobile (portrait/narrow) when dashboard is open', () => {
+  it('shows X button on mobile (portrait/narrow) when dashboard is open (BUG-L18 fix: always visible)', () => {
     // Override matchMedia for portrait/narrow (mobile) mode
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches:
@@ -103,10 +103,10 @@ describe('LogtoProvider X button visibility (Issue 2)', () => {
       mobile: <div>mobile-dashboard</div>,
     });
 
-    // X close button should NOT be present on mobile (back button handles it)
+    // X close button should now be present on mobile too (BUG-L18: touch close affordance)
     expect(
-      screen.queryByLabelText('Close dashboard'),
-    ).not.toBeInTheDocument();
+      screen.getByLabelText('Close dashboard'),
+    ).toBeInTheDocument();
   });
 });
 

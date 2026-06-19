@@ -30,8 +30,10 @@ export function SignOutModal({
   const [showFarewell, setShowFarewell] = useState(false);
   const prevIsOpenRef = useRef(isOpen);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const farewellRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(dialogRef, onAbort);
+  useFocusTrap(farewellRef, () => { /* farewell overlay: Escape is a no-op while sign-out is in progress */ });
 
   useEffect(() => {
     // Reset state when transitioning from open to closed (not on initial render)
@@ -94,9 +96,11 @@ export function SignOutModal({
   if (showFarewell) {
     return (
       <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
+        ref={farewellRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.signout.farewell}
+        tabIndex={-1}
         style={{
           position: 'fixed',
           inset: 0,

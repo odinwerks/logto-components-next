@@ -324,19 +324,20 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
     mockSetActiveOrg.mockResolvedValue(true);
   });
 
-  it('triggers tooltip when focusing on OrgCard', async () => {
+  it('triggers tooltip when focusing on OrgCard info button (not the radio button)', async () => {
     renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
 
-    // Find the OrgCard for "Org One"
-    const orgOneCard = screen.getByRole('radio', { name: /Org One/i });
-    expect(orgOneCard).toBeInTheDocument();
+    // Find the info button for "Org One"
+    const infoButtons = screen.getAllByRole('button', { name: /Organization info/i });
+    const infoButton = infoButtons[0];
+    expect(infoButton).toBeInTheDocument();
 
     // Tooltip is not shown yet
     expect(screen.queryByText('org-1')).toBeNull();
 
-    // Focus on the OrgCard
+    // Focus on the info button (not the radio card)
     await act(async () => {
-      fireEvent.focus(orgOneCard);
+      fireEvent.focus(infoButton);
     });
 
     // Tooltip should be rendered
@@ -344,9 +345,9 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
       expect(screen.getByText('org-1')).toBeInTheDocument();
     });
 
-    // Blur the OrgCard
+    // Blur the info button
     await act(async () => {
-      fireEvent.blur(orgOneCard);
+      fireEvent.blur(infoButton);
     });
 
     // Tooltip should be gone
@@ -537,8 +538,8 @@ describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () 
     const infoButtons = screen.getAllByRole('button', { name: /Organization info/i });
     const infoButton = infoButtons[0];
 
-    // Initially should not have outline style
-    expect(infoButton.style.outline).toBe('none');
+    // Initially should not have a visible outline (BUG-M17/M24 fix: undefined instead of 'none')
+    expect(infoButton.style.outline).toBeFalsy();
 
     // Focus on the info button
     await act(async () => {
@@ -546,7 +547,7 @@ describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () 
     });
 
     await waitFor(() => {
-      expect(infoButton.style.outline).not.toBe('none');
+      expect(infoButton.style.outline).not.toBeFalsy();
       expect(infoButton.style.outline).toContain('solid');
     });
 
@@ -556,7 +557,7 @@ describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () 
     });
 
     await waitFor(() => {
-      expect(infoButton.style.outline).toBe('none');
+      expect(infoButton.style.outline).toBeFalsy();
     });
   });
 });

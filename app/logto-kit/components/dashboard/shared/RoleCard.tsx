@@ -149,7 +149,6 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
           padding: 0,
           margin: 0,
           cursor: 'help',
-          outline: 'none',
         }}
       >
         <Info

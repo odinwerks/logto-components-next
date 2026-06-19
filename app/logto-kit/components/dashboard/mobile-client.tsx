@@ -557,9 +557,9 @@ function MobileMenuEntry({
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         animation: prefersReducedMotion
           ? 'none'
-          : `mStagger 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
+          : `mStagger 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`,
         animationDelay: prefersReducedMotion ? '0ms' : `${index * 0.08}s`,
-        opacity: prefersReducedMotion ? 1 : 0,
+        opacity: 1,
         textShadow: pressed
           ? (mode === 'dark' ? '0 0 1rem rgba(255,255,255,0.15)' : '0 0 1rem rgba(0,0,0,0.1)')
           : 'none',
