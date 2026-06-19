@@ -107,7 +107,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: logto-dash-redis
-    command: redis-server --requirepass "${REDIS_PASSWORD}"
+    command: redis-server --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required when Redis is enabled}"
     networks:
       - dash-net
     ports:
