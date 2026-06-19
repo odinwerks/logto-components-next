@@ -214,7 +214,9 @@ describe('getOrgPermissionsWithDescriptions', () => {
 
   it('rejects an invalid orgId via assertSafeLogtoId', async () => {
     vi.mocked(assertSafeLogtoId).mockImplementationOnce(() => {
-      throw new Error('INVALID_INPUT');
+      const e = new Error('INVALID_INPUT');
+      e.name = 'ValidationError';
+      throw e;
     });
 
     const { getOrgPermissionsWithDescriptions } = await import('./organizations');

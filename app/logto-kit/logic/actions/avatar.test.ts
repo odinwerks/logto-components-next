@@ -17,6 +17,29 @@ const mockConfig = vi.hoisted(() => {
 
 vi.mock('../../config', () => mockConfig);
 
+// BUG-M07: Mock distributed-state so we can control rate limiter behavior
+const { mockRateLimiterCheck } = vi.hoisted(() => {
+  const check = vi.fn().mockResolvedValue(true); // default: allow
+  const reset = vi.fn().mockResolvedValue(undefined);
+  return { mockRateLimiterCheck: check, mockRateLimiterReset: reset };
+});
+
+vi.mock('../../../lib/distributed-state', () => ({
+  createRateLimiter: vi.fn(() => ({
+    check: mockRateLimiterCheck,
+    reset: vi.fn().mockResolvedValue(undefined),
+  })),
+  createLockManager: vi.fn(() => ({
+    acquire: vi.fn().mockResolvedValue(() => {}),
+    release: vi.fn(),
+  })),
+  tokenCache: {
+    get: vi.fn().mockReturnValue(null),
+    set: vi.fn(),
+    clear: vi.fn(),
+  },
+}));
+
 vi.mock('../utils', () => ({
   getCleanEndpoint: vi.fn(() => 'https://placeholder.logto.app'),
   introspectToken: vi.fn().mockResolvedValue({ active: true, sub: 'user123' }),
@@ -220,4 +243,62 @@ describe('rate limiter map cleanup (stubs after migration to centralized rate li
     expect(await getUploadTimestampsSizeForTesting()).toBe(0);
   });
 
+});
+
+// ============================================================================
+// BUG-M07: Rate limiter must apply to ALL backends (including logto)
+// ============================================================================
+
+describe('uploadAvatar rate limiting (BUG-M07)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.S3_BUCKET_NAME = 'test-bucket';
+    process.env.S3_PUBLIC_URL = 'https://s3.example.com';
+    process.env.S3_ACCESS_KEY_ID = 'access-key';
+    process.env.S3_SECRET_ACCESS_KEY = 'secret';
+    process.env.S3_ENDPOINT = 'https://s3.example.com';
+    mockConfig.avatarBackend = 'logto';
+    // Default: allow requests
+    mockRateLimiterCheck.mockResolvedValue(true);
+  });
+
+  function createFakeImageFile() {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
+    return new File([bytes], 'avatar.png', { type: 'image/png' });
+  }
+
+  it('applies rate limiting for logto backend (BUG-M07: no longer bypassed)', async () => {
+    // Simulate rate limit exceeded
+    mockRateLimiterCheck.mockResolvedValueOnce(false);
+    mockConfig.avatarBackend = 'logto';
+
+    const formData = new FormData();
+    formData.append('file', createFakeImageFile());
+
+    const result = await uploadAvatar(formData);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe('UPLOAD_RATE_LIMITED');
+    }
+    // The rate limiter must have been checked
+    expect(mockRateLimiterCheck).toHaveBeenCalledWith('user123');
+  });
+
+  it('applies rate limiting for s3 backend (unchanged behavior)', async () => {
+    // Simulate rate limit exceeded
+    mockRateLimiterCheck.mockResolvedValueOnce(false);
+    mockConfig.avatarBackend = 's3';
+
+    const formData = new FormData();
+    formData.append('file', createFakeImageFile());
+
+    const result = await uploadAvatar(formData);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe('UPLOAD_RATE_LIMITED');
+    }
+    expect(mockRateLimiterCheck).toHaveBeenCalledWith('user123');
+  });
 });

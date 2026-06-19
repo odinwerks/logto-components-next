@@ -8,7 +8,7 @@ import { safeAction, type DataResult } from './safe';
 import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult, OidcIntrospectionResponse } from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
-import { sanitize } from '../errors';
+import { sanitize, plainCode } from '../errors';
 
 interface ExpectedPrincipal {
   sub: string;
@@ -266,7 +266,7 @@ export async function verifyPersonalAccess(
     }
 
     if (roles.length > 0 && successfulFetches === 0) {
-      throw new Error('FETCH_FAILED');
+      throw plainCode('FETCH_FAILED');
     }
 
     debugLog(`[verifyPersonalAccess] Effective personal permissions for user ${userId}:`, permissions);
@@ -347,7 +347,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
     }
 
     if (successfulResults.length === 0) {
-      throw new Error('All scope fetches failed');
+      throw plainCode('FETCH_FAILED');
     }
 
     // 3. Aggregate and deduplicate

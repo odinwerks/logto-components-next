@@ -272,7 +272,7 @@ export async function revokeAllOtherSessions(
       : sessions.find(s => s.isCurrent === true);
 
     if (!currentSession) {
-      throw new Error('Cannot identify current session - session UID mismatch.');
+      throw plainCode('SESSION_REVOKE_FAILED');
     }
 
     // Filter by uid (the session identifier, not the JWT id)

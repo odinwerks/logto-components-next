@@ -245,7 +245,7 @@ describe('getUserScopes error handling', () => {
     // Since all parallel scope fetches failed, it throws an error and returns ok: false
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
-    expect(result.error).toContain('All scope fetches failed');
+    expect(result.error).toBe('FETCH_FAILED');
 
     // The raw details MUST be logged via warn
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Super Secret Raw Backend Error Details'));

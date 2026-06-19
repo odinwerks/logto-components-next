@@ -25,6 +25,11 @@ vi.mock('../errors', () => ({
     err.name = 'SanitizedError';
     return err;
   }),
+  sanitize: vi.fn((_err: unknown, opts: { fallback: string }) => {
+    const e = new Error(opts.fallback);
+    e.name = 'SanitizedError';
+    return e;
+  }),
 }));
 
 vi.mock('./tokens', () => ({

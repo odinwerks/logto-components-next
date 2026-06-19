@@ -3,10 +3,10 @@
  * Audit log primitive
  * ============================================================================
  *
- * Provides a structured hook for security-relevant mutations. In development,
- * audit records are logged via `console.info` for readability. In production,
- * they are routed through the shared Pino-aware logger (`log()` from ./log),
- * ensuring they reach whichever backend is configured (console, Pino, or both).
+ * Provides a structured hook for security-relevant mutations. All audit
+ * records are routed through the shared Pino-aware logger (`log()` from ./log),
+ * ensuring they reach whichever backend is configured (console, Pino, or both)
+ * and that sensitive values are scrubbed via the Pino scrub-log pipeline.
  *
  * Downstream developers can replace the transport by re-exporting a custom
  * audit function from their project's logto-kit config.
@@ -24,7 +24,6 @@
  *   }
  */
 
-import { isDev } from './dev-mode';
 import { log } from './log';
 
 export interface AuditEntry {
@@ -41,9 +40,10 @@ export interface AuditEntry {
 /**
  * Logs a security-relevant mutation.
  *
- * - In development: `console.info` with the full entry.
- * - In production: routed through the shared logger (`log()`), which writes
- *   to the configured backend (console, Pino, or both).
+ * All entries are routed through `log()` (the shared Pino-aware logger),
+ * which applies scrubbing and routes to the configured backend
+ * (console, Pino, or both). Previously the dev path used `console.info`
+ * directly, which bypassed Pino's scrub-log pipeline (BUG-M09).
  *
  * To customise: create `app/logto-kit/audit-transport.ts` and
  * import + call it here conditionally.
@@ -54,9 +54,5 @@ export async function audit(entry: AuditEntry): Promise<void> {
     ...entry,
   });
 
-  if (isDev) {
-    console.info('[AUDIT]', record);
-  } else {
-    log('[AUDIT]', record);
-  }
+  log('[AUDIT]', record);
 }

@@ -39,6 +39,11 @@ vi.mock('./request', () => ({
 
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  sanitize: vi.fn((_err: unknown, opts: { fallback: string }) => {
+    const e = new Error(opts.fallback);
+    e.name = 'SanitizedError';
+    return e;
+  }),
 }));
 
 vi.mock('./tokens', () => ({

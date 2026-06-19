@@ -29,7 +29,6 @@ vi.mock('./log', () => ({
 
 import { audit } from './audit';
 import { log } from './log';
-import { isDev } from './dev-mode';
 
 // ============================================================================
 // Tests
@@ -50,10 +49,36 @@ describe('audit', () => {
     vi.restoreAllMocks();
   });
 
-  it('calls log() in production mode', async () => {
-    // isDev is mocked to false (production)
-    expect(isDev).toBe(false);
+  it('always calls log() (routes through Pino scrubbing pipeline)', async () => {
+    await audit(entry);
 
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(
+      '[AUDIT]',
+      expect.stringContaining('"action":"password.change"'),
+    );
+    expect(log).toHaveBeenCalledWith(
+      '[AUDIT]',
+      expect.stringContaining('"actor":"user-123"'),
+    );
+  });
+
+  it('does NOT use console.info (BUG-M09: bypassed Pino scrubbing)', async () => {
+    // BUG-M09: Previously in dev mode, audit used console.info which bypassed
+    // the Pino scrub-log pipeline. Now it always uses log().
+    const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    await audit(entry);
+
+    // console.info must never be called directly by audit()
+    expect(consoleSpy).not.toHaveBeenCalled();
+    // log() must have been called
+    expect(log).toHaveBeenCalledTimes(1);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('calls log() in production mode', async () => {
     await audit(entry);
 
     expect(log).toHaveBeenCalledTimes(1);
@@ -86,17 +111,6 @@ describe('audit', () => {
       '[AUDIT]',
       expect.stringContaining('"ip":"127.0.0.1"'),
     );
-  });
-
-  it('still uses console.info in dev mode', async () => {
-    // Override the isDev mock for this test
-    vi.mocked(isDev as unknown as { getMockImplementation?: () => unknown })
-      // Can't change const, so we use a different approach
-    // We'll verify the dev-mode path separately - the mock is false here
-    // but the real module would use console.info when isDev=true
-    // This is a known limitation of mocking const exports
-    // Instead, verify the branch exists by checking the module source
-    expect(true).toBe(true); // placeholder - dev-mode path tested implicitly
   });
 
   it('passes the entire entry as structured JSON', async () => {

@@ -6,7 +6,7 @@ import { debugLog } from '../debug';
 import { assertSafeLogtoId, decodeLogtoAccessToken, assertSafeUserId } from '../guards';
 import { safeAction, type DataResult } from './safe';
 import { warn } from '../log';
-import { sanitize } from '../errors';
+import { sanitize, plainCode } from '../errors';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
@@ -275,7 +275,7 @@ export async function verifyOrgAccess(
     }
 
     if (roles.length > 0 && successfulFetches === 0) {
-      throw new Error('FETCH_FAILED');
+      throw plainCode('FETCH_FAILED');
     }
 
     debugLog(`[verifyOrgAccess] Effective permissions for user ${userId} in org ${orgId}:`, permissions);

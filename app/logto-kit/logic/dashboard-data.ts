@@ -109,8 +109,26 @@ export async function fetchDashboardDataCore(
         avatar: (userInfo.picture as string) || undefined,
         primaryEmail: (userInfo.email as string) || undefined,
         primaryPhone: (userInfo.phone_number as string) || undefined,
-        customData: (userInfo.custom_data as Record<string, unknown>) || {},
-        identities: (userInfo.identities as Record<string, { userId: string; details?: Record<string, unknown> }>) || {},
+      customData: (userInfo.custom_data as Record<string, unknown>) || {},
+      // BUG-M08: Allowlist only safe display fields from identity.details.
+      // Strip all other fields (tokens, raw_data, etc.) that Logto may include.
+      // Fields used by identityDetail() in identities.tsx: email, username, name, login.
+      identities: Object.fromEntries(
+        Object.entries(
+          (userInfo.identities as Record<string, { userId?: string; details?: Record<string, unknown> }>) || {}
+        ).map(([provider, identity]) => {
+          const raw = identity?.details ?? {};
+          const safeDetails: Record<string, unknown> = {};
+          const SAFE_DETAIL_KEYS = ['userId', 'email', 'username', 'name', 'login'] as const;
+          for (const key of SAFE_DETAIL_KEYS) {
+            if (key in raw) safeDetails[key] = raw[key];
+          }
+          return [provider, {
+            userId: identity?.userId ?? '',
+            details: safeDetails,
+          }];
+        })
+      ),
         profile: {
           givenName: (userInfo.given_name as string) || undefined,
           familyName: (userInfo.family_name as string) || undefined,

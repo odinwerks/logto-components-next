@@ -302,6 +302,13 @@ export async function uploadAvatar(
   }
   assertSafeUserId(userId);
 
+  // BUG-M07: Rate limit check applies unconditionally regardless of backend.
+  // Previously the check was inside the S3 branch only, allowing the Logto
+  // backend to bypass the per-user upload rate limit.
+  if (!(await checkRateLimit(userId))) {
+    throw plainCode('UPLOAD_RATE_LIMITED');
+  }
+
   // ── Extract and validate file ────────────────────────────────────────
   const rawFile = formData.get('file');
   if (!(rawFile instanceof File)) {
@@ -353,11 +360,6 @@ export async function uploadAvatar(
     await audit({ actor: userId, action: 'avatar.upload', resource: userId });
 
     return { url: data.avatar ?? '' };
-  }
-
-  // ── Rate limit (S3/MinIO backend only - Logto has its own) ────────────
-  if (!(await checkRateLimit(userId))) {
-    throw plainCode('UPLOAD_RATE_LIMITED');
   }
 
   // ── Storage config ───────────────────────────────────────────────────

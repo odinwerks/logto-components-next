@@ -281,7 +281,7 @@ describe('revokeAllOtherSessions', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
-    expect(result.error).toContain('Cannot identify current session');
+    expect(result.error).toContain('SESSION_REVOKE_FAILED');
   });
 
   it('only calls DELETE for non-current sessions, skipping the current one', async () => {
@@ -383,7 +383,7 @@ describe('revokeAllOtherSessions', () => {
     const result = await revokeAllOtherSessions('verif_1', Date.now() + 60000);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
-    expect(result.error).toContain('Cannot identify current session');
+    expect(result.error).toContain('SESSION_REVOKE_FAILED');
   });
 
   // BUG-019: Session revocation timeout should abort the HTTP request

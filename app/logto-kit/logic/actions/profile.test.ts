@@ -14,6 +14,16 @@ vi.mock('./shared', () => ({
 
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  plainCode: vi.fn((code: string) => {
+    const e = new Error(code);
+    e.name = 'SanitizedError';
+    return e;
+  }),
+  sanitize: vi.fn((_err: unknown, opts: { fallback: string }) => {
+    const e = new Error(opts.fallback);
+    e.name = 'SanitizedError';
+    return e;
+  }),
 }));
 
 vi.mock('./tokens', () => ({
@@ -55,6 +65,7 @@ vi.mock('../guards', () => {
       }
     }),
     assertSafeUserId: vi.fn(),
+    assertSafeLogtoId: vi.fn(), // BUG-M04: updateUserCustomData now uses assertSafeLogtoId
     pickPreferences: vi.fn((input: unknown) => {
       if (input === null || input === undefined) return {};
       if (typeof input !== 'object' || Array.isArray(input)) {
@@ -384,13 +395,11 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns { ok: false } when the user is unauthenticated', async () => {
+  it('returns { ok: false } when the user is unauthenticated (inactive token)', async () => {
     const { updateUserCustomData } = await import('./profile');
 
-    vi.mocked(getLogtoContext).mockResolvedValueOnce({
-      claims: { sub: 'user-test-123' },
-      isAuthenticated: false,
-    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
+    // BUG-M04: auth check now uses introspectToken, not getLogtoContext
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
     vi.stubGlobal('fetch', vi.fn());
 
@@ -402,13 +411,11 @@ describe('updateUserCustomData', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns { ok: false } when the user ID is missing', async () => {
+  it('returns { ok: false } when the user ID is missing (sub not in introspection)', async () => {
     const { updateUserCustomData } = await import('./profile');
 
-    vi.mocked(getLogtoContext).mockResolvedValueOnce({
-      claims: {},
-      isAuthenticated: true,
-    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
+    // BUG-M04: auth check now uses introspectToken, not getLogtoContext
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     vi.stubGlobal('fetch', vi.fn());
 
@@ -475,9 +482,10 @@ describe('updateUserCustomData', () => {
     const firstCall = new Promise<void>(r => { resolveFirst = r; });
 
     let secondCallStarted = false;
-    vi.mocked(getLogtoContext)
-      .mockResolvedValueOnce({ claims: { sub: 'user-A' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>)
-      .mockResolvedValueOnce({ claims: { sub: 'user-B' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
+    // BUG-M04: now uses introspectToken for user identity, not getLogtoContext
+    vi.mocked(introspectToken)
+      .mockResolvedValueOnce({ sub: 'user-A', active: true })
+      .mockResolvedValueOnce({ sub: 'user-B', active: true });
 
     vi.stubGlobal('fetch', vi.fn()
       // user-A GET - blocks
@@ -518,7 +526,8 @@ describe('updateUserCustomData', () => {
 
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
-    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-123' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
+    // BUG-M04: now uses introspectToken for user identity, not getLogtoContext
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'same-user-123', active: true });
 
     const { updateUserCustomData } = await import('./profile');
 
@@ -575,7 +584,8 @@ describe('updateUserCustomData', () => {
   it('serializes multiple rapid updates from the same user in sequence, ensuring all succeed', async () => {
     vi.resetModules();
 
-    vi.mocked(getLogtoContext).mockResolvedValue({ claims: { sub: 'same-user-999' }, isAuthenticated: true } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
+    // BUG-M04: now uses introspectToken for user identity, not getLogtoContext
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'same-user-999', active: true });
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
     vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
 

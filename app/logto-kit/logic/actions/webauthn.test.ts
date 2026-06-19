@@ -19,6 +19,16 @@ vi.mock('./request', () => ({
 
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
+  plainCode: vi.fn((code: string) => {
+    const e = new Error(code);
+    e.name = 'SanitizedError';
+    return e;
+  }),
+  sanitize: vi.fn((_err: unknown, opts: { fallback: string }) => {
+    const e = new Error(opts.fallback);
+    e.name = 'SanitizedError';
+    return e;
+  }),
 }));
 
 vi.mock('../audit', () => ({
@@ -70,6 +80,13 @@ const mockErrorResponse = (status = 400): Response =>
     json: vi.fn().mockResolvedValue({ message: 'Error' }),
     text: vi.fn().mockResolvedValue('Bad Request'),
   } as unknown as Response);
+
+/** Creates a SanitizedError matching the real throwOnApiError / plainCode output */
+function makeSanitizedError(code: string): Error {
+  const e = new Error(code);
+  e.name = 'SanitizedError';
+  return e;
+}
 
 // ============================================================================
 // requestWebAuthnRegistration
@@ -127,13 +144,36 @@ describe('requestWebAuthnRegistration', () => {
 
   it('returns error on error response', async () => {
     vi.mocked(makeRequest).mockResolvedValue(mockErrorResponse(422));
-    vi.mocked(throwOnApiError).mockRejectedValue(new Error('MFA_ENROLL_FAILED'));
+    vi.mocked(throwOnApiError).mockRejectedValue(makeSanitizedError('MFA_ENROLL_FAILED'));
 
     const r = await requestWebAuthnRegistration();
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
     expect(throwOnApiError).toHaveBeenCalled();
+  });
+
+  it('returns UNAUTHORIZED when token is inactive (BUG-M05: explicit auth check)', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
+
+    const r = await requestWebAuthnRegistration();
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
+    // makeRequest must NOT have been called - auth check must be first
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('returns UNAUTHORIZED when sub is missing (BUG-M05: explicit auth check)', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
+
+    const r = await requestWebAuthnRegistration();
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -214,7 +254,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('returns error when throwOnApiError rejects', async () => {
-    vi.mocked(throwOnApiError).mockRejectedValueOnce(new Error('MFA_ENROLL_FAILED'));
+    vi.mocked(throwOnApiError).mockRejectedValueOnce(makeSanitizedError('MFA_ENROLL_FAILED'));
 
     const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
@@ -226,6 +266,16 @@ describe('verifyAndLinkWebAuthn', () => {
   it('returns UNAUTHORIZED when token is inactive', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
+
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
+  });
+
+  it('returns UNAUTHORIZED when sub is missing (BUG-M06: no fallback to unknown)', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
     expect(r.ok).toBe(false);
@@ -310,7 +360,7 @@ describe('renamePasskey', () => {
   });
 
   it('returns error when throwOnApiError rejects', async () => {
-    vi.mocked(throwOnApiError).mockRejectedValueOnce(new Error('MFA_ENROLL_FAILED'));
+    vi.mocked(throwOnApiError).mockRejectedValueOnce(makeSanitizedError('MFA_ENROLL_FAILED'));
 
     const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);
@@ -321,6 +371,16 @@ describe('renamePasskey', () => {
   it('returns UNAUTHORIZED when token is inactive', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
+
+    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('UNAUTHORIZED');
+  });
+
+  it('returns UNAUTHORIZED when sub is missing (BUG-M06: no fallback to unknown)', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
     expect(r.ok).toBe(false);

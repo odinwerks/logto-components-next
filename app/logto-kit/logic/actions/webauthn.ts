@@ -3,7 +3,7 @@
 import { assertSafeLogtoId, assertPasskeyName } from '../guards';
 import { ValidationError } from '../validation';
 import { makeRequest } from './request';
-import { throwOnApiError } from '../errors';
+import { throwOnApiError, plainCode } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
@@ -18,6 +18,13 @@ export async function requestWebAuthnRegistration(): Promise<DataResult<{
   verificationRecordId: string;
 }>> {
   return safeAction(async () => {
+    // BUG-M05: Explicit auth check matching verifyAndLinkWebAuthn pattern
+    const _token = await getTokenForServerAction();
+    const _intro = await introspectToken(_token);
+    if (!_intro.active || !_intro.sub) {
+      throw plainCode('UNAUTHORIZED');
+    }
+
     const res = await makeRequest('/api/verifications/web-authn/registration', {
       method: 'POST',
     });
@@ -27,7 +34,7 @@ export async function requestWebAuthnRegistration(): Promise<DataResult<{
     const data = await res.json();
 
     if (!data || typeof data.verificationRecordId !== 'string' || !data.registrationOptions || typeof data.registrationOptions !== 'object') {
-      throw new Error('MFA_ENROLL_FAILED');
+      throw plainCode('MFA_ENROLL_FAILED');
     }
 
     return {
@@ -55,10 +62,10 @@ export async function verifyAndLinkWebAuthn(
   return safeAction(async () => {
     const _token = await getTokenForServerAction();
     const _intro = await introspectToken(_token);
-    if (!_intro.active) {
-      throw new Error('UNAUTHORIZED');
+    if (!_intro.active || !_intro.sub) {
+      throw plainCode('UNAUTHORIZED');
     }
-    const userId = _intro.sub ?? 'unknown';
+    const userId = _intro.sub;
 
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
@@ -108,10 +115,11 @@ export async function renamePasskey(
   return safeAction(async () => {
     const _token = await getTokenForServerAction();
     const _intro = await introspectToken(_token);
-    if (!_intro.active) {
-      throw new Error('UNAUTHORIZED');
+    // BUG-M06: also check _intro.sub to prevent 'unknown' userId in audit
+    if (!_intro.active || !_intro.sub) {
+      throw plainCode('UNAUTHORIZED');
     }
-    const userId = _intro.sub ?? 'unknown';
+    const userId = _intro.sub;
 
     assertSafeLogtoId(verificationId, 'verificationId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');

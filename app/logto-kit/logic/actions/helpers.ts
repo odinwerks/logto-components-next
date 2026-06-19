@@ -7,6 +7,7 @@
 
 import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS, LOGTO_VERIFICATION_MAX_FUTURE_MS } from '../constants';
 import { audit, type AuditEntry } from '../audit';
+import { ValidationError } from '../validation';
 
 // ============================================================================
 // Pattern 1: Staleness check
@@ -26,11 +27,11 @@ export function assertVerificationNotExpired(timestamp: number): void {
   // more than 11 minutes from now (10 min TTL + 1 min clock-skew buffer).
   // MAX_SAFE_INTEGER and similar are rejected.
   if (!Number.isFinite(timestamp) || timestamp > now + LOGTO_VERIFICATION_MAX_FUTURE_MS) {
-    throw new Error('VERIFICATION_EXPIRED');
+    throw new ValidationError('VERIFICATION_EXPIRED', 'verificationTimestamp');
   }
   // Original staleness check
   if (now > timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
-    throw new Error('VERIFICATION_EXPIRED');
+    throw new ValidationError('VERIFICATION_EXPIRED', 'verificationTimestamp');
   }
 }
 

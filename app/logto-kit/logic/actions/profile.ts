@@ -7,17 +7,15 @@ import {
   assertNameField,
   assertUsername,
   assertHttpUrl,
-  assertSafeUserId,
+  assertSafeLogtoId,
   pickPreferences,
 } from '../guards';
 import { safeAction, type ActionResult } from './safe';
-import { getLogtoContext } from '@logto/next/server-actions';
-import { getManagementApiToken, getLogtoConfig } from '../../config';
-import { getCleanEndpoint } from '../utils';
+import { getManagementApiToken } from '../../config';
+import { getCleanEndpoint, introspectToken } from '../utils';
 import { warn } from '../log';
 import { createLockManager } from '../../../lib/distributed-state';
 import { getTokenForServerAction } from './tokens';
-import { introspectToken } from '../utils';
 
 export async function updateUserBasicInfo(updates: {
   name?: string;
@@ -99,13 +97,15 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const safePrefs = pickPreferences(rawPrefs);
     if (Object.keys(safePrefs).length === 0) return;
 
-    // Get user ID for per-user locking
-    const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
-    if (!isAuthenticated || !claims?.sub) {
+    // BUG-M04: Use live token introspection (same pattern as updateUserBasicInfo)
+    // instead of stale getLogtoContext, to prevent IDOR via stale session claims.
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
-    const userId = claims.sub;
-    assertSafeUserId(userId);
+    const userId = introspection.sub;
+    assertSafeLogtoId(userId, 'userId');
 
     // Fetch M2M token and endpoint BEFORE acquiring the lock to avoid
     // holding the lock during network I/O (BUG-010).
@@ -129,7 +129,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
       if (!getRes.ok) {
         const errBody = await getRes.text().catch(() => getRes.statusText);
         warn(`[updateUserCustomData] GET custom-data failed ${getRes.status}: ${errBody.substring(0, 200)}`);
-        throw new Error('UPDATE_FAILED');
+        throw plainCode('UPDATE_FAILED');
       }
       const existingCustomData = (await getRes.json()) as Record<string, unknown>;
       const existingPrefs = (existingCustomData.Preferences as Record<string, unknown>) ?? {};
@@ -157,7 +157,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
       if (!patchRes.ok) {
         const errBody = await patchRes.text().catch(() => patchRes.statusText);
         warn(`[updateUserCustomData] Management API PATCH failed ${patchRes.status}: ${errBody.substring(0, 200)}`);
-        throw new Error('UPDATE_FAILED');
+        throw plainCode('UPDATE_FAILED');
       }
     } finally {
       releaseLock();
