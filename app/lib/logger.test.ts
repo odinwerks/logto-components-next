@@ -227,4 +227,47 @@ describe('logger', () => {
       ).not.toThrow();
     });
   });
+
+  describe('webhook queue overflow (BUG-M11)', () => {
+    it('drops oldest entries and warns when queue exceeds MAX_QUEUE_SIZE', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      // Capture stdout writes
+      const stdoutWrites: string[] = [];
+      vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
+        if (typeof chunk === 'string') stdoutWrites.push(chunk);
+        return true;
+      });
+
+      // Patch global fetch to block flushing so queue can grow
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+        new Promise(() => {}) // never resolves — keeps 'pending = true'
+      );
+
+      const { createLogger } = await import('./logger');
+      const logger = createLogger({
+        level: 'info',
+        webhookUrl: 'https://webhook.example.com/log',
+      });
+
+      // First write triggers a flush that sets pending = true and never resolves.
+      // Subsequent writes accumulate in the queue without flushing.
+      // We write MAX_QUEUE_SIZE + 2 entries to trigger at least one eviction.
+      const MAX = 5000;
+      for (let i = 0; i < MAX + 2; i++) {
+        logger.info(LOG_EVENTS.AUTH_SIGN_IN, `msg ${i}`);
+      }
+
+      // Allow setImmediate callbacks to run
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // Overflow warning must have been emitted at least once
+      const warnLines = stdoutWrites.filter((w) =>
+        w.includes('[logger] webhook queue full')
+      );
+      expect(warnLines.length).toBeGreaterThanOrEqual(1);
+
+      fetchSpy.mockRestore();
+    });
+  });
 });

@@ -102,6 +102,7 @@ function createWebhookDestination(webhookUrl: string) {
     }
   }
 
+  const MAX_QUEUE_SIZE = 5000;
   let pending = false;
   const queue: string[] = [];
 
@@ -141,6 +142,10 @@ function createWebhookDestination(webhookUrl: string) {
 
   return {
     write(line: string) {
+      if (queue.length >= MAX_QUEUE_SIZE) {
+        queue.shift();
+        process.stdout.write('[logger] webhook queue full, dropping oldest log line\n');
+      }
       queue.push(line.trim());
       // Flush on next tick to allow batching
       setImmediate(() => flush());
