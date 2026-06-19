@@ -31,6 +31,63 @@ describe('introspectToken', () => {
     );
   });
 
+  // BUG-H03: audience check fails open when client_id absent
+  it('throws TOKEN_AUDIENCE_MISMATCH when appId is provided and client_id is absent (BUG-H03)', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123' }), { status: 200 })
+      // Note: no client_id in response
+    );
+
+    const { introspectToken } = await import('./utils');
+    await expect(introspectToken('some-token', 'client-id-123')).rejects.toThrow('TOKEN_AUDIENCE_MISMATCH');
+  });
+
+  it('throws TOKEN_AUDIENCE_MISMATCH when appId is provided and client_id mismatches (BUG-H03)', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'other-app-id' }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    await expect(introspectToken('some-token', 'client-id-123')).rejects.toThrow('TOKEN_AUDIENCE_MISMATCH');
+  });
+
+  it('does not throw when appId is provided and client_id matches (BUG-H03)', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123', client_id: 'client-id-123' }), { status: 200 })
+    );
+
+    const { introspectToken } = await import('./utils');
+    const result = await introspectToken('some-token', 'client-id-123');
+    expect(result.client_id).toBe('client-id-123');
+  });
+
+  it('does not check client_id when appId is not provided (backward compat)', async () => {
+    vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');
+    vi.stubEnv('APP_ID', 'client-id-123');
+    vi.stubEnv('APP_SECRET', 'super-secret-value');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ active: true, sub: 'user-123' }), { status: 200 })
+      // No client_id — should NOT throw when appId is not supplied
+    );
+
+    const { introspectToken } = await import('./utils');
+    const result = await introspectToken('some-token'); // no appId
+    expect(result).toEqual({ active: true, sub: 'user-123' });
+  });
+
   // API-A03: client credentials must be in Basic Auth header, not the POST body
   it('sends client credentials in the Authorization header (Basic Auth), not in the body', async () => {
     vi.stubEnv('LOGTO_INTROSPECTION_URL', 'https://example.com/introspect');

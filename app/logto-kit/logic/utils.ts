@@ -32,11 +32,15 @@ export function truncateError(text: string, maxLength = 200): string {
 /**
  * Introspects an OIDC token to validate its active status and claims.
  * @param token - The access token to introspect.
+ * @param appId - Optional application ID to validate token audience (client_id).
+ *   When provided, the introspection response MUST contain a matching client_id.
+ *   Tokens without client_id are rejected (fail-closed) to prevent bypass attacks.
  * @returns The OIDC introspection response containing active status and claims.
  * @throws Error if introspection URL, APP_ID, or APP_SECRET are not configured.
  * @throws Error if the introspection request fails.
+ * @throws Error if appId is provided and the token's client_id is absent or mismatched (BUG-H03).
  */
-export async function introspectToken(token: string): Promise<OidcIntrospectionResponse> {
+export async function introspectToken(token: string, appId?: string): Promise<OidcIntrospectionResponse> {
   const url = process.env.LOGTO_INTROSPECTION_URL;
   let clientId: string | undefined;
   let clientSecret: string | undefined;
@@ -93,8 +97,21 @@ export async function introspectToken(token: string): Promise<OidcIntrospectionR
   }
 
   try {
-    return (await res.json()) as OidcIntrospectionResponse;
-  } catch {
+    const result = (await res.json()) as OidcIntrospectionResponse;
+
+    // BUG-H03: Fail-closed audience check. When appId is provided, the token's
+    // client_id MUST be present and match. An absent client_id is treated as a
+    // mismatch to prevent bypass attacks via tokens issued by other applications.
+    if (appId && (!result.client_id || result.client_id !== appId)) {
+      throw new Error('TOKEN_AUDIENCE_MISMATCH');
+    }
+
+    return result;
+  } catch (e) {
+    // Re-throw audience mismatch errors as-is
+    if (e instanceof Error && e.message === 'TOKEN_AUDIENCE_MISMATCH') {
+      throw e;
+    }
     throw new Error(
       'Introspection endpoint returned a non-JSON body. ' +
         'Check LOGTO_INTROSPECTION_URL points to the correct endpoint.'
