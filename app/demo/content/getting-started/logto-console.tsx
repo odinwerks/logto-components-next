@@ -3,11 +3,13 @@
 import { useDocStyles } from '../../components/useDocStyles';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
 import { slugify } from '../../components/SectionComponents';
+import { useIsPortrait } from '../../../logto-kit';
 
 export default function LogtoConsole() {
   const styles = useDocStyles();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const isPortrait = useIsPortrait();
 
   const h2Style: React.CSSProperties = {
     fontSize: '1.25rem',
@@ -42,7 +44,7 @@ export default function LogtoConsole() {
         <strong style={styles.strongNoteStyle}>Order (including mobile view):</strong> create and configure the <strong>Traditional Web</strong> application first, then create the <strong>M2M</strong> application. On narrow/mobile layouts this page stacks vertically in the same order.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr', gap: '24px', marginTop: '16px' }}>
         <div>
           <h3 id={slugify("1. Traditional Web Application")} style={{ ...h3Style, marginTop: 0 }}>1. Traditional Web Application</h3>
           <p style={styles.textStyle}>
