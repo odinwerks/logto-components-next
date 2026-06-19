@@ -92,7 +92,7 @@ These functions/environmental constants must NEVER be modified without explicit 
 - **Token containment**: NO access tokens, refresh tokens, M2M tokens, or ID tokens are ever returned to the client. `fetchDashboardData` explicitly strips tokens from responses.
 - **All server actions use `safeAction` wrapper** - consistent `{ ok, error }` / `{ ok, data }` discriminated union return type.
 - **In-memory locks** (`Map<string, Promise<void>>`) serialize per-user operations (customData updates, backup code generation). These are single-instance only - for multi-instance deployments, use Redis/distributed locks.
-- **`createLockManager()`** in `helpers.ts` is the canonical lock factory. Use it, don't copy-paste Map-based locks.
+- **`createLockManager()`** in `app/lib/distributed-state.ts` is the canonical lock factory for production use (namespaced, Redis-backed). The version in `app/logto-kit/logic/actions/helpers.ts` is an in-memory-only variant used by `helpers.test.ts`; production callers in `mfa.ts` and `profile.ts` import from `distributed-state.ts`. Use `distributed-state.ts`, don't copy-paste Map-based locks.
 
 ## Logto SDK Verified Patterns
 

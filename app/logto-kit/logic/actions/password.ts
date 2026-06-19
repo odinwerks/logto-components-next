@@ -21,10 +21,10 @@ export async function updateUserPassword(
   return safeAction(async () => {
     const sessionToken = await getTokenForServerAction();
     const introspection = await introspectToken(sessionToken);
-    if (!introspection.active) {
+    if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
-    const userId = introspection.sub ?? 'unknown';
+    const userId = introspection.sub;
 
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
     assertVerificationNotExpired(verificationTimestamp);

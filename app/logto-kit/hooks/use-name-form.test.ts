@@ -185,6 +185,42 @@ describe('useNameForm', () => {
     expect(refreshData).toHaveBeenCalled();
   });
 
+  it('rollback in given_family mode includes name only when userData.name is non-null', async () => {
+    // userData.name is 'John Doe' (non-null) - rollback should pass { name: 'John Doe' }
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
+    const opts = makeOptions({ onUpdateBasicInfo, onUpdateProfile, userData: makeUserData({ name: 'John Doe' }) });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => { result.current.setGivenName('Alice'); });
+    await act(async () => { await result.current.save(); });
+
+    const rollbackCall = onUpdateBasicInfo.mock.calls[1];
+    expect(rollbackCall[0]).toEqual({ name: 'John Doe' });
+  });
+
+  it('rollback in given_family mode skips onUpdateBasicInfo when userData.name is null (no-op guard)', async () => {
+    // userData.name is undefined - cleanUpdates would strip empty string, so rollback must be skipped
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
+    const onError = vi.fn();
+    const opts = makeOptions({
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      onError,
+      userData: makeUserData({ name: undefined }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    // With name=null the composed name 'John Doe' is truthy, so basicInfo IS called for the save
+    act(() => { result.current.setGivenName('Alice'); });
+    await act(async () => { await result.current.save(); });
+
+    // Only 1 call (save) - rollback must NOT call onUpdateBasicInfo with an empty object
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith('Profile failed');
+  });
+
   it('save handles onUpdateBasicInfo failure in given_family mode', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: false, error: 'Basic failed' });
     const onUpdateProfile = vi.fn();
@@ -264,6 +300,26 @@ describe('useNameForm', () => {
     expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2);
     expect(onError).toHaveBeenCalledWith('Profile failed');
     expect(refreshData).toHaveBeenCalled();
+  });
+
+  it('rollback in full mode skips fields that are null in userData', async () => {
+    // userData.name=undefined, userData.username='jdoe' - rollback should only include username
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
+    const opts = makeOptions({
+      nameType: 'full',
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      userData: makeUserData({ name: undefined, username: 'jdoe' }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => { result.current.setGivenName('Alice'); });
+    await act(async () => { await result.current.save(); });
+
+    const rollbackCall = onUpdateBasicInfo.mock.calls[1];
+    // name must be absent (null would be stripped by cleanUpdates); username present
+    expect(rollbackCall[0]).toEqual({ username: 'jdoe' });
   });
 
   // ─── Loading state ────────────────────────────────────────────────────────

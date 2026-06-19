@@ -106,7 +106,11 @@ export function useNameForm({
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
           // Attempt rollback of name update since profile update failed
-          try { await onUpdateBasicInfo({ name: userData.name ?? '' }); } catch { /* rollback best-effort */ }
+          try {
+            const rollback: { name?: string } = {};
+            if (userData.name != null) rollback.name = userData.name;
+            if (Object.keys(rollback).length > 0) await onUpdateBasicInfo(rollback);
+          } catch { /* rollback best-effort */ }
           onError(profileResult.error);
           refreshData();
           return;
@@ -127,7 +131,12 @@ export function useNameForm({
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) {
             // Attempt rollback of name/username update since profile update failed
-            try { await onUpdateBasicInfo({ name: userData.name ?? '', username: userData.username ?? '' }); } catch { /* rollback best-effort */ }
+            try {
+              const rollback: { name?: string; username?: string } = {};
+              if (userData.name != null) rollback.name = userData.name;
+              if (userData.username != null) rollback.username = userData.username;
+              if (Object.keys(rollback).length > 0) await onUpdateBasicInfo(rollback);
+            } catch { /* rollback best-effort */ }
             onError(profileResult.error);
             refreshData();
             return;

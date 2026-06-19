@@ -69,4 +69,15 @@ describe('updateUserPassword', () => {
     if (res.ok) throw new Error('Expected failure');
     expect(res.error).toBe('UNAUTHENTICATED');
   });
+
+  it('fails with UNAUTHENTICATED when token is active but sub is missing (BUG-M06)', async () => {
+    // introspection.sub can be undefined even when active=true (e.g. client_credentials token
+    // without a subject claim). The guard must reject this to prevent userId becoming undefined.
+    vi.mocked(introspectToken).mockResolvedValueOnce({ active: true, sub: undefined });
+
+    const res = await updateUserPassword('new-secure-password', 'vrec-123', Date.now());
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('Expected failure');
+    expect(res.error).toBe('UNAUTHENTICATED');
+  });
 });
