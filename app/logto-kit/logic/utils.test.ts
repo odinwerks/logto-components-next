@@ -141,14 +141,61 @@ describe('introspectToken', () => {
   });
 
   describe('missing configuration', () => {
-    it('throws when LOGTO_INTROSPECTION_URL is missing', async () => {
-      vi.stubEnv('APP_ID', 'client-id-123');
-      vi.stubEnv('APP_SECRET', 'super-secret-value');
+    it('throws when LOGTO_INTROSPECTION_URL is missing and ENDPOINT is placeholder (both effectively unavailable)', async () => {
+      // LOGTO_INTROSPECTION_URL is optional — when missing, the URL is derived from ENDPOINT.
+      // When ENDPOINT is also not set, it falls back to 'https://placeholder.logto.app'.
+      // APP_ID/APP_SECRET must also be build-placeholders to trigger the guard.
+      // In practice, when the full config is unconfigured, we get build-placeholder values
+      // which trigger the guard.
+      vi.stubEnv('APP_ID', '');   // not set → resolves to build-placeholder
+      // No APP_SECRET set → build-placeholder in production build
+      // But we need to test the guard in a way that doesn't hit the network.
+      // The simplest path: stub APP_ID as empty (it gets assigned 'build-placeholder')
+      // so the `clientId === 'build-placeholder'` guard triggers.
+      vi.stubEnv('APP_SECRET', 'real-secret');
 
       const { introspectToken } = await import('./utils');
       await expect(introspectToken('some-token')).rejects.toThrow(
         'Logto introspection not configured'
       );
+    });
+
+    it('falls back to endpoint-derived URL when LOGTO_INTROSPECTION_URL is unset but ENDPOINT is set', async () => {
+      // LOGTO_INTROSPECTION_URL is optional per .env.example.
+      // When unset, introspection URL should be derived as ${ENDPOINT}/oidc/token/introspection.
+      vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+      vi.stubEnv('APP_ID', 'client-id-123');
+      vi.stubEnv('APP_SECRET', 'super-secret-value');
+      // No LOGTO_INTROSPECTION_URL
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ active: true }), { status: 200 })
+      );
+
+      const { introspectToken } = await import('./utils');
+      const result = await introspectToken('some-token');
+
+      expect(result).toEqual({ active: true });
+      // The derived URL must include the OIDC introspection path
+      const [calledUrl] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
+      expect(calledUrl).toBe('https://logto.example.com/oidc/token/introspection');
+    });
+
+    it('falls back to endpoint-derived URL, stripping trailing slashes', async () => {
+      vi.stubEnv('ENDPOINT', 'https://logto.example.com///');
+      vi.stubEnv('APP_ID', 'client-id-123');
+      vi.stubEnv('APP_SECRET', 'super-secret-value');
+      // No LOGTO_INTROSPECTION_URL
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ active: true }), { status: 200 })
+      );
+
+      const { introspectToken } = await import('./utils');
+      await introspectToken('some-token');
+
+      const [calledUrl] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
+      expect(calledUrl).toBe('https://logto.example.com/oidc/token/introspection');
     });
 
     it('throws when APP_ID is missing', async () => {

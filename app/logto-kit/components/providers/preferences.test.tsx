@@ -248,7 +248,7 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     expect(cleanHtml).toContain('Org: org_default');
   });
 
-  it('reconciles storage values post-hydration cleanly on client mount', () => {
+  it('reconciles storage values post-hydration: cached values win over server initial props on mount', () => {
     sessionStorage.setItem('theme-mode', 'light');
     sessionStorage.setItem('lang-mode', 'fr');
     sessionStorage.setItem('org-mode', 'org_stored');
@@ -273,11 +273,12 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       </PreferencesProvider>
     );
 
-    // BUG-L17 fix: when initialLang/initialOrgId are provided they win over sessionStorage.
+    // Fix (BUG-001/H1): cached user selections win over server-provided initial props.
     // Theme has no initial prop, so sessionStorage 'light' wins over default 'dark'.
+    // Lang and org: cached values win over the server props ('fr' beats 'en', 'org_stored' beats 'org_default').
     expect(renderedTheme).toBe('light');
-    expect(renderedLang).toBe('en');       // server prop wins over cached 'fr'
-    expect(renderedOrg).toBe('org_default'); // server prop wins over cached 'org_stored'
+    expect(renderedLang).toBe('fr');       // cached wins over server prop
+    expect(renderedOrg).toBe('org_stored'); // cached wins over server prop
   });
 
   it('updates themeRef.current synchronously when setMode is called to prevent silent data corruption', () => {
@@ -356,5 +357,98 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       expect(renderedTheme, `Expected default 'dark' for invalid stored theme "${invalid}"`).toBe('dark');
       unmount();
     }
+  });
+
+  // ============================================================================
+  // BUG-001 / H1 regression: cached user preference must win over server initial prop
+  // ============================================================================
+
+  it('BUG-001: cached lang wins over initialLang server prop on mount', () => {
+    // User previously set lang to 'fr'; on remount server provides initialLang='en'.
+    // The cached 'fr' must survive.
+    sessionStorage.setItem('lang-mode', 'fr');
+
+    let capturedLang: string | undefined;
+
+    function TestComponent() {
+      const { lang } = useLangMode();
+      capturedLang = lang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialLang="en">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedLang).toBe('fr');
+    expect(sessionStorage.getItem('lang-mode')).toBe('fr');
+  });
+
+  it('BUG-001: cached org wins over initialOrgId server prop on mount', () => {
+    // User switched to 'org_user'; on remount server provides initialOrgId='org_server'.
+    // The cached 'org_user' must survive.
+    sessionStorage.setItem('org-mode', 'org_user');
+
+    let capturedOrg: string | null | undefined;
+
+    function TestComponent() {
+      const { asOrg } = useOrgMode();
+      capturedOrg = asOrg;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialOrgId="org_server">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedOrg).toBe('org_user');
+    expect(sessionStorage.getItem('org-mode')).toBe('org_user');
+  });
+
+  it('BUG-001: cached theme wins over initialTheme server prop on mount', () => {
+    // User switched to 'light'; on remount server provides initialTheme='dark'.
+    // The cached 'light' must survive.
+    sessionStorage.setItem('theme-mode', 'light');
+
+    let capturedTheme: 'dark' | 'light' | undefined;
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      capturedTheme = theme.mode;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialTheme="dark">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedTheme).toBe('light');
+    expect(sessionStorage.getItem('theme-mode')).toBe('light');
+  });
+
+  it('BUG-001: server initialLang is used as fallback when no cached value exists', () => {
+    // No cached lang — server prop should be used as the initial value.
+    let capturedLang: string | undefined;
+
+    function TestComponent() {
+      const { lang } = useLangMode();
+      capturedLang = lang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialLang="de">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedLang).toBe('de');
+    expect(sessionStorage.getItem('lang-mode')).toBe('de');
   });
 });
