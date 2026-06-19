@@ -44,7 +44,6 @@ export interface UseTotpFlowResult {
   mode: TotpFlowMode;
   error: string;
   totpUri: string | null;
-  secret: string | null;
   identityToken: VerificationToken | null;
   open: (mode?: TotpFlowMode) => void;
   close: () => void;
@@ -262,7 +261,6 @@ export function useTotpFlow({
     mode,
     error,
     totpUri,
-    secret,
     identityToken,
     open,
     close,

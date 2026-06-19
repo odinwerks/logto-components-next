@@ -98,7 +98,7 @@ describe('useTotpFlow', () => {
     expect(opts.onVerifyPassword).toHaveBeenCalledWith('correct-password');
     expect(opts.onGenerateTotpSecret).toHaveBeenCalled();
     expect(result.current.step).toBe('setup');
-    expect(result.current.secret).toBe('ABCDEF123456');
+    // secret is internal state — not exposed in the public interface (BUG-M22)
     expect(result.current.totpUri).toContain('ABCDEF123456');
   });
 
