@@ -5,7 +5,7 @@
  * verification.ts, webauthn.ts, sessions.ts, and profile.ts.
  */
 
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS, LOGTO_VERIFICATION_MAX_FUTURE_MS } from '../constants';
 import { audit, type AuditEntry } from '../audit';
 
 // ============================================================================
@@ -21,10 +21,11 @@ import { audit, type AuditEntry } from '../audit';
  */
 export function assertVerificationNotExpired(timestamp: number): void {
   const now = Date.now();
-  // Reject non-finite or impossibly far-future timestamps (bypass prevention).
+  // Reject non-finite or implausibly far-future timestamps (bypass prevention).
   // Logto's verification TTL is 10 minutes. No legitimate expiresAt will be
-  // more than 60 minutes from now. MAX_SAFE_INTEGER and similar are rejected.
-  if (!Number.isFinite(timestamp) || timestamp > now + 60 * 60 * 1000) {
+  // more than 11 minutes from now (10 min TTL + 1 min clock-skew buffer).
+  // MAX_SAFE_INTEGER and similar are rejected.
+  if (!Number.isFinite(timestamp) || timestamp > now + LOGTO_VERIFICATION_MAX_FUTURE_MS) {
     throw new Error('VERIFICATION_EXPIRED');
   }
   // Original staleness check

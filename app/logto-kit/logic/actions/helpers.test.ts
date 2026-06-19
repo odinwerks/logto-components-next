@@ -3,7 +3,7 @@ import {
   assertVerificationNotExpired,
   createLockManager,
 } from './helpers';
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
+import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS, LOGTO_VERIFICATION_MAX_FUTURE_MS } from '../constants';
 
 // Mock audit at module level for auditSafe tests
 const auditMock = vi.fn().mockResolvedValue(undefined);
@@ -41,14 +41,32 @@ describe('assertVerificationNotExpired', () => {
     expect(() => assertVerificationNotExpired(ancientTimestamp)).toThrow('VERIFICATION_EXPIRED');
   });
 
-  it('does not throw for a future timestamp', () => {
-    const futureTimestamp = Date.now() + 60_000; // 1 minute in the future
+  it('does not throw for a future timestamp within the 11-minute cap', () => {
+    const futureTimestamp = Date.now() + 60_000; // 1 minute in the future (well within 11-min cap)
     expect(() => assertVerificationNotExpired(futureTimestamp)).not.toThrow();
   });
 
+  it('throws VERIFICATION_EXPIRED for timestamps beyond the 11-minute future cap (BUG-H01)', () => {
+    // Old cap was 60 minutes — a timestamp 15 minutes in the future should now be rejected
+    const farFuture15min = Date.now() + 15 * 60 * 1000; // 15 minutes in future
+    expect(() => assertVerificationNotExpired(farFuture15min)).toThrow('VERIFICATION_EXPIRED');
+  });
+
   it('throws VERIFICATION_EXPIRED for implausibly far-future timestamps', () => {
-    const farFuture = Date.now() + 65 * 60 * 1000; // 65 minutes in the future (TTL is 10 mins, cap is 60 mins)
+    const farFuture = Date.now() + 65 * 60 * 1000; // 65 minutes in the future (TTL is 10 mins, cap is 11 mins)
     expect(() => assertVerificationNotExpired(farFuture)).toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('does not throw for timestamp just within LOGTO_VERIFICATION_MAX_FUTURE_MS', () => {
+    // A timestamp just inside the cap should not throw
+    const justInside = Date.now() + LOGTO_VERIFICATION_MAX_FUTURE_MS - 1000;
+    expect(() => assertVerificationNotExpired(justInside)).not.toThrow();
+  });
+
+  it('throws VERIFICATION_EXPIRED for timestamp just beyond LOGTO_VERIFICATION_MAX_FUTURE_MS', () => {
+    // A timestamp just beyond the cap (11 minutes + 2 seconds) should throw
+    const justBeyond = Date.now() + LOGTO_VERIFICATION_MAX_FUTURE_MS + 2000;
+    expect(() => assertVerificationNotExpired(justBeyond)).toThrow('VERIFICATION_EXPIRED');
   });
 
   it('throws VERIFICATION_EXPIRED for Number.MAX_SAFE_INTEGER', () => {
