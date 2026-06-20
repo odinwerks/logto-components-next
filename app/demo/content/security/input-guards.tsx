@@ -77,7 +77,7 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
         <li>
-          <code style={styles.codeStyle}>assertSafeUserId(id)</code>: Verifies that the user ID conforms to SAFE_ID_REGEX to protect downstream database queries.
+          <code style={styles.codeStyle}>assertSafeUserId(id)</code>: Verifies that the user ID conforms to SAFE_ID_REGEX to protect downstream database queries. <strong>Note</strong>: <code style={styles.codeStyle}>assertSafeLogtoId</code> is the canonical function; <code style={styles.codeStyle}>assertSafeUserId</code> is preserved for backward compatibility.
         </li>
         <li>
           <code style={styles.codeStyle}>assertSafeLogtoId(id, field)</code>: Validates general Logto identifiers (such as session IDs or grant IDs) against the safe regex.
@@ -148,7 +148,7 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
 
       <h2 id={slugify("Safe URL Construction")} style={h2Style}>Safe URL Construction</h2>
       <p style={styles.textStyle}>
-        The <code style={styles.codeStyle}>safeUrl()</code> builder constructs URLs containing client-controlled values. It protects against path traversal attacks and query-parameter smuggling by verifying that placeholders do not contain directory traversal markers, null bytes, or route separators.
+        The <code style={styles.codeStyle}>safeUrl()</code> builder constructs URLs containing client-controlled values. It protects against path traversal attacks and query-parameter smuggling by verifying that placeholders do not contain directory traversal markers, null bytes, or route separators. This helper is used primarily in tests and demo documentation; production code uses <code style={styles.codeStyle}>makeRequest()</code> as the canonical URL builder.
       </p>
       <CodeBlock
         title="Safe URL Builder Implementation"

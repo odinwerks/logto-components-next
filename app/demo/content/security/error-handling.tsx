@@ -68,7 +68,7 @@ export default function SecurityErrorHandlingDoc() {
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
         <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs upstream response details server-side and may extract <code style={styles.codeSmStyle}>message</code> from known Logto JSON errors.</li>
         <li><code style={styles.codeSmStyle}>safeAction</code> returns <code style={styles.codeSmStyle}>{`{ ok: false, error }`}</code> and preserves pre-sanitized errors in production.</li>
-        <li><code style={styles.codeSmStyle}>sanitize</code> keeps fixed fallback codes for non-Logto failures, while Logto API failures surface the upstream <code style={styles.codeSmStyle}>message</code> field.</li>
+            <li><code style={styles.codeSmStyle}>sanitize</code> always returns a fixed fallback error code and never exposes upstream details. Only <code style={styles.codeSmStyle}>throwOnApiError</code> with <code style={styles.codeSmStyle}>exposeMessage=true</code> passes upstream messages to the client.</li>
       </ul>
 
       <h2 id={slugify("Safe Error Codes")} style={h2Style}>Safe Error Codes</h2>
@@ -197,12 +197,12 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     const data = await fn();
     return { ok: true, data };
   } catch (err) {
-    // Keep pre-sanitized errors in production
-    if (!isDev && err instanceof Error && err.name === 'SanitizedError') {
+    // Preserve pre-sanitized errors (e.g. sanitize() in errors.ts sets name='SanitizedError')
+    // so intentional codes like 'UNAUTHORIZED' survive the double-wrap.
+    if (err instanceof Error && (err.name === 'SanitizedError' || err.name === 'ValidationError')) {
       return { ok: false, error: captureMessage(err) };
     }
-    // In dev: return raw error message. In production: sanitize with INTERNAL_ERROR fallback.
-    const safe = isDev ? err : sanitize(err, { fallback: 'INTERNAL_ERROR' });
+    const safe = sanitize(err, { fallback: 'INTERNAL_ERROR' });
     return { ok: false, error: captureMessage(safe) };
   }
 }`}
@@ -213,7 +213,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
         Upstream identity endpoints often return useful JSON error payloads. The helper tries to keep those user-safe messages when possible.
       </p>
       <p style={styles.textStyle}>
-        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs details server-side, returns Logto&apos;s <code style={styles.codeSmStyle}>message</code> field when present, and falls back to a generic client-safe message when missing.
+        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs upstream code server-side, and controls whether Logto&apos;s human-readable <code style={styles.codeSmStyle}>message</code> field reaches the client via the <code style={styles.codeSmStyle}>exposeMessage</code> parameter (default <code style={styles.codeSmStyle}>false</code>). Account API callers opt in with <code style={styles.codeSmStyle}>true</code>; Management API callers use the default <code style={styles.codeSmStyle}>false</code> to prevent internal detail leakage.
       </p>
       <CodeBlock
         title="Upstream Error Extraction"
@@ -221,6 +221,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
   res: Response,
   fallback: ErrorCode,
   operation = 'logto-api',
+  exposeMessage = false,
 ): Promise<void> {
   if (res.ok) return;
 
@@ -231,25 +232,31 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     detail = res.statusText;
   }
 
-  // Log upstream detail on server
-  warn(\`[\${operation}] HTTP \${res.status}: \${detail}\`);
-
-  // Try to use Logto's message
+  // Parse Logto payload for code and message
+  let upstreamCode: string | undefined;
+  let upstreamMessage: string | undefined;
   try {
     const parsed = JSON.parse(detail);
+    if (typeof parsed?.code === 'string' && parsed.code.trim()) {
+      upstreamCode = parsed.code.trim();
+    }
     if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-      const err = new Error(parsed.message.trim());
-      err.name = 'SanitizedError';
-      throw err;
+      upstreamMessage = parsed.message.trim();
     }
-  } catch (parseErr) {
-    if (parseErr instanceof Error && parseErr.name === 'SanitizedError') {
-      throw parseErr;
-    }
+  } catch {
+    // Non-JSON payloads are expected for some upstream failures.
   }
 
-  // Fallback behavior
-  const safe = new Error('Request failed.');
+  // Log only status + code to server logs
+  warn(\`[\${operation}] HTTP \${res.status}\${upstreamCode ? \` (\${upstreamCode})\` : ''}\`);
+
+  const safeCode: ErrorCode = res.status === 401 || res.status === 403
+    ? 'UNAUTHORIZED'
+    : fallback;
+
+  const errorMessage = exposeMessage ? (upstreamMessage ?? safeCode) : safeCode;
+
+  const safe = new Error(errorMessage);
   safe.name = 'SanitizedError';
   throw safe;
 }`}

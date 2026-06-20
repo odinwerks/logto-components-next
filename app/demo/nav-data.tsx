@@ -150,7 +150,6 @@ export const SECTION_HINTS: SectionHint = {
   'Tab Structure': 'Dashboard tab layouts and interface components...',
   Rendering: 'Component mounting, layout flows, and rendering lifecycle...',
   Mobile: 'Responsive viewport adaptation and mobile components...',
-  'Tab overview': 'All tabs, hooks, actions summary...',
   Profile: 'User details management, avatars, and identity verification...',
   Preferences: 'Regional languages, theme customizers, and event broadcasts...',
   Security: 'MFA registrations, password complexity validators, and account purges...',

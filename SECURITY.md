@@ -110,6 +110,69 @@ These are blocked before any request is made to `ipapi.co`.
 
 ---
 
+## HTTP Security Headers
+
+All HTTP security headers are applied to every route (`/:path*`). They are set in two places depending on whether the header requires per-request dynamic values.
+
+### HSTS (HTTP Strict Transport Security)
+
+`next.config.ts` sets the `Strict-Transport-Security` header with a 2-year max-age (63,072,000 seconds), `includeSubDomains`, and `preload` directives:
+
+```
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+```
+
+- **max-age=63072000**: Instructs browsers to enforce HTTPS for this domain for 2 years. This is the maximum value accepted by most HSTS preload lists.
+- **includeSubDomains**: Extends HSTS enforcement to all subdomains of the current domain.
+- **preload**: Signals readiness for inclusion in browser HSTS preload lists (e.g., Chromium's HSTS preload list). Once submitted and accepted, browsers will enforce HTTPS on the first visit before any HSTS header is ever seen.
+
+This header is only active when the connection is HTTPS (production deployments). Browsers ignore HSTS headers received over plain HTTP, so local development is unaffected.
+
+### Additional Security Headers
+
+The `next.config.ts` `headers()` function sets the following headers on all responses:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME type sniffing. Browsers must respect the server's `Content-Type` header rather than guessing from content. |
+| `X-Frame-Options` | `DENY` | Prevents the application from being embedded in `<iframe>`, `<frame>`, or `<object>` elements. Mitigates clickjacking attacks. |
+| `X-XSS-Protection` | `1; mode=block` | Enables the browser's built-in reflective XSS filter. When an attack is detected, the browser blocks the page rather than attempting to sanitize it. |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Sends the full URL as the `Referer` header for same-origin requests but only the origin for cross-origin requests. No referrer is sent when downgrading from HTTPS to HTTP. |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), interest-cohort=()` | Disables the Camera, Microphone, and Geolocation browser APIs site-wide. Also disables FLoC (Federated Learning of Cohorts) tracking by setting `interest-cohort=()`. |
+
+### Content-Security-Policy (CSP)
+
+CSP is handled differently from the other security headers. It is **not** set in `next.config.ts` because the application requires a per-request nonce for `script-src`.
+
+Instead, CSP is set dynamically in `proxy.ts` (the Next.js middleware). The proxy:
+
+1. Generates a unique base64url nonce per request using `crypto.getRandomValues`.
+2. The nonce is forwarded to the application as the `x-nonce` request header.
+3. The root layout (`layout.tsx`) reads `x-nonce` and applies the nonce attribute to the theme-flash-prevention inline `<script>` tag.
+4. The CSP header is constructed with `'nonce-<value>'` in `script-src` and `'strict-dynamic'` to allow scripts loaded by the nonced entry point to load additional scripts.
+
+This approach removes the need for `'unsafe-inline'` in `script-src` entirely, replacing it with nonce-based enforcement.
+
+The full per-request CSP policy:
+
+| Directive | Value |
+|-----------|-------|
+| `default-src` | `'self'` |
+| `script-src` | `'self' 'nonce-<value>' 'strict-dynamic'` (plus `'unsafe-eval'` in development for Next.js HMR) |
+| `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` |
+| `font-src` | `'self' https://fonts.gstatic.com` |
+| `img-src` | `'self' data: blob: https:` |
+| `connect-src` | `'self' <logto-origin> https://ipapi.co https://*.basemaps.cartocdn.com https://*.supabase.co` |
+| `frame-ancestors` | `'none'` |
+| `base-uri` | `'self'` |
+| `form-action` | `'self'` |
+
+The `connect-src` Logto origin is derived from the `ENDPOINT` (or `NEXT_PUBLIC_ENDPOINT`) environment variable, not a hardcoded domain. When neither is set, it falls back to `https://*.logto.app`. In development mode, `ws://localhost:*` and `wss://localhost:*` are also added to `connect-src` for Next.js hot module replacement WebSocket connections.
+
+CSP is skipped for Next.js internal paths (`/_next/*` and `/favicon*`) since static assets do not execute inline scripts.
+
+---
+
 ## Redis Hardening
 
 ### requirepass (Authentication)

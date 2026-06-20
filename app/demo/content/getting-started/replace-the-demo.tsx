@@ -125,13 +125,13 @@ docker compose up -d`} />
       </p>
       
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>1. Proxy Guard (Next.js 16):</strong> <code style={styles.codeSmStyle}>proxy.ts</code> (the official Next.js 16 proxy convention replacing deprecated middleware) intercepts incoming server-side requests. Unauthenticated requests are redirected straight to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
+            <strong style={styles.strongNoteStyle}>1. Proxy Guard (Next.js Middleware):</strong> <code style={styles.codeSmStyle}>proxy.ts</code> (the project&apos;s custom Next.js middleware) intercepts incoming server-side requests. Unauthenticated requests are redirected straight to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>2. OIDC Authorize:</strong> Sign-in endpoint redirects to Logto. After successful login, Logto routes back to the <code style={styles.codeSmStyle}>/callback</code> route.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The callback route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which handles both OAuth callback completion and sign-in initiation when callback params are absent.
+            <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The <code style={styles.codeSmStyle}>/callback</code> route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which completes the OAuth callback by exchanging the authorization code for tokens. Sign-in initiation is handled exclusively by <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context.

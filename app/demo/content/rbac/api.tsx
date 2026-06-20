@@ -202,12 +202,12 @@ export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>
     const data = await fn();
     return { ok: true, data };
   } catch (err) {
-    // Preserve pre-sanitized exceptions (e.g. UNAUTHORIZED)
-    if (!isDev && err instanceof Error && err.name === 'SanitizedError') {
+    // Preserve pre-sanitized errors (e.g. sanitize() in errors.ts sets name='SanitizedError')
+    // so intentional codes like 'UNAUTHORIZED' survive the double-wrap.
+    if (err instanceof Error && (err.name === 'SanitizedError' || err.name === 'ValidationError')) {
       return { ok: false, error: captureMessage(err) };
     }
-    // Sanitize message to prevent upstream database/API detail leaks
-    const safe = isDev ? err : sanitize(err, { fallback: 'INTERNAL_ERROR' });
+    const safe = sanitize(err, { fallback: 'INTERNAL_ERROR' });
     return { ok: false, error: captureMessage(safe) };
   }
 }`}

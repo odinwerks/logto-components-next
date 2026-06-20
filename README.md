@@ -130,9 +130,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   └── layout.tsx
 │   ├── api/
 │   │   ├── auth/
-│   │   │   ├── sign-in/
-│   │   │   │   └── route.ts
-│   │   │   └── sign-out/
+│   │   │   └── sign-in/
 │   │   │       └── route.ts
 │   │   ├── protected/
 │   │   │   ├── route.test.ts
@@ -154,6 +152,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   └── useDocStyles.ts            # Shared CSS-in-JS styles for doc pages
 │   │   ├── content/                       # Content components for the docs
 │   │   │   ├── anatomy/
+│   │   │   │   ├── async-patterns.tsx
 │   │   │   │   ├── i18n.tsx
 │   │   │   │   ├── primitives.tsx
 │   │   │   │   ├── providers.tsx
@@ -172,6 +171,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   └── tab-structure.tsx
 │   │   │   ├── getting-started/
 │   │   │   │   ├── avatar-upload.tsx
+│   │   │   │   ├── backend-selection.tsx
 │   │   │   │   ├── clone-and-install.tsx
 │   │   │   │   ├── env-setup.tsx
 │   │   │   │   ├── logto-console.tsx
@@ -387,7 +387,7 @@ The project ships with a `Dockerfile`, `.dockerignore`, and `docker-compose.yml`
 |------|---------|
 | `Dockerfile` | 3-stage build: install deps → `next build` (with `NEXT_PUBLIC_*` baked in) → minimal standalone runtime |
 | `.dockerignore` | Excludes `node_modules`, `.next`, `.env*`, test files from build context |
-| `docker-compose.yml` | Two services: `logto-dash` (app) + `cloudflared` (CF tunnel), on an internal bridge network |
+| `docker-compose.yml` | Three services: `logto-dash` (app) + `cloudflared` (CF tunnel) + `redis` (optional cache), on an internal bridge network |
 
 ### Architecture
 
@@ -461,7 +461,8 @@ Build args currently include:
 - `NEXT_PUBLIC_LOAD_TABS`
 - `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`
 - `NEXT_PUBLIC_BACKEND_TYPE`
-
+- `NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY`
+ 
 Runtime env passthrough currently includes backend and country behavior gates:
 - `BACKEND_TYPE`
 - `PFP_BACKEND`
@@ -669,7 +670,7 @@ No S3 configuration required. Logto handles upload, storage, and cleanup interna
 
 ### NEXT_PUBLIC_* Variants
 
-All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`.
+All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`, `NEXT_PUBLIC_BACKEND_TYPE`, `NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY`.
 
 ### Redis Configuration
 
@@ -760,7 +761,7 @@ The demo app (`app/demo/`) is a standalone application with 15 sidebar tabs - on
 | Logging | reference | Configurable LOG_BACKEND routing: unstructured (log/warn/error/debug) and structured (logEvent) APIs |
 | Primitives | reference | Reusable building blocks: useRefreshable() hook, <RefreshButton />, direct org token fetch, PermissionsBlock pattern |
 
-Each tab has its own documentation file in `app/demo/docs/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, and Organizations.
+Each tab has its own documentation file in `app/demo/content/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 4-page guide covering internals, provider sync, tab configuration, and the Server Component rendering pattern. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, and Organizations.
 
 > **Demo Dark Mode Palette:** The docs pages and sidebar use a custom scoped dark palette (`app/globals.css` → `.docs-content-container`) independent of the main dashboard theme for optimal reading contrast:
 > - Sidebar BG: `#050608`
@@ -779,20 +780,20 @@ The demo app consists of:
 | `ContentArea.tsx` | Main content area - lazy-loads doc files from the registry |
 | `nav-data.tsx` | 15-tab navigation definitions with section hints |
 | `types.ts` | TypeScript type definitions |
-| `docs/getting-started.tsx` | Getting started guide - clone, configure, avatar upload, Logto Console |
-| `docs/user-button.tsx` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
-| `docs/dashboard.tsx` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (4 pages) |
-| `docs/tabs-and-flows.tsx` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (7 pages) |
-| `docs/org-switcher.tsx` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
-| `docs/providers.tsx` | Providers documentation - LogtoProvider, hooks reference |
-| `docs/themes.tsx` | Theme system documentation - dual system, color tokens, custom themes |
-| `docs/i18n.tsx` | i18n documentation - file-based locales, useLangMode, adding languages |
-| `docs/protected.tsx` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
-| `docs/errors.tsx` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
-| `docs/guards.tsx` | Input guards - 13 assert guards, 8 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
-| `docs/logging.tsx` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
-| `docs/primitives.tsx` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
-| `docs/components/calculator.tsx` | Permission-gated calculator demo with live RBAC examples |
+| `content/getting-started/` | Getting started guide - clone, configure, avatar upload, Logto Console |
+| `content/user-button/` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
+| `content/dashboard/` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering (4 pages) |
+| `content/tabs-and-flows/` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (7 pages) |
+| `content/rbac/` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
+| `content/anatomy/` | Providers documentation - LogtoProvider, hooks reference |
+| `content/anatomy/` | Theme system documentation - dual system, color tokens, custom themes |
+| `content/anatomy/` | i18n documentation - file-based locales, useLangMode, adding languages |
+| `content/rbac/` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
+| `content/security/` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
+| `content/security/` | Input guards - 13 assert guards, 8 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
+| `content/security/` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
+| `content/anatomy/` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
+| `content/calculator/` | Permission-gated calculator demo with live RBAC examples |
 | `components/SyntaxBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
 | `components/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
 | `components/SectionComponents.tsx` | Pre-built page components for documentation (SectionHeader, SectionWrap) |
@@ -800,7 +801,7 @@ The demo app consists of:
 
 ### Documentation Format
 
-Each doc file in `docs/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
+Each doc file in `content/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
 
 Typical layout:
 - **Two-column grid** - Left and right sections side by side (matching `user-button.tsx` pattern)
@@ -1797,7 +1798,7 @@ function MyDataBlock({ orgId }) {
 }
 ```
 
-Documented in the Primitives tab in `app/demo/docs/primitives.tsx`.
+Documented in the Primitives tab in `app/demo/content/anatomy/primitives.tsx`.
 
 ## Cookie & Session Management
 
@@ -2260,13 +2261,32 @@ npm install
 ## Development
 
 ```bash
-npm run dev
+npm run predev   # Inject NEXT_PUBLIC_* env vars into runtime build
+npm run dev      # Start the Next.js dev server on port 3000
 ```
 
 ## Build
 
 ```bash
 npm run build
+```
+
+## Start (Production)
+
+```bash
+npm run start
+```
+
+## Lint
+
+```bash
+npm run lint
+```
+
+## Type Check
+
+```bash
+npm run type-check
 ```
 
 ## Testing
@@ -2281,7 +2301,7 @@ npm run test:run
 npm test
 ```
 
-**Test coverage** (27 test files):
+**Test coverage** (110 test files):
 - Security: `origin-guard.test.ts`, `guards.test.ts`, `dev-mode.test.ts`
 - Logic: `validation.test.ts`, `errors.test.ts`
 - Actions: `sessions.test.ts`, `webauthn.test.ts`
