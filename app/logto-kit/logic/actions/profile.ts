@@ -165,7 +165,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
         throw plainCode('UPDATE_FAILED');
       }
     } finally {
-      releaseLock();
+      await releaseLock();
     }
   });
 }

@@ -280,7 +280,7 @@ export async function generateBackupCodes(
 
       return { codes };
     } finally {
-      releaseLock();
+      await releaseLock();
     }
   });
 }

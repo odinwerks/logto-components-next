@@ -29,8 +29,8 @@ interface RateLimiterInstance {
 }
 
 interface LockManagerInstance {
-  /** Acquires a lock for the given key. Returns a release function. */
-  acquire(key: string): Promise<() => void>;
+  /** Acquires a lock for the given key. Returns an async release function. */
+  acquire(key: string): Promise<() => Promise<void>>;
   /** Releases the lock for the given key (explicit release, non-awaited). */
   release(key: string): void;
 }
@@ -60,7 +60,7 @@ interface Backend {
   rateLimitReset(namespace: string, key: string): Promise<void>;
 
   // Locking
-  lockAcquire(namespace: string, key: string): Promise<() => void>;
+  lockAcquire(namespace: string, key: string): Promise<() => Promise<void>>;
   lockRelease(namespace: string, key: string): void;
 
   // Token cache
@@ -109,7 +109,7 @@ class InMemoryBackend implements Backend {
     this.rateLimits.delete(`${namespace}:${key}`);
   }
 
-  async lockAcquire(namespace: string, key: string): Promise<() => void> {
+  async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
     const ns = this.getLockNamespace(namespace);
 
     // Capacity check (HIGH-3): if namespace is at max and key is not already locked, reject
@@ -158,7 +158,7 @@ class InMemoryBackend implements Backend {
     });
     ns.set(key, { promise, resolve: release });
 
-    return () => {
+    return async () => {
       const entry = ns.get(key);
       if (entry && entry.promise === promise) {
         ns.delete(key);
@@ -325,7 +325,7 @@ class RedisBackend implements Backend {
     this._fallbackRateLimits.delete(`${namespace}:${key}`);
   }
 
-  async lockAcquire(namespace: string, key: string): Promise<() => void> {
+  async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
     const lockKey = `lock:${namespace}:${key}`;
     const lockValue = crypto.randomUUID();
     const ttlMs = DEFAULT_LOCK_TIMEOUT_MS;
@@ -354,8 +354,23 @@ class RedisBackend implements Backend {
             `;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (this.client as any).eval(luaScript, 1, lockKey, lockValue);
-          } catch {
-            // Non-fatal: TTL will clean up
+          } catch (releaseErr) {
+            console.error('[Lock] Redis Lua release failed, falling back to DEL', {
+              lockKey,
+              error: (releaseErr as Error).message,
+            });
+            // Fall back to direct DEL — may release a lock we no longer own if TTL
+            // already expired and a new owner acquired it, but that's safer than
+            // leaving a zombie key for the full 30-second TTL.
+            try {
+              await this.client.del(lockKey);
+            } catch (delErr) {
+              // TTL is the last resort — log and move on, do not throw
+              console.error('[Lock] Redis DEL fallback also failed, key will expire via TTL', {
+                lockKey,
+                error: (delErr as Error).message,
+              });
+            }
           }
         };
       }
@@ -538,7 +553,7 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiterInsta
  */
 export function createLockManager(name: string): LockManagerInstance {
   return {
-    async acquire(key: string): Promise<() => void> {
+    async acquire(key: string): Promise<() => Promise<void>> {
       return getBackend().lockAcquire(name, key);
     },
     release(key: string): void {
