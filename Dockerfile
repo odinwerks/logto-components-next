@@ -76,6 +76,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
 
+# ioredis is dynamically imported at runtime (distributed-state.ts) and is
+# not detected by Next.js's standalone tracer. Explicitly copy it from the
+# deps stage so the module is available in the runner image.
+COPY --from=deps /app/node_modules/ioredis ./node_modules/ioredis
+
 USER nextjs
 
 EXPOSE 2999

@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   // that includes only the minimal server files (no full node_modules copy).
   output: 'standalone',
 
+  // ioredis is dynamically imported in app/lib/distributed-state.ts via
+  //   `await import('ioredis')`
+  // Next.js's standalone tracer does not follow conditional dynamic imports, so
+  // the built/ directory is stripped from the standalone output. Marking it as
+  // an external package tells Next.js to keep it as-is (not bundle it) AND
+  // ensures the tracer includes it in the standalone node_modules tree.
+  serverExternalPackages: ['ioredis'],
+
   async headers() {
     return [
       {
