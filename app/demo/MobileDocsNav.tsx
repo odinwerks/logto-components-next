@@ -207,7 +207,7 @@ export default function MobileDocsNav() {
               <div style={{
                 position: 'fixed',
                  bottom: '1rem',
-                 right: '7.3rem',
+                 right: '4.5rem',
                  width: '2.5rem',
                  height: '2.5rem',
                 display: 'flex',
@@ -223,7 +223,7 @@ export default function MobileDocsNav() {
                 <button
                   type="button"
                   onClick={() => setStage('index')}  // Go back to index, not close
-                  style={{ ...triggerStyle, right: '4.15rem' }}
+                  style={triggerStyle}
                   aria-label="Back to homepage"
                 >
                   <ArrowLeft size={18} />
@@ -257,7 +257,7 @@ export default function MobileDocsNav() {
               <button
                 type="button"
                 onClick={() => setStage('topics')}
-                style={{ ...triggerStyle, right: '4.15rem' }}
+                style={triggerStyle}
                 aria-label="Back to topics"
               >
                  <ArrowLeft size={18} />
