@@ -73,7 +73,7 @@ These functions/environmental constants must NEVER be modified without explicit 
 - **`isAuthError`** uses both `error.name` checks (preferred) and string matching (fallback). Do NOT remove the string fallback without adding equivalent error name checks.
 - **Audit logging** is best-effort: `audit()` calls are wrapped in try/catch and NEVER surface errors to the caller. Do NOT add throw behavior to audit functions.
 
-## Mass-Assignment Protection (`app/logto-kit/logic/preferences.ts :: pickPreferences`)
+## Mass-Assignment Protection (`app/logto-kit/logic/guards.ts :: pickPreferences`)
 
 - **Explicit allowlist** (`PREFERENCES_ALLOWED_KEYS`) controls which preference keys can be set.
 - **Blocks `__proto__` and `constructor`** prototype pollution.
@@ -82,8 +82,8 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 ## Input Validation (`app/logto-kit/logic/guards.ts`)
 
-- **`SAFE_ID_REGEX`** (`/^[a-zA-Z0-9_-]+$/`) validates all user IDs and Logto IDs before URL interpolation. This prevents path traversal and query injection.
-- **`assertSafeLogtoId(id, label)`** is the canonical ID validator. `assertSafeUserId` was removed as redundant - use `assertSafeLogtoId(id, 'userId')` instead.
+- **`SAFE_ID_REGEX`** (`/^[A-Za-z0-9_-]{1,128}$/`) validates all user IDs and Logto IDs before URL interpolation. This prevents path traversal and query injection.
+- **`assertSafeLogtoId(id, label)`** is the canonical ID validator. `assertSafeUserId` is preserved for backward compatibility but new code should use `assertSafeLogtoId(id, 'userId')` instead.
 - **`encodeURIComponent()`** is used on all IDs interpolated into URLs. Do NOT remove these encodings.
 - `safeUrl` was removed as dead production code - `makeRequest()` is the canonical URL builder.
 
