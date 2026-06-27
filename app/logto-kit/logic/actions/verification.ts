@@ -102,7 +102,10 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
 // Email Verification
 // ============================================================================
 
-export async function sendEmailVerificationCode(email: string): Promise<DataResult<{ verificationId: string }>> {
+export async function sendEmailVerificationCode(
+  email: string,
+  lang?: string,
+): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
@@ -114,9 +117,20 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
     if (typeof email !== 'string' || email.length === 0 || email.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new ValidationError('INVALID_INPUT', 'email');
     }
+    // ── Locale pass-through ─────────────────────────────────────────────────
+    // Forward the user's preferred language (from useLangMode()) so Logto
+    // renders the verification-code message (SMS/email copy) in that language.
+    // Omit `locale` when no usable lang is supplied so the send still succeeds.
+    const cleanLang = typeof lang === 'string' ? lang.trim() : '';
+    const body: { identifier: { type: 'email'; value: string }; locale?: string } = {
+      identifier: { type: 'email', value: email },
+    };
+    if (cleanLang) {
+      body.locale = cleanLang;
+    }
     const res = await makeRequest('/api/verifications/verification-code', {
       method: 'POST',
-      body: { identifier: { type: 'email', value: email } },
+      body,
     });
     await throwOnApiError(res, 'VERIFICATION_FAILED', 'email-verify-send', true);
     const parsed = await res.json();
@@ -131,7 +145,10 @@ export async function sendEmailVerificationCode(email: string): Promise<DataResu
 // Phone Verification
 // ============================================================================
 
-export async function sendPhoneVerificationCode(phone: string): Promise<DataResult<{ verificationId: string }>> {
+export async function sendPhoneVerificationCode(
+  phone: string,
+  lang?: string,
+): Promise<DataResult<{ verificationId: string }>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
@@ -146,9 +163,20 @@ export async function sendPhoneVerificationCode(phone: string): Promise<DataResu
       throw new ValidationError('INVALID_INPUT', 'phone');
     }
     assertPhoneCountryAllowed(cleanedPhone, countryFilter);
+    // ── Locale pass-through ─────────────────────────────────────────────────
+    // Forward the user's preferred language (from useLangMode()) so Logto
+    // renders the verification-code message (SMS/email copy) in that language.
+    // Omit `locale` when no usable lang is supplied so the send still succeeds.
+    const cleanLang = typeof lang === 'string' ? lang.trim() : '';
+    const body: { identifier: { type: 'phone'; value: string }; locale?: string } = {
+      identifier: { type: 'phone', value: cleanedPhone },
+    };
+    if (cleanLang) {
+      body.locale = cleanLang;
+    }
     const res = await makeRequest('/api/verifications/verification-code', {
       method: 'POST',
-      body: { identifier: { type: 'phone', value: cleanedPhone } },
+      body,
     });
     await throwOnApiError(res, 'VERIFICATION_FAILED', 'phone-verify-send', true);
     const parsed = await res.json();

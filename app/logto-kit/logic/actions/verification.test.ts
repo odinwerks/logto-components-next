@@ -556,6 +556,94 @@ describe('sendPhoneVerificationCode', () => {
 });
 
 // ============================================================================
+// verification-code locale pass-through (lang -> POST body.locale)
+// ============================================================================
+// The dashboard forwards the user's selected language (via useLangMode) so
+// Logto renders the verification-code message (SMS/email copy) in that
+// language. The `locale` field is included only when a usable lang string is
+// supplied; otherwise it is omitted so the send still succeeds.
+
+describe('verification-code locale pass-through', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ verificationRecordId: 'verif_locale' })
+    );
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+  });
+
+  // Body of the most recent makeRequest(path, { body }) call.
+  const lastCallBody = (): Record<string, unknown> => {
+    const calls = vi.mocked(makeRequest).mock.calls as unknown as Array<[string, { body?: unknown }]>;
+    const last = calls[calls.length - 1];
+    if (!last) throw new Error('makeRequest was not called');
+    return (last[1]?.body ?? {}) as Record<string, unknown>;
+  };
+
+  it.each(['en-US', 'ka-GE', 'uk-UA'])(
+    'sendEmailVerificationCode includes locale=%s in the POST body',
+    async (lang) => {
+      const { sendEmailVerificationCode } = await import('./verification');
+      const result = await sendEmailVerificationCode('user@example.com', lang);
+      expect(result.ok).toBe(true);
+      expect(lastCallBody()).toEqual({
+        identifier: { type: 'email', value: 'user@example.com' },
+        locale: lang,
+      });
+    }
+  );
+
+  it('sendPhoneVerificationCode includes locale in the POST body (normalized phone)', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode('+380501234567', 'uk-UA');
+    expect(result.ok).toBe(true);
+    expect(lastCallBody()).toEqual({
+      identifier: { type: 'phone', value: '380501234567' },
+      locale: 'uk-UA',
+    });
+  });
+
+  it('sendEmailVerificationCode omits locale when lang is not provided', async () => {
+    const { sendEmailVerificationCode } = await import('./verification');
+    const result = await sendEmailVerificationCode('user@example.com');
+    expect(result.ok).toBe(true);
+    const body = lastCallBody();
+    expect(body).toEqual({ identifier: { type: 'email', value: 'user@example.com' } });
+    expect(body.locale).toBeUndefined();
+  });
+
+  it('sendPhoneVerificationCode omits locale when lang is undefined', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode('+15555555555', undefined);
+    expect(result.ok).toBe(true);
+    const body = lastCallBody();
+    expect(body).toEqual({ identifier: { type: 'phone', value: '15555555555' } });
+    expect(body.locale).toBeUndefined();
+  });
+
+  it('sendEmailVerificationCode trims whitespace from locale before sending', async () => {
+    const { sendEmailVerificationCode } = await import('./verification');
+    const result = await sendEmailVerificationCode('user@example.com', '  en-US  ');
+    expect(result.ok).toBe(true);
+    expect(lastCallBody()).toEqual({
+      identifier: { type: 'email', value: 'user@example.com' },
+      locale: 'en-US',
+    });
+  });
+
+  it('sendPhoneVerificationCode omits locale when lang is whitespace-only', async () => {
+    const { sendPhoneVerificationCode } = await import('./verification');
+    const result = await sendPhoneVerificationCode('+15555555555', '   ');
+    expect(result.ok).toBe(true);
+    const body = lastCallBody();
+    expect(body).toEqual({ identifier: { type: 'phone', value: '15555555555' } });
+    expect(body.locale).toBeUndefined();
+  });
+});
+
+// ============================================================================
 // verifyVerificationCode - Phone Normalization
 // ============================================================================
 

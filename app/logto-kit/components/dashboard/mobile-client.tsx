@@ -52,8 +52,8 @@ interface MobileClientProps {
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
-  onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
-  onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
+  onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
+  onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
   onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
@@ -356,8 +356,8 @@ export function MobileClient({
             onUpdateAvatarUrl={onUpdateAvatarUrl}
             onUpdateProfile={onUpdateProfile}
             onVerifyPassword={onVerifyPassword}
-            onSendEmailVerification={onSendEmailVerification}
-            onSendPhoneVerification={onSendPhoneVerification}
+            onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
+            onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
             onVerifyCode={onVerifyCode}
             onUpdateEmail={onUpdateEmail}
             onUpdatePhone={onUpdatePhone}
