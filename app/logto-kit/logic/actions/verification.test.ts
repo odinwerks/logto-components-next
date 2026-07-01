@@ -9,9 +9,11 @@ const mockCountryFilter = {
   codes: [] as string[],
 };
 
+const mockBackendType = { value: 'blacktop' as 'blacktop' | 'upstream' };
+
 vi.mock('../../config', () => ({
   getCountryFilter: () => mockCountryFilter,
-  getBackendType: () => 'blacktop',
+  getBackendType: () => mockBackendType.value,
 }));
 
 vi.mock('./request', () => ({
@@ -566,6 +568,7 @@ describe('sendPhoneVerificationCode', () => {
 describe('verification-code locale pass-through', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockBackendType.value = 'blacktop';
     vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
     vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     vi.mocked(makeRequest).mockResolvedValue(
@@ -640,6 +643,30 @@ describe('verification-code locale pass-through', () => {
     const body = lastCallBody();
     expect(body).toEqual({ identifier: { type: 'phone', value: '15555555555' } });
     expect(body.locale).toBeUndefined();
+  });
+
+  describe('upstream backend', () => {
+    beforeEach(() => {
+      mockBackendType.value = 'upstream';
+    });
+
+    it('sendEmailVerificationCode omits locale from the POST body even when lang is provided', async () => {
+      const { sendEmailVerificationCode } = await import('./verification');
+      const result = await sendEmailVerificationCode('user@example.com', 'ka-GE');
+      expect(result.ok).toBe(true);
+      const body = lastCallBody();
+      expect(body).toEqual({ identifier: { type: 'email', value: 'user@example.com' } });
+      expect(body.locale).toBeUndefined();
+    });
+
+    it('sendPhoneVerificationCode omits locale from the POST body even when lang is provided', async () => {
+      const { sendPhoneVerificationCode } = await import('./verification');
+      const result = await sendPhoneVerificationCode('+1234567890', 'ka-GE');
+      expect(result.ok).toBe(true);
+      const body = lastCallBody();
+      expect(body).toEqual({ identifier: { type: 'phone', value: '1234567890' } });
+      expect(body.locale).toBeUndefined();
+    });
   });
 });
 
