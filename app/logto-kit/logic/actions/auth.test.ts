@@ -9,7 +9,7 @@ vi.mock('@logto/next/server-actions', () => ({
 import { signIn, signOut } from '@logto/next/server-actions';
 
 describe('signInUser', () => {
-  it('calls signIn without options when routeTo and lang are omitted', async () => {
+  it('calls signIn without postRedirectUri when routeTo is omitted', async () => {
     await signInUser();
     expect(signIn).toHaveBeenCalledWith(expect.any(Object), undefined);
   });
@@ -20,28 +20,6 @@ describe('signInUser', () => {
     expect(signIn).toHaveBeenCalledWith(expect.any(Object), {
       redirectUri: 'https://example.com/callback',
       postRedirectUri: 'https://example.com/docs/foo',
-    });
-    delete process.env.BASE_URL;
-  });
-
-  it('forwards ui_locales extraParams when lang is provided', async () => {
-    process.env.BASE_URL = 'https://example.com';
-    await signInUser('/dashboard', 'ka-GE');
-    expect(signIn).toHaveBeenCalledWith(expect.any(Object), {
-      redirectUri: 'https://example.com/callback',
-      postRedirectUri: 'https://example.com/dashboard',
-      extraParams: { ui_locales: 'ka-GE' },
-    });
-    delete process.env.BASE_URL;
-  });
-
-  it('forwards ui_locales even when routeTo is omitted but lang is provided', async () => {
-    process.env.BASE_URL = 'https://example.com';
-    await signInUser(undefined, 'ka-GE');
-    expect(signIn).toHaveBeenCalledWith(expect.any(Object), {
-      redirectUri: 'https://example.com/callback',
-      postRedirectUri: undefined,
-      extraParams: { ui_locales: 'ka-GE' },
     });
     delete process.env.BASE_URL;
   });

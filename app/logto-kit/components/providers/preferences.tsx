@@ -11,19 +11,6 @@ const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
 const ORG_STORAGE_KEY = 'org-mode';
 
-// 1 year in seconds — keeps the language preference available to server-side
-// sign-in entry points (e.g. /api/auth/sign-in) across sessions.
-const LANG_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
-function setLangCookie(lang: string) {
-  if (typeof document === 'undefined') return;
-  try {
-    document.cookie = `${LANG_STORAGE_KEY}=${encodeURIComponent(lang)};path=/;max-age=${LANG_COOKIE_MAX_AGE_SECONDS};SameSite=Lax`;
-  } catch {
-    // Safe no-op if cookies are disabled.
-  }
-}
-
 function createStorageHelpers<T>(key: string) {
   return {
     get: (): T | null => {
@@ -166,10 +153,8 @@ export function PreferencesProvider({
     const cachedLang = getStoredLang();
     if (cachedLang) {
       if (cachedLang !== langRef.current) setLangState(cachedLang);
-      setLangCookie(cachedLang);
     } else if (initialLang) {
       setStoredLang(initialLang);
-      setLangCookie(initialLang);
       setLangState(initialLang);
     }
 
@@ -217,7 +202,6 @@ export function PreferencesProvider({
 
       if (newLang && newLang !== langRef.current) {
         setStoredLang(newLang);
-        setLangCookie(newLang);
         setLangState(newLang);
       }
     };
@@ -340,7 +324,6 @@ export function PreferencesProvider({
     const prev = langRef.current;
     langRef.current = newLang;
     setStoredLang(newLang);
-    setLangCookie(newLang);
     setLangState(newLang);
     persistLang(newLang, prev);
     window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { lang: newLang } }));

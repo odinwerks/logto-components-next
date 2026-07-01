@@ -24,11 +24,8 @@ function assertSafeRouteTo(routeTo: string): void {
  * @param routeTo - Optional relative path (e.g. '/dashboard') to redirect to
  *   after sign-in completes. Must start with '/' and must not be an absolute
  *   URL or protocol-relative URL to prevent open-redirect attacks.
- * @param lang - Optional BCP 47 language tag (e.g. 'ka-GE') to forward to
- *   Logto as the OIDC `ui_locales` parameter. This drives the hosted
- *   sign-in experience language and the locale of passcode emails/SMS.
  */
-export async function signInUser(routeTo?: string, lang?: string): Promise<void> {
+export async function signInUser(routeTo?: string): Promise<void> {
   if (routeTo !== undefined) {
     assertSafeRouteTo(routeTo);
   }
@@ -37,11 +34,10 @@ export async function signInUser(routeTo?: string, lang?: string): Promise<void>
 
   await signIn(
     logtoConfig,
-    routeTo || lang
+    routeTo
       ? {
           redirectUri: new URL('/callback', baseUrl).toString(),
-          postRedirectUri: routeTo ? new URL(routeTo, baseUrl).toString() : undefined,
-          extraParams: lang ? { ui_locales: lang } : undefined,
+          postRedirectUri: new URL(routeTo, baseUrl).toString(),
         }
       : undefined
   );
