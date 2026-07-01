@@ -33,10 +33,6 @@ vi.mock('@/app/logto-kit/components/providers/preferences', () => ({
       errorBg: '#1a0000',
     },
   }),
-  useLangMode: () => ({
-    lang: 'ka-GE',
-    setLang: vi.fn(),
-  }),
 }));
 
 import { signInUser } from '@/app/logto-kit/logic/actions/auth';
@@ -51,13 +47,13 @@ describe('AuthPromptModal', () => {
   it('calls signInUser without routeTo when omitted', () => {
     render(<AuthPromptModal />);
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-    expect(signInUser).toHaveBeenCalledWith(undefined, 'ka-GE');
+    expect(signInUser).toHaveBeenCalledWith(undefined);
   });
 
-  it('calls signInUser with routeTo and current lang when provided', () => {
+  it('calls signInUser with routeTo when provided', () => {
     render(<AuthPromptModal routeTo="/docs/foo" />);
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-    expect(signInUser).toHaveBeenCalledWith('/docs/foo', 'ka-GE');
+    expect(signInUser).toHaveBeenCalledWith('/docs/foo');
   });
 
   it('renders "Cancel" button in default (optional) mode', () => {
