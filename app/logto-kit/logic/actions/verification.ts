@@ -10,7 +10,7 @@ import {
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
-import { getCountryFilter } from '../../config';
+import { getCountryFilter, getBackendType } from '../../config';
 import { assertVerificationNotExpired } from './helpers';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
@@ -117,15 +117,17 @@ export async function sendEmailVerificationCode(
     if (typeof email !== 'string' || email.length === 0 || email.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new ValidationError('INVALID_INPUT', 'email');
     }
-    // ── Locale pass-through ─────────────────────────────────────────────────
+    // ── Locale pass-through (blacktop only) ─────────────────────────────────
     // Forward the user's preferred language (from useLangMode()) so Logto
     // renders the verification-code message (SMS/email copy) in that language.
-    // Omit `locale` when no usable lang is supplied so the send still succeeds.
+    // This is a blacktop-only Account API extension; omit `locale` in upstream
+    // mode to remain compatible with stock Logto. Also omit when no usable lang
+    // is supplied so the send still succeeds.
     const cleanLang = typeof lang === 'string' ? lang.trim() : '';
     const body: { identifier: { type: 'email'; value: string }; locale?: string } = {
       identifier: { type: 'email', value: email },
     };
-    if (cleanLang) {
+    if (cleanLang && getBackendType() === 'blacktop') {
       body.locale = cleanLang;
     }
     const res = await makeRequest('/api/verifications/verification-code', {
@@ -163,15 +165,17 @@ export async function sendPhoneVerificationCode(
       throw new ValidationError('INVALID_INPUT', 'phone');
     }
     assertPhoneCountryAllowed(cleanedPhone, countryFilter);
-    // ── Locale pass-through ─────────────────────────────────────────────────
+    // ── Locale pass-through (blacktop only) ─────────────────────────────────
     // Forward the user's preferred language (from useLangMode()) so Logto
     // renders the verification-code message (SMS/email copy) in that language.
-    // Omit `locale` when no usable lang is supplied so the send still succeeds.
+    // This is a blacktop-only Account API extension; omit `locale` in upstream
+    // mode to remain compatible with stock Logto. Also omit when no usable lang
+    // is supplied so the send still succeeds.
     const cleanLang = typeof lang === 'string' ? lang.trim() : '';
     const body: { identifier: { type: 'phone'; value: string }; locale?: string } = {
       identifier: { type: 'phone', value: cleanedPhone },
     };
-    if (cleanLang) {
+    if (cleanLang && getBackendType() === 'blacktop') {
       body.locale = cleanLang;
     }
     const res = await makeRequest('/api/verifications/verification-code', {
