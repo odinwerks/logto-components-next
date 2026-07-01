@@ -52,6 +52,59 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     vi.restoreAllMocks();
   });
 
+  it('sets a lang-mode cookie when setLang is called', async () => {
+    const cookieSpy = vi.spyOn(document, 'cookie', 'set');
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+    let setLang: ((lang: string) => void) | null = null;
+
+    function TestComponent() {
+      const lang = useLangMode();
+      setLang = lang.setLang;
+      return null;
+    }
+
+    render(
+      <PreferencesProvider initialLang="en" onUpdateCustomData={onUpdateCustomData}>
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    act(() => {
+      setLang?.('ka-GE');
+    });
+
+    await waitFor(() => expect(onUpdateCustomData).toHaveBeenCalled());
+
+    expect(cookieSpy).toHaveBeenCalled();
+    const cookieCall = cookieSpy.mock.calls.find(([value]) =>
+      String(value).startsWith('lang-mode=ka-GE')
+    );
+    expect(cookieCall).toBeDefined();
+    expect(String(cookieCall?.[0])).toContain('max-age=31536000');
+  });
+
+  it('sets a lang-mode cookie when cached lang is synced on mount', () => {
+    const cookieSpy = vi.spyOn(document, 'cookie', 'set');
+    sessionStorage.setItem('lang-mode', 'fr');
+
+    function TestComponent() {
+      const { lang } = useLangMode();
+      return <div>Lang: {lang}</div>;
+    }
+
+    render(
+      <PreferencesProvider initialLang="en">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    const cookieCall = cookieSpy.mock.calls.find(([value]) =>
+      String(value).startsWith('lang-mode=')
+    );
+    expect(cookieCall).toBeDefined();
+    expect(String(cookieCall?.[0])).toContain('lang-mode=fr');
+  });
+
   it('initializes theme state directly to cached theme in sessionStorage on reload', () => {
     // Simulate cached theme in sessionStorage
     sessionStorage.setItem('theme-mode', 'dark');

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET } from './route';
 
@@ -12,7 +12,26 @@ vi.mock('../../../logto-kit/config', () => ({
   }),
 }));
 
+const cookieValueRef = { current: undefined as string | undefined };
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockImplementation((name: string) =>
+      name === 'lang-mode' && cookieValueRef.current !== undefined
+        ? { value: cookieValueRef.current }
+        : undefined
+    ),
+  }),
+}));
+
+import { signIn } from '@logto/next/server-actions';
+
 describe('GET /api/auth/sign-in', () => {
+  beforeEach(() => {
+    cookieValueRef.current = undefined;
+    vi.mocked(signIn).mockClear();
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -33,5 +52,25 @@ describe('GET /api/auth/sign-in', () => {
 
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toBe('http://localhost:3000/callback');
+  });
+
+  it('calls signIn without options when no lang-mode cookie is present', async () => {
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    const req = new NextRequest('http://localhost:3000/api/auth/sign-in');
+    await GET(req);
+
+    expect(signIn).toHaveBeenCalledWith(expect.any(Object), undefined);
+  });
+
+  it('forwards ui_locales extraParams when lang-mode cookie is set', async () => {
+    vi.stubEnv('BASE_URL', 'http://localhost:3000');
+    cookieValueRef.current = 'ka-GE';
+    const req = new NextRequest('http://localhost:3000/api/auth/sign-in');
+    await GET(req);
+
+    expect(signIn).toHaveBeenCalledWith(expect.any(Object), {
+      redirectUri: 'http://mock-module-time.com/callback',
+      extraParams: { ui_locales: 'ka-GE' },
+    });
   });
 });
