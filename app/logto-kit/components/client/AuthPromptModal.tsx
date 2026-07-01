@@ -5,7 +5,7 @@ import { signInUser } from '@/app/logto-kit/logic/actions/auth';
 import { Button } from '@/app/logto-kit/components/shared/Button';
 import { Overlay } from '@/app/logto-kit/components/dashboard/shared/FlowModal';
 import { useLogto } from '@/app/logto-kit/components/providers/logto-provider';
-import { useThemeMode } from '@/app/logto-kit/components/providers/preferences';
+import { useLangMode, useThemeMode } from '@/app/logto-kit/components/providers/preferences';
 import { useFocusTrap } from '@/app/logto-kit/components/dashboard/shared/focus-trap';
 import { LogIn } from 'lucide-react';
 
@@ -18,6 +18,7 @@ export interface AuthPromptModalProps {
 export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProps) {
   const { closeDashboard } = useLogto();
   const { mode: themeMode, colors } = useThemeMode();
+  const { lang } = useLangMode();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -25,8 +26,8 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
   useFocusTrap(dialogRef, closeDashboard);
 
   const handleSignIn = useCallback(() => {
-    void signInUser(routeTo);
-  }, [routeTo]);
+    void signInUser(routeTo, lang);
+  }, [routeTo, lang]);
 
   const font = "'DM Sans', system-ui, sans-serif";
 
