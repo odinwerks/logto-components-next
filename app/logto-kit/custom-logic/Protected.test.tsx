@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 
 // Mock helpers/hoisted values if needed, or simply mock using standard vi.mock
 const mockUseOrgMode = vi.fn();
@@ -269,6 +269,138 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Secret Org Content')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('BUG-014: children preserved during a subsequent in-flight permission load', () => {
+    // Helper that returns a controllable never-resolving-by-default promise so a
+    // load can be held "in-flight" while we assert the rendered output.
+    function stalled<T>() {
+      let resolve!: (v: T) => void;
+      const promise = new Promise<T>((r) => { resolve = r; });
+      return { promise, resolve };
+    }
+
+    const twoOrgs = [
+      { id: 'org_A', name: 'A' },
+      { id: 'org_B', name: 'B' },
+    ];
+
+    it('shows fallback (not children) during the FIRST in-flight load', async () => {
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_A' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
+
+      const perms = stalled<{ ok: true; data: string[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadOrganizationPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadOrganizationUserRoles.mockImplementationOnce(() => roles.promise);
+
+      render(
+        <Protected orgId="org_A" perm="perm_x" fallback={<div>Denied</div>}>
+          <div>Hidden</div>
+        </Protected>
+      );
+
+      // First load: hasLoadedOnce is false, so we must NOT reveal the children
+      // early — fallback is shown while the load is in-flight.
+      expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
+      expect(screen.getByText('Denied')).toBeInTheDocument();
+
+      // Release the pending promises so the test tears down cleanly (wrapped in
+      // act() because resolving triggers a reducer dispatch / state update).
+      await act(async () => {
+        perms.resolve({ ok: true, data: ['perm_x'] });
+        roles.resolve({ ok: true, data: [{ id: 'role_x' }] });
+      });
+    });
+
+    it('keeps authorized children mounted during a subsequent in-flight load', async () => {
+      // First scope (org_A): authorized.
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_A' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
+      mockLoadOrganizationPermissions.mockResolvedValueOnce({ ok: true, data: ['perm_x'] });
+      mockLoadOrganizationUserRoles.mockResolvedValueOnce({ ok: true, data: [{ id: 'role_x' }] });
+
+      const { rerender } = render(
+        <Protected orgId="org_A" perm="perm_x" fallback={<div>Denied</div>}>
+          <div>Survivor</div>
+        </Protected>
+      );
+
+      // Wait for the first authorization to commit.
+      await waitFor(() => expect(screen.getByText('Survivor')).toBeInTheDocument());
+
+      // Switch scope to org_B and stall its loaders so a load is in-flight.
+      const perms = stalled<{ ok: true; data: string[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadOrganizationPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadOrganizationUserRoles.mockImplementationOnce(() => roles.promise);
+
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_B' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
+
+      rerender(
+        <Protected orgId="org_B" perm="perm_x" fallback={<div>Denied</div>}>
+          <div>Survivor</div>
+        </Protected>
+      );
+
+      // During the in-flight load, the previously authorized children must stay
+      // mounted instead of collapsing to the fallback (BUG-014).
+      expect(screen.getByText('Survivor')).toBeInTheDocument();
+      expect(screen.queryByText('Denied')).not.toBeInTheDocument();
+
+      // Let the stalled load resolve to an authorized result and confirm the
+      // children remain (cleanup so the test does not leak a pending promise).
+      await act(async () => {
+        perms.resolve({ ok: true, data: ['perm_x'] });
+        roles.resolve({ ok: true, data: [{ id: 'role_x' }] });
+      });
+      await waitFor(() => expect(screen.getByText('Survivor')).toBeInTheDocument());
+    });
+
+    it('does NOT reveal previously-denied children during a subsequent in-flight load', async () => {
+      // First scope (org_A): denied (lacks the required permission).
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_A' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
+      mockLoadOrganizationPermissions.mockResolvedValueOnce({ ok: true, data: [] });
+      mockLoadOrganizationUserRoles.mockResolvedValueOnce({ ok: true, data: [] });
+
+      const { rerender } = render(
+        <Protected orgId="org_A" perm="perm_x" fallback={<div>Denied</div>}>
+          <div>Hidden</div>
+        </Protected>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
+      });
+
+      // Switch scope to org_B and stall its loaders.
+      const perms = stalled<{ ok: true; data: string[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadOrganizationPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadOrganizationUserRoles.mockImplementationOnce(() => roles.promise);
+
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_B' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
+
+      rerender(
+        <Protected orgId="org_B" perm="perm_x" fallback={<div>Denied</div>}>
+          <div>Hidden</div>
+        </Protected>
+      );
+
+      // lastAuthorized was false (org_A denied), so the in-flight render must
+      // keep showing the fallback and never briefly reveal "Hidden".
+      expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
+      expect(screen.getByText('Denied')).toBeInTheDocument();
+
+      await act(async () => {
+        perms.resolve({ ok: true, data: [] });
+        roles.resolve({ ok: true, data: [] });
       });
     });
   });

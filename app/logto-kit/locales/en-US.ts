@@ -348,8 +348,9 @@ export const enUS: Translations = {
     gcAllConfirmTitle: 'Are you sure you want to invalidate these sessions?',
     gcAllSuccess: 'All other sessions revoked',
     viewMap: 'View map',
+    geoConsentPrompt: 'Allow map feature to use your IP address for approximate geolocation lookup?',
   },
-  
+   
   // Common
   common: {
     copy: 'COPY',
@@ -371,6 +372,9 @@ export const enUS: Translations = {
     loggedInAs: 'Logged in as',
     openUserDashboard: 'Open user dashboard',
     yes: 'Yes',
+    cancel: 'Cancel',
+    allow: 'Allow',
+    unexpectedError: 'Unexpected error',
   },
 
   // Sign-out modal (playful farewell flow)

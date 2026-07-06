@@ -6,9 +6,18 @@ import { assertSafeLogtoId } from '../logic/guards';
 import { updateUserCustomData } from '../logic/actions';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
-  // null is valid - user wants to be themselves (no org context).
+  // null is valid - user wants to be themselves (no org context). There is no
+  // membership to validate, but we still persist the personal-mode marker
+  // server-side and inspect the result (BUG-027). We do NOT short-circuit before
+  // updateUserCustomData so that a failed persist is at least observable.
   if (orgId === null) {
-    await updateUserCustomData({ Preferences: { asOrg: null } });
+    const r = await updateUserCustomData({ Preferences: { asOrg: null } });
+    // Best-effort warning; the null switch is always "valid" (no membership to
+    // check), so we still return true and let the client reconcile via the
+    // next router.refresh() rather than reverting the user's intent.
+    if (!r.ok) {
+      console.warn('[setActiveOrg] null persist failed:', r.error);
+    }
     return true;
   }
   if (!orgId) return false;
@@ -32,13 +41,11 @@ export async function setActiveOrg(orgId: string | null): Promise<boolean> {
 
   const isValid = userOrgs.includes(orgId);
 
-  // Persist the active org to Logto custom_data while we have the membership
-  // result. This runs server-side and is awaited by callers before they update
-  // client state, so by the time the client updates sessionStorage the server
-  // source of truth is already consistent.
-  if (isValid) {
-    await updateUserCustomData({ Preferences: { asOrg: orgId } });
-  }
+  // NOTE: We intentionally do NOT persist here (BUG-015). setActiveOrg is the
+  // server-side membership validator only; the single authoritative write of
+  // Preferences.asOrg is performed by the client via setAsOrg()'s persistOrg
+  // after this function resolves. This avoids the double PATCH
+  // /api/users/{id}/custom-data that previously fired on every org switch.
 
   return isValid;
 }

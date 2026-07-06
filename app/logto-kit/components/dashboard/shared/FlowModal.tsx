@@ -46,7 +46,7 @@ export function PasswordVerifyModal({
   title: string;
   subtitle: string;
   step: PasswordModalStep;
-  onPasswordSubmit: (password: string) => void;
+  onPasswordSubmit: (password: string) => void | Promise<void>;
   onClose: () => void;
   passwordError?: string;
   mode: 'dark' | 'light';
@@ -125,7 +125,7 @@ export function PasswordVerifyModal({
         placeholder={t.mfa.enterPasswordPlaceholder}
         autoFocus
         hasError={!!passwordError}
-        onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
         mode={mode}
         colors={colors}
                 describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
@@ -150,7 +150,7 @@ export function PasswordVerifyModal({
             onClick={() => {
               if (!pw) return;
               setHidePwErrorWhileTyping(false);
-              onPasswordSubmit(pw);
+              void Promise.resolve(onPasswordSubmit(pw)).catch(() => {});
             }}
             disabled={!pw}
             mode={mode}
@@ -188,11 +188,11 @@ export function FlowModal({
   onValueSubmit?: () => void;
   valueSubmitDisabled?: boolean;
   valueSubmitLabel?: string;
-  onPasswordSubmit: (password: string) => void;
-  onCodeSubmit?: (code: string) => void;
-  onTotpSubmit?: (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => void;
-  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string, verificationTimestamp: number) => void;
-  onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => void;
+  onPasswordSubmit: (password: string) => void | Promise<void>;
+  onCodeSubmit?: (code: string) => void | Promise<void>;
+  onTotpSubmit?: (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => void | Promise<void>;
+  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string, verificationTimestamp: number) => void | Promise<void>;
+  onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => void | Promise<void>;
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
@@ -331,7 +331,7 @@ export function FlowModal({
                 placeholder={t.mfa.enterPasswordPlaceholder}
                 autoFocus={!extra}
                 hasError={!!passwordError}
-                onKeyDown={(e) => { if (e.key === 'Enter' && pw) onPasswordSubmit(pw); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
@@ -358,7 +358,7 @@ export function FlowModal({
                   onClick={() => {
                     if (!pw) return;
                     setHidePwErrorWhileTyping(false);
-                    onPasswordSubmit(pw);
+                    void Promise.resolve(onPasswordSubmit(pw)).catch(() => {});
                   }}
                   disabled={!pw}
                   mode={mode}
@@ -397,7 +397,7 @@ export function FlowModal({
                 placeholder="000000"
                 maxLength={6}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) onCodeSubmit?.(code); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
@@ -405,7 +405,7 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant="primary" onClick={() => onCodeSubmit?.(code)} disabled={code.length !== 6} mode={mode} colors={colors}>
+                <Button variant="primary" onClick={() => { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); }} disabled={code.length !== 6} mode={mode} colors={colors}>
                   Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -461,13 +461,13 @@ export function FlowModal({
                     <Input
                       id={totpInputId}
                       value={code}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        setCode(val);
-                        if (val.length === 6) {
-                          onTotpSubmit?.(val, step.secret, step.identityVerificationId, step.verificationTimestamp);
-                        }
-                      }}
+onChange={(e) => {
+                         const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                         setCode(val);
+                         if (val.length === 6) {
+                           void Promise.resolve(onTotpSubmit?.(val, step.secret, step.identityVerificationId, step.verificationTimestamp)).catch(() => {});
+                         }
+                       }}
                       placeholder="000000"
                       maxLength={6}
                       autoFocus
@@ -479,7 +479,7 @@ export function FlowModal({
                         <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                       )}
                       <Button variant="primary"
-                        onClick={() => onTotpSubmit?.(code, step.secret, step.identityVerificationId, step.verificationTimestamp)}
+                        onClick={() => { void Promise.resolve(onTotpSubmit?.(code, step.secret, step.identityVerificationId, step.verificationTimestamp)).catch(() => {}); }}
                         disabled={code.length !== 6} mode={mode} colors={colors}
                       >
                         Activate <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
@@ -500,7 +500,7 @@ export function FlowModal({
                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 suffix={
                   <button
@@ -521,7 +521,7 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => newPw && onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)} disabled={!newPw} mode={mode} colors={colors}>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }} disabled={!newPw} mode={mode} colors={colors}>
                   {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -537,14 +537,14 @@ export function FlowModal({
                 value={renameVal}
                 onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }}
                 mode={mode} colors={colors}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-                <Button variant="primary" onClick={() => renameVal.trim() && onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp)} disabled={!renameVal.trim()} mode={mode} colors={colors}>
+                <Button variant="primary" onClick={() => { if (renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }} disabled={!renameVal.trim()} mode={mode} colors={colors}>
                   {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -594,8 +594,19 @@ export function BackupCodesModal({
       content = codes.map(c => c.code).join('\n');
       mime = 'text/plain'; ext = 'txt';
     } else {
+      // Theme-aware colors so the exported HTML matches the user's current app theme
+      // instead of forcing dark mode regardless of `mode`.
+      const isDark = mode === 'dark';
+      const bg = isDark ? '#0d0d0d' : '#ffffff';
+      const textColor = isDark ? '#e5e5e5' : '#333333';
+      const cardBg = isDark ? '#1a1a1a' : '#f5f5f5';
+      const cardBorder = isDark ? '#333' : '#e2e2e2';
+      const headingColor = isDark ? '#fff' : '#111111';
+      const codeBg = isDark ? '#111' : '#fafafa';
+      const codeBorder = isDark ? '#2a2a2a' : '#e8e8e8';
+      const footerColor = isDark ? '#444' : '#888888';
       content = `<!DOCTYPE html><html><head><title>Backup Codes</title>
-<style>body{font-family:monospace;padding:40px;background:#0d0d0d;color:#e5e5e5}.w{max-width:560px;margin:0 auto;background:#1a1a1a;padding:28px;border:1px solid #333}h1{font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;color:#fff}.s{color:#666;font-size:12px;margin-bottom:20px}.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}.c{padding:9px 12px;background:#111;border:1px solid #2a2a2a;font-size:13px;letter-spacing:.04em}.f{margin-top:20px;color:#444;font-size:11px}</style>
+<style>body{font-family:monospace;padding:40px;background:${bg};color:${textColor}}.w{max-width:560px;margin:0 auto;background:${cardBg};padding:28px;border:1px solid ${cardBorder}}h1{font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;color:${headingColor}}.s{color:#666;font-size:12px;margin-bottom:20px}.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}.c{padding:9px 12px;background:${codeBg};border:1px solid ${codeBorder};font-size:13px;letter-spacing:.04em}.f{margin-top:20px;color:${footerColor};font-size:11px}</style>
 </head><body><div class="w"><h1>Backup codes</h1><p class="s">Each code can only be used once.</p>
 <div class="g">${codes.map(c => `<div class="c">${String(c.code).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}</div>`).join('')}</div>
 <p class="f">Generated ${new Date().toLocaleString()}</p></div></body></html>`;

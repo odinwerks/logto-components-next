@@ -363,8 +363,9 @@ export interface Translations {
     gcAllConfirmTitle: string;
     gcAllSuccess: string;
     viewMap: string;
+    geoConsentPrompt: string;
   };
-  
+   
   // Common
   common: {
     copy: string;
@@ -386,6 +387,9 @@ export interface Translations {
     loggedInAs: string;
     openUserDashboard: string;
     yes: string;
+    cancel: string;
+    allow: string;
+    unexpectedError: string;
   };
 
   // Sign-out modal (playful farewell flow)

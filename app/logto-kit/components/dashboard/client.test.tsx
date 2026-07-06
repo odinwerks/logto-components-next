@@ -195,6 +195,35 @@ describe('DashboardClient - userShape prop', () => {
     expect(container.firstChild).not.toBeNull();
   });
 
+  it('does not remount the tabpanel wrapper when switching tabs (BUG-010)', () => {
+    // The fade wrapper used to carry `key={activeTab}`, which forced the entire
+    // subtree (including form drafts and verification state) to unmount/remount
+    // on every tab change. After the fix the wrapper element is preserved across
+    // tab switches — only its conditional children swap.
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security', 'sessions']}
+      />,
+    );
+
+    const panel = screen.getByRole('tabpanel');
+    const wrapperBefore = panel.querySelector('.dashboard-tabpanel-content');
+    expect(wrapperBefore).not.toBeNull();
+
+    // Switch to Security tab.
+    fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
+    // The same panel element should still be in the DOM (never remounted).
+    expect(screen.getByRole('tabpanel')).toBe(panel);
+    // The fade wrapper must still be present (it was not keyed away).
+    const wrapperAfter = screen.getByRole('tabpanel').querySelector('.dashboard-tabpanel-content');
+    expect(wrapperAfter).not.toBeNull();
+
+    // Switch back to Profile tab and re-check the wrapper identity.
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+    expect(screen.getByRole('tabpanel').querySelector('.dashboard-tabpanel-content')).not.toBeNull();
+  });
+
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {
     render(
       <DashboardClient

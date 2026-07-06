@@ -24,6 +24,10 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
   const { asOrg, setAsOrg } = useOrgMode();
   const [isLoading, setIsLoading] = useState(false);
   const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
+  // While the single-org auto-switch promise is in flight we keep the whole
+  // component hidden so the user never sees a stale "Be yourself" selection
+  // snap to their org (BUG-025).
+  const [isAutoSwitching, setIsAutoSwitching] = useState(false);
   const isSwitchingRef = useRef(false);
 
   const c = colors;
@@ -55,7 +59,11 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
     if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current && !hasAutoSwitched) {
       isSwitchingRef.current = true;
       setHasAutoSwitched(true);
-      handleChange(organizations[0].id).finally(() => { isSwitchingRef.current = false; });
+      setIsAutoSwitching(true);
+      handleChange(organizations[0].id).finally(() => {
+        isSwitchingRef.current = false;
+        setIsAutoSwitching(false);
+      });
     }
   }, [organizations, asOrg, currentOrgId, handleChange, hasAutoSwitched]);
 
@@ -63,14 +71,20 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
     return null;
   }
 
-  if (organizations.length === 1 && !asOrg && !currentOrgId && !hasAutoSwitched) {
+  // Keep hidden during the in-flight auto-switch (isAutoSwitching) OR before it
+  // has even started (pre-effect first render for a single-org user with no
+  // active org). This prevents the brief "Be yourself" flash (BUG-025).
+  if (isAutoSwitching || (!hasAutoSwitched && organizations.length === 1 && !asOrg && !currentOrgId)) {
     return null;
   }
 
   const displaySelected = asOrg ?? currentOrgId ?? '';
 
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
+    <div style={{ marginBottom: '0.75rem' }} aria-busy={isLoading}>
+      <span className="sr-only" aria-live="polite">
+        {isLoading ? 'Switching organization…' : ''}
+      </span>
       <div style={{ position: 'relative' }}>
         <select
           value={displaySelected}

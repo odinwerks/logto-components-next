@@ -91,6 +91,60 @@ describe('DashboardRouter', () => {
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 
+  it('renders only the active branch after hydration (BUG-009)', () => {
+    // Portrait match → mobile should be the ONLY branch in the DOM after mount.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(orientation: portrait)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(
+      <DashboardRouter
+        desktop={<div data-testid="desktop">desktop-dashboard</div>}
+        mobile={<div data-testid="mobile">mobile-dashboard</div>}
+      />,
+    );
+
+    // After hydration effect runs, only the mobile branch is mounted.
+    expect(screen.getByTestId('mobile')).toBeInTheDocument();
+    expect(screen.queryByTestId('desktop')).not.toBeInTheDocument();
+  });
+
+  it('renders only the desktop branch when not portrait after hydration (BUG-009)', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(
+      <DashboardRouter
+        desktop={<div data-testid="desktop">desktop-dashboard</div>}
+        mobile={<div data-testid="mobile">mobile-dashboard</div>}
+      />,
+    );
+
+    expect(screen.getByTestId('desktop')).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile')).not.toBeInTheDocument();
+  });
+
   it('renderToString always uses SSR snapshot (desktop); client render follows matchMedia', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,

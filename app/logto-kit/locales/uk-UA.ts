@@ -348,6 +348,7 @@ export const ukUA: Translations = {
     gcAllConfirmTitle: 'Ви впевнені, що хочете інвалідувати ці сесії?',
     gcAllSuccess: 'Усі інші сесії відкликано',
     viewMap: 'Переглянути карту',
+    geoConsentPrompt: 'Дозволити функції карти використовувати вашу IP-адресу для приблизного визначення геолокації?',
   },
   
   // Common
@@ -371,6 +372,9 @@ export const ukUA: Translations = {
     loggedInAs: 'Ви увійшли як',
     openUserDashboard: 'Відкрити панель користувача',
     yes: 'Так',
+    cancel: 'Скасувати',
+    allow: 'Дозволити',
+    unexpectedError: 'Неочікувана помилка',
   },
 
   // Sign-out modal (playful farewell flow)

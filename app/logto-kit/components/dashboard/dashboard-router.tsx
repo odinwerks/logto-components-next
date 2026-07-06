@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 const subscribeIsPortrait = (callback: () => void) => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
@@ -39,9 +39,18 @@ export function useIsPortrait(): boolean {
 }
 
 /**
- * BUG-008 fix: CSS-based mobile/desktop split to avoid hydration mismatch.
- * Both layouts are rendered, and CSS media queries show/hide them.
- * This eliminates the client-only JS toggle that caused SSR/client mismatch.
+ * BUG-008 fix: SSR renders the desktop branch only (via the server snapshot
+ * returning false), which is what the client must render on its first pass to
+ * avoid a hydration mismatch.
+ *
+ * BUG-009 fix: after hydration, render ONLY the active layout instead of both.
+ * The previous implementation always rendered both `desktop` and `mobile` slots
+ * (hiding one with CSS), which caused both RSC parents to call
+ * `fetchDashboardData` and doubled the per-open Management-API load. We now
+ * defer the orientation-aware branch selection until after mount:
+ *   - Before `mounted` flips true, render the desktop branch (matches SSR HTML).
+ *   - After hydration, render whichever branch matches the live media query.
+ * This cuts the rendered subtree in half post-hydration with no mismatch.
  */
 export function DashboardRouter({
   desktop,
@@ -50,10 +59,18 @@ export function DashboardRouter({
   desktop: ReactNode;
   mobile: ReactNode;
 }) {
-  return (
-    <>
-      <div className="ldd-desktop">{desktop}</div>
-      <div className="ldd-mobile">{mobile}</div>
-    </>
-  );
+  const isPortrait = useIsPortrait();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-once guard is the canonical Next.js SSR/hydration pattern
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // SSR + first client render: render only desktop to match server HTML.
+    return <>{desktop}</>;
+  }
+
+  // Post-hydration: render only the active layout.
+  return isPortrait ? <>{mobile}</> : <>{desktop}</>;
 }

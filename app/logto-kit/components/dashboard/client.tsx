@@ -450,7 +450,7 @@ export function DashboardClient({
               </div>
             )}
           >
-            <div key={activeTab} style={{ animation: prefersReducedMotion ? 'none' : 'fadeIn 0.12s ease' }}>
+            <div className="dashboard-tabpanel-content" style={{ animation: prefersReducedMotion ? 'none' : 'fadeIn 0.12s ease' }}>
         {activeTab === 'profile' && (
           <ProfileTab
             userData={userData}

@@ -68,19 +68,30 @@ import { debugLog } from '../logic/debug';
 
 /**
  * Reducer state for permission/role loading.
- * Consolidates 4 useState calls into a single atomic state object.
+ * Consolidates the load cycle plus the BUG-014 "keep-children-mounted during
+ * a subsequent load" tracking into a single atomic state object. Using the
+ * reducer (rather than refs/useState-direct-in-effect) keeps the lint rules
+ * `react-hooks/refs` and `react-hooks/set-state-in-effect` satisfied:
+ *   - `hasLoadedOnce` flips after the first *successful* load for the current
+ *     scope and is reset to `false` by the `reset` action.
+ *   - `lastAuthorized` records the authorization decision computed at the
+ *     last successful load. It is preserved by the `loading` action so a
+ *     subsequent load render can decide whether to keep showing children
+ *     without touching any ref during render.
  */
 interface PermState {
   loadedPerms: string[];
   loadedRoles: string[];
   isLoadingPerms: boolean;
   loadError: boolean;
+  hasLoadedOnce: boolean;
+  lastAuthorized: boolean;
 }
 
 type PermAction =
   | { type: 'reset' }
   | { type: 'loading' }
-  | { type: 'success'; perms: string[]; roles: string[] }
+  | { type: 'success'; perms: string[]; roles: string[]; authorized: boolean }
   | { type: 'error' };
 
 const initialPermState: PermState = {
@@ -88,19 +99,147 @@ const initialPermState: PermState = {
   loadedRoles: [],
   isLoadingPerms: false,
   loadError: false,
+  hasLoadedOnce: false,
+  lastAuthorized: false,
 };
 
 function permReducer(state: PermState, action: PermAction): PermState {
   switch (action.type) {
     case 'reset':
-      return { loadedPerms: [], loadedRoles: [], isLoadingPerms: false, loadError: false };
+      return {
+        loadedPerms: [],
+        loadedRoles: [],
+        isLoadingPerms: false,
+        loadError: false,
+        hasLoadedOnce: false,
+        lastAuthorized: false,
+      };
     case 'loading':
+      // Preserve loadedPerms/loadedRoles/hasLoadedOnce/lastAuthorized so a
+      // subsequent load (e.g. org switch) can keep showing the previously
+      // authorized content instead of unmounting it (BUG-014).
       return { ...state, isLoadingPerms: true, loadError: false };
     case 'success':
-      return { loadedPerms: action.perms, loadedRoles: action.roles, isLoadingPerms: false, loadError: false };
+      return {
+        loadedPerms: action.perms,
+        loadedRoles: action.roles,
+        isLoadingPerms: false,
+        loadError: false,
+        hasLoadedOnce: true,
+        lastAuthorized: action.authorized,
+      };
     case 'error':
-      return { ...state, loadedPerms: [], loadedRoles: [], isLoadingPerms: false, loadError: true };
+      // Blank stale perms/roles so a post-error render doesn't reuse them,
+      // but keep hasLoadedOnce/lastAuthorized (an error screen returns fallback
+      // regardless, so their exact values here don't affect rendering).
+      return {
+        ...state,
+        loadedPerms: [],
+        loadedRoles: [],
+        isLoadingPerms: false,
+        loadError: true,
+      };
   }
+}
+
+type UserOrg = { id: string; name: string };
+
+/**
+ * Resolve the target org id from props, preferring explicit id over name
+ * lookup. Pure (no `this`), so it can be called both during render and inside
+ * the load `success` handler to compute the authorization decision.
+ */
+function resolveTargetOrgIdPure(
+  orgId: string | null | undefined,
+  orgName: string | null | undefined,
+  organizations: UserOrg[] | undefined,
+): string | undefined {
+  if (orgId && orgId !== 'self') return orgId;
+  if (orgName && organizations) {
+    return organizations.find((o) => o.name === orgName)?.id;
+  }
+  return undefined;
+}
+
+interface AuthorizedInputs {
+  perm?: string | string[];
+  roleId?: string | string[];
+  orgId?: string | null;
+  orgName?: string | null;
+  requireAll: boolean;
+  asOrg: string | null;
+  userData: { id?: string; organizations?: UserOrg[] } | null;
+  loadedPerms: string[];
+  loadedRoles: string[];
+}
+
+/**
+ * Pure authorization computation shared by the render path and the load
+ * `success` handler (the latter stores the result as `lastAuthorized` so the
+ * next loading render can preserve children — BUG-014). Mirrors the previous
+ * `checkAccess`/`checkPermissions` semantics exactly, including the strict
+ * `asOrg === resolvedOrgId` check and the fail-safe "empty perms => deny"
+ * rule (we never fall back to userData.organizationPermissions because that
+ * array is unscoped and may carry permissions from ALL orgs).
+ */
+function computeAuthorized(i: AuthorizedInputs): boolean {
+  const { perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms, loadedRoles } = i;
+
+  const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
+  if (isPersonalScope) {
+    if (roleId) {
+      const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
+      const hasRoles = requireAll
+        ? requiredRoles.every((r) => loadedRoles.includes(r))
+        : requiredRoles.some((r) => loadedRoles.includes(r));
+      if (!hasRoles) return false;
+    }
+    if (perm && (Array.isArray(perm) ? perm.length > 0 : true)) {
+      const requiredPerms = Array.isArray(perm) ? perm : [perm];
+      const hasPerms = requireAll
+        ? requiredPerms.every((p) => loadedPerms.includes(p))
+        : requiredPerms.some((p) => loadedPerms.includes(p));
+      if (!hasPerms) return false;
+    }
+    return true;
+  }
+
+  if (!userData?.organizations) return false;
+
+  const resolvedOrgId = resolveTargetOrgIdPure(orgId, orgName, userData.organizations);
+  if (resolvedOrgId === undefined) {
+    // orgName was specified but not found in the user's orgs
+    if (orgName) return false;
+    // No org scope — pass through
+    return true;
+  }
+
+  // Strict asOrg check: content for org X is only visible when X is active.
+  if (asOrg !== resolvedOrgId) return false;
+
+  const hasOrg = userData.organizations.some((org) => org.id === resolvedOrgId);
+  if (!hasOrg) return false;
+
+  if (roleId) {
+    const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
+    const hasRoles = requireAll
+      ? requiredRoles.every((r) => loadedRoles.includes(r))
+      : requiredRoles.some((r) => loadedRoles.includes(r));
+    if (!hasRoles) return false;
+  }
+
+  if (perm && (Array.isArray(perm) ? perm.length > 0 : true)) {
+    // Fail-safe: no loaded org permissions => deny (don't fall back to
+    // userData.organizationPermissions; that array is unscoped).
+    if (!loadedPerms || loadedPerms.length === 0) return false;
+    const requiredPerms = Array.isArray(perm) ? perm : [perm];
+    const hasRequiredPerms = requireAll
+      ? requiredPerms.every((p) => loadedPerms.includes(p))
+      : requiredPerms.some((p) => loadedPerms.includes(p));
+    if (!hasRequiredPerms) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -139,15 +278,11 @@ export function Protected({
   const { asOrg } = useOrgMode();
   const userData = useUserDataContext();
   const [state, dispatch] = useReducer(permReducer, initialPermState);
-  const { loadedPerms, loadedRoles, isLoadingPerms, loadError } = state;
+  const { loadedPerms, loadedRoles, isLoadingPerms, loadError, hasLoadedOnce, lastAuthorized } = state;
 
   /** Resolve orgId from props, preferring explicit id over name lookup. */
   function resolveTargetOrgId(): string | undefined {
-    if (orgId && orgId !== 'self') return orgId;
-    if (orgName && userData?.organizations) {
-      return userData.organizations.find((o) => o.name === orgName)?.id;
-    }
-    return undefined;
+    return resolveTargetOrgIdPure(orgId, orgName, userData?.organizations);
   }
 
   const targetOrgId = resolveTargetOrgId();
@@ -156,6 +291,8 @@ export function Protected({
   useEffect(() => {
     // Guard: need userData to proceed
     if (!userData?.id) {
+      // `reset` clears hasLoadedOnce/lastAuthorized atomically (replaces the
+      // previous setHasLoadedOnce(false) + ref writes that violated lint).
       dispatch({ type: 'reset' });
       return;
     }
@@ -178,7 +315,14 @@ export function Protected({
             const roles = rolesRes.ok
               ? rolesRes.data.map((r) => r.id)
               : (console.error(rolesRes.error), []);
-            dispatch({ type: 'success', perms, roles });
+            // Compute the authorization decision with the freshly loaded
+            // perms/roles and store it as lastAuthorized (BUG-014): the
+            // *next* loading render will keep showing children iff this was
+            // true, avoiding the unmount/fallback flash on re-fetches.
+            const authorized = computeAuthorized({
+              perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
+            });
+            dispatch({ type: 'success', perms, roles, authorized });
           }
         })
         .catch(() => {
@@ -221,7 +365,10 @@ export function Protected({
           const roles = rolesRes.ok
             ? rolesRes.data.map((r) => r.id)
             : (console.error(rolesRes.error), []);
-          dispatch({ type: 'success', perms, roles });
+          const authorized = computeAuthorized({
+            perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
+          });
+          dispatch({ type: 'success', perms, roles, authorized });
         }
       })
       .catch(() => {
@@ -233,6 +380,13 @@ export function Protected({
     return () => {
       cancelled = true;
     };
+    // perm/roleId/requireAll/userData are captured by the closure ONLY to
+    // compute the `lastAuthorized` snapshot at success time (BUG-014); they are
+    // NOT load triggers (the render path recomputes isAuthorized with the
+    // latest props every render). Adding them to the dep array would cause
+    // burst re-fetches for inline-array `perm` props (new array identity each
+    // render), so we intentionally exclude them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.id, orgId, orgName, targetOrgId, asOrg]);
 
   if (!userData) {
@@ -240,6 +394,17 @@ export function Protected({
   }
 
   if (isLoadingPerms) {
+    // BUG-014: on a *subsequent* load, preserve the previously authorized
+    // content instead of unmounting it (which caused layout shift and loss of
+    // child state on every org switch / router.refresh()). Only preserve when
+    // the last successful load was authorized — otherwise we keep showing the
+    // fallback (this also avoids briefly revealing content that was hidden for
+    // being unauthorized). First load behaves as before (fallback ?? null).
+    // `hasLoadedOnce` and `lastAuthorized` live in reducer state (not refs) so
+    // we never read/write a ref during render.
+    if (hasLoadedOnce && lastAuthorized) {
+      return <>{children}</>;
+    }
     return <>{fallback ?? null}</>;
   }
 
@@ -252,128 +417,38 @@ export function Protected({
   // is unscoped - it may contain permissions from ALL organizations the user belongs
   // to, not just the active one. Returning an empty set is the fail-safe choice:
   // gated content is hidden rather than shown with potentially wrong permissions.
-  const effectivePerms = loadedPerms;
+  const isAuthorized = computeAuthorized({
+    perm,
+    roleId,
+    orgId,
+    orgName,
+    requireAll,
+    asOrg,
+    userData,
+    loadedPerms,
+    loadedRoles,
+  });
 
-  const checkAccess = (): boolean => {
-    // Personal scope (orgId === 'self' or omitted)
-    const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
-    if (isPersonalScope) {
-      if (roleId) {
-        const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
-        const hasRoles = requireAll
-          ? requiredRoles.every((r) => loadedRoles.includes(r))
-          : requiredRoles.some((r) => loadedRoles.includes(r));
-        if (!hasRoles) {
-          debugLog('[Protected] User lacks required personal roles');
-          return false;
-        }
-      }
-      if (perm && (Array.isArray(perm) ? perm.length > 0 : true)) {
-        const requiredPerms = Array.isArray(perm) ? perm : [perm];
-        const hasPerms = requireAll
-          ? requiredPerms.every((p) => loadedPerms.includes(p))
-          : requiredPerms.some((p) => loadedPerms.includes(p));
-        if (!hasPerms) {
-          debugLog('[Protected] User lacks required personal permissions');
-          return false;
-        }
-      }
-      return true;
-    }
-
-    if (!userData?.organizations) {
-      debugLog('[Protected] No user organizations found');
-      return false;
-    }
-
-    const resolvedOrgId = resolveTargetOrgId();
-    if (resolvedOrgId === undefined) {
-      // orgName was specified but not found in user's orgs
-      if (orgName) {
-        debugLog('[Protected] Organization with name not found:', orgName);
-        return false;
-      }
-      // No org scope — pass through
-      return true;
-    }
-
-    // Verify that asOrg === resolvedOrgId / orgId (strict asOrg check)
-    if (asOrg !== resolvedOrgId) {
-      debugLog('[Protected] Organization not selected as active:', {
-        required: resolvedOrgId,
-        current: asOrg,
-      });
-      return false;
-    }
-
-    const hasOrg = userData.organizations.some((org) => org.id === resolvedOrgId);
-    if (!hasOrg) {
-      debugLog('[Protected] User does not have required organization:', resolvedOrgId);
-      return false;
-    }
-
-    if (roleId) {
-      const requiredRoles = Array.isArray(roleId) ? roleId : [roleId];
-      const hasRoles = requireAll
-        ? requiredRoles.every((r) => loadedRoles.includes(r))
-        : requiredRoles.some((r) => loadedRoles.includes(r));
-      if (!hasRoles) {
-        debugLog('[Protected] User lacks required roles in organization:', resolvedOrgId);
-        return false;
-      }
-    }
-
-    const hasRequiredPerms = checkPermissions(resolvedOrgId, effectivePerms);
-    if (!hasRequiredPerms) {
-      debugLog('[Protected] User lacks required permissions in organization:', resolvedOrgId);
-      return false;
-    }
-
-    debugLog('[Protected] Access granted for org:', resolvedOrgId);
-
-    return true;
-  };
-
-  const checkPermissions = (_organizationId: string, perms: string[]): boolean => {
-    if (!perm || (Array.isArray(perm) && perm.length === 0)) {
-      return true;
-    }
-
-    if (!perms || perms.length === 0) {
-      debugLog('[Protected] No organization permissions available');
-      return false;
-    }
-
-    debugLog('[Protected] Available organization permissions:', perms);
-
-    const requiredPerms = Array.isArray(perm) ? perm : [perm];
-    const permResults = requiredPerms.map((requiredPerm) => {
-      const hasPerm = perms.includes(requiredPerm);
-
-      debugLog(`[Protected] Permission check for "${requiredPerm}":`, {
-        hasPermission: hasPerm,
-        availablePerms: perms,
-      });
-
-      return hasPerm;
+  if (isAuthorized) {
+    debugLog('[Protected] Access granted', {
+      scope: isPersonalScopeFor(orgId, orgName) ? 'personal' : targetOrgId,
+      perms: loadedPerms,
+      roles: loadedRoles,
     });
-
-    const hasRequiredPerms = requireAll
-      ? permResults.every(Boolean)
-      : permResults.some(Boolean);
-
-    debugLog('[Protected] Permission check summary:', {
-      _organizationId,
-      availablePerms: perms,
-      requiredPerms,
-      requireAll,
-      hasRequiredPerms,
+  } else {
+    debugLog('[Protected] Access denied', {
+      scope: isPersonalScopeFor(orgId, orgName) ? 'personal' : targetOrgId,
+      asOrg,
+      requiredOrg: targetOrgId,
+      perms: loadedPerms,
+      roles: loadedRoles,
     });
-
-    return hasRequiredPerms;
-  };
-
-  const isAuthorized = checkAccess();
+  }
 
   return isAuthorized ? <>{children}</> : <>{fallback ?? null}</>;
+}
+
+/** Small helper duplicated locally to avoid leaking `isPersonalScope` flags. */
+function isPersonalScopeFor(orgId: string | null | undefined, orgName: string | null | undefined): boolean {
+  return orgId === 'self' || (!orgId && !orgName);
 }

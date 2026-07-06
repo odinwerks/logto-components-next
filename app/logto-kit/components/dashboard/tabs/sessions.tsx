@@ -334,9 +334,18 @@ export function SessionsTab({
       revokeTargetRef.current = null;
       setRevokingId(null);
       setRevokingAll(false);
-    } catch (error) {
+    } catch {
+      // BUG-003: The invoker (PasswordVerifyModal) calls onPasswordSubmit
+      // synchronously without `await`/`.catch` (its prop type returns void).
+      // Re-throwing here produces an unhandledrejection that leaves the modal
+      // stuck on the loading step. Recover in-place instead: reset all flags,
+      // re-open the password step, and surface a generic error toast.
       revokeTargetRef.current = null;
-      throw error;
+      setRevokingId(null);
+      setRevokingAll(false);
+      setGcAllLoading(false);
+      setModalStep({ kind: 'password' });
+      onError(t.common.unexpectedError || 'Unexpected error');
     } finally {
       setRevokingId(null);
       setRevokingAll(false);
@@ -355,17 +364,18 @@ export function SessionsTab({
     });
   };
 
+  // BUG-005: Use locale-aware toLocaleString instead of hard-coded "at"/"AM"/"PM"
+  // literals so non-English users see a consistent date/time representation.
   const formatFullDateTime = (input: number | string) => {
     const date = typeof input === 'string' ? new Date(input) : new Date(input < 1e12 ? input * 1000 : input);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${day}.${month}.${year} at ${hours}:${minutes} ${ampm}`;
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
 
   const getSessionTitle = (session: LogtoSession): string => {
@@ -382,7 +392,10 @@ export function SessionsTab({
     return '';
   };
 
-  if (viewState === 'unverified') {
+  // BUG-022: Guard with `&& !loading` so that during verifyAndLoad's sessions
+  // fetch (where viewState is still 'unverified' but loading is true) the
+  // skeleton renders instead of briefly re-showing the verify-password card.
+  if (viewState === 'unverified' && !loading) {
     return (
       <div>
         <div style={{ marginBottom: '1.625rem' }}>
@@ -738,7 +751,7 @@ export function SessionsTab({
           fontFamily: T.font,
         }}>
           <p style={{ margin: 0, fontSize: '0.75rem', color: T.text, lineHeight: 1.5 }}>
-            Allow map feature to use your IP address for approximate geolocation lookup?
+            {t.sessions.geoConsentPrompt}
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
             <Button
@@ -748,7 +761,7 @@ export function SessionsTab({
               mode={mode}
               colors={c}
             >
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button
               size="sm"
@@ -763,7 +776,7 @@ export function SessionsTab({
               mode={mode}
               colors={c}
             >
-              Allow
+              {t.common.allow}
             </Button>
           </div>
         </div>
@@ -849,11 +862,11 @@ export function SessionsTab({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: isMobile ? '0.625rem' : '0.75rem', color: T.muted }}>
                     <span>
-                      {isMobile ? (
-                        <>Signed in: {formatFullDateTime(session.payload.loginTs)}</>
-                      ) : (
-                        `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`
-                      )}
+{isMobile ? (
+                         <>{t.sessions.loggedInAt}: {formatFullDateTime(session.payload.loginTs)}</>
+                       ) : (
+                         `${t.sessions.loggedInAt}: ${formatDate(session.payload.loginTs)}`
+                       )}
                     </span>
                   </div>
 

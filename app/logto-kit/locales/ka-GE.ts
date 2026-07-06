@@ -348,6 +348,7 @@ export const kaGE: Translations = {
     gcAllConfirmTitle: 'დარწმუნებული ხართ, რომ გსურთ ეს სესიები გაუქმება?',
     gcAllSuccess: 'ყველა სხვა სესია გაუქმებულია',
     viewMap: 'რუქის ნახვა',
+    geoConsentPrompt: 'დაუშვით რუქის ფუნქციას გამოიყენოს თქვენი IP მისამართი დაახლოებითი გეოლოკაციისთვის?',
   },
 
   // Common
@@ -371,6 +372,9 @@ export const kaGE: Translations = {
     loggedInAs: 'შესულია якო',
     openUserDashboard: 'მომხმარებლის დაშბორდის გახსნა',
     yes: 'კი',
+    cancel: 'გაუქმება',
+    allow: 'დაშვება',
+    unexpectedError: 'მოულოდნელი შეცდომა',
   },
 
   // Sign-out modal (playful farewell flow)
