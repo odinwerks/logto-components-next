@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
@@ -329,6 +330,8 @@ export default function PreferencesSection() {
           </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Callback Execution:</strong> On language changes, the provider triggers the <code style={styles.codeSmStyle}>onLangChange</code> callback. This allows root layout controllers to update custom configurations or initiate localized server transitions.
+            <br />
+            In <code style={styles.codeSmStyle}>blacktop</code> mode, the selected language is also forwarded as a <code style={styles.codeSmStyle}>locale</code> field in <code style={styles.codeSmStyle}>POST /api/verifications/verification-code</code> requests, so Logto-sent email and SMS passcodes render in that language. In <code style={styles.codeSmStyle}>upstream</code> mode, language changes affect only dashboard UI translations; the <code style={styles.codeSmStyle}>locale</code> field is omitted from verification requests. See the <Link href="/anatomy/i18n#language-selection-and-logto-message-translation">i18n</Link> page for details.
           </li>
         </ul>
       </div>

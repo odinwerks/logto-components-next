@@ -113,6 +113,7 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 - **`BACKEND_TYPE=upstream`** disables session heartbeats and `lastActiveAt` tracking. This is intentional - the code is not dead, it's gated by platform.
 - Do NOT remove the `if (getBackendType() === 'upstream') return;` guards. They are feature flags, not dead code.
+- **`getBackendType()` gates three server-side code paths**: `heartbeat.ts` (early return), `verification.ts` (locale pass-through on `/api/verifications/verification-code`), and `config.ts` (`getAvatarBackend()` forces S3 in upstream). The sessions tab client component (`tabs/sessions.tsx`) reads `BACKEND_TYPE` via `readEnv('BACKEND_TYPE')` directly (not `getBackendType()`) for `showLastActive`, because `config.ts` imports `server-only` and cannot run in client components. If you change `getBackendType()` resolution logic, update the sessions tab separately.
 
 ## Build Detection
 

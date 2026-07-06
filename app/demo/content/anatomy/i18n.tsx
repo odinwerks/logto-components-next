@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
 import { slugify } from '../../components/SectionComponents';
@@ -198,6 +199,24 @@ const locales: Record<LocaleCode, Translations> = {
         title=".env"
         code={`LANG_AVAILABLE=en-US,ka-GE,uk-UA`}
       />
+
+      <div>
+        <h2 id={slugify("Language Selection and Logto Message Translation")} style={h2Style}>
+          Language Selection and Logto Message Translation
+        </h2>
+        <p style={styles.textStyle}>
+          The static file-based system on this page controls UI strings rendered by the dashboard. A separate mechanism controls the language of email and SMS messages that Logto itself sends.
+        </p>
+        <p style={styles.textStyle}>
+          When <code>BACKEND_TYPE=blacktop</code>, the user&apos;s selected language is forwarded to Logto&apos;s Account API as a <code>locale</code> field in <code>POST /api/verifications/verification-code</code> requests. This causes email and SMS verification passcodes to be rendered in the user&apos;s preferred language.
+        </p>
+        <p style={styles.textStyle}>
+          When <code>BACKEND_TYPE=upstream</code> (the default), the <code>locale</code> field is omitted entirely from the request body. Logto falls back to its own default message language. Language selection still affects dashboard UI translations through the static file-based system, but it has no effect on Logto-sent messages.
+        </p>
+        <p style={styles.textStyle}>
+          The forwarded value is the same BCP 47 tag used for UI resolution (for example <code>en-US</code>, <code>ka-GE</code>, <code>uk-UA</code>). No additional configuration is needed beyond setting a locale via <code>useLangMode()</code> or the Preferences tab. See the <Link href="/getting-started/backend-selection#feature-comparison-matrix">Backend Selection</Link> page for the full capability matrix.
+        </p>
+      </div>
     </div>
   );
 }

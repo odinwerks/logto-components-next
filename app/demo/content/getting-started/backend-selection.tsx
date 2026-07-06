@@ -117,6 +117,15 @@ export default function BackendSelection() {
                 ❌ <strong>Forced S3</strong>. Effective upload backend is always S3-compatible storage, even when <code style={styles.codeSmStyle}>PFP_BACKEND=logto</code>.
               </td>
             </tr>
+            <tr>
+              <td style={customTdPropStyle}>Verification-code locale pass-through</td>
+              <td style={customTdStyle}>
+                <strong>Enabled</strong>. Sends the user&apos;s selected language as a <code style={styles.codeSmStyle}>locale</code> field in <code style={styles.codeSmStyle}>POST /api/verifications/verification-code</code> so email/SMS passcodes render in that language.
+              </td>
+              <td style={customTdStyle}>
+                ❌ <strong>Disabled</strong>. The <code style={styles.codeSmStyle}>locale</code> field is omitted from the request body. Logto falls back to its default message language.
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

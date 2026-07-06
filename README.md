@@ -596,12 +596,12 @@ BACKEND_TYPE=upstream
 ```
 
 - **`blacktop` (Custom Fork Mode)**: Enables all advanced features. This includes:
-  - **Verification-code locale pass-through**: The dashboard sends the user's selected language in `POST /api/verifications/verification-code` so email/SMS passcodes are rendered in that language.
+  - **Verification-code locale pass-through**: The dashboard sends the user's selected language as a `locale` field in `POST /api/verifications/verification-code` so email/SMS passcodes are rendered in that language. The value is the same BCP 47 tag used for UI translations (e.g., `en-US`, `ka-GE`, `uk-UA`).
   - **Real-Time Heartbeats**: Keeps the session fresh by posting heartbeats every 30 seconds.
   - **Last Active Timestamps**: Tracks and displays precise `lastActiveAt` timestamps for active user sessions.
   - **Logto Native Avatar Uploads**: Allows choosing `PFP_BACKEND=logto` to store profile pictures natively in Logto customData.
 - **`upstream` (Stock OIDC / Official SaaS Mode)**: Intended for stock Logto Open-Source or Cloud instances. In this mode, certain custom features are automatically disabled to guarantee compatibility:
-  - **Verification-code locale pass-through is disabled** to remain compatible with stock Logto Account APIs.
+  - **Verification-code locale pass-through is disabled** to remain compatible with stock Logto Account APIs. The `locale` field is omitted entirely from the request body (not sent as null or empty); the payload matches stock Logto API calls.
   - **Heartbeats**: The 30s background heartbeat loop is completely disabled.
   - **Last Active Timestamps**: Precise active session tracking is disabled, and timestamps are hidden in the Sessions tab.
   - **Avatar Uploads**: The `logto` native backend is disabled. S3-compatible storage (`s3`) is strictly forced as the effective backend, even if `PFP_BACKEND` is set to `logto`.

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
@@ -136,7 +137,7 @@ export default function EnvSetup() {
           <tr>
             <td style={customTdPathStyle}>BACKEND_TYPE</td>
             <td style={customTdStyle}>
-              Backend capability mode. Values: <code style={styles.codeSmStyle}>blacktop</code> (custom fork features enabled) or <code style={styles.codeSmStyle}>upstream</code> (stock Logto compatibility mode). Server default is <code style={styles.codeSmStyle}>upstream</code> if unset or invalid.
+              Backend capability mode. Values: <code style={styles.codeSmStyle}>blacktop</code> (custom fork features enabled) or <code style={styles.codeSmStyle}>upstream</code> (stock Logto compatibility mode). Server default is <code style={styles.codeSmStyle}>upstream</code> if unset or invalid. <code style={styles.codeSmStyle}>blacktop</code> enables four capabilities: verification-code locale pass-through, real-time heartbeats, last active timestamps, and native Logto avatar uploads. See the <Link href="/getting-started/backend-selection#feature-comparison-matrix">Backend Selection</Link> page for the full matrix.
             </td>
           </tr>
         </tbody>
