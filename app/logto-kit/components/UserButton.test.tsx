@@ -82,7 +82,8 @@ describe('UserButton Accessibility and Shape Props', () => {
     const button = screen.getByRole('button');
     const placeholder = button.firstChild as HTMLElement;
     expect(placeholder).toBeInTheDocument();
-    expect(placeholder.style.animation).toContain('pulse');
+    // Animation is now delivered via CSS class (ldd-pulse) instead of inline style
+    expect(placeholder.className).toContain('ldd-pulse');
     expect(placeholder.style.width).toBe('6.25rem');
   });
 
@@ -97,7 +98,8 @@ describe('UserButton Accessibility and Shape Props', () => {
     const button = screen.getByRole('button');
     const child = button.firstChild as HTMLElement;
     expect(child).toBeInTheDocument();
-    expect(child.style.animation).not.toContain('pulse');
+    // Loaded avatar does not have the pulse animation class
+    expect(child.className).not.toContain('ldd-pulse');
   });
 
   it('uses target translation for UserButton aria-label after mount', () => {
@@ -172,9 +174,9 @@ describe('UserButton Accessibility and Shape Props', () => {
     render(<UserButton />);
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
-    // Unauthenticated: should immediately show FallbackAvatar, not LoadingPlaceholder (no pulse animation)
+    // Unauthenticated: should immediately show FallbackAvatar, not LoadingPlaceholder (no pulse animation class)
     const avatar = button.firstChild as HTMLElement;
-    expect(avatar.style.animation).not.toContain('pulse');
+    expect(avatar.className).not.toContain('ldd-pulse');
     fireEvent.click(button);
     expect(mockOpenDashboard).toHaveBeenCalled();
   });

@@ -7,6 +7,7 @@ import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
+import { Spinner } from '../../shared/animations';
 import { Lbl, HR } from './primitives';
 
 export function Overlay({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
@@ -164,11 +165,7 @@ export function PasswordVerifyModal({
 
           {step.kind === 'loading' && (
             <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <div style={{
-                width: '1.875rem', height: '1.875rem', border: `2px solid ${T.border}`,
-                borderTopColor: T.blue, borderRadius: '50%',
-                animation: 'spin 0.7s linear infinite',
-              }} />
+              <Spinner borderSpinner size="1.875rem" trackColor={T.border} color={T.blue} />
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}
@@ -372,11 +369,7 @@ export function FlowModal({
 
           {step.kind === 'loading' && (
             <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <div style={{
-                width: '1.875rem', height: '1.875rem', border: `2px solid ${T.border}`,
-                borderTopColor: T.blue, borderRadius: '50%',
-                animation: 'spin 0.7s linear infinite',
-              }} />
+              <Spinner borderSpinner size="1.875rem" trackColor={T.border} color={T.blue} />
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}

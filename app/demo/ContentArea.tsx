@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
+import { StaggerItem } from '../logto-kit/components/shared/animations';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
@@ -126,7 +127,6 @@ const phStyle: React.CSSProperties = {
 };
 
 const cursorStyle: React.CSSProperties = {
-  animation: 'demo-blink 1.1s step-end infinite',
   color: 'rgba(255,255,255,0.22)',
   marginLeft: '2px',
 };
@@ -139,7 +139,6 @@ const footStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '7px',
-  animation: 'demo-riseUp 0.28s ease-out 0.4s both',
 };
 
 const footDotStyle: React.CSSProperties = {
@@ -248,12 +247,11 @@ export default function ContentArea({ item }: ContentAreaProps) {
           </Suspense>
         ) : (
           item.sections.map((section, i) => (
-            <div
+            <StaggerItem
               key={section}
-              style={{
-                ...themedSectStyle,
-                animation: `demo-riseUp 0.28s ease-out ${0.13 + i * 0.055}s both`,
-              }}
+              delay={0.13 + i * 0.055}
+              animation="ldd-demo-rise-up"
+              style={{ ...themedSectStyle }}
             >
               <div style={themedSectHeadStyle}>
                 <div style={themedSectDotStyle} />
@@ -262,14 +260,14 @@ export default function ContentArea({ item }: ContentAreaProps) {
               <div style={sectBodyStyle}>
                 <div style={themedPhStyle}>
                   {SECTION_HINTS[section] || `${section}...`}
-                  <span style={themedCursorStyle}>▌</span>
+                  <span className="ldd-demo-blink" style={themedCursorStyle}>▌</span>
                 </div>
               </div>
-            </div>
+            </StaggerItem>
           ))
         )}
 
-        <div style={themedFootStyle}>
+        <div className="ldd-demo-rise-up" style={themedFootStyle}>
           <div style={themedFootDotStyle} />
           {DocContent ? 'Self-documenting demo - logto-kit' : 'Placeholder - fill in usage patterns and demos'}
         </div>

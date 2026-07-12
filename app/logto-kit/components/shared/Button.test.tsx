@@ -4,8 +4,8 @@ import { Button } from './Button';
 import { DARK_COLORS } from '../../themes';
 
 describe('Button Component (P-BUG-008)', () => {
-  it('renders children and injects CSS-based hover styles to prevent touchscreen sticky hover', () => {
-    const { container } = render(
+  it('renders children and applies CSS-class-based hover styles to prevent touchscreen sticky hover', () => {
+    render(
       <Button mode="dark" colors={DARK_COLORS}>
         Test Button
       </Button>
@@ -18,14 +18,18 @@ describe('Button Component (P-BUG-008)', () => {
     // (secondary variant has background color of bgTertiary)
     expect(button.style.background).toBe('rgb(23, 28, 42)');
 
-    // Verify that a <style> tag containing CSS hover/focus-visible rules is injected
-    const styleTags = container.getElementsByTagName('style');
-    expect(styleTags.length).toBeGreaterThan(0);
-    const styleContent = styleTags[0].textContent;
+    // Verify that CSS classes for hover/focus-visible are applied
+    // (replaces the previous runtime <style>-tag injection pattern)
+    expect(button.className).toContain('ldd-btn');
+    expect(button.className).toContain('ldd-btn-secondary');
 
-    // Check that style content has hover rule targeting the button class with the hover background (bgPrimary: #111620)
-    expect(styleContent).toContain(':hover');
-    expect(styleContent).toContain('#111620');
+    // Verify hover/focus-visible colors are set via CSS custom properties
+    // (secondary variant hover background is bgPrimary: #111620)
+    expect(button.style.getPropertyValue('--btn-hover-bg')).toContain('111620');
+    // textPrimary in DARK_COLORS is #f3f4f6
+    expect(button.style.getPropertyValue('--btn-hover-color')).toContain('f3f4f6');
+    // textTertiary in DARK_COLORS is #90959e
+    expect(button.style.getPropertyValue('--btn-outline-color')).toContain('90959e');
   });
 
   it('renders disabled state and ensures it is styled', () => {
@@ -39,5 +43,19 @@ describe('Button Component (P-BUG-008)', () => {
     expect(button).toBeDisabled();
     expect(button.style.opacity).toBe('0.45');
     expect(button.style.cursor).toBe('not-allowed');
+  });
+
+  it('applies the correct variant class for each variant', () => {
+    const { rerender } = render(<Button mode="dark" colors={DARK_COLORS} variant="primary">Primary</Button>);
+    expect(screen.getByRole('button').className).toContain('ldd-btn-primary');
+
+    rerender(<Button mode="dark" colors={DARK_COLORS} variant="danger">Danger</Button>);
+    expect(screen.getByRole('button').className).toContain('ldd-btn-danger');
+
+    rerender(<Button mode="dark" colors={DARK_COLORS} variant="dangerSolid">DangerSolid</Button>);
+    expect(screen.getByRole('button').className).toContain('ldd-btn-dangerSolid');
+
+    rerender(<Button mode="dark" colors={DARK_COLORS} variant="ghost">Ghost</Button>);
+    expect(screen.getByRole('button').className).toContain('ldd-btn-ghost');
   });
 });

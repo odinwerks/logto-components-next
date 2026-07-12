@@ -90,7 +90,6 @@ export default function MobileDocsNav() {
     flexDirection: 'column',
     height: '100dvh',
     minHeight: '100vh',
-    animation: 'fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   };
 
   const stageContainerStyle: React.CSSProperties = {
@@ -179,7 +178,7 @@ export default function MobileDocsNav() {
       )}
 
       {isOpen && (
-        <div style={fullscreenOverlayStyle}>
+        <div className="ldd-fade-in" style={{ ...fullscreenOverlayStyle, animationDuration: '0.25s' }}>
           {stage === 'topics' ? (
             <div style={stageContainerStyle}>
               {/* Header */}

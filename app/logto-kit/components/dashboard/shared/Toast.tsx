@@ -1,21 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useSyncExternalStore } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
-
-const subscribePrefersReducedMotion = (callback: () => void) => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  mq.addEventListener('change', callback);
-  return () => mq.removeEventListener('change', callback);
-};
-
-const getSnapshotPrefersReducedMotion = () => {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-};
-
-const getServerSnapshotPrefersReducedMotion = () => false;
+import { usePrefersReducedMotion } from '../../../hooks/use-prefers-reduced-motion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single Toast
@@ -31,11 +19,7 @@ interface ToastProps {
 export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
 
-  const prefersReducedMotion = useSyncExternalStore(
-    subscribePrefersReducedMotion,
-    getSnapshotPrefersReducedMotion,
-    getServerSnapshotPrefersReducedMotion
-  );
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const timer = setTimeout(
@@ -83,13 +67,17 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const toastStyle: React.CSSProperties = {
     ...styleMap[message.type],
     maxWidth: '25rem',
-    animation: prefersReducedMotion ? 'none' : 'slideIn 0.2s ease-out',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   };
 
   return (
-    <div style={toastStyle} role="status" aria-live="polite">
+    <div
+      style={toastStyle}
+      className={prefersReducedMotion ? undefined : 'ldd-slide-in-right'}
+      role="status"
+      aria-live="polite"
+    >
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',

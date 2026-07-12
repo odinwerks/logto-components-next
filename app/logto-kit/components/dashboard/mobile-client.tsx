@@ -8,6 +8,7 @@ import { FONT_MONO, type ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { useLogto } from '../providers/logto-provider';
+import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
 import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
@@ -22,19 +23,6 @@ import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession } 
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft } from 'lucide-react';
 import { getTabLabel } from './tab-utils';
-
-const subscribePrefersReducedMotion = (callback: () => void) => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  mq.addEventListener('change', callback);
-  return () => mq.removeEventListener('change', callback);
-};
-
-const getSnapshotPrefersReducedMotion = () => {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-};
-
-const getServerSnapshotPrefersReducedMotion = () => false;
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -495,11 +483,7 @@ function MobileMenuEntry({
 
   const isLast = index === total - 1;
 
-  const prefersReducedMotion = useSyncExternalStore(
-    subscribePrefersReducedMotion,
-    getSnapshotPrefersReducedMotion,
-    getServerSnapshotPrefersReducedMotion
-  );
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     return () => {
@@ -555,15 +539,13 @@ function MobileMenuEntry({
         cursor: 'pointer',
         textAlign: 'center',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        animation: prefersReducedMotion
-          ? 'none'
-          : `mStagger 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`,
-        animationDelay: prefersReducedMotion ? '0ms' : `${index * 0.08}s`,
+        animationDelay: prefersReducedMotion ? undefined : `${index * 0.08}s`,
         opacity: 1,
         textShadow: pressed
           ? (mode === 'dark' ? '0 0 1rem rgba(255,255,255,0.15)' : '0 0 1rem rgba(0,0,0,0.1)')
           : 'none',
       }}
+      className={prefersReducedMotion ? undefined : 'ldd-stagger'}
     >
       {label}
     </button>

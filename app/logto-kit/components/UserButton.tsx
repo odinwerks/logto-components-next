@@ -7,6 +7,7 @@ import locales from '../locales';
 import { useThemeMode } from './providers/preferences';
 import { useLogto } from './providers/logto-provider';
 import { useUserDataContext } from './providers/user-data-context';
+import { usePrefersReducedMotion } from '../hooks/use-prefers-reduced-motion';
 import { User } from 'lucide-react';
 import { readEnv } from '../logic/env';
 
@@ -146,18 +147,10 @@ function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string;
 
 function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: string; colors: ThemeColors }) {
   const resolvedShape = getShape(shape);
-  const prefersReducedMotion = useSyncExternalStore(
-    (callback) => {
-      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-      mq.addEventListener('change', callback);
-      return () => mq.removeEventListener('change', callback);
-    },
-    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    () => false
-  );
+  const prefersReducedMotion = usePrefersReducedMotion();
   return (
     <div
+      className={prefersReducedMotion ? undefined : 'ldd-pulse'}
       style={{
         width: Size,
         height: Size,
@@ -165,7 +158,6 @@ function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: str
         border: `2px solid ${colors.borderColor}`,
         background: colors.bgTertiary,
         opacity: 0.6,
-        animation: prefersReducedMotion ? 'none' : 'pulse 1.5s infinite ease-in-out',
       }}
     />
   );

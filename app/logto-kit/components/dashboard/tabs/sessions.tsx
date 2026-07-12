@@ -5,8 +5,9 @@ import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe, Loader2 } from 'lucide-react';
+import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe } from 'lucide-react';
 import { Button } from '../../shared/Button';
+import { Spinner, Pulse } from '../../shared/animations';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { useFocusTrap } from '../shared/focus-trap';
@@ -463,14 +464,15 @@ export function SessionsTab({
                 padding: isMobile ? '0 0 0 0' : '0.5rem 1.25rem 0.5rem 0.125rem',
                 marginRight: isMobile ? '0.75rem' : '0'
               }}>
-                <div style={{
-                  width: isMobile ? '3rem' : '3rem',
-                  height: isMobile ? '3rem' : '3rem',
-                  borderRadius: '0.25rem',
-                  background: T.raised,
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.15}s`
-                }} />
+                <Pulse
+                  delay={i * 0.15}
+                  style={{
+                    width: isMobile ? '3rem' : '3rem',
+                    height: isMobile ? '3rem' : '3rem',
+                    borderRadius: '0.25rem',
+                    background: T.raised,
+                  }}
+                />
               </div>
 
               {/* 2. Text Content placeholder */}
@@ -484,42 +486,46 @@ export function SessionsTab({
                 gap: isMobile ? '0.25rem' : '0.375rem',
               }}>
                 {/* Title */}
-                <div style={{
-                  height: isMobile ? '0.625rem' : '0.75rem',
-                  borderRadius: '0.25rem',
-                  background: T.raised,
-                  width: '55%',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.15}s`
-                }} />
+                <Pulse
+                  delay={i * 0.15}
+                  style={{
+                    height: isMobile ? '0.625rem' : '0.75rem',
+                    borderRadius: '0.25rem',
+                    background: T.raised,
+                    width: '55%',
+                  }}
+                />
                 {/* Signed In Timestamp */}
-                <div style={{
-                  height: '0.5rem',
-                  borderRadius: '0.25rem',
-                  background: T.raised,
-                  width: isMobile ? '70%' : '45%',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.15 + 0.1}s`
-                }} />
-                {/* Expires Timestamp */}
-                <div style={{
-                  height: '0.5rem',
-                  borderRadius: '0.25rem',
-                  background: T.raised,
-                  width: isMobile ? '50%' : '35%',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.15 + 0.2}s`
-                }} />
-                {/* Last Active (only if showLastActive) */}
-                {showLastActive && (
-                  <div style={{
+                <Pulse
+                  delay={i * 0.15 + 0.1}
+                  style={{
                     height: '0.5rem',
                     borderRadius: '0.25rem',
                     background: T.raised,
-                    width: isMobile ? '40%' : '30%',
-                    animation: 'pulse 1.4s ease-in-out infinite',
-                    animationDelay: `${i * 0.15 + 0.3}s`
-                  }} />
+                    width: isMobile ? '70%' : '45%',
+                  }}
+                />
+                {/* Expires Timestamp */}
+                <Pulse
+                  delay={i * 0.15 + 0.2}
+                  style={{
+                    height: '0.5rem',
+                    borderRadius: '0.25rem',
+                    background: T.raised,
+                    width: isMobile ? '50%' : '35%',
+                  }}
+                />
+                {/* Last Active (only if showLastActive) */}
+                {showLastActive && (
+                  <Pulse
+                    delay={i * 0.15 + 0.3}
+                    style={{
+                      height: '0.5rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      width: isMobile ? '40%' : '30%',
+                    }}
+                  />
                 )}
               </div>
 
@@ -577,24 +583,26 @@ export function SessionsTab({
                 ) : (
                   isMobile ? (
                     // Other Device Revoke Trash button placeholder
-                    <div style={{
-                      width: '1.75rem',
-                      height: '1.75rem',
-                      borderRadius: '0.25rem',
-                      background: T.raised,
-                      animation: 'pulse 1.4s ease-in-out infinite',
-                      animationDelay: `${i * 0.15}s`
-                    }} />
+                    <Pulse
+                      delay={i * 0.15}
+                      style={{
+                        width: '1.75rem',
+                        height: '1.75rem',
+                        borderRadius: '0.25rem',
+                        background: T.raised,
+                      }}
+                    />
                   ) : (
                     // Desktop Other Device Revoke button placeholder
-                    <div style={{
-                      width: '4rem',
-                      height: '1.75rem',
-                      borderRadius: '0.25rem',
-                      background: T.raised,
-                      animation: 'pulse 1.4s ease-in-out infinite',
-                      animationDelay: `${i * 0.15}s`
-                    }} />
+                    <Pulse
+                      delay={i * 0.15}
+                      style={{
+                        width: '4rem',
+                        height: '1.75rem',
+                        borderRadius: '0.25rem',
+                        background: T.raised,
+                      }}
+                    />
                   )
                 )}
 
@@ -994,7 +1002,7 @@ export function SessionsTab({
                         }}
                       >
                         {locatingIp === ip ? (
-                          <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                          <Spinner size={16} />
                         ) : (
                           <MapPin size={16} />
                         )}
@@ -1015,7 +1023,7 @@ export function SessionsTab({
                     >
                       {locatingIp === ip ? (
                         <>
-                          <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          <Spinner size={12} />
                           {t.common.loading}
                         </>
                       ) : (

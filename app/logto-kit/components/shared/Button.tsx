@@ -36,7 +36,6 @@ export function Button({
   'aria-label': ariaLabel,
 }: ButtonProps) {
   const buttonId = useId();
-  const className = `btn-${buttonId.replace(/:/g, '')}`;
 
   const isDark = mode === 'dark';
 
@@ -52,7 +51,6 @@ export function Button({
     justifyContent: 'center',
     gap: '0.375rem',
     borderRadius: '0.25rem',
-    transition: 'all 0.15s ease',
     lineHeight: 1,
     flexShrink: 0,
   };
@@ -89,39 +87,31 @@ export function Button({
   const hoverColor = s.hover.color ? String(s.hover.color) : '';
   const hoverBorderColor = s.hover.borderColor ? String(s.hover.borderColor) : (s.base.borderColor ? String(s.base.borderColor) : '');
 
+  // Hover/focus-visible styling is delivered via CSS classes (.ldd-btn) in
+  // globals.css, using per-instance CSS custom properties set inline below.
+  // This replaces the previous runtime <style>-tag injection pattern and
+  // eliminates the per-instance <style> tag + !important dependency.
   return (
-    <>
-      <style>{`
-        .${className}:hover:not(:disabled) {
-          background: ${hoverBg} !important;
-          color: ${hoverColor} !important;
-          border-color: ${hoverBorderColor} !important;
-        }
-        .${className}:focus-visible:not(:disabled) {
-          background: ${hoverBg} !important;
-          color: ${hoverColor} !important;
-          border-color: ${hoverBorderColor} !important;
-          outline: 0.125rem solid ${colors.textTertiary} !important;
-          outline-offset: 0.125rem !important;
-        }
-      `}</style>
-      <button
-        type={type}
-        id={buttonId}
-        onClick={onClick}
-        disabled={disabled}
-        title={title}
-        aria-label={ariaLabel}
-        className={className}
-        style={{
-          ...s.base,
-          ...(disabled ? s.disabled : {}),
-          ...sz,
-          ...style,
-        }}
-      >
-        {children}
-      </button>
-    </>
+    <button
+      type={type}
+      id={buttonId}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={ariaLabel}
+      className={`ldd-btn ldd-btn-${variant}`}
+      style={{
+        ...s.base,
+        ...(disabled ? s.disabled : {}),
+        ...sz,
+        ...style,
+        '--btn-hover-bg': hoverBg,
+        '--btn-hover-color': hoverColor,
+        '--btn-hover-border': hoverBorderColor,
+        '--btn-outline-color': colors.textTertiary,
+      } as CSSProperties}
+    >
+      {children}
+    </button>
   );
 }

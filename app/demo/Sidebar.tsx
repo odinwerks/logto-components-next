@@ -35,7 +35,6 @@ const sidebarStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   overflow: 'hidden',
-  animation: 'slideIn 0.32s cubic-bezier(0.4,0,0.2,1)',
 };
 
 const brandStyle: React.CSSProperties = {
@@ -237,7 +236,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
   const themedNavBarStyle = { ...navBarStyle, background: colors.navIndicator };
 
   return (
-    <div style={themedSidebarStyle}>
+    <div className="ldd-slide-in-right" style={themedSidebarStyle}>
       <div style={themedBrandStyle}>
         <div style={themedBrandIconStyle}>
           <BrandIcon />

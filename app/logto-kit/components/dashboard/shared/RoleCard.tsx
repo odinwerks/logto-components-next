@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useId, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, Loader2 } from 'lucide-react';
+import { Info } from 'lucide-react';
+import { Spinner } from '../../shared/animations';
 import { getRoleDetails } from '../../../logic/actions/roles';
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
@@ -199,7 +200,7 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
                 )}
                 {loadingDesc && !effectiveDescription && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary }}>
-                    <Loader2 size={10} strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }} />
+                    <Spinner size={10} strokeWidth={2} />
                     {t.profile.loading}
                   </div>
                 )}

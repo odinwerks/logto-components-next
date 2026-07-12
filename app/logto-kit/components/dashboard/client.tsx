@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
+import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
 import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
 import { ProfileTab } from './tabs/profile';
@@ -137,19 +138,6 @@ interface DashboardClientProps {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
-const subscribePrefersReducedMotion = (callback: () => void) => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
-  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  mq.addEventListener('change', callback);
-  return () => mq.removeEventListener('change', callback);
-};
-
-const getSnapshotPrefersReducedMotion = () => {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-};
-
-const getServerSnapshotPrefersReducedMotion = () => false;
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardClient({
@@ -193,11 +181,7 @@ export function DashboardClient({
   // ── Theme ──────────────────────────────────────────────────────────────────
   const { mode, colors } = useThemeMode();
 
-  const prefersReducedMotion = useSyncExternalStore(
-    subscribePrefersReducedMotion,
-    getSnapshotPrefersReducedMotion,
-    getServerSnapshotPrefersReducedMotion
-  );
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang } = useLangMode();
@@ -450,7 +434,9 @@ export function DashboardClient({
               </div>
             )}
           >
-            <div className="dashboard-tabpanel-content" style={{ animation: prefersReducedMotion ? 'none' : 'fadeIn 0.12s ease' }}>
+            <div
+              className={`dashboard-tabpanel-content${prefersReducedMotion ? '' : ' ldd-fade-in'}`}
+            >
         {activeTab === 'profile' && (
           <ProfileTab
             userData={userData}
