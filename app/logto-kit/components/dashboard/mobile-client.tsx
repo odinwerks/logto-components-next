@@ -12,7 +12,7 @@ import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion'
 import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { TabErrorBoundary } from './shared/TabErrorBoundary';
+import { TabFadePanel } from './tab-fade-panel';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -317,8 +317,9 @@ export function MobileClient({
             minHeight: 'calc(100dvh - 5.5rem)',
           }}
         >
-          <TabErrorBoundary
-            resetKey={activeTab ?? 'menu'}
+          <TabFadePanel
+            activeTab={activeTab ?? 'profile'}
+            prefersReducedMotion={prefersReducedMotion}
             fallback={(
               <div
                 role="alert"
@@ -332,95 +333,94 @@ export function MobileClient({
               </div>
             )}
           >
-            <div
-              key={activeTab}
-              className={prefersReducedMotion ? undefined : 'ldd-tab-fade-in'}
-            >
-          {activeTab === 'profile' && (
-            <ProfileTab
-              userData={userData}
-              mode={mode}
-              colors={colors}
-              t={t}
-              mobmode={1}
-            countryFilter={countryFilter}
-            nameType={nameType}
-            onUpdateBasicInfo={onUpdateBasicInfo}
-            onUpdateAvatarUrl={onUpdateAvatarUrl}
-            onUpdateProfile={onUpdateProfile}
-            onVerifyPassword={onVerifyPassword}
-            onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
-            onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
-            onVerifyCode={onVerifyCode}
-            onUpdateEmail={onUpdateEmail}
-            onUpdatePhone={onUpdatePhone}
-            onRemoveEmail={onRemoveEmail}
-            onRemovePhone={onRemovePhone}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-            refreshData={refreshData}
-          />
-        )}
+            {(tabId) => (
+              <>
+                {tabId === 'profile' && (
+                  <ProfileTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    mobmode={1}
+                    countryFilter={countryFilter}
+                    nameType={nameType}
+                    onUpdateBasicInfo={onUpdateBasicInfo}
+                    onUpdateAvatarUrl={onUpdateAvatarUrl}
+                    onUpdateProfile={onUpdateProfile}
+                    onVerifyPassword={onVerifyPassword}
+                    onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
+                    onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
+                    onVerifyCode={onVerifyCode}
+                    onUpdateEmail={onUpdateEmail}
+                    onUpdatePhone={onUpdatePhone}
+                    onRemoveEmail={onRemoveEmail}
+                    onRemovePhone={onRemovePhone}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    refreshData={refreshData}
+                  />
+                )}
 
-        {activeTab === 'preferences' && (
-          <PreferencesTab
-            mode={mode}
-            colors={colors}
-            t={t}
-            supportedLangs={supportedLangs}
-            mobmode={1}
-          />
-        )}
+                {tabId === 'preferences' && (
+                  <PreferencesTab
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    supportedLangs={supportedLangs}
+                    mobmode={1}
+                  />
+                )}
 
-        {activeTab === 'security' && (
-          <SecurityTab
-            userData={userData}
-            mode={mode}
-            colors={colors}
-            t={t}
-            mobmode={1}
-            onVerifyPassword={onVerifyPassword}
-            onGetMfaVerifications={onGetMfaVerifications}
-            onGenerateTotpSecret={onGenerateTotpSecret}
-            onAddMfaVerification={onAddMfaVerification}
-            onDeleteMfaVerification={onDeleteMfaVerification}
-            onReplaceTotpVerification={onReplaceTotpVerification}
-            onGenerateBackupCodes={onGenerateBackupCodes}
-            onUpdatePassword={onUpdatePassword}
-            onDeleteAccount={onDeleteAccount}
-            onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
-            onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
-            onRenamePasskey={onRenamePasskey}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-          />
-        )}
+                {tabId === 'security' && (
+                  <SecurityTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    mobmode={1}
+                    onVerifyPassword={onVerifyPassword}
+                    onGetMfaVerifications={onGetMfaVerifications}
+                    onGenerateTotpSecret={onGenerateTotpSecret}
+                    onAddMfaVerification={onAddMfaVerification}
+                    onDeleteMfaVerification={onDeleteMfaVerification}
+                    onReplaceTotpVerification={onReplaceTotpVerification}
+                    onGenerateBackupCodes={onGenerateBackupCodes}
+                    onUpdatePassword={onUpdatePassword}
+                    onDeleteAccount={onDeleteAccount}
+                    onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+                    onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+                    onRenamePasskey={onRenamePasskey}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                  />
+                )}
 
-        {activeTab === 'sessions' && (
-          <SessionsTab
-            userData={userData}
-            mode={mode}
-            colors={colors}
-            t={t}
-            mobmode={1}
-            onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
-            onRevokeSession={onRevokeSession}
-            onRevokeAllOtherSessions={onRevokeAllOtherSessions}
-            onVerifyPassword={onVerifyPassword}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-          />
-        )}
+                {tabId === 'sessions' && (
+                  <SessionsTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    mobmode={1}
+                    onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+                    onRevokeSession={onRevokeSession}
+                    onRevokeAllOtherSessions={onRevokeAllOtherSessions}
+                    onVerifyPassword={onVerifyPassword}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                  />
+                )}
 
-        {activeTab === 'identities' && (
-          <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
-        )}
+                {tabId === 'identities' && (
+                  <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
+                )}
 
-        {activeTab === 'organizations' && (
-          <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
-        )}
-            </div>
-          </TabErrorBoundary>
+                {tabId === 'organizations' && (
+                  <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
+                )}
+              </>
+            )}
+          </TabFadePanel>
 
         </div>
       </div>
@@ -486,31 +486,9 @@ function MobileMenuEntry({
     <button
       onClick={onClick}
       style={{
-        width: '100%',
-        padding: '1.25rem 1.5rem',
-        background: 'transparent',
-        border: `1px solid ${colors.borderColor}`,
-        borderRadius: '0.5rem',
-        color: isSignOut ? colors.accentRed : colors.textPrimary,
-        fontFamily: FONT_MONO,
-        fontSize: '0.9375rem',
-        fontWeight: 500,
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.08s ease',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
+        color: isSignOut ? colors.accentRed : undefined,
       }}
-      className={`ldd-btn-press${isSignOut ? ' ldd-mobile-menu-card-signout' : ''}`}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.bgPage;
-        e.currentTarget.style.borderColor = isSignOut ? colors.accentRed : colors.textTertiary;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.borderColor = colors.borderColor;
-      }}
+      className={`ldd-mobile-menu-card ldd-btn-press${isSignOut ? ' ldd-mobile-menu-card-signout' : ''}`}
     >
       {isSignOut ? (
         <LogoutIcon size={18} color="currentColor" aria-hidden="true" />

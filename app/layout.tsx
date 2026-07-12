@@ -60,9 +60,11 @@ export default async function RootLayout({
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
   const resolvedOrg   = userPrefs?.asOrg ?? null;
+  const forceAnimationsClass =
+    process.env.NEXT_PUBLIC_FORCE_ANIMATIONS === 'true' ? 'ldd-force-animations' : '';
 
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" className={forceAnimationsClass} suppressHydrationWarning>
       <head>
         {/*
           Theme flash prevention: reads theme from sessionStorage and applies it

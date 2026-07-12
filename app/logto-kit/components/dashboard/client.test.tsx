@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { useState } from 'react';
 import type { DashboardData, TabId } from './types';
 import type { Translations } from '../../locales';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
@@ -59,7 +60,15 @@ vi.mock('./tabs/profile', () => ({
     if (shouldThrowProfileTab.value) {
       throw new Error('profile render crash');
     }
-    return null;
+    const [value, setValue] = useState('');
+    return (
+      <input
+        data-testid="profile-draft-input"
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+    );
   },
 }));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
@@ -150,6 +159,10 @@ const requiredProps = {
   onSignOut: async () => {},
 };
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('DashboardClient - userShape prop', () => {
   beforeEach(() => {
     mockUserBadge.mockClear();
@@ -222,6 +235,46 @@ describe('DashboardClient - userShape prop', () => {
     // Switch back to Profile tab and re-check the wrapper identity.
     fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
     expect(screen.getByRole('tabpanel').querySelector('.dashboard-tabpanel-content')).not.toBeNull();
+  });
+
+  it('preserves tab form state across tab switches (BUG A — keyed fade wrapper regression)', () => {
+    // The profile tab mock exposes a controlled input. Typing into it and
+    // switching tabs should NOT reset the value — the component must stay
+    // mounted (hidden via display:none, not unmounted) during the switch.
+    vi.useFakeTimers();
+
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security']}
+      />,
+    );
+
+    // Type a draft into the profile input.
+    const input = screen.getByTestId('profile-draft-input');
+    fireEvent.change(input, { target: { value: 'my draft' } });
+    expect(input).toHaveValue('my draft');
+
+    // Switch to Security tab — triggers crossfade (isFading → timeout).
+    fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
+
+    // Advance past the 100ms fade-out timer so displayedTab updates.
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    // The profile input must still exist in the DOM (hidden, not unmounted).
+    expect(screen.getByTestId('profile-draft-input')).toBeInTheDocument();
+
+    // Switch back to Profile tab.
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    // The draft value must survive the round-trip.
+    expect(screen.getByTestId('profile-draft-input')).toHaveValue('my draft');
   });
 
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {

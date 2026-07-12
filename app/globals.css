@@ -277,9 +277,17 @@ select:focus-visible {
 
 /* Respect the user's reduced-motion preference. This neutralises every
    animation and transition when the user opts in. Components also gate
-   animation classes via usePrefersReducedMotion(). */
+   animation classes via usePrefersReducedMotion().
+
+   When the <html> element carries the `ldd-force-animations` class (added
+   server-side when NEXT_PUBLIC_FORCE_ANIMATIONS=true), the :not() prevents
+   these reduced-motion rules from matching any element. That way the flag
+   works at the CSS layer — not just the JS layer — and authored animation
+   durations/iteration counts play regardless of the OS preference. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  html:not(.ldd-force-animations) *,
+  html:not(.ldd-force-animations) *::before,
+  html:not(.ldd-force-animations) *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

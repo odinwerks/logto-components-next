@@ -19,7 +19,7 @@ import { OrganizationsTab } from './tabs/organizations';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { TabErrorBoundary } from './shared/TabErrorBoundary';
+import { TabFadePanel } from './tab-fade-panel';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -408,8 +408,9 @@ export function DashboardClient({
             boxSizing: 'border-box',
           }}
         >
-          <TabErrorBoundary
-            resetKey={activeTab}
+          <TabFadePanel
+            activeTab={activeTab}
+            prefersReducedMotion={prefersReducedMotion}
             fallback={(
               <div
                 role="alert"
@@ -423,94 +424,90 @@ export function DashboardClient({
               </div>
             )}
           >
-            <div className="dashboard-tabpanel-content">
-              <div
-                key={activeTab}
-                className={prefersReducedMotion ? undefined : 'ldd-tab-fade-in'}
-              >
-        {activeTab === 'profile' && (
-          <ProfileTab
-            userData={userData}
-            mode={mode}
-            colors={colors}
-            t={t}
-            countryFilter={countryFilter}
-            nameType={nameType}
-            onUpdateBasicInfo={onUpdateBasicInfo}
-            onUpdateAvatarUrl={onUpdateAvatarUrl}
-            onUpdateProfile={onUpdateProfile}
-            onVerifyPassword={onVerifyPassword}
-            onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
-            onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
-            onVerifyCode={onVerifyCode}
-            onUpdateEmail={onUpdateEmail}
-            onUpdatePhone={onUpdatePhone}
-            onRemoveEmail={onRemoveEmail}
-            onRemovePhone={onRemovePhone}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-            refreshData={refreshData}
-          />
-        )}
+            {(tabId) => (
+              <>
+                {tabId === 'profile' && (
+                  <ProfileTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    countryFilter={countryFilter}
+                    nameType={nameType}
+                    onUpdateBasicInfo={onUpdateBasicInfo}
+                    onUpdateAvatarUrl={onUpdateAvatarUrl}
+                    onUpdateProfile={onUpdateProfile}
+                    onVerifyPassword={onVerifyPassword}
+                    onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
+                    onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
+                    onVerifyCode={onVerifyCode}
+                    onUpdateEmail={onUpdateEmail}
+                    onUpdatePhone={onUpdatePhone}
+                    onRemoveEmail={onRemoveEmail}
+                    onRemovePhone={onRemovePhone}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    refreshData={refreshData}
+                  />
+                )}
 
-        {activeTab === 'preferences' && (
-          <PreferencesTab
-            mode={mode}
-            colors={colors}
-            t={t}
-            supportedLangs={supportedLangs}
-          />
-        )}
+                {tabId === 'preferences' && (
+                  <PreferencesTab
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    supportedLangs={supportedLangs}
+                  />
+                )}
 
-        {activeTab === 'security' && (
-          <SecurityTab
-            userData={userData}
-            mode={mode}
-            colors={colors}
-            t={t}
-            onVerifyPassword={onVerifyPassword}
-            onGetMfaVerifications={onGetMfaVerifications}
-            onGenerateTotpSecret={onGenerateTotpSecret}
-            onAddMfaVerification={onAddMfaVerification}
-            onDeleteMfaVerification={onDeleteMfaVerification}
-            onReplaceTotpVerification={onReplaceTotpVerification}
-            onGenerateBackupCodes={onGenerateBackupCodes}
-            onUpdatePassword={onUpdatePassword}
-            onDeleteAccount={onDeleteAccount}
-            onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
-            onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
-            onRenamePasskey={onRenamePasskey}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-          />
-        )}
+                {tabId === 'security' && (
+                  <SecurityTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    onVerifyPassword={onVerifyPassword}
+                    onGetMfaVerifications={onGetMfaVerifications}
+                    onGenerateTotpSecret={onGenerateTotpSecret}
+                    onAddMfaVerification={onAddMfaVerification}
+                    onDeleteMfaVerification={onDeleteMfaVerification}
+                    onReplaceTotpVerification={onReplaceTotpVerification}
+                    onGenerateBackupCodes={onGenerateBackupCodes}
+                    onUpdatePassword={onUpdatePassword}
+                    onDeleteAccount={onDeleteAccount}
+                    onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+                    onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+                    onRenamePasskey={onRenamePasskey}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                  />
+                )}
 
-        {activeTab === 'sessions' && (
-          <SessionsTab
-            userData={userData}
-            mode={mode}
-            colors={colors}
-            t={t}
-            onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
-            onRevokeSession={onRevokeSession}
-            onRevokeAllOtherSessions={onRevokeAllOtherSessions}
-            onVerifyPassword={onVerifyPassword}
-            onSuccess={(msg) => showToast('success', msg)}
-            onError={(msg) => showToast('error', mapErrorToast(msg))}
-          />
-        )}
+                {tabId === 'sessions' && (
+                  <SessionsTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+                    onRevokeSession={onRevokeSession}
+                    onRevokeAllOtherSessions={onRevokeAllOtherSessions}
+                    onVerifyPassword={onVerifyPassword}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                  />
+                )}
 
-        {activeTab === 'identities' && (
-          <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} />
-        )}
+                {tabId === 'identities' && (
+                  <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} />
+                )}
 
-        {activeTab === 'organizations' && (
-          <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
-        )}
-
-              </div>{/* end crossfade wrapper */}
-            </div>{/* end fade wrapper */}
-          </TabErrorBoundary>
+                {tabId === 'organizations' && (
+                  <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
+                )}
+              </>
+            )}
+          </TabFadePanel>
         </div>
       </div>
 
