@@ -25,6 +25,7 @@
     "predev": "node scripts/inject-next-public.js",
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/copy-standalone-assets.js",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
