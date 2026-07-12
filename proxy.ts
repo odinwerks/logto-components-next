@@ -170,6 +170,14 @@ export async function proxy(request: NextRequest) {
   } catch (error) {
     const errorMessage = safeLogMessage(error);
 
+    // If we're already on /api/wipe, let the route handler execute — do NOT
+    // redirect back to /api/wipe which would create an infinite loop.
+    if (pathname === '/api/wipe') {
+      const response = NextResponse.next({ request: { headers: requestHeaders } });
+      response.headers.set('Content-Security-Policy', cspHeader);
+      return response;
+    }
+
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
       log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');

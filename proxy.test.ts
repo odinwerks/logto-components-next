@@ -77,6 +77,50 @@ describe('proxy stale-cookie recovery', () => {
   });
 });
 
+describe('proxy /api/wipe infinite redirect loop fix', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+    warnMock.mockReset();
+    errorMock.mockReset();
+    logMock.mockReset();
+  });
+
+  it('does NOT redirect to /api/wipe when already on /api/wipe (stale cookie)', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Cookies can only be modified by middleware'));
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/wipe?nonce=test');
+    const res = await proxy(req);
+
+    // Must NOT redirect — should pass through to the wipe route handler
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/wipe');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('does NOT redirect to /api/wipe when already on /api/wipe (invalid_grant)', async () => {
+    getLogtoContextMock.mockRejectedValue({
+      code: 'oidc.invalid_grant',
+      message: 'Grant request is invalid.',
+    });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/wipe?nonce=test');
+    const res = await proxy(req);
+
+    // Must NOT redirect — should pass through to the wipe route handler
+    expect(res.status).not.toBe(307);
+    const location = res.headers.get('location');
+    if (location) {
+      expect(location).not.toContain('/api/wipe');
+    }
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+});
+
 describe('proxy invalid_grant recovery', () => {
   beforeEach(() => {
     getLogtoContextMock.mockReset();
