@@ -34,5 +34,11 @@ function getServerSnapshot(): boolean {
  * After hydration, the real client value is used.
  */
 export function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const reduced = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  // Development override: force animations on regardless of OS reduced-motion
+  // preference. Set NEXT_PUBLIC_FORCE_ANIMATIONS=true in .env to enable.
+  if (process.env.NEXT_PUBLIC_FORCE_ANIMATIONS === 'true') {
+    return false;
+  }
+  return reduced;
 }

@@ -19,6 +19,7 @@ services:
         NEXT_PUBLIC_DELETE_REDIRECT_DELAY: ${DELETE_REDIRECT_DELAY}
         NEXT_PUBLIC_BACKEND_TYPE:       ${BACKEND_TYPE}
         NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY: ${SIGNOUT_REDIRECT_DELAY}
+        NEXT_PUBLIC_FORCE_ANIMATIONS:   ${NEXT_PUBLIC_FORCE_ANIMATIONS}
     networks:
       - dash-net
     # Port 2999 is NOT exposed to the host - only cloudflared can reach it

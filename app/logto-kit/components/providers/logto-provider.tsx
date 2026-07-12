@@ -11,6 +11,7 @@ import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
 import { ToastContainer } from '../dashboard/shared/Toast';
+import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
 import type { ToastMessage } from '../dashboard/types';
 import { X } from 'lucide-react';
 
@@ -229,6 +230,7 @@ function DashboardDialog({
   useFocusTrap(dialogRef, onClose);
   const { isAuthenticated } = useLogto();
   const isMobile = useIsPortrait();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // When unauthenticated, show the auth prompt modal instead of the dashboard.
   if (!isAuthenticated) {
@@ -252,6 +254,7 @@ function DashboardDialog({
       }}
     >
       <div
+        className={prefersReducedMotion ? undefined : 'ldd-dashboard-enter'}
         style={{
           position: 'relative',
           width: '100vw',

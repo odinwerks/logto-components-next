@@ -263,7 +263,6 @@ export function UserButton({
     useUserDisplay({ userData: providedUserData, colors: providedColors, do: customAction });
   const resolvedShape = getShape(shape);
   const [hovered, setHovered] = useState(false);
-  const [pressed, setPressed] = useState(false);
   const mounted = useMounted();
 
   const wrapperStyle: React.CSSProperties = {
@@ -272,7 +271,7 @@ export function UserButton({
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
     borderRadius: getBorderRadius(resolvedShape, '0.625rem'),
-    transition: 'opacity 0.15s, transform 0.1s',
+    transition: 'opacity 0.15s',
   };
 
   const renderAvatar = () => {
@@ -296,21 +295,18 @@ export function UserButton({
 
   return (
     <button
+      className="ldd-btn-press"
       style={{
         ...wrapperStyle,
         background: 'none',
         border: 'none',
         padding: 0,
         opacity: hovered ? 0.82 : 1,
-        transform: pressed ? 'scale(0.95)' : 'scale(1)',
-        transition: 'opacity 0.15s, transform 0.1s',
       }}
       onClick={handleClick}
       aria-label={ariaLabel}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setPressed(false); }}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setHovered(false)}
     >
       {renderAvatar()}
     </button>
@@ -368,7 +364,6 @@ export function UserCard({
   const resolvedShape = getShape(shape);
   const borderRadius = getBorderRadius(resolvedShape, '0.625rem');
   const [hovered, setHovered] = useState(false);
-  const [pressed, setPressed] = useState(false);
   const mounted = useMounted();
 
   const wrapperStyle: React.CSSProperties = {
@@ -384,7 +379,7 @@ export function UserCard({
     borderRadius,
     maxWidth: '100%',
     boxSizing: 'border-box',
-    transition: 'opacity 0.15s, transform 0.1s',
+    transition: 'opacity 0.15s',
   };
 
   const label = mounted ? t.common.loggedInAs : 'Logged in as';
@@ -451,17 +446,15 @@ export function UserCard({
 
   return (
     <button
+      className="ldd-btn-press"
       style={{
         ...wrapperStyle,
         opacity: hovered ? 0.85 : 1,
-        transform: pressed ? 'scale(0.97)' : 'scale(1)',
       }}
       onClick={handleClick}
       aria-label={ariaLabel}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setPressed(false); }}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setHovered(false)}
     >
       {renderContent()}
     </button>

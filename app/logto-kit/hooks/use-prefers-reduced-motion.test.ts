@@ -12,6 +12,7 @@ describe('usePrefersReducedMotion', () => {
       configurable: true,
       value: originalMatchMedia,
     });
+    vi.unstubAllEnvs();
   });
 
   it('returns false when matchMedia reports no preference', () => {
@@ -81,6 +82,40 @@ describe('usePrefersReducedMotion', () => {
       listeners.forEach((l) => l());
     });
 
+    expect(result.current).toBe(true);
+  });
+
+  it('returns false when NEXT_PUBLIC_FORCE_ANIMATIONS is "true" regardless of OS preference', () => {
+    vi.stubEnv('NEXT_PUBLIC_FORCE_ANIMATIONS', 'true');
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+
+    const { result } = renderHook(() => usePrefersReducedMotion());
+    expect(result.current).toBe(false);
+  });
+
+  it('still respects reduced motion when NEXT_PUBLIC_FORCE_ANIMATIONS is "false"', () => {
+    vi.stubEnv('NEXT_PUBLIC_FORCE_ANIMATIONS', 'false');
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+
+    const { result } = renderHook(() => usePrefersReducedMotion());
     expect(result.current).toBe(true);
   });
 });

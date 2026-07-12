@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
@@ -23,8 +23,7 @@ import { TabErrorBoundary } from './shared/TabErrorBoundary';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
-import { Monitor } from 'lucide-react';
-import { getTabLabel } from './tab-utils';
+import { getTabIcon, getTabLabel, LogoutIcon } from './tab-utils';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -35,63 +34,6 @@ const ibmPlexMono = IBM_Plex_Mono({
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab metadata
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Icons for sidebar navigation
-const UserIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-  </svg>
-);
-
-const ShieldIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <path d="M12 3L4 7v5c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7L12 3z" />
-  </svg>
-);
-
-const LinkIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <path d="M9 17H7a5 5 0 0 1 0-10h2" />
-    <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
-    <line x1="8" y1="12" x2="16" y2="12" />
-  </svg>
-);
-
-const BuildingIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <rect x="3" y="9" width="5" height="12" />
-    <rect x="9" y="5" width="6" height="16" />
-    <rect x="16" y="12" width="5" height="9" />
-  </svg>
-);
-
-const SettingsIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-  </svg>
-);
-
-const LogoutIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
-function getTabIcon(id: TabId) {
-  switch (id) {
-    case 'profile': return UserIcon;
-    case 'security': return ShieldIcon;
-    case 'sessions': return Monitor;
-    case 'identities': return LinkIcon;
-    case 'organizations': return BuildingIcon;
-    case 'preferences': return SettingsIcon;
-    default: return UserIcon;
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -206,6 +148,36 @@ export function DashboardClient({
 
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const tabPanelId = 'dashboard-tabpanel';
+  const navRef = useRef<HTMLElement | null>(null);
+
+  // ── Sidebar seeker position ───────────────────────────────────────────────
+  const [seekerStyle, setSeekerStyle] = useState<{ transform: string; height: number }>({
+    transform: 'translateY(0px)',
+    height: 0,
+  });
+
+  const updateSeeker = useCallback(() => {
+    const activeButton = tabRefs.current[activeTab];
+    const nav = navRef.current;
+    if (!activeButton || !nav) return;
+    const navRect = nav.getBoundingClientRect();
+    const tabRect = activeButton.getBoundingClientRect();
+    const translateY = tabRect.top - navRect.top + nav.scrollTop;
+    setSeekerStyle({
+      transform: `translateY(${translateY}px)`,
+      height: tabRect.height,
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
+    updateSeeker();
+  }, [updateSeeker]);
+
+  useEffect(() => {
+    const handleResize = () => updateSeeker();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [updateSeeker]);
 
   const focusAndActivateTab = useCallback((tabId: TabId) => {
     setActiveTab(tabId);
@@ -357,9 +329,26 @@ export function DashboardClient({
           </div>
 
           {/* Nav */}
-          <nav role="tablist" aria-label={t.dashboard.account} style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}>
+          <nav
+            ref={navRef}
+            role="tablist"
+            aria-label={t.dashboard.account}
+            style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto', position: 'relative' }}
+          >
+            {/* Active tab seeker */}
+            <div
+              className="ldd-tab-seeker"
+              style={{
+                ...seekerStyle,
+                background: mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+              }}
+              aria-hidden="true"
+            />
             <p
               style={{
+                position: 'relative',
+                zIndex: 1,
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 600,
                 fontSize: '0.625rem',
@@ -434,9 +423,11 @@ export function DashboardClient({
               </div>
             )}
           >
-            <div
-              className={`dashboard-tabpanel-content${prefersReducedMotion ? '' : ' ldd-fade-in'}`}
-            >
+            <div className="dashboard-tabpanel-content">
+              <div
+                key={activeTab}
+                className={prefersReducedMotion ? undefined : 'ldd-tab-fade-in'}
+              >
         {activeTab === 'profile' && (
           <ProfileTab
             userData={userData}
@@ -517,7 +508,7 @@ export function DashboardClient({
           <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
         )}
 
-
+              </div>{/* end crossfade wrapper */}
             </div>{/* end fade wrapper */}
           </TabErrorBoundary>
         </div>
@@ -564,15 +555,18 @@ function NavButton({
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="ldd-btn-press"
       style={{
+        position: 'relative',
+        zIndex: 1,
         display: 'flex',
         alignItems: 'center',
         gap: '0.5625rem',
         width: '100%',
         padding: '0.4375rem 0.625rem',
-        background: isActive ? colors.bgSecondary : hovered ? hoverBg : 'transparent',
+        background: hovered ? hoverBg : 'transparent',
         border: 'none',
-        borderLeft: `0.125rem solid ${isActive ? colors.accentBlue : 'transparent'}`,
+        borderRadius: '0.25rem',
         color: isActive ? colors.textPrimary : colors.textTertiary,
         fontFamily: 'var(--font-ibm-plex-mono)',
         fontWeight: 500,

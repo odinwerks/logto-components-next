@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useSyncExternalStore, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
@@ -21,8 +21,8 @@ import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession } from '../../logic/types';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
-import { ArrowLeft } from 'lucide-react';
-import { getTabLabel } from './tab-utils';
+import { ArrowLeft, Monitor } from 'lucide-react';
+import { getTabLabel, UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon, LogoutIcon } from './tab-utils';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,7 @@ export function MobileClient({
 
   const { mode, colors } = useThemeMode();
   const { lang } = useLangMode();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const t = useMemo<Translations>(
     () => allTranslations[lang] ?? serverTranslations,
     [lang, allTranslations, serverTranslations]
@@ -126,6 +127,15 @@ export function MobileClient({
     () => window.matchMedia('(max-width: 26rem)').matches,
     () => false
   );
+
+  // Defer narrow-viewport layout decisions until after hydration so the first
+  // client render matches the server snapshot (false) and avoids a flash.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-once guard is the canonical Next.js SSR/hydration pattern
+    setMounted(true);
+  }, []);
+  const isCompact = mounted ? isNarrowViewport : false;
 
   const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
 
@@ -196,21 +206,18 @@ export function MobileClient({
           data-testid="mobile-main-stack"
           style={{
             width: '100%',
-            maxWidth: isNarrowViewport ? '18.5rem' : '20rem',
-            border: `1px solid ${colors.borderColor}`,
-            borderRadius: '0.5rem',
-            overflow: 'hidden',
-            background: colors.bgSecondary,
+            maxWidth: isCompact ? '18.5rem' : '20rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.625rem',
           }}
         >
-          {loadedTabs.map((tabId, index) => (
+          {loadedTabs.map((tabId) => (
             <MobileMenuEntry
               key={tabId}
+              tabId={tabId}
               label={getTabLabel(tabId, t)}
-              index={index}
-              total={loadedTabs.length}
               colors={colors}
-              mode={mode}
               onClick={() => openTab(tabId)}
             />
           ))}
@@ -225,21 +232,15 @@ export function MobileClient({
             bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)',
             margin: '0 auto',
             width: '100%',
-            maxWidth: isNarrowViewport ? '18.5rem' : '20rem',
-            border: `1px solid ${colors.borderColor}`,
-            borderRadius: '0.5rem',
-            overflow: 'hidden',
-            background: colors.bgSecondary,
+            maxWidth: isCompact ? '18.5rem' : '20rem',
             zIndex: 10,
           }}
         >
           <MobileMenuEntry
             key="mobile-signout"
+            isSignOut
             label={t.common.signOut}
-            index={0}
-            total={1}
             colors={colors}
-            mode={mode}
             onClick={handleSignOut}
           />
         </div>
@@ -303,7 +304,7 @@ export function MobileClient({
         style={{
           width: '100%',
           minHeight: '100dvh',
-          padding: isNarrowViewport ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
+          padding: isCompact ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
           boxSizing: 'border-box',
           overflowY: 'auto',
         }}
@@ -331,6 +332,10 @@ export function MobileClient({
               </div>
             )}
           >
+            <div
+              key={activeTab}
+              className={prefersReducedMotion ? undefined : 'ldd-tab-fade-in'}
+            >
           {activeTab === 'profile' && (
             <ProfileTab
               userData={userData}
@@ -414,6 +419,7 @@ export function MobileClient({
         {activeTab === 'organizations' && (
           <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
         )}
+            </div>
           </TabErrorBoundary>
 
         </div>
@@ -465,89 +471,65 @@ export function MobileClient({
 
 function MobileMenuEntry({
   label,
-  index,
-  total,
+  tabId,
+  isSignOut,
   colors,
-  mode,
   onClick,
 }: {
   label: string;
-  index: number;
-  total: number;
+  tabId?: TabId;
+  isSignOut?: boolean;
   colors: ThemeColors;
-  mode: 'dark' | 'light';
   onClick: () => void;
 }) {
-  const [pressed, setPressed] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const isLast = index === total - 1;
-
-  const prefersReducedMotion = usePrefersReducedMotion();
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
-
-  const handleTouchStart = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    setPressed(true);
-  };
-
-  const handleTouchEnd = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    timerRef.current = setTimeout(() => {
-      setPressed(false);
-    }, 150);
-  };
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.bgPage;
-        e.currentTarget.style.textShadow = mode === 'dark'
-          ? '0 0 0.75rem rgba(255,255,255,0.12)'
-          : '0 0 0.75rem rgba(0,0,0,0.08)';
-        e.currentTarget.style.transform = 'scale(1.02)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.textShadow = 'none';
-        e.currentTarget.style.transform = 'scale(1)';
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
       style={{
         width: '100%',
         padding: '1.25rem 1.5rem',
-        background: pressed ? colors.bgPage : 'transparent',
-        border: 'none',
-        borderBottom: isLast ? 'none' : `1px solid ${colors.borderColor}`,
-        color: pressed ? colors.accentBlue : colors.textPrimary,
+        background: 'transparent',
+        border: `1px solid ${colors.borderColor}`,
+        borderRadius: '0.5rem',
+        color: isSignOut ? colors.accentRed : colors.textPrimary,
         fontFamily: FONT_MONO,
         fontSize: '0.9375rem',
         fontWeight: 500,
         cursor: 'pointer',
-        textAlign: 'center',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        animationDelay: prefersReducedMotion ? undefined : `${index * 0.08}s`,
-        opacity: 1,
-        textShadow: pressed
-          ? (mode === 'dark' ? '0 0 1rem rgba(255,255,255,0.15)' : '0 0 1rem rgba(0,0,0,0.1)')
-          : 'none',
+        textAlign: 'left',
+        transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.08s ease',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
       }}
-      className={prefersReducedMotion ? undefined : 'ldd-stagger'}
+      className={`ldd-btn-press${isSignOut ? ' ldd-mobile-menu-card-signout' : ''}`}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = colors.bgPage;
+        e.currentTarget.style.borderColor = isSignOut ? colors.accentRed : colors.textTertiary;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.borderColor = colors.borderColor;
+      }}
     >
+      {isSignOut ? (
+        <LogoutIcon size={18} color="currentColor" aria-hidden="true" />
+      ) : tabId ? (
+        <TabIcon id={tabId} size={18} color="currentColor" aria-hidden="true" />
+      ) : null}
       {label}
     </button>
   );
+}
+
+function TabIcon({ id, size, color }: { id: TabId; size?: number; color?: string }) {
+  switch (id) {
+    case 'profile': return <UserIcon size={size} color={color} aria-hidden="true" />;
+    case 'security': return <ShieldIcon size={size} color={color} aria-hidden="true" />;
+    case 'sessions': return <Monitor size={size} color={color} aria-hidden="true" />;
+    case 'identities': return <LinkIcon size={size} color={color} aria-hidden="true" />;
+    case 'organizations': return <BuildingIcon size={size} color={color} aria-hidden="true" />;
+    case 'preferences': return <SettingsIcon size={size} color={color} aria-hidden="true" />;
+    default: return <UserIcon size={size} color={color} aria-hidden="true" />;
+  }
 }
