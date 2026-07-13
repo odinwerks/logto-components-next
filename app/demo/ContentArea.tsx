@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotionConfig } from 'framer-motion';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
 import { StaggerItem } from '../logto-kit/components/shared/motion';
 import type { NavItem } from './types';
@@ -154,7 +154,10 @@ const footDotStyle: React.CSSProperties = {
 
 export default function ContentArea({ item }: ContentAreaProps) {
   const { mode } = useThemeMode();
-  const reduced = useReducedMotion();
+  // useReducedMotionConfig respects <MotionConfig reducedMotion="never">
+  // (set by MotionConfigProvider when NEXT_PUBLIC_FORCE_ANIMATIONS=true)
+  // so the terminal cursor blinks even when the OS has prefers-reduced-motion.
+  const reduced = useReducedMotionConfig();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);

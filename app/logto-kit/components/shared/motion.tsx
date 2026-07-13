@@ -16,7 +16,7 @@ import {
   motion,
   AnimatePresence,
   MotionConfig,
-  useReducedMotion,
+  useReducedMotionConfig,
 } from 'framer-motion';
 import type { Transition, TargetAndTransition } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
@@ -336,7 +336,13 @@ export function Spinner({
   // legacy behaviour where `ldd-spin` was suppressed). `initial={false}`
   // keeps the SSR markup stable so the animate/transition values can vary
   // between server and client without a hydration mismatch.
-  const reduced = useReducedMotion();
+  //
+  // NOTE: useReducedMotionConfig() (not useReducedMotion()) is used so the
+  // Spinner respects the parent <MotionConfig reducedMotion="never"> set by
+  // MotionConfigProvider when NEXT_PUBLIC_FORCE_ANIMATIONS=true. The raw
+  // useReducedMotion() hook only reads the OS media query and ignores
+  // MotionConfig context, so force-animations would not override it.
+  const reduced = useReducedMotionConfig();
   const animate = reduced ? { rotate: 0 } : { rotate: 360 };
   const transition: Transition = reduced
     ? { duration: 0 }
@@ -389,7 +395,13 @@ interface PulseProps {
 export function Pulse({ className, style, delay = 0, children }: PulseProps) {
   // Disable the continuous pulse under reduced motion (matches the legacy
   // `ldd-pulse` suppression). `initial={false}` keeps SSR markup stable.
-  const reduced = useReducedMotion();
+  //
+  // NOTE: useReducedMotionConfig() (not useReducedMotion()) is used so the
+  // Pulse respects the parent <MotionConfig reducedMotion="never"> set by
+  // MotionConfigProvider when NEXT_PUBLIC_FORCE_ANIMATIONS=true. The raw
+  // useReducedMotion() hook only reads the OS media query and ignores
+  // MotionConfig context, so force-animations would not override it.
+  const reduced = useReducedMotionConfig();
   const animate = reduced ? { opacity: 1 } : { opacity: [1, 0.5, 1] };
   const transition: Transition = reduced
     ? { duration: 0 }

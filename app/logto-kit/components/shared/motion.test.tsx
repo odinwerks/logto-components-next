@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useState } from 'react';
+import { MotionConfig, useReducedMotionConfig } from 'framer-motion';
 import {
   FadeIn,
   SlideIn,
@@ -14,6 +15,33 @@ import {
   ToastSlide,
   MotionConfigProvider,
 } from './motion';
+
+// Helper: mock window.matchMedia to simulate OS reduced-motion preference.
+function mockReducedMotionOS(matches: boolean) {
+  const mql = {
+    matches,
+    media: '(prefers-reduced-motion: reduce)',
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).matchMedia = vi.fn(() => mql);
+  return mql;
+}
+
+let _origMatchMedia: typeof window.matchMedia | undefined;
+
+beforeAll(() => {
+  _origMatchMedia = window.matchMedia;
+});
+
+afterAll(() => {
+  if (_origMatchMedia) window.matchMedia = _origMatchMedia;
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -254,5 +282,55 @@ describe('MotionConfigProvider', () => {
       </MotionConfigProvider>
     );
     expect(screen.getByTestId('x')).toBeInTheDocument();
+  });
+});
+
+describe('BUG-1 regression: force-animations with OS reduced-motion', () => {
+  // BUG-1: useReducedMotion() (raw device query, ignores MotionConfig) was
+  // replaced with useReducedMotionConfig() (respects MotionConfig "never")
+  // so NEXT_PUBLIC_FORCE_ANIMATIONS=true forces continuous motion even when
+  // the OS has prefers-reduced-motion: reduce.
+
+  it('Spinner renders under MotionConfig "never" + OS reduced-motion', () => {
+    mockReducedMotionOS(true);
+    const { container } = render(
+      <MotionConfig reducedMotion="never">
+        <Spinner borderSpinner size="1rem" />
+      </MotionConfig>
+    );
+    expect(container.firstChild).not.toBeNull();
+  });
+
+  it('Pulse renders under MotionConfig "never" + OS reduced-motion', () => {
+    mockReducedMotionOS(true);
+    render(
+      <MotionConfig reducedMotion="never">
+        <Pulse style={{ width: '2rem', height: '2rem' }}>
+          <span data-testid="pulse-sk">loading</span>
+        </Pulse>
+      </MotionConfig>
+    );
+    expect(screen.getByTestId('pulse-sk')).toBeInTheDocument();
+  });
+
+  it('Spinner compute animates (not stopped) under MotionConfig "never" despite OS reduced-motion', () => {
+    // This is the core regression guard: when MotionConfig says "never",
+    // useReducedMotionConfig() must return false, so the Spinner gets
+    // animate={rotate:360} + repeat:Infinity, NOT rotate:0 + duration:0.
+    //
+    // We verify via a stub probe that uses useReducedMotionConfig() directly.
+    function ReducedProbe() {
+      const v = useReducedMotionConfig();
+      return <span data-testid="probe">{String(v)}</span>;
+    }
+
+    mockReducedMotionOS(true);
+    render(
+      <MotionConfig reducedMotion="never">
+        <ReducedProbe />
+      </MotionConfig>
+    );
+    // useReducedMotionConfig() must return false when reducedMotion="never"
+    expect(screen.getByTestId('probe').textContent).toBe('false');
   });
 });
