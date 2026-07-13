@@ -258,9 +258,9 @@ describe('DashboardClient - userShape prop', () => {
     // Switch to Security tab — triggers crossfade (isFading → timeout).
     fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
 
-    // Advance past the 100ms fade-out timer so displayedTab updates.
+    // Advance past the 50ms fade-out timer so displayedTab updates.
     act(() => {
-      vi.advanceTimersByTime(150);
+      vi.advanceTimersByTime(80);
     });
 
     // The profile input must still exist in the DOM (hidden, not unmounted).
@@ -270,7 +270,7 @@ describe('DashboardClient - userShape prop', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
 
     act(() => {
-      vi.advanceTimersByTime(150);
+      vi.advanceTimersByTime(80);
     });
 
     // The draft value must survive the round-trip.
@@ -310,7 +310,7 @@ describe('DashboardClient - userShape prop', () => {
 
     // Advance past the fade-out timer.
     act(() => {
-      vi.advanceTimersByTime(150);
+      vi.advanceTimersByTime(80);
     });
 
     // After timeout: incoming tab is revealed, outgoing is hidden.

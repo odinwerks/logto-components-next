@@ -314,10 +314,11 @@ export function MobileClient({
               minHeight: 'calc(100dvh - 5.5rem)',
             }}
           >
-            <CrossFade
-              activeKey={activeTab ?? 'profile'}
+            {activeTab !== null ? (
+              <CrossFade
+                activeKey={activeTab}
               className="dashboard-tabpanel-content"
-              duration={0.12}
+              duration={0.05}
               wrapItem={(tabId, isVisible, content) => (
                 <TabErrorBoundary
                   resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
@@ -426,6 +427,7 @@ export function MobileClient({
                 </>
               )}
             </CrossFade>
+            ) : null}
 
           </div>
         </div>

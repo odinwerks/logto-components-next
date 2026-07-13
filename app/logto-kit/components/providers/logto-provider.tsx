@@ -11,7 +11,7 @@ import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
 import { ToastContainer } from '../dashboard/shared/Toast';
-import { AnimatePresence, ScaleFade } from '../shared/motion';
+import { AnimatePresence } from '../shared/motion';
 import { motion } from 'framer-motion';
 import type { ToastMessage } from '../dashboard/types';
 import { X } from 'lucide-react';
@@ -235,10 +235,9 @@ function DashboardDialog({
   const { isAuthenticated } = useLogto();
   const isMobile = useIsPortrait();
 
-  // The backdrop fades in/out; the dashboard content scales+fades via ScaleFade.
+  // The backdrop fades in/out (70ms); the dashboard content appears instantly.
   // Both exit animations are driven by the surrounding <AnimatePresence> in
-  // LogtoProviderContent. Under reduced motion, MotionConfig neutralises the
-  // scale/translate transforms, leaving only the gentle opacity fade.
+  // LogtoProviderContent.
   return (
     <motion.div
       ref={dialogRef}
@@ -249,7 +248,7 @@ function DashboardDialog({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={{ duration: 0.07, ease: 'easeOut' }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -260,8 +259,7 @@ function DashboardDialog({
       }}
     >
       {isAuthenticated ? (
-        <ScaleFade
-          duration={0.18}
+        <div
           style={{
             position: 'relative',
             width: '100vw',
@@ -299,7 +297,7 @@ function DashboardDialog({
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
             <DashboardRouter desktop={desktop} mobile={mobile} />
           </div>
-        </ScaleFade>
+        </div>
       ) : (
         <AuthPromptModal routeTo={routeTo} mode={authMode} />
       )}

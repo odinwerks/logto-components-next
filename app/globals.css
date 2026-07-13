@@ -48,7 +48,8 @@ a {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-select:focus-visible {
+select:focus-visible,
+[data-focus-visible]:focus {
   outline: 0.125rem solid var(--ldd-text-tertiary);
   outline-offset: 0.125rem;
 }

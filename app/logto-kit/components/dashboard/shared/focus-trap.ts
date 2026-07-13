@@ -109,7 +109,17 @@ export function useFocusTrap(
       window.removeEventListener('keydown', handleKeyDown);
       const previous = restoreFocusRef.current;
       if (previous && document.contains(previous)) {
-        previous.focus();
+        // Programmatic focus() alone does not trigger :focus-visible in
+        // browsers; we force the outline via a data attribute that is
+        // removed on blur so the indicator is visible post-Escape but
+        // does not linger.
+        previous.setAttribute('data-focus-visible', '');
+        previous.focus({ preventScroll: true });
+        const remove = () => {
+          previous.removeAttribute('data-focus-visible');
+          previous.removeEventListener('blur', remove);
+        };
+        previous.addEventListener('blur', remove, { once: true });
       }
     };
   }, [dialogRef]);

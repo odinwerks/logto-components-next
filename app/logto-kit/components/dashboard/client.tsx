@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
@@ -145,9 +144,7 @@ export function DashboardClient({
   // ── Toast ──────────────────────────────────────────────────────────────────
   const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
 
-  // tabRefs is retained for roving-tabindex focus management (keyboard nav).
-  // The active-tab seeker is now driven by Framer Motion's shared `layoutId`,
-  // so the manual rect math + resize listener are no longer needed.
+  // tabRefs retained for roving-tabindex focus management (keyboard nav).
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const tabPanelId = 'dashboard-tabpanel';
 
@@ -304,14 +301,10 @@ export function DashboardClient({
           <nav
             role="tablist"
             aria-label={t.dashboard.account}
-            style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto', position: 'relative' }}
+            style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}
           >
-            {/* Active tab seeker — driven by Framer Motion's shared layoutId.
-                The indicator morphs between tabs automatically; no manual rect math. */}
             <p
               style={{
-                position: 'relative',
-                zIndex: 1,
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 600,
                 fontSize: '0.625rem',
@@ -323,26 +316,38 @@ export function DashboardClient({
             >
               {t.dashboard.account}
             </p>
-            {loadedTabs.map((tabId) => {
+            {loadedTabs.map((tabId, index) => {
               const Icon = getTabIcon(tabId);
               const isActive = activeTab === tabId;
+              const isLast = index === loadedTabs.length - 1;
               return (
-          <NavButton
-            key={tabId}
-            tabId={tabId}
-            isActive={isActive}
-            label={getTabLabel(tabId, t)}
-            Icon={Icon}
-            colors={colors}
-            themeMode={mode}
-            panelId={tabPanelId}
-            tabIndex={isActive ? 0 : -1}
-            onKeyDown={(event) => handleTabKeyDown(event, tabId)}
-            buttonRef={(node) => {
-              tabRefs.current[tabId] = node;
-            }}
-            onClick={() => setActiveTab(tabId)}
-          />
+                <div key={tabId}>
+                  <NavButton
+                    tabId={tabId}
+                    isActive={isActive}
+                    label={getTabLabel(tabId, t)}
+                    Icon={Icon}
+                    colors={colors}
+                    themeMode={mode}
+                    panelId={tabPanelId}
+                    tabIndex={isActive ? 0 : -1}
+                    onKeyDown={(event) => handleTabKeyDown(event, tabId)}
+                    buttonRef={(node) => {
+                      tabRefs.current[tabId] = node;
+                    }}
+                    onClick={() => setActiveTab(tabId)}
+                  />
+                  {!isLast && (
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        height: 1,
+                        margin: '0 0.75rem',
+                        borderTop: `1px dashed ${colors.borderColor}`,
+                      }}
+                    />
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -374,7 +379,7 @@ export function DashboardClient({
           <CrossFade
             activeKey={activeTab}
             className="dashboard-tabpanel-content"
-            duration={0.12}
+            duration={0.05}
             wrapItem={(tabId, isVisible, content) => (
               <TabErrorBoundary
                 resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
@@ -511,7 +516,10 @@ function NavButton({
   const [hovered, setHovered] = useState(false);
   const hoverBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
   const seekerBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
-  const seekerBorder = themeMode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  // Blue left-border accent to visually anchor the active tab.
+  const accentBlueLeft = `0.1875rem solid ${colors.accentBlue}`;
+
+  const activeBg = isActive ? seekerBg : (hovered ? hoverBg : 'transparent');
 
   return (
     <MotionButton
@@ -526,43 +534,25 @@ function NavButton({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        position: 'relative',
-        zIndex: 1,
         display: 'flex',
         alignItems: 'center',
         width: '100%',
-        padding: '0.4375rem 0.625rem',
-        // The active highlight comes from the layoutId seeker; hover only
-        // applies a background to non-active tabs.
-        background: hovered && !isActive ? hoverBg : 'transparent',
+        padding: '0.4375rem 0.625rem 0.4375rem calc(0.625rem - 0.1875rem)',
+        background: activeBg,
         border: 'none',
-        borderRadius: '0.25rem',
-        color: isActive ? colors.textPrimary : colors.textTertiary,
+        borderLeft: isActive ? accentBlueLeft : '0.1875rem solid transparent',
+        borderRadius: '0 0.25rem 0.25rem 0',
+        color: isActive ? colors.accentBlue : colors.textTertiary,
         fontFamily: 'var(--font-ibm-plex-mono)',
         fontWeight: 500,
         fontSize: '0.8125rem',
         cursor: 'pointer',
         textAlign: 'left',
         marginBottom: '0.125rem',
-        transition: 'background 0.12s ease, color 0.12s ease',
+        transition: 'background 0.12s ease, color 0.12s ease, border-color 0.12s ease',
       }}
     >
-      {isActive && (
-        <motion.div
-          layoutId="dashboard-active-tab"
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '0.375rem',
-            background: seekerBg,
-            border: `1px solid ${seekerBorder}`,
-            pointerEvents: 'none',
-          }}
-          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-        />
-      )}
-      <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5625rem', width: '100%' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5625rem', width: '100%' }}>
         <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} aria-hidden="true" />
         {label}
       </span>
