@@ -82,9 +82,11 @@ describe('UserButton Accessibility and Shape Props', () => {
     const button = screen.getByRole('button');
     const placeholder = button.firstChild as HTMLElement;
     expect(placeholder).toBeInTheDocument();
-    // Animation is now delivered via CSS class (ldd-pulse) instead of inline style
-    expect(placeholder.className).toContain('ldd-pulse');
+    // Loading placeholder is now a Framer Motion <Pulse> skeleton (motion.div)
+    // driven by MotionConfig, replacing the legacy ldd-pulse CSS class.
+    expect(placeholder.tagName).toBe('DIV');
     expect(placeholder.style.width).toBe('6.25rem');
+    expect(placeholder.style.border).toContain('2px');
   });
 
   it('does not render LoadingPlaceholder if userData is synchronously available', () => {
@@ -98,8 +100,8 @@ describe('UserButton Accessibility and Shape Props', () => {
     const button = screen.getByRole('button');
     const child = button.firstChild as HTMLElement;
     expect(child).toBeInTheDocument();
-    // Loaded avatar does not have the pulse animation class
-    expect(child.className).not.toContain('ldd-pulse');
+    // Loaded: AvatarCore renders the user's initials, not the Pulse skeleton.
+    expect(child.textContent).toContain('JD');
   });
 
   it('uses target translation for UserButton aria-label after mount', () => {
@@ -174,9 +176,10 @@ describe('UserButton Accessibility and Shape Props', () => {
     render(<UserButton />);
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
-    // Unauthenticated: should immediately show FallbackAvatar, not LoadingPlaceholder (no pulse animation class)
+    // Unauthenticated: should immediately show FallbackAvatar (with User icon),
+    // not the Pulse loading skeleton.
     const avatar = button.firstChild as HTMLElement;
-    expect(avatar.className).not.toContain('ldd-pulse');
+    expect(avatar.querySelector('svg')).not.toBeNull();
     fireEvent.click(button);
     expect(mockOpenDashboard).toHaveBeenCalled();
   });

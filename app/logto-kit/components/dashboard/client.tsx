@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
-import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
 import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
+import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -19,7 +20,7 @@ import { OrganizationsTab } from './tabs/organizations';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { TabFadePanel } from './tab-fade-panel';
+import { CrossFade, MotionButton } from '../shared/motion';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -123,8 +124,6 @@ export function DashboardClient({
   // ── Theme ──────────────────────────────────────────────────────────────────
   const { mode, colors } = useThemeMode();
 
-  const prefersReducedMotion = usePrefersReducedMotion();
-
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang } = useLangMode();
   const t = useMemo<Translations>(
@@ -146,38 +145,11 @@ export function DashboardClient({
   // ── Toast ──────────────────────────────────────────────────────────────────
   const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
 
+  // tabRefs is retained for roving-tabindex focus management (keyboard nav).
+  // The active-tab seeker is now driven by Framer Motion's shared `layoutId`,
+  // so the manual rect math + resize listener are no longer needed.
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const tabPanelId = 'dashboard-tabpanel';
-  const navRef = useRef<HTMLElement | null>(null);
-
-  // ── Sidebar seeker position ───────────────────────────────────────────────
-  const [seekerStyle, setSeekerStyle] = useState<{ transform: string; height: number }>({
-    transform: 'translateY(0px)',
-    height: 0,
-  });
-
-  const updateSeeker = useCallback(() => {
-    const activeButton = tabRefs.current[activeTab];
-    const nav = navRef.current;
-    if (!activeButton || !nav) return;
-    const navRect = nav.getBoundingClientRect();
-    const tabRect = activeButton.getBoundingClientRect();
-    const translateY = tabRect.top - navRect.top + nav.scrollTop;
-    setSeekerStyle({
-      transform: `translateY(${translateY}px)`,
-      height: tabRect.height,
-    });
-  }, [activeTab]);
-
-  useEffect(() => {
-    updateSeeker();
-  }, [updateSeeker]);
-
-  useEffect(() => {
-    const handleResize = () => updateSeeker();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [updateSeeker]);
 
   const focusAndActivateTab = useCallback((tabId: TabId) => {
     setActiveTab(tabId);
@@ -330,21 +302,12 @@ export function DashboardClient({
 
           {/* Nav */}
           <nav
-            ref={navRef}
             role="tablist"
             aria-label={t.dashboard.account}
             style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto', position: 'relative' }}
           >
-            {/* Active tab seeker */}
-            <div
-              className="ldd-tab-seeker"
-              style={{
-                ...seekerStyle,
-                background: mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-              }}
-              aria-hidden="true"
-            />
+            {/* Active tab seeker — driven by Framer Motion's shared layoutId.
+                The indicator morphs between tabs automatically; no manual rect math. */}
             <p
               style={{
                 position: 'relative',
@@ -408,20 +371,28 @@ export function DashboardClient({
             boxSizing: 'border-box',
           }}
         >
-          <TabFadePanel
-            activeTab={activeTab}
-            prefersReducedMotion={prefersReducedMotion}
-            fallback={(
-              <div
-                role="alert"
-                style={{
-                  fontFamily: 'var(--font-ibm-plex-mono)',
-                  color: colors.accentRed,
-                  fontSize: '0.8125rem',
-                }}
+          <CrossFade
+            activeKey={activeTab}
+            className="dashboard-tabpanel-content"
+            duration={0.12}
+            wrapItem={(tabId, isVisible, content) => (
+              <TabErrorBoundary
+                resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
+                fallback={(
+                  <div
+                    role="alert"
+                    style={{
+                      fontFamily: 'var(--font-ibm-plex-mono)',
+                      color: colors.accentRed,
+                      fontSize: '0.8125rem',
+                    }}
+                  >
+                    {t.dashboard.error}
+                  </div>
+                )}
               >
-                {t.dashboard.error}
-              </div>
+                {content}
+              </TabErrorBoundary>
             )}
           >
             {(tabId) => (
@@ -507,7 +478,7 @@ export function DashboardClient({
                 )}
               </>
             )}
-          </TabFadePanel>
+          </CrossFade>
         </div>
       </div>
 
@@ -539,9 +510,11 @@ function NavButton({
 }) {
   const [hovered, setHovered] = useState(false);
   const hoverBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+  const seekerBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
+  const seekerBorder = themeMode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
   return (
-    <button
+    <MotionButton
       ref={buttonRef}
       id={`tab-${tabId}`}
       role="tab"
@@ -552,16 +525,16 @@ function NavButton({
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="ldd-btn-press"
       style={{
         position: 'relative',
         zIndex: 1,
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5625rem',
         width: '100%',
         padding: '0.4375rem 0.625rem',
-        background: hovered ? hoverBg : 'transparent',
+        // The active highlight comes from the layoutId seeker; hover only
+        // applies a background to non-active tabs.
+        background: hovered && !isActive ? hoverBg : 'transparent',
         border: 'none',
         borderRadius: '0.25rem',
         color: isActive ? colors.textPrimary : colors.textTertiary,
@@ -574,9 +547,26 @@ function NavButton({
         transition: 'background 0.12s ease, color 0.12s ease',
       }}
     >
-      <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} aria-hidden="true" />
-      {label}
-    </button>
+      {isActive && (
+        <motion.div
+          layoutId="dashboard-active-tab"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '0.375rem',
+            background: seekerBg,
+            border: `1px solid ${seekerBorder}`,
+            pointerEvents: 'none',
+          }}
+          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+        />
+      )}
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5625rem', width: '100%' }}>
+        <Icon size={13} color={isActive ? colors.accentBlue : colors.textTertiary} aria-hidden="true" />
+        {label}
+      </span>
+    </MotionButton>
   );
 }
 
@@ -598,9 +588,8 @@ function SignOutButton({
   const hoverBg = themeMode === 'dark' ? 'rgba(239,68,68,0.07)' : 'rgba(185,28,28,0.05)';
 
   return (
-    <button
+    <MotionButton
       onClick={onClick}
-      className="ldd-btn-press"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -618,11 +607,11 @@ function SignOutButton({
         fontSize: '0.8125rem',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'background 0.12s ease, color 0.12s ease, transform 0.08s ease',
+        transition: 'background 0.12s ease, color 0.12s ease',
       }}
     >
       <LogoutIcon size={13} color="currentColor" />
       {label}
-    </button>
+    </MotionButton>
   );
 }

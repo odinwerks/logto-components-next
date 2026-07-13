@@ -8,11 +8,11 @@ import { FONT_MONO, type ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { useLogto } from '../providers/logto-provider';
-import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
 import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
+import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { TabFadePanel } from './tab-fade-panel';
+import { CrossFade, MotionButton } from '../shared/motion';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -105,7 +105,6 @@ export function MobileClient({
 
   const { mode, colors } = useThemeMode();
   const { lang } = useLangMode();
-  const prefersReducedMotion = usePrefersReducedMotion();
   const t = useMemo<Translations>(
     () => allTranslations[lang] ?? serverTranslations,
     [lang, allTranslations, serverTranslations]
@@ -166,7 +165,7 @@ export function MobileClient({
   }, [setSuppressAll]);
 
   // ── Render ──────────────────────────────────────────────────────────────
-  // Both views are always mounted so that the TabFadePanel in the tab view
+  // Both views are always mounted so that the CrossFade in the tab view
   // retains its state across menu ↔ tab round-trips. Only the active view is
   // visible; the inactive view hides via `display: none`.
 
@@ -315,20 +314,28 @@ export function MobileClient({
               minHeight: 'calc(100dvh - 5.5rem)',
             }}
           >
-            <TabFadePanel
-              activeTab={activeTab ?? 'profile'}
-              prefersReducedMotion={prefersReducedMotion}
-              fallback={(
-                <div
-                  role="alert"
-                  style={{
-                    fontFamily: FONT_MONO,
-                    color: colors.accentRed,
-                    fontSize: '0.8125rem',
-                  }}
+            <CrossFade
+              activeKey={activeTab ?? 'profile'}
+              className="dashboard-tabpanel-content"
+              duration={0.12}
+              wrapItem={(tabId, isVisible, content) => (
+                <TabErrorBoundary
+                  resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
+                  fallback={(
+                    <div
+                      role="alert"
+                      style={{
+                        fontFamily: FONT_MONO,
+                        color: colors.accentRed,
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {t.dashboard.error}
+                    </div>
+                  )}
                 >
-                  {t.dashboard.error}
-                </div>
+                  {content}
+                </TabErrorBoundary>
               )}
             >
               {(tabId) => (
@@ -418,7 +425,7 @@ export function MobileClient({
                   )}
                 </>
               )}
-            </TabFadePanel>
+            </CrossFade>
 
           </div>
         </div>
@@ -482,13 +489,39 @@ function MobileMenuEntry({
   colors: ThemeColors;
   onClick: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+  // Card styling + hover previously delivered by the `.ldd-mobile-menu-card`
+  // CSS classes (now removed). The whileTap press comes from MotionButton.
+  const borderColor = hovered
+    ? (isSignOut ? colors.accentRed : colors.textTertiary)
+    : colors.borderColor;
+  const background = hovered ? colors.bgPage : 'transparent';
+  const color = isSignOut
+    ? (hovered ? colors.accentRed : colors.textPrimary)
+    : colors.textPrimary;
+
   return (
-    <button
+    <MotionButton
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        color: isSignOut ? colors.accentRed : undefined,
+        width: '100%',
+        padding: '1.25rem 1.5rem',
+        background,
+        border: `1px solid ${borderColor}`,
+        borderRadius: '0.5rem',
+        color,
+        fontFamily: FONT_MONO,
+        fontSize: '0.9375rem',
+        fontWeight: 500,
+        cursor: 'pointer',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
       }}
-      className={`ldd-mobile-menu-card ldd-btn-press${isSignOut ? ' ldd-mobile-menu-card-signout' : ''}`}
     >
       {isSignOut ? (
         <LogoutIcon size={18} color="currentColor" aria-hidden="true" />
@@ -496,7 +529,7 @@ function MobileMenuEntry({
         <TabIcon id={tabId} size={18} color="currentColor" aria-hidden="true" />
       ) : null}
       {label}
-    </button>
+    </MotionButton>
   );
 }
 

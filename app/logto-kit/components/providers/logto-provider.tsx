@@ -11,7 +11,8 @@ import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
 import { ToastContainer } from '../dashboard/shared/Toast';
-import { usePrefersReducedMotion } from '../../hooks/use-prefers-reduced-motion';
+import { AnimatePresence, ScaleFade } from '../shared/motion';
+import { motion } from 'framer-motion';
 import type { ToastMessage } from '../dashboard/types';
 import { X } from 'lucide-react';
 
@@ -153,16 +154,19 @@ function LogtoProviderContent({
     <LogtoContext.Provider value={contextValue}>
       <UserDataProvider userData={userData ?? null}>
         {children}
-        {dashboardState.isOpen && (normalizedDashboard || !isAuthenticated) && (
-          <DashboardDialog
-            mode={mode}
-            onClose={closeDashboard}
-            desktop={normalizedDashboard?.desktop}
-            mobile={normalizedDashboard?.mobile}
-            routeTo={dashboardState.routeTo}
-            authMode={dashboardState.mode}
-          />
-        )}
+        <AnimatePresence>
+          {dashboardState.isOpen && (normalizedDashboard || !isAuthenticated) && (
+            <DashboardDialog
+              key="dashboard-dialog"
+              mode={mode}
+              onClose={closeDashboard}
+              desktop={normalizedDashboard?.desktop}
+              mobile={normalizedDashboard?.mobile}
+              routeTo={dashboardState.routeTo}
+              authMode={dashboardState.mode}
+            />
+          )}
+        </AnimatePresence>
         {/* Provider-level preference error toasts */}
         <ToastContainer
           messages={prefToasts}
@@ -230,20 +234,22 @@ function DashboardDialog({
   useFocusTrap(dialogRef, onClose);
   const { isAuthenticated } = useLogto();
   const isMobile = useIsPortrait();
-  const prefersReducedMotion = usePrefersReducedMotion();
 
-  // When unauthenticated, show the auth prompt modal instead of the dashboard.
-  if (!isAuthenticated) {
-    return <AuthPromptModal routeTo={routeTo} mode={authMode} />;
-  }
-
+  // The backdrop fades in/out; the dashboard content scales+fades via ScaleFade.
+  // Both exit animations are driven by the surrounding <AnimatePresence> in
+  // LogtoProviderContent. Under reduced motion, MotionConfig neutralises the
+  // scale/translate transforms, leaving only the gentle opacity fade.
   return (
-    <div
+    <motion.div
       ref={dialogRef}
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Dashboard"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -253,47 +259,51 @@ function DashboardDialog({
         WebkitBackdropFilter: 'blur(0.5rem)',
       }}
     >
-      <div
-        className={prefersReducedMotion ? undefined : 'ldd-dashboard-enter'}
-        style={{
-          position: 'relative',
-          width: '100vw',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {!isMobile && (
-          <button
-            onClick={onClose}
-            aria-label="Close dashboard"
-            style={{
-              position: 'absolute',
-              top: '0.75rem',
-              right: '0.75rem',
-              zIndex: 10,
-              width: '2rem',
-              height: '2rem',
-              border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-              borderRadius: '0.25rem',
-              background: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-              color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1rem',
-              lineHeight: 1,
-            }}
-          >
-            <X size={16} strokeWidth={1.5} />
-          </button>
-        )}
-        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-          <DashboardRouter desktop={desktop} mobile={mobile} />
-        </div>
-      </div>
-    </div>
+      {isAuthenticated ? (
+        <ScaleFade
+          duration={0.18}
+          style={{
+            position: 'relative',
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {!isMobile && (
+            <button
+              onClick={onClose}
+              aria-label="Close dashboard"
+              style={{
+                position: 'absolute',
+                top: '0.75rem',
+                right: '0.75rem',
+                zIndex: 10,
+                width: '2rem',
+                height: '2rem',
+                border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                borderRadius: '0.25rem',
+                background: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1rem',
+                lineHeight: 1,
+              }}
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          )}
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <DashboardRouter desktop={desktop} mobile={mobile} />
+          </div>
+        </ScaleFade>
+      ) : (
+        <AuthPromptModal routeTo={routeTo} mode={authMode} />
+      )}
+    </motion.div>
   );
 }
 

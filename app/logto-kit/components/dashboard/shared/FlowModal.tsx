@@ -7,7 +7,7 @@ import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
-import { Spinner } from '../../shared/animations';
+import { Spinner } from '../../shared/motion';
 import { Lbl, HR } from './primitives';
 
 export function Overlay({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {

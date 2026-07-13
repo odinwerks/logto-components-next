@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
-import { StaggerItem } from '../logto-kit/components/shared/animations';
+import { StaggerItem } from '../logto-kit/components/shared/motion';
 import type { NavItem } from './types';
 import { SECTION_HINTS } from './nav-data';
 
@@ -153,6 +154,7 @@ const footDotStyle: React.CSSProperties = {
 
 export default function ContentArea({ item }: ContentAreaProps) {
   const { mode } = useThemeMode();
+  const reduced = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
   const [DocContent, setDocContent] = useState<React.ComponentType | null>(null);
@@ -250,7 +252,8 @@ export default function ContentArea({ item }: ContentAreaProps) {
             <StaggerItem
               key={section}
               delay={0.13 + i * 0.055}
-              animation="ldd-demo-rise-up"
+              y={7}
+              duration={0.28}
               style={{ ...themedSectStyle }}
             >
               <div style={themedSectHeadStyle}>
@@ -260,17 +263,31 @@ export default function ContentArea({ item }: ContentAreaProps) {
               <div style={sectBodyStyle}>
                 <div style={themedPhStyle}>
                   {SECTION_HINTS[section] || `${section}...`}
-                  <span className="ldd-demo-blink" style={themedCursorStyle}>▌</span>
+                  <motion.span
+                    animate={{ opacity: [1, 0, 1] }}
+                    transition={{
+                      duration: 1.1,
+                      repeat: reduced ? 0 : Infinity,
+                      times: [0, 0.5, 1],
+                      ease: (t: number) => (t >= 1 ? 1 : 0),
+                    }}
+                    style={themedCursorStyle}
+                  >▌</motion.span>
                 </div>
               </div>
             </StaggerItem>
           ))
         )}
 
-        <div className="ldd-demo-rise-up" style={themedFootStyle}>
+        <motion.div
+          initial={{ opacity: 0, y: 7 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, delay: 0.4, ease: 'easeOut' }}
+          style={themedFootStyle}
+        >
           <div style={themedFootDotStyle} />
           {DocContent ? 'Self-documenting demo - logto-kit' : 'Placeholder - fill in usage patterns and demos'}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import AuthWatcher from './logto-kit/components/providers/auth-watcher';
 import SessionHeartbeat from './logto-kit/components/providers/session-heartbeat';
 import { LangSync } from './logto-kit/components/LangSync';
 import { LogtoProvider } from './logto-kit/components/providers/logto-provider';
+import { MotionConfigProvider } from './logto-kit/components/shared/motion';
 import { Dashboard } from './logto-kit/components/dashboard';
 import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 import { fetchDashboardDataCached } from './logto-kit/logic/cached-dashboard';
@@ -93,18 +94,20 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable} ${dmSans.variable}`}>
-        <LogtoProvider
-          userData={userData}
-          dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
-          initialTheme={resolvedTheme}
-          initialLang={resolvedLang}
-          initialOrgId={resolvedOrg}
-        >
-          <AuthWatcher />
-          <SessionHeartbeat />
-          {children}
-          <LangSync />
-        </LogtoProvider>
+        <MotionConfigProvider>
+          <LogtoProvider
+            userData={userData}
+            dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
+            initialTheme={resolvedTheme}
+            initialLang={resolvedLang}
+            initialOrgId={resolvedOrg}
+          >
+            <AuthWatcher />
+            <SessionHeartbeat />
+            {children}
+            <LangSync />
+          </LogtoProvider>
+        </MotionConfigProvider>
       </body>
     </html>
   );

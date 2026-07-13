@@ -7,7 +7,7 @@ import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe } from 'lucide-react';
 import { Button } from '../../shared/Button';
-import { Spinner, Pulse } from '../../shared/animations';
+import { Spinner, Pulse } from '../../shared/motion';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { useFocusTrap } from '../shared/focus-trap';

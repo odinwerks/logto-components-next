@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useId, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
-import { Spinner } from '../../shared/animations';
+import { Spinner } from '../../shared/motion';
 import { getRoleDetails } from '../../../logic/actions/roles';
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';

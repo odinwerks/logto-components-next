@@ -7,7 +7,7 @@ import locales from '../locales';
 import { useThemeMode } from './providers/preferences';
 import { useLogto } from './providers/logto-provider';
 import { useUserDataContext } from './providers/user-data-context';
-import { usePrefersReducedMotion } from '../hooks/use-prefers-reduced-motion';
+import { Pulse, MotionButton } from './shared/motion';
 import { User } from 'lucide-react';
 import { readEnv } from '../logic/env';
 
@@ -147,10 +147,8 @@ function FallbackAvatar({ Size, shape, colors }: { Size: string; shape?: string;
 
 function LoadingPlaceholder({ Size, shape, colors }: { Size: string; shape?: string; colors: ThemeColors }) {
   const resolvedShape = getShape(shape);
-  const prefersReducedMotion = usePrefersReducedMotion();
   return (
-    <div
-      className={prefersReducedMotion ? undefined : 'ldd-pulse'}
+    <Pulse
       style={{
         width: Size,
         height: Size,
@@ -294,8 +292,7 @@ export function UserButton({
   const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : ""}. ${labelSuffix}`;
 
   return (
-    <button
-      className="ldd-btn-press"
+    <MotionButton
       style={{
         ...wrapperStyle,
         background: 'none',
@@ -309,7 +306,7 @@ export function UserButton({
       onMouseLeave={() => setHovered(false)}
     >
       {renderAvatar()}
-    </button>
+    </MotionButton>
   );
 }
 
@@ -445,8 +442,7 @@ export function UserCard({
   };
 
   return (
-    <button
-      className="ldd-btn-press"
+    <MotionButton
       style={{
         ...wrapperStyle,
         opacity: hovered ? 0.85 : 1,
@@ -457,6 +453,6 @@ export function UserCard({
       onMouseLeave={() => setHovered(false)}
     >
       {renderContent()}
-    </button>
+    </MotionButton>
   );
 }

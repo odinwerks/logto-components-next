@@ -35,6 +35,7 @@
   "dependencies": {
     "@logto/next": "^4.2.10",
     "@simplewebauthn/browser": "^13.3.0",
+    "framer-motion": "^12.42.2",
     "ioredis": "^5.11.1",
     "lucide-react": "^1.17.0",
     "minio": "^8.0.7",

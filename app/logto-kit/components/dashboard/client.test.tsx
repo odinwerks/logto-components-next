@@ -201,10 +201,10 @@ describe('DashboardClient - userShape prop', () => {
     expect(readEnv).not.toHaveBeenCalled();
   });
 
-  it('applies fadeIn animation to tab content', () => {
+  it('renders tab content without crashing', () => {
     const { container } = render(<DashboardClient {...requiredProps} />);
-    // Keyframes are now in globals.css, not inline <style>.
-    // Verify the component renders without errors.
+    // Animations are now driven by Framer Motion (CrossFade). Verify the
+    // component renders without errors.
     expect(container.firstChild).not.toBeNull();
   });
 
@@ -277,11 +277,12 @@ describe('DashboardClient - userShape prop', () => {
     expect(screen.getByTestId('profile-draft-input')).toHaveValue('my draft');
   });
 
-  it('applies ldd-tab-fade-out during fade-out and ldd-tab-fade-in after tab switch', () => {
-    // Regression guard: the outgoing tab must receive ldd-tab-fade-out
-    // during the 100ms isFading phase, then the incoming tab must receive
-    // ldd-tab-fade-in. A future refactor that drops the fade-out class should
-    // fail this test (CONCERN 2 from round-2 verification).
+  it('fades the outgoing tab out then reveals the incoming tab (CrossFade)', () => {
+    // Regression guard for the state-preserving crossfade: the outgoing panel
+    // stays visible (fading out) during the fade-out phase, then the incoming
+    // panel is revealed. Replaces the legacy ldd-tab-fade-out/in class checks
+    // — Framer Motion drives the opacity; we assert the display toggling that
+    // gates which panel is interactive.
     vi.useFakeTimers();
 
     render(
@@ -292,28 +293,28 @@ describe('DashboardClient - userShape prop', () => {
     );
 
     const panel = screen.getByRole('tabpanel');
-    const profileWrapper = panel.querySelector('[data-tab="profile"]');
-    expect(profileWrapper).toHaveClass('ldd-tab-fade-in');
+    const profileWrapper = panel.querySelector('[data-tab="profile"]') as HTMLElement;
+    // Initial state: profile is displayed; security not yet visited.
+    expect(profileWrapper).not.toHaveStyle({ display: 'none' });
+    expect(panel.querySelector('[data-tab="security"]')).toBeNull();
 
-    // Click Security tab — triggers isFading on the outgoing tab.
+    // Click Security tab — triggers the fade-out phase on the outgoing tab.
     fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
 
-    // During isFading (before timeout), outgoing tab gets ldd-tab-fade-out.
-    expect(panel.querySelector('[data-tab="profile"]')).toHaveClass('ldd-tab-fade-out');
-
-    // The incoming tab should NOT yet be visible.
-    const securityWrapper = panel.querySelector('[data-tab="security"]');
+    // During fade-out (before timeout): outgoing tab still visible (fading
+    // out), incoming tab rendered but hidden via display:none.
+    expect(panel.querySelector('[data-tab="profile"]')).not.toHaveStyle({ display: 'none' });
+    const securityWrapper = panel.querySelector('[data-tab="security"]') as HTMLElement;
     expect(securityWrapper).toBeInTheDocument();
     expect(securityWrapper).toHaveStyle({ display: 'none' });
 
-    // Advance past the 100ms fade-out timer.
+    // Advance past the fade-out timer.
     act(() => {
       vi.advanceTimersByTime(150);
     });
 
-    // After timeout: incoming tab gets ldd-tab-fade-in, outgoing is hidden.
-    expect(securityWrapper).toHaveClass('ldd-tab-fade-in');
-    expect(securityWrapper).not.toHaveStyle({ display: 'none' }); // visible
+    // After timeout: incoming tab is revealed, outgoing is hidden.
+    expect(securityWrapper).not.toHaveStyle({ display: 'none' });
     expect(profileWrapper).toHaveStyle({ display: 'none' });
   });
 

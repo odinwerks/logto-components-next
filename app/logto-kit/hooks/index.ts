@@ -1,5 +1,4 @@
 export { useRefreshable } from './use-refreshable';
-export { usePrefersReducedMotion } from './use-prefers-reduced-motion';
 export { useAvatarUpload } from './use-avatar-upload';
 export type { UseAvatarUploadOptions, UseAvatarUploadReturn } from './use-avatar-upload';
 export { useAsyncGuard } from './use-async-guard';

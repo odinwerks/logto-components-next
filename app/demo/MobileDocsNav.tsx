@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Menu, ArrowLeft } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
+import { FadeIn } from '../logto-kit/components/shared/motion';
 import { NAV_ITEMS } from './nav-data';
 import { slugify } from './components/SectionComponents';
 
@@ -178,7 +179,7 @@ export default function MobileDocsNav() {
       )}
 
       {isOpen && (
-        <div className="ldd-fade-in" style={{ ...fullscreenOverlayStyle, animationDuration: '0.25s' }}>
+        <FadeIn duration={0.25} style={fullscreenOverlayStyle}>
           {stage === 'topics' ? (
             <div style={stageContainerStyle}>
               {/* Header */}
@@ -265,7 +266,7 @@ export default function MobileDocsNav() {
           )}
 
           {/* X button intentionally removed (Option B: no close-without-navigate) */}
-        </div>
+        </FadeIn>
       )}
     </>
   );

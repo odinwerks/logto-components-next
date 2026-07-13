@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
-import { usePrefersReducedMotion } from '../../../hooks/use-prefers-reduced-motion';
+import { AnimatePresence, ToastSlide } from '../../shared/motion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single Toast
@@ -18,8 +18,6 @@ interface ToastProps {
 
 export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
-
-  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const timer = setTimeout(
@@ -55,7 +53,6 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
     fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
     color: accent,
     userSelect: 'none',
-    transition: 'opacity 0.15s',
   });
 
   const styleMap = {
@@ -72,12 +69,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   };
 
   return (
-    <div
-      style={toastStyle}
-      className={prefersReducedMotion ? undefined : 'ldd-slide-in-right'}
-      role="status"
-      aria-live="polite"
-    >
+    <div style={toastStyle} role="status" aria-live="polite">
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -162,8 +154,9 @@ interface ToastContainerProps {
 }
 
 export function ToastContainer({ messages, onDismiss, mode, colors }: ToastContainerProps) {
-  if (messages.length === 0) return null;
-
+  // Always render the container so AnimatePresence can play exit animations
+  // when toasts are dismissed (removing the early `return null` guard lets the
+  // last toast slide out instead of unmounting instantly).
   return (
     <div
       style={{
@@ -177,16 +170,13 @@ export function ToastContainer({ messages, onDismiss, mode, colors }: ToastConta
         pointerEvents: 'none',
       }}
     >
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          style={{
-            pointerEvents: 'auto',
-          }}
-        >
-          <Toast message={message} onDismiss={onDismiss} mode={mode} colors={colors} />
-        </div>
-      ))}
+      <AnimatePresence>
+        {messages.map((message) => (
+          <ToastSlide key={message.id} style={{ pointerEvents: 'auto' }}>
+            <Toast message={message} onDismiss={onDismiss} mode={mode} colors={colors} />
+          </ToastSlide>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
