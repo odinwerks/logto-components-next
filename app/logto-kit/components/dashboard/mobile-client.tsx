@@ -165,15 +165,19 @@ export function MobileClient({
     setIsSigningOut(false);
   }, [setSuppressAll]);
 
-  // ── Menu view ────────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────
+  // Both views are always mounted so that the TabFadePanel in the tab view
+  // retains its state across menu ↔ tab round-trips. Only the active view is
+  // visible; the inactive view hides via `display: none`.
 
-  if (view === 'menu') {
-    return (
+  return (
+    <>
+      {/* ── Menu view ────────────────────────────────────────────────────── */}
       <div
         style={{
           width: '100%',
           minHeight: '100dvh',
-          display: 'flex',
+          display: view === 'menu' ? 'flex' : 'none',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
@@ -280,190 +284,186 @@ export function MobileClient({
         >
           <ArrowLeft size={18} />
         </button>
-
-        <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
-        <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
       </div>
-    );
-  }
 
-  // ── Tab view ─────────────────────────────────────────────────────────────
-
-  return (
-    <div
-      style={{
-        width: '100%',
-        minHeight: '100dvh',
-        background: colors.bgPage,
-        color: colors.textPrimary,
-        position: 'relative',
-        boxSizing: 'border-box',
-      }}
-    >
+      {/* ── Tab view ─────────────────────────────────────────────────────── */}
       <div
         style={{
           width: '100%',
           minHeight: '100dvh',
-          padding: isCompact ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
+          display: view === 'tab' ? undefined : 'none',
+          background: colors.bgPage,
+          color: colors.textPrimary,
+          position: 'relative',
           boxSizing: 'border-box',
-          overflowY: 'auto',
         }}
       >
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            minHeight: 'calc(100dvh - 5.5rem)',
+            width: '100%',
+            minHeight: '100dvh',
+            padding: isCompact ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
+            boxSizing: 'border-box',
+            overflowY: 'auto',
           }}
         >
-          <TabFadePanel
-            activeTab={activeTab ?? 'profile'}
-            prefersReducedMotion={prefersReducedMotion}
-            fallback={(
-              <div
-                role="alert"
-                style={{
-                  fontFamily: FONT_MONO,
-                  color: colors.accentRed,
-                  fontSize: '0.8125rem',
-                }}
-              >
-                {t.dashboard.error}
-              </div>
-            )}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 'calc(100dvh - 5.5rem)',
+            }}
           >
-            {(tabId) => (
-              <>
-                {tabId === 'profile' && (
-                  <ProfileTab
-                    userData={userData}
-                    mode={mode}
-                    colors={colors}
-                    t={t}
-                    mobmode={1}
-                    countryFilter={countryFilter}
-                    nameType={nameType}
-                    onUpdateBasicInfo={onUpdateBasicInfo}
-                    onUpdateAvatarUrl={onUpdateAvatarUrl}
-                    onUpdateProfile={onUpdateProfile}
-                    onVerifyPassword={onVerifyPassword}
-                    onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
-                    onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
-                    onVerifyCode={onVerifyCode}
-                    onUpdateEmail={onUpdateEmail}
-                    onUpdatePhone={onUpdatePhone}
-                    onRemoveEmail={onRemoveEmail}
-                    onRemovePhone={onRemovePhone}
-                    onSuccess={(msg) => showToast('success', msg)}
-                    onError={(msg) => showToast('error', mapErrorToast(msg))}
-                    refreshData={refreshData}
-                  />
-                )}
+            <TabFadePanel
+              activeTab={activeTab ?? 'profile'}
+              prefersReducedMotion={prefersReducedMotion}
+              fallback={(
+                <div
+                  role="alert"
+                  style={{
+                    fontFamily: FONT_MONO,
+                    color: colors.accentRed,
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  {t.dashboard.error}
+                </div>
+              )}
+            >
+              {(tabId) => (
+                <>
+                  {tabId === 'profile' && (
+                    <ProfileTab
+                      userData={userData}
+                      mode={mode}
+                      colors={colors}
+                      t={t}
+                      mobmode={1}
+                      countryFilter={countryFilter}
+                      nameType={nameType}
+                      onUpdateBasicInfo={onUpdateBasicInfo}
+                      onUpdateAvatarUrl={onUpdateAvatarUrl}
+                      onUpdateProfile={onUpdateProfile}
+                      onVerifyPassword={onVerifyPassword}
+                      onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
+                      onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
+                      onVerifyCode={onVerifyCode}
+                      onUpdateEmail={onUpdateEmail}
+                      onUpdatePhone={onUpdatePhone}
+                      onRemoveEmail={onRemoveEmail}
+                      onRemovePhone={onRemovePhone}
+                      onSuccess={(msg) => showToast('success', msg)}
+                      onError={(msg) => showToast('error', mapErrorToast(msg))}
+                      refreshData={refreshData}
+                    />
+                  )}
 
-                {tabId === 'preferences' && (
-                  <PreferencesTab
-                    mode={mode}
-                    colors={colors}
-                    t={t}
-                    supportedLangs={supportedLangs}
-                    mobmode={1}
-                  />
-                )}
+                  {tabId === 'preferences' && (
+                    <PreferencesTab
+                      mode={mode}
+                      colors={colors}
+                      t={t}
+                      supportedLangs={supportedLangs}
+                      mobmode={1}
+                    />
+                  )}
 
-                {tabId === 'security' && (
-                  <SecurityTab
-                    userData={userData}
-                    mode={mode}
-                    colors={colors}
-                    t={t}
-                    mobmode={1}
-                    onVerifyPassword={onVerifyPassword}
-                    onGetMfaVerifications={onGetMfaVerifications}
-                    onGenerateTotpSecret={onGenerateTotpSecret}
-                    onAddMfaVerification={onAddMfaVerification}
-                    onDeleteMfaVerification={onDeleteMfaVerification}
-                    onReplaceTotpVerification={onReplaceTotpVerification}
-                    onGenerateBackupCodes={onGenerateBackupCodes}
-                    onUpdatePassword={onUpdatePassword}
-                    onDeleteAccount={onDeleteAccount}
-                    onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
-                    onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
-                    onRenamePasskey={onRenamePasskey}
-                    onSuccess={(msg) => showToast('success', msg)}
-                    onError={(msg) => showToast('error', mapErrorToast(msg))}
-                  />
-                )}
+                  {tabId === 'security' && (
+                    <SecurityTab
+                      userData={userData}
+                      mode={mode}
+                      colors={colors}
+                      t={t}
+                      mobmode={1}
+                      onVerifyPassword={onVerifyPassword}
+                      onGetMfaVerifications={onGetMfaVerifications}
+                      onGenerateTotpSecret={onGenerateTotpSecret}
+                      onAddMfaVerification={onAddMfaVerification}
+                      onDeleteMfaVerification={onDeleteMfaVerification}
+                      onReplaceTotpVerification={onReplaceTotpVerification}
+                      onGenerateBackupCodes={onGenerateBackupCodes}
+                      onUpdatePassword={onUpdatePassword}
+                      onDeleteAccount={onDeleteAccount}
+                      onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+                      onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+                      onRenamePasskey={onRenamePasskey}
+                      onSuccess={(msg) => showToast('success', msg)}
+                      onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    />
+                  )}
 
-                {tabId === 'sessions' && (
-                  <SessionsTab
-                    userData={userData}
-                    mode={mode}
-                    colors={colors}
-                    t={t}
-                    mobmode={1}
-                    onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
-                    onRevokeSession={onRevokeSession}
-                    onRevokeAllOtherSessions={onRevokeAllOtherSessions}
-                    onVerifyPassword={onVerifyPassword}
-                    onSuccess={(msg) => showToast('success', msg)}
-                    onError={(msg) => showToast('error', mapErrorToast(msg))}
-                  />
-                )}
+                  {tabId === 'sessions' && (
+                    <SessionsTab
+                      userData={userData}
+                      mode={mode}
+                      colors={colors}
+                      t={t}
+                      mobmode={1}
+                      onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+                      onRevokeSession={onRevokeSession}
+                      onRevokeAllOtherSessions={onRevokeAllOtherSessions}
+                      onVerifyPassword={onVerifyPassword}
+                      onSuccess={(msg) => showToast('success', msg)}
+                      onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    />
+                  )}
 
-                {tabId === 'identities' && (
-                  <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
-                )}
+                  {tabId === 'identities' && (
+                    <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
+                  )}
 
-                {tabId === 'organizations' && (
-                  <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
-                )}
-              </>
-            )}
-          </TabFadePanel>
+                  {tabId === 'organizations' && (
+                    <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
+                  )}
+                </>
+              )}
+            </TabFadePanel>
 
+          </div>
         </div>
+
+        {/* Floating back button */}
+        <button
+          onClick={backToMenu}
+          aria-label="Back to menu"
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            right: '1rem',
+            width: '2.5rem',
+            height: '2.5rem',
+            borderRadius: '0.625rem',
+            border: `1px solid ${colors.borderColor}`,
+            background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(0.5rem)',
+            WebkitBackdropFilter: 'blur(0.5rem)',
+            color: colors.textSecondary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            transition: 'background 0.15s ease, color 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.bgSecondary;
+            e.currentTarget.style.color = colors.textPrimary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+            e.currentTarget.style.color = colors.textSecondary;
+          }}
+        >
+          <ArrowLeft size={18} />
+        </button>
       </div>
 
-      {/* Floating back button */}
-      <button
-        onClick={backToMenu}
-        aria-label="Back to menu"
-        style={{
-          position: 'fixed',
-          bottom: '1rem',
-          right: '1rem',
-          width: '2.5rem',
-          height: '2.5rem',
-          borderRadius: '0.625rem',
-          border: `1px solid ${colors.borderColor}`,
-          background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          backdropFilter: 'blur(0.5rem)',
-          WebkitBackdropFilter: 'blur(0.5rem)',
-          color: colors.textSecondary,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          transition: 'background 0.15s ease, color 0.15s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = colors.bgSecondary;
-          e.currentTarget.style.color = colors.textPrimary;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-          e.currentTarget.style.color = colors.textSecondary;
-        }}
-      >
-        <ArrowLeft size={18} />
-      </button>
-
+      {/* ── Shared overlays ──────────────────────────────────────────────── */}
       <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
-    </div>
+    </>
   );
 }
 

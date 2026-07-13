@@ -277,6 +277,46 @@ describe('DashboardClient - userShape prop', () => {
     expect(screen.getByTestId('profile-draft-input')).toHaveValue('my draft');
   });
 
+  it('applies ldd-tab-fade-out during fade-out and ldd-tab-fade-in after tab switch', () => {
+    // Regression guard: the outgoing tab must receive ldd-tab-fade-out
+    // during the 100ms isFading phase, then the incoming tab must receive
+    // ldd-tab-fade-in. A future refactor that drops the fade-out class should
+    // fail this test (CONCERN 2 from round-2 verification).
+    vi.useFakeTimers();
+
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security']}
+      />,
+    );
+
+    const panel = screen.getByRole('tabpanel');
+    const profileWrapper = panel.querySelector('[data-tab="profile"]');
+    expect(profileWrapper).toHaveClass('ldd-tab-fade-in');
+
+    // Click Security tab — triggers isFading on the outgoing tab.
+    fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
+
+    // During isFading (before timeout), outgoing tab gets ldd-tab-fade-out.
+    expect(panel.querySelector('[data-tab="profile"]')).toHaveClass('ldd-tab-fade-out');
+
+    // The incoming tab should NOT yet be visible.
+    const securityWrapper = panel.querySelector('[data-tab="security"]');
+    expect(securityWrapper).toBeInTheDocument();
+    expect(securityWrapper).toHaveStyle({ display: 'none' });
+
+    // Advance past the 100ms fade-out timer.
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    // After timeout: incoming tab gets ldd-tab-fade-in, outgoing is hidden.
+    expect(securityWrapper).toHaveClass('ldd-tab-fade-in');
+    expect(securityWrapper).not.toHaveStyle({ display: 'none' }); // visible
+    expect(profileWrapper).toHaveStyle({ display: 'none' });
+  });
+
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {
     render(
       <DashboardClient

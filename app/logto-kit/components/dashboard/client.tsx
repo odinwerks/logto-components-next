@@ -600,6 +600,7 @@ function SignOutButton({
   return (
     <button
       onClick={onClick}
+      className="ldd-btn-press"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -617,7 +618,7 @@ function SignOutButton({
         fontSize: '0.8125rem',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'background 0.12s ease, color 0.12s ease',
+        transition: 'background 0.12s ease, color 0.12s ease, transform 0.08s ease',
       }}
     >
       <LogoutIcon size={13} color="currentColor" />
