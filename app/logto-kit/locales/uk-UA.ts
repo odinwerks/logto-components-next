@@ -94,6 +94,7 @@ export const ukUA: Translations = {
     avatarRemoved: 'Аватар видалено.',
     removeAvatar: 'Видалити аватар',
     saveChanges: 'Зберегти зміни',
+    modify: 'Змінити',
     discard: 'Відхилити',
     add: 'ДОДАТИ',
     remove: 'ВИДАЛИТИ',

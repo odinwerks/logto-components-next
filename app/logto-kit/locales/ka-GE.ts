@@ -94,6 +94,7 @@ export const kaGE: Translations = {
     avatarRemoved: 'ავატარი წაიშალა.',
     removeAvatar: 'ავატარის წაშლა',
     saveChanges: 'ცვლილებების შენახვა',
+    modify: 'შეცვლა',
     discard: 'გაუქმება',
     add: 'დამატება',
     remove: 'წაშლა',

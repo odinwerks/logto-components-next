@@ -18,7 +18,7 @@ import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
-import { AnimatePresence } from '../../shared/motion';
+import { motion, AnimatePresence } from '../../shared/motion';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
@@ -351,6 +351,7 @@ export function ProfileTab({
   const [familyName,  setFamilyName]  = useState(userData.profile?.familyName ?? '');
   const [username,    setUsername]    = useState(userData.username ?? '');
   const [nameLoading, setNameLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [{ userRoles, loading: rolesLoading, error: rolesError }, rolesDispatch] = useReducer(rolesReducer, {
     userRoles: [], loading: true, error: false,
@@ -377,15 +378,6 @@ export function ProfileTab({
       });
     return () => { cancelled = true; };
   }, [userData.id, rolesRefreshKey]);
-
-  const nameChanged = nameType === 'given_family'
-    ? (givenName  !== (userData.profile?.givenName  ?? '') ||
-       familyName !== (userData.profile?.familyName ?? ''))
-    : nameType === 'username'
-      ? username !== (userData.username ?? '')
-      : (username !== (userData.username ?? '') ||
-         givenName  !== (userData.profile?.givenName  ?? '') ||
-         familyName !== (userData.profile?.familyName ?? ''));
 
   const handleSaveName = useCallback(async () => {
     setNameLoading(true);
@@ -449,6 +441,7 @@ export function ProfileTab({
         }
       }
       onSuccess(t.profile.profileUpdated);
+      setIsEditing(false);
       refreshData();
     } finally {
       setNameLoading(false);
@@ -459,6 +452,7 @@ export function ProfileTab({
     setGivenName(userData.profile?.givenName  ?? '');
     setFamilyName(userData.profile?.familyName ?? '');
     if (nameType !== 'given_family') setUsername(userData.username ?? '');
+    setIsEditing(false);
   }, [userData, nameType]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -910,80 +904,170 @@ export function ProfileTab({
           </div>
 
           <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.75rem' }}>
+            {/* "Edit" button — only on desktop, only when NOT editing */}
+            {!isMobile && !isEditing && (
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="secondary" onClick={() => setIsEditing(true)} mode={mode} colors={colors}>
+                  {t.profile.edit}
+                </Button>
+              </div>
+            )}
+
             {!isMobile ? (
               <>
-                {/* Username row - shown in username and full modes */}
-                {(nameType === 'username' || nameType === 'full') && (
-                  <div style={{ width: '100%' }}>
-                    <label htmlFor={usernameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                      <Input
-                        id={usernameId}
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        placeholder={t.profile.usernamePlaceholder}
-                        mode={mode} colors={colors}
-                        style={{ padding: '0.375rem 0.75rem', flex: 1 }}
-                      />
-                      {nameType === 'username' && nameChanged && (
+                {/* Desktop: Username-only mode */}
+                {nameType === 'username' && (
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                    <motion.div
+                      layout
+                      transition={{ duration: 0.1, ease: 'easeOut' }}
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <div style={{ width: '100%' }}>
+                        <label htmlFor={usernameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
+                        <Input
+                          id={usernameId}
+                          value={username}
+                          onChange={e => setUsername(e.target.value)}
+                          readOnly={!isEditing}
+                          placeholder={t.profile.usernamePlaceholder}
+                          mode={mode} colors={colors}
+                          style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                        />
+                      </div>
+                    </motion.div>
+
+                    {isEditing && (
                         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading ? t.profile.saving : t.profile.saveChanges}
+                            {nameLoading ? t.profile.saving : t.profile.modify}
                           </Button>
                         </div>
                       )}
-                    </div>
                   </div>
                 )}
 
-                {/* Given/Family grid - shown in given_family and full modes */}
-                {(nameType === 'given_family' || nameType === 'full') && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
-                    <label htmlFor={firstNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
-                    <label htmlFor={lastNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
-                    <div />
-                    <Input
-                      id={firstNameId}
-                      value={givenName}
-                      onChange={e => setGivenName(e.target.value)}
-                      placeholder={t.profile.firstNamePlaceholder}
-                      mode={mode} colors={colors}
-                      style={{ padding: '0.375rem 0.75rem' }}
-                    />
-                    <Input
-                      id={lastNameId}
-                      value={familyName}
-                      onChange={e => setFamilyName(e.target.value)}
-                      placeholder={t.profile.lastNamePlaceholder}
-                      mode={mode} colors={colors}
-                      style={{ padding: '0.375rem 0.75rem' }}
-                    />
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {nameChanged && (
-                        <>
+                {/* Desktop: Given/Family mode */}
+                {nameType === 'given_family' && (
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                    <motion.div
+                      layout
+                      transition={{ duration: 0.1, ease: 'easeOut' }}
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                        <label htmlFor={firstNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
+                        <label htmlFor={lastNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
+                        <Input
+                          id={firstNameId}
+                          value={givenName}
+                          onChange={e => setGivenName(e.target.value)}
+                          readOnly={!isEditing}
+                          placeholder={t.profile.firstNamePlaceholder}
+                          mode={mode} colors={colors}
+                          style={{ padding: '0.375rem 0.75rem' }}
+                        />
+                        <Input
+                          id={lastNameId}
+                          value={familyName}
+                          onChange={e => setFamilyName(e.target.value)}
+                          readOnly={!isEditing}
+                          placeholder={t.profile.lastNamePlaceholder}
+                          mode={mode} colors={colors}
+                          style={{ padding: '0.375rem 0.75rem' }}
+                        />
+                      </div>
+                    </motion.div>
+
+                    {isEditing && (
+                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading ? t.profile.saving : t.profile.saveChanges}
+                            {nameLoading ? t.profile.saving : t.profile.modify}
                           </Button>
-                        </>
+                        </div>
                       )}
-                    </div>
+                  </div>
+                )}
+
+                {/* Desktop: Full mode — username + given/family + vertical button stack */}
+                {nameType === 'full' && (
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                    <motion.div
+                      layout
+                      transition={{ duration: 0.1, ease: 'easeOut' }}
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {/* Username field */}
+                        <div style={{ width: '100%' }}>
+                          <label htmlFor={usernameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem', display: 'block' }}>{t.profile.username}</label>
+                          <Input
+                            id={usernameId}
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            readOnly={!isEditing}
+                            placeholder={t.profile.usernamePlaceholder}
+                            mode={mode} colors={colors}
+                            style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                          />
+                        </div>
+
+                        {/* Given/family grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                          <label htmlFor={firstNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.firstName}</label>
+                          <label htmlFor={lastNameId} style={{ ...cs.inputs.label, marginBottom: '0.25rem' }}>{t.profile.lastName}</label>
+                          <Input
+                            id={firstNameId}
+                            value={givenName}
+                            onChange={e => setGivenName(e.target.value)}
+                            readOnly={!isEditing}
+                            placeholder={t.profile.firstNamePlaceholder}
+                            mode={mode} colors={colors}
+                            style={{ padding: '0.375rem 0.75rem' }}
+                          />
+                          <Input
+                            id={lastNameId}
+                            value={familyName}
+                            onChange={e => setFamilyName(e.target.value)}
+                            readOnly={!isEditing}
+                            placeholder={t.profile.lastNamePlaceholder}
+                            mode={mode} colors={colors}
+                            style={{ padding: '0.375rem 0.75rem' }}
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {isEditing && (
+                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                          <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {t.profile.discard}
+                          </Button>
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
+                            {nameLoading ? t.profile.saving : t.profile.modify}
+                          </Button>
+                        </div>
+                      )}
                   </div>
                 )}
               </>
             ) : (
+              /* Mobile: pen/check morph button + discard X */
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+                {/* Fields column — always takes remaining space */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(nameType === 'username' || nameType === 'full') && (
                     <Input
                       id={usernameId}
                       value={username}
                       onChange={e => setUsername(e.target.value)}
+                      readOnly={!isEditing}
                       placeholder={t.profile.usernamePlaceholder}
                       mode={mode} colors={colors}
                       style={{ padding: '0.375rem 0.75rem', width: '100%' }}
@@ -995,6 +1079,7 @@ export function ProfileTab({
                         id={firstNameId}
                         value={givenName}
                         onChange={e => setGivenName(e.target.value)}
+                        readOnly={!isEditing}
                         placeholder={t.profile.firstNamePlaceholder}
                         mode={mode} colors={colors}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
@@ -1003,6 +1088,7 @@ export function ProfileTab({
                         id={lastNameId}
                         value={familyName}
                         onChange={e => setFamilyName(e.target.value)}
+                        readOnly={!isEditing}
                         placeholder={t.profile.lastNamePlaceholder}
                         mode={mode} colors={colors}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
@@ -1010,9 +1096,13 @@ export function ProfileTab({
                     </>
                   )}
                 </div>
-                {nameChanged && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexShrink: 0 }}>
+
+                {/* Button column — always present, conditionally populated */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexShrink: 0 }}>
+                  {/* Discard button — appears above the action button when editing */}
+                  {isEditing && (
                     <button
+                      type="button"
                       onClick={handleDiscardName}
                       disabled={nameLoading}
                       aria-label={t.profile.discard}
@@ -1024,25 +1114,55 @@ export function ProfileTab({
                         color: c.textTertiary, padding: 0,
                       }}
                     ><X size={14} /></button>
+                  )}
+
+                  {/* Action button — morphs between pen (edit) and check (save) */}
+                  {isEditing ? (
                     <button
+                      type="button"
                       onClick={handleSaveName}
                       disabled={nameLoading}
-                      aria-label={t.profile.saveChanges}
+                      aria-label={t.profile.modify}
                       style={{
                         width: '2rem', height: '2rem',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
-                        borderRadius: '0.25rem', cursor: nameLoading ? 'not-allowed' : 'pointer',
-                        color: '#fff', padding: 0,
+                        background: c.accentBlue,
+                        border: `1px solid ${c.accentBlue}`,
+                        borderRadius: '0.25rem',
+                        cursor: nameLoading ? 'not-allowed' : 'pointer',
+                        color: '#fff',
+                        padding: 0,
                       }}
-                    >{nameLoading ? <SpinnerIcon size={12} color="#fff" /> : <Check size={14} />}</button>
-                  </div>
-                )}
+                    >
+                      {nameLoading ? <SpinnerIcon size={12} color="#fff" /> : <Check size={14} />}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      disabled={false}
+                      aria-label={t.profile.edit}
+                      style={{
+                        width: '2rem', height: '2rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent',
+                        border: `1px solid ${c.borderColor}`,
+                        borderRadius: '0.25rem',
+                        cursor: 'pointer',
+                        color: c.textTertiary,
+                        padding: 0,
+                      }}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
       </div>
 
+      {!isEditing && (
       <Card mode={mode} colors={colors}>
         <ContactRow
           label={t.security.email}
@@ -1085,6 +1205,7 @@ export function ProfileTab({
           onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
       </Card>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
         <Card mode={mode} colors={colors} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>

@@ -94,6 +94,7 @@ export const enUS: Translations = {
     avatarRemoved: 'Avatar removed',
     removeAvatar: 'Remove avatar',
     saveChanges: 'Save changes',
+    modify: 'Modify',
     discard: 'Discard',
     add: 'ADD',
     remove: 'REMOVE',

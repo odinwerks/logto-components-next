@@ -203,10 +203,18 @@ describe('ProfileTab - behavioral', () => {
 
     renderProfile('username', { userData, onUpdateBasicInfo, onUpdateProfile });
 
+    // Enter edit mode first (inputs are readOnly until Edit is clicked)
+    // getAllByRole is used because the ContactRow email/phone sections also
+    // render "Edit" buttons — the name editor's Edit is the first in DOM order.
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    // AnimatePresence schedules enter animation via rAF — wait for buttons to appear
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
     const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
     fireEvent.change(usernameInput, { target: { value: 'newname' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
     expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
@@ -225,6 +233,11 @@ describe('ProfileTab - behavioral', () => {
 
     renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
 
+    // Enter edit mode first
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
     const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
     fireEvent.change(usernameInput, { target: { value: 'newuser' } });
 
@@ -233,7 +246,7 @@ describe('ProfileTab - behavioral', () => {
     fireEvent.change(givenInput,  { target: { value: 'Alice' } });
     fireEvent.change(familyInput, { target: { value: 'Smith' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
     expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
@@ -253,11 +266,16 @@ describe('ProfileTab - behavioral', () => {
 
     renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
 
+    // Enter edit mode first
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
     // Leave given/family empty, only change username
     const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
     fireEvent.change(usernameInput, { target: { value: 'brandnewuser' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
     // onUpdateBasicInfo MUST be called with username but no `name` key
@@ -362,11 +380,15 @@ describe('ProfileTab - behavioral', () => {
       />,
     );
 
-    // Change first name to trigger the save button
+    // Click Edit to enter edit mode, then change first name
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
     const givenInput = screen.getByPlaceholderText('First name');
     fireEvent.change(givenInput, { target: { value: 'Changed' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
     // onError must be called, but refreshData must NOT be - edits are preserved for retry.
@@ -412,10 +434,14 @@ describe('ProfileTab - behavioral', () => {
       />,
     );
 
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
     const givenInput = screen.getByPlaceholderText('First name');
     fireEvent.change(givenInput, { target: { value: 'Changed' } });
 
-    const saveBtn = screen.getByRole('button', { name: /save changes/i });
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
     expect(onError).toHaveBeenCalled();
@@ -590,6 +616,246 @@ describe('ProfileTab - behavioral', () => {
 
       screen.getByRole('dialog');
       // Our custom handler excludes input[type="file"], so focus loops directly between closeBtn and dropZone.
+    });
+  });
+
+  describe('Name Editor — edit mode gating (Batch 3)', () => {
+    // Helper: get the visible "Edit" button, filtering out AnimatePresence exit ghosts
+    function getEditButton() {
+      const buttons = screen.queryAllByRole('button', { name: /^edit$/i });
+      // Filter out exit-animation ghosts (opacity: 0)
+      return buttons.find(b => b.style.opacity !== '0') ?? buttons[0]!;
+    }
+
+    it('shows Edit button in read-only mode (desktop)', () => {
+      renderProfile('username');
+      const editBtn = getEditButton();
+      expect(editBtn).toBeInTheDocument();
+    });
+
+    it('hides Edit button once in editing mode', async () => {
+      renderProfile('username');
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+      // AnimatePresence schedules enter/exit animations via rAF — wait for
+      // the exit animation to complete (edit button opacity becomes 0)
+      await waitFor(() => {
+        const remaining = screen.queryAllByRole('button', { name: /^edit$/i });
+        const visible = remaining.filter(b => b.style.opacity !== '0');
+        expect(visible.length).toBe(0);
+      });
+    });
+
+    it('fields are readOnly when not in edit mode', () => {
+      renderProfile('full');
+      const usernameInput = screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement;
+      const givenInput = screen.getByPlaceholderText('First name') as HTMLInputElement;
+      const familyInput = screen.getByPlaceholderText('Last name') as HTMLInputElement;
+
+      expect(usernameInput.readOnly).toBe(true);
+      expect(givenInput.readOnly).toBe(true);
+      expect(familyInput.readOnly).toBe(true);
+    });
+
+    it('fields become editable in edit mode', () => {
+      renderProfile('full');
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+
+      const usernameInput = screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement;
+      const givenInput = screen.getByPlaceholderText('First name') as HTMLInputElement;
+      const familyInput = screen.getByPlaceholderText('Last name') as HTMLInputElement;
+
+      expect(usernameInput.readOnly).toBe(false);
+      expect(givenInput.readOnly).toBe(false);
+      expect(familyInput.readOnly).toBe(false);
+    });
+
+    it('Modify button text is "Modify"', async () => {
+      renderProfile('given_family');
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+      await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+      expect(screen.getByRole('button', { name: /modify/i })).toBeInTheDocument();
+    });
+
+    it('clicking Discard exits edit mode and resets fields', async () => {
+      const userData: UserData = {
+        ...defaultUserData,
+        username: 'olduser',
+      };
+      renderProfile('username', { userData });
+
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+      await waitFor(() => screen.getByRole('button', { name: /discard/i }));
+
+      const usernameInput = screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement;
+      expect(usernameInput.readOnly).toBe(false);
+      fireEvent.change(usernameInput, { target: { value: 'changed' } });
+      expect(usernameInput.value).toBe('changed');
+
+      const discardBtn = screen.getByRole('button', { name: /discard/i });
+      await act(async () => { fireEvent.click(discardBtn); });
+
+      // After discard: readOnly restored, value reset
+      const remainingDiscard = screen.queryAllByRole('button', { name: /discard/i }).filter(b => b.style.opacity !== '0');
+      expect(remainingDiscard.length).toBe(0);
+      expect(usernameInput.readOnly).toBe(true);
+      expect(usernameInput.value).toBe('olduser');
+    });
+
+    it('save failure keeps user in edit mode', async () => {
+      const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: false, error: 'Failed' } as ActionResult);
+      renderProfile('username', { onUpdateBasicInfo });
+
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+      await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
+      const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
+      fireEvent.change(usernameInput, { target: { value: 'newval' } });
+
+      const saveBtn = screen.getByRole('button', { name: /modify/i });
+      await act(async () => { fireEvent.click(saveBtn); });
+
+      // Still in edit mode: Modify button still visible, field still editable
+      expect(screen.getByRole('button', { name: /modify/i })).toBeInTheDocument();
+      expect((screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement).readOnly).toBe(false);
+    });
+
+    it('triple-field mode stacks Discard above Modify (vertical layout)', async () => {
+      renderProfile('full');
+      const editBtn = getEditButton();
+      fireEvent.click(editBtn);
+      await waitFor(() => screen.getByRole('button', { name: /discard/i }));
+
+      const discardBtn = screen.getByRole('button', { name: /discard/i });
+      const modifyBtn = screen.getByRole('button', { name: /modify/i });
+
+      // Discard should appear before Modify in DOM order (vertical stack)
+      const container = discardBtn.closest('div');
+      expect(container).not.toBeNull();
+      const buttons = Array.from(container!.children);
+      const discardIndex = buttons.indexOf(discardBtn);
+      const modifyIndex = buttons.indexOf(modifyBtn);
+      expect(discardIndex).toBeLessThan(modifyIndex);
+    });
+  });
+
+  describe('Name Editor — mobile (Batch 3)', () => {
+    // Helper: get the visible "Edit" (pen) button, filtering out AnimatePresence exit ghosts
+    function getMobilePenButton() {
+      const buttons = screen.queryAllByRole('button', { name: /^edit$/i });
+      return buttons.find(b => b.style.opacity !== '0') ?? buttons[0]!;
+    }
+
+    function renderMobile(nameType: string | undefined = undefined) {
+      mockReadEnv.mockImplementation((key: string) => {
+        if (key === 'NAME_TYPE') return nameType;
+        if (key === 'USER_SHAPE') return 'circle';
+        if (key === 'APP_SECRET') return 'dummy-secret';
+        return undefined;
+      });
+
+      const onUpdateBasicInfo = vi.fn<(updates: { name?: string; username?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
+      const onUpdateProfile = vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
+
+      const result = render(
+        <ProfileTab
+          userData={defaultUserData}
+          mode="dark"
+          colors={DARK_COLORS}
+          t={enUS}
+          mobmode={1}
+          nameType={nameType}
+          onUpdateBasicInfo={onUpdateBasicInfo}
+          onUpdateAvatarUrl={resolvedActionResult}
+          onUpdateProfile={onUpdateProfile}
+          onVerifyPassword={resolvedVerifyPassword}
+          onSendEmailVerification={resolvedSendVerification}
+          onSendPhoneVerification={resolvedSendVerification}
+          onVerifyCode={resolvedVerifyCode}
+          onUpdateEmail={resolvedActionResult}
+          onUpdatePhone={resolvedActionResult}
+          onRemoveEmail={resolvedActionResult}
+          onRemovePhone={resolvedActionResult}
+          onSuccess={noop}
+          onError={noop}
+          refreshData={noop}
+        />,
+      );
+
+      return { ...result, onUpdateBasicInfo, onUpdateProfile };
+    }
+
+    it('mobile: fields are readOnly when not in edit mode', () => {
+      renderMobile('full');
+      const usernameInput = screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement;
+      const givenInput = screen.getByPlaceholderText('First name') as HTMLInputElement;
+      const familyInput = screen.getByPlaceholderText('Last name') as HTMLInputElement;
+
+      expect(usernameInput.readOnly).toBe(true);
+      expect(givenInput.readOnly).toBe(true);
+      expect(familyInput.readOnly).toBe(true);
+    });
+
+    it('mobile: pen icon button present when not editing', () => {
+      renderMobile('given_family');
+      // aria-label for pen button is "Edit"
+      const penBtn = getMobilePenButton();
+      expect(penBtn).toBeInTheDocument();
+    });
+
+    it('mobile: pen button click enters edit mode, reveals check + discard', async () => {
+      renderMobile('given_family');
+      const penBtn = getMobilePenButton();
+      fireEvent.click(penBtn);
+      // AnimatePresence schedules enter animation via rAF — wait for check button to appear
+      await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
+      // Check button should appear (aria-label: "Modify")
+      expect(screen.getByRole('button', { name: /modify/i })).toBeInTheDocument();
+      // Discard X should appear
+      expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument();
+      // No visible pen buttons left
+      const remaining = screen.queryAllByRole('button', { name: /^edit$/i }).filter(b => b.style.opacity !== '0');
+      expect(remaining.length).toBe(0);
+    });
+
+    it('mobile: check button click calls save', async () => {
+      const { onUpdateBasicInfo, onUpdateProfile } = renderMobile('given_family');
+
+      const penBtn = getMobilePenButton();
+      fireEvent.click(penBtn);
+      await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
+      const givenInput = screen.getByPlaceholderText('First name');
+      fireEvent.change(givenInput, { target: { value: 'NewName' } });
+
+      const checkBtn = screen.getByRole('button', { name: /modify/i });
+      await act(async () => { fireEvent.click(checkBtn); });
+
+      expect(onUpdateBasicInfo).toHaveBeenCalled();
+      expect(onUpdateProfile).toHaveBeenCalled();
+    });
+
+    it('mobile: discard X appears above check in edit mode', async () => {
+      renderMobile('given_family');
+      const penBtn = getMobilePenButton();
+      fireEvent.click(penBtn);
+      await waitFor(() => screen.getByRole('button', { name: /discard/i }));
+
+      const discardBtn = screen.getByRole('button', { name: /discard/i });
+      const checkBtn = screen.getByRole('button', { name: /modify/i });
+
+      // Both should be in the same column; discard above check
+      const column = discardBtn.closest('div');
+      expect(column).not.toBeNull();
+      const children = Array.from(column!.children);
+      const discardIndex = children.indexOf(discardBtn);
+      const checkIndex = children.indexOf(checkBtn);
+      expect(discardIndex).toBeLessThan(checkIndex);
     });
   });
 });

@@ -445,6 +445,6 @@ export function ToastSlide({ className, style, children }: ToastSlideProps) {
   );
 }
 
-// Re-export AnimatePresence so consumers can pair it with ToastSlide/ScaleFade
-// without a second framer-motion import.
-export { AnimatePresence };
+// Re-export motion and AnimatePresence so consumers can use framer-motion
+// primitives without a second framer-motion import.
+export { motion, AnimatePresence };

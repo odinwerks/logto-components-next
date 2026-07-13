@@ -110,6 +110,7 @@ export interface Translations {
     avatarRemoved: string;
     removeAvatar: string;
     saveChanges: string;
+    modify: string;
     discard: string;
     add: string;
     remove: string;
