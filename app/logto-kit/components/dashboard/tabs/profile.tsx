@@ -18,6 +18,7 @@ import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
+import { AnimatePresence } from '../../shared/motion';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
@@ -619,8 +620,9 @@ export function ProfileTab({
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <AnimatePresence>
       {avatarModalOpen && (
-        <AvatarModalWrapper onClose={() => { if (!isUploading) handleCloseModal(); }}>
+        <AvatarModalWrapper key="avatar-modal" onClose={() => { if (!isUploading) handleCloseModal(); }}>
           {(ref) => (
             <Overlay onDismiss={handleCloseModal}>
               <div
@@ -862,6 +864,7 @@ export function ProfileTab({
           )}
         </AvatarModalWrapper>
       )}
+      </AnimatePresence>
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
         <div style={{ position: 'relative', width: '6rem', height: '6rem', flexShrink: 0 }}>

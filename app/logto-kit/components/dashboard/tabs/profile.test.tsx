@@ -539,8 +539,11 @@ describe('ProfileTab - behavioral', () => {
       const closeBtn = screen.getByLabelText('Close modal');
       fireEvent.click(closeBtn);
 
-      // Focus should be restored to the trigger button
-      expect(document.activeElement).toBe(triggerBtn);
+      // AnimatePresence exit animation (60ms) must complete before the
+      // focus-trap cleanup runs and restores focus to the trigger button
+      await waitFor(() => {
+        expect(document.activeElement).toBe(triggerBtn);
+      });
     });
 
     it('traps focus correctly: loops from last to first and first to last', async () => {

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import type { ThemeColors } from '../types';
 import { readEnv } from '../../../logic/env';
 
@@ -25,7 +26,11 @@ export function FarewellOverlay({ message, colors, delayMs, onComplete }: Farewe
   }, [effectiveDelay, onComplete]);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -50,6 +55,6 @@ export function FarewellOverlay({ message, colors, delayMs, onComplete }: Farewe
       >
         {message}
       </p>
-    </div>
+    </motion.div>
   );
 }

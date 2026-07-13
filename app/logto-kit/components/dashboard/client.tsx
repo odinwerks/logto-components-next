@@ -19,7 +19,7 @@ import { OrganizationsTab } from './tabs/organizations';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { CrossFade, MotionButton } from '../shared/motion';
+import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
 
 // Import MfaVerification type
 import type { MfaVerification, LogtoSession } from '../../logic/types';
@@ -488,7 +488,9 @@ export function DashboardClient({
       </div>
 
       {/* Toasts */}
-      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      <AnimatePresence>
+      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      </AnimatePresence>
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );

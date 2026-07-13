@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from '../../shared/motion';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { formatPhone } from '../../../logic/formatting';
@@ -229,8 +230,10 @@ export function ContactRow({
 
   return (
     <>
+      <AnimatePresence>
       {modalKind && (
         <FlowModal
+          key="contact-modal"
           title={modalKind === 'remove'
             ? (type === 'email' ? (t.security.removeEmail || 'Remove email') : (t.security.removePhone || 'Remove phone'))
             : currentValue
@@ -329,6 +332,7 @@ export function ContactRow({
           mobmode={mobmode}
         />
       )}
+      </AnimatePresence>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>

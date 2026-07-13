@@ -7,12 +7,17 @@ import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
-import { Spinner } from '../../shared/motion';
+import { AnimatePresence, Spinner } from '../../shared/motion';
+import { motion } from 'framer-motion';
 import { Lbl, HR } from './primitives';
 
 export function Overlay({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
       style={{
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'rgba(0,0,0,0.65)',
@@ -22,7 +27,7 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
       onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -111,7 +116,15 @@ export function PasswordVerifyModal({
           </button>
         </div>
 
-        <div style={{ padding: '1.25rem 1.375rem' }}>
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={step.kind}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.06, ease: 'easeOut' }}
+            style={{ padding: '1.25rem 1.375rem' }}
+          >
           {step.kind === 'password' && (
             <>
               <label htmlFor={pwInputId} style={{ display: 'block', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontWeight: 500, fontSize: '0.625rem', color: c.textTertiary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4375rem' }}>{t.verification.password}</label>
@@ -169,7 +182,8 @@ export function PasswordVerifyModal({
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </Overlay>
   );
@@ -291,7 +305,15 @@ export function FlowModal({
           </button>
         </div>
 
-        <div style={{ padding: '1.25rem 1.375rem' }}>
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={step.kind}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.06, ease: 'easeOut' }}
+            style={{ padding: '1.25rem 1.375rem' }}
+          >
 
           {step.kind === 'value' && (
             <>
@@ -543,7 +565,8 @@ onChange={(e) => {
               </div>
             </>
           )}
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </Overlay>
   );

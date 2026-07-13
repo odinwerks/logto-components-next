@@ -8,6 +8,7 @@ import { Check, Key, Plus, RefreshCw, Lock, Shield, Fingerprint, Pencil, Trash2 
 import { Button } from '../../shared/Button';
 import { FlowModal, BackupCodesModal, type ModalStep } from '../shared/FlowModal';
 import { FarewellOverlay } from '../shared/FarewellOverlay';
+import { AnimatePresence } from '../../shared/motion';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
 import { captureMessage } from '../../../logic/capture-message';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
@@ -381,9 +382,11 @@ export function SecurityTab({
 
   return (
     <div>
+      <AnimatePresence>
       {/* TOTP setup / remove modal */}
       {totpStep && (
         <FlowModal
+          key="totp"
           title={totpMode === 'remove'
             ? t.security.removeAuthenticator
             : totpFactor ? t.security.reconfigureAuthenticator : t.mfa.totp}
@@ -420,6 +423,7 @@ export function SecurityTab({
       {/* Backup codes - password modal */}
       {backupStep && (
         <FlowModal
+          key="backup"
           title={t.security.generateBackupCodesTitle}
           subtitle={t.mfa.verifyPasswordToGenerateBackupCodes}
           step={backupStep}
@@ -444,6 +448,7 @@ export function SecurityTab({
       {/* Backup codes - display modal */}
       {backupCodes && (
         <BackupCodesModal
+          key="backup-codes"
           codes={backupCodes}
           isNew={true}
       onDone={closeCodesModal}
@@ -457,6 +462,7 @@ export function SecurityTab({
       {/* Password change modal */}
       {pwStep && (
         <FlowModal
+          key="password"
           title={t.security.changePassword}
           subtitle={pwStep.kind === 'new-password' ? t.security.enterNewPassword : t.security.enterCurrentPassword}
           step={pwStep}
@@ -494,6 +500,7 @@ export function SecurityTab({
       {/* Delete account modal */}
       {deleteStep && (
         <FlowModal
+          key="delete"
           title={t.security.deleteAccount}
           subtitle={t.security.confirmDeleteAccount}
           step={deleteStep}
@@ -512,6 +519,7 @@ export function SecurityTab({
       {/* Register passkey modal */}
       {passkeyRegStep && (
         <FlowModal
+          key="passkey-reg"
           title={t.mfa.registerPasskey}
           subtitle={t.mfa.registerPasskeyDesc}
           step={passkeyRegStep}
@@ -529,6 +537,7 @@ export function SecurityTab({
       {/* Delete passkey modal (desktop) */}
       {!isMobile && delPasskeyStep && (
         <FlowModal
+          key="del-passkey"
           title={t.mfa.deletePasskey}
           subtitle={t.mfa.deletePasskeyDesc}
           step={delPasskeyStep}
@@ -547,6 +556,7 @@ export function SecurityTab({
       {/* Rename passkey modal (desktop) */}
       {!isMobile && renamePasskeyStep && (
         <FlowModal
+          key="rename-passkey"
           title={t.mfa.renamePasskey}
           subtitle={t.mfa.renamePasskeyDesc}
           step={renamePasskeyStep}
@@ -565,6 +575,7 @@ export function SecurityTab({
       {/* Unified passkey action modal (mobile) */}
       {isMobile && passkeyActionStep && (
         <FlowModal
+          key="passkey-action"
           title={passkeyActionMode === 'remove' ? t.mfa.deletePasskey : t.mfa.renamePasskey}
           subtitle={passkeyActionMode === 'remove' ? t.mfa.deletePasskeyDesc : t.mfa.renamePasskeyDesc}
           step={passkeyActionStep}
@@ -598,6 +609,7 @@ export function SecurityTab({
       {/* Farewell overlay */}
       {showFarewell && (
         <FarewellOverlay
+          key="farewell"
           message={t.security.accountDeletedFarewell || t.signout.farewell}
           colors={colors}
           delayMs={3000}
@@ -608,6 +620,7 @@ export function SecurityTab({
           }}
         />
       )}
+      </AnimatePresence>
 
 
 

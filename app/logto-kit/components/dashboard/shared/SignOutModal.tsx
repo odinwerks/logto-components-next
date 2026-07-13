@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { AnimatePresence } from '../../shared/motion';
 import type { ThemeColors } from '../types';
 import type { Translations } from '../../../locales';
 import { Overlay } from './FlowModal';
@@ -80,8 +82,6 @@ export function SignOutModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, countdownSeconds, showFarewell]);
 
-  if (!isOpen) return null;
-
   const handleAbort = () => {
     setCountdown(countdownSeconds);
     setShowFarewell(false);
@@ -92,113 +92,127 @@ export function SignOutModal({
     setShowFarewell(true);
   };
 
-  // Stage 2: Farewell overlay (no title, no buttons, large centered text)
-  if (showFarewell) {
-    return (
-      <div
-        ref={farewellRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t.signout.farewell}
-        tabIndex={-1}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9000,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(0.375rem) saturate(0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1.25rem',
-        }}
-      >
-        <p
-          aria-label={t.signout.farewell}
-          style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            color: colors.textPrimary,
-            textAlign: 'center',
-            margin: 0,
-          }}
-        >
-          {t.signout.farewell}
-        </p>
-      </div>
-    );
-  }
+  if (!isOpen) return null;
 
   // Stage 1: Countdown confirmation
   const bodyText = t.signout.bodyCountdown.replace('{n}', String(countdown));
   const parts = bodyText.split(String(countdown));
 
   return (
-    <Overlay onDismiss={handleAbort}>
-      <div
-        ref={dialogRef}
-        tabIndex={-1}
-        style={{
-          width: '100%',
-          maxWidth: '27.5rem',
-          background: colors.bgSecondary,
-          border: `1px solid ${colors.borderColor}`,
-          boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
-          overflow: 'hidden',
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="signout-modal-title"
-        aria-describedby="signout-modal-desc"
-      >
-        <div
+    <AnimatePresence mode="sync">
+      {showFarewell ? (
+        <motion.div
+          key="farewell"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.06, ease: 'easeOut' }}
+          ref={farewellRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.signout.farewell}
+          tabIndex={-1}
           style={{
-            padding: '1.125rem 1.375rem 1rem',
-            borderBottom: `1px solid ${colors.borderColor}`,
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9000,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(0.375rem) saturate(0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
           }}
         >
           <p
-            id="signout-modal-title"
+            aria-label={t.signout.farewell}
             style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontWeight: 600,
-              fontSize: '0.9375rem',
+              fontSize: '1.75rem',
+              fontWeight: 700,
               color: colors.textPrimary,
-              letterSpacing: '-0.02em',
+              textAlign: 'center',
               margin: 0,
             }}
           >
-            {t.signout.title}
+            {t.signout.farewell}
           </p>
-        </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="confirm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.06, ease: 'easeOut' }}
+        >
+          <Overlay onDismiss={handleAbort}>
+            <div
+              ref={dialogRef}
+              tabIndex={-1}
+              style={{
+                width: '100%',
+                maxWidth: '27.5rem',
+                background: colors.bgSecondary,
+                border: `1px solid ${colors.borderColor}`,
+                boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+                overflow: 'hidden',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="signout-modal-title"
+              aria-describedby="signout-modal-desc"
+            >
+              <div
+                style={{
+                  padding: '1.125rem 1.375rem 1rem',
+                  borderBottom: `1px solid ${colors.borderColor}`,
+                }}
+              >
+                <p
+                  id="signout-modal-title"
+                  style={{
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontWeight: 600,
+                    fontSize: '0.9375rem',
+                    color: colors.textPrimary,
+                    letterSpacing: '-0.02em',
+                    margin: 0,
+                  }}
+                >
+                  {t.signout.title}
+                </p>
+              </div>
 
-        <div style={{ padding: '1.25rem 1.375rem' }}>
-          <p
-            id="signout-modal-desc"
-            style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: colors.textSecondary,
-              lineHeight: 1.55,
-              margin: 0,
-            }}
-          >
-            {parts[0]}
-            <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
-            {parts[1] || ''}
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-            <Button variant="secondary" onClick={handleAbort} mode={mode} colors={colors}>
-              {t.signout.abort}
-            </Button>
-            <Button variant="danger" onClick={handleConfirm} mode={mode} colors={colors}>
-              {t.signout.confirm}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Overlay>
+              <div style={{ padding: '1.25rem 1.375rem' }}>
+                <p
+                  id="signout-modal-desc"
+                  style={{
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: colors.textSecondary,
+                    lineHeight: 1.55,
+                    margin: 0,
+                  }}
+                >
+                  {parts[0]}
+                  <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
+                  {parts[1] || ''}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
+                  <Button variant="secondary" onClick={handleAbort} mode={mode} colors={colors}>
+                    {t.signout.abort}
+                  </Button>
+                  <Button variant="danger" onClick={handleConfirm} mode={mode} colors={colors}>
+                    {t.signout.confirm}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Overlay>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

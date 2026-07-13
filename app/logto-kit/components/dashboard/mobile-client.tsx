@@ -12,7 +12,7 @@ import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
 import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { useDashboardToasts } from './shared/use-dashboard-toasts';
-import { CrossFade, MotionButton } from '../shared/motion';
+import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -470,7 +470,9 @@ export function MobileClient({
       </div>
 
       {/* ── Shared overlays ──────────────────────────────────────────────── */}
-      <SignOutModal isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      <AnimatePresence>
+      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      </AnimatePresence>
       <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </>
   );

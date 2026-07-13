@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe } from 'lucide-react';
 import { Button } from '../../shared/Button';
-import { Spinner, Pulse } from '../../shared/motion';
+import { AnimatePresence, Spinner, Pulse } from '../../shared/motion';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { useFocusTrap } from '../shared/focus-trap';
@@ -422,8 +423,10 @@ export function SessionsTab({
             {t.sessions.verifyPassword}
           </Button>
         </div>
+        <AnimatePresence>
         {modalStep && modalPurpose === 'view' && (
           <PasswordVerifyModal
+            key="verify-view"
             title={t.sessions.verifyToView}
             subtitle={t.sessions.verifyToViewDesc}
             step={modalStep}
@@ -435,6 +438,7 @@ export function SessionsTab({
             t={t}
           />
         )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -1038,8 +1042,10 @@ export function SessionsTab({
         )}
       </div>
 
+      <AnimatePresence>
       {modalStep && modalPurpose === 'revoke' && (
         <PasswordVerifyModal
+          key="verify-revoke"
           title={t.sessions.revokeSession}
           subtitle={t.sessions.revokeSessionDesc}
           step={modalStep}
@@ -1052,9 +1058,12 @@ export function SessionsTab({
           danger
         />
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {mapModalGeo && (
         <SessionMapModal
+          key="map-modal"
           geo={mapModalGeo}
           ip={mapModalIp}
           mode={mode}
@@ -1063,18 +1072,26 @@ export function SessionsTab({
           onClose={() => { setMapModalGeo(null); setMapModalIp(''); }}
         />
       )}
+      </AnimatePresence>
 
       {/* GC ALL Confirmation Modal (Task 1) */}
+      <AnimatePresence>
       {showGcAllModal && (
-        <div
+        <motion.div
+          key="gc-all"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.06, ease: 'easeOut' }}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(0.375rem) saturate(0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 9000,
           }}
           onClick={() => !gcAllLoading && setShowGcAllModal(false)}
         >
@@ -1126,8 +1143,9 @@ export function SessionsTab({
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
