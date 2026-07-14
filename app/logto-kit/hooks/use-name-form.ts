@@ -99,10 +99,11 @@ export function useNameForm({
     try {
       if (nameType === 'given_family') {
         const name = `${givenName} ${familyName}`.trim();
-        if (name) {
-          const basicResult = await onUpdateBasicInfo({ name });
-          if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
-        }
+        // Always send name (as '' when both fields are cleared) so the server can
+        // clear userData.name. The previous falsy guard skipped the call, leaving
+        // the name stale when both given and family names were emptied.
+        const basicResult = await onUpdateBasicInfo({ name: name || '' });
+        if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
           // Attempt rollback of name update since profile update failed
@@ -123,8 +124,10 @@ export function useNameForm({
           givenName !== (userData.profile?.givenName ?? '') ||
           familyName !== (userData.profile?.familyName ?? '');
         const name = `${givenName} ${familyName}`.trim();
-        const basicUpdates: { name?: string; username?: string } = { username };
-        if (name) basicUpdates.name = name;
+        // Always include name (as '' when both fields are cleared) so the server can
+        // clear userData.name. The previous conditional omitted the key when name
+        // was empty, leaving the name stale.
+        const basicUpdates: { name: string; username: string } = { name: name || '', username };
         const basicResult = await onUpdateBasicInfo(basicUpdates);
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         if (nameFieldsChanged) {

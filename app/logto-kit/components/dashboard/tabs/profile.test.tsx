@@ -278,13 +278,85 @@ describe('ProfileTab - behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    // onUpdateBasicInfo MUST be called with username but no `name` key
+    // onUpdateBasicInfo MUST be called with username; name is now sent as '' so
+    // the server can clear any stale userData.name (previously the falsy guard
+    // omitted the key, leaving the name stale — see regression tests below).
     expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
     const callArg = onUpdateBasicInfo.mock.calls[0][0] as Record<string, unknown>;
     expect(callArg.username).toBe('brandnewuser');
-    expect(callArg).not.toHaveProperty('name');
+    expect(callArg.name).toBe('');
     // onUpdateProfile should NOT be called since name fields didn't change
     expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  // Regression for BUG-PR-001: clearing both given and family name in
+  // given_family mode must send name: '' so the server can clear userData.name.
+  // Previously the falsy `if (name)` guard skipped onUpdateBasicInfo entirely,
+  // leaving userData.name stale while profile.givenName/familyName were cleared.
+  it('given_family mode - clearing both name fields sends name: "" (stale-name regression)', async () => {
+    const userData: UserData = {
+      ...defaultUserData,
+      name: 'Old Name',
+      profile: { givenName: 'Old', familyName: 'Name' },
+    };
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile   = vi.fn().mockResolvedValue({ ok: true });
+
+    renderProfile('given_family', { userData, onUpdateBasicInfo, onUpdateProfile });
+
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
+    const givenInput  = screen.getByPlaceholderText('First name');
+    const familyInput = screen.getByPlaceholderText('Last name');
+    fireEvent.change(givenInput,  { target: { value: '' } });
+    fireEvent.change(familyInput, { target: { value: '' } });
+
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
+    await act(async () => { fireEvent.click(saveBtn); });
+
+    // name must be sent (as '') so the server can clear userData.name.
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '' });
+    expect(onUpdateProfile).toHaveBeenCalledTimes(1);
+    expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
+  });
+
+  // Regression for BUG-PR-002: clearing both given and family name in full mode
+  // must include name: '' alongside username so the server can clear userData.name.
+  // Previously `if (name) basicUpdates.name = name` omitted the key when empty.
+  it('full mode - clearing both name fields while changing username sends name: "" (stale-name regression)', async () => {
+    const userData: UserData = {
+      ...defaultUserData,
+      username: 'olduser',
+      name: 'Old Name',
+      profile: { givenName: 'Old', familyName: 'Name' },
+    };
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile   = vi.fn().mockResolvedValue({ ok: true });
+
+    renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
+
+    const editBtns = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editBtns[0]!);
+    await waitFor(() => screen.getByRole('button', { name: /modify/i }));
+
+    const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
+    const givenInput    = screen.getByPlaceholderText('First name');
+    const familyInput   = screen.getByPlaceholderText('Last name');
+    fireEvent.change(usernameInput, { target: { value: 'brandnewuser' } });
+    fireEvent.change(givenInput,    { target: { value: '' } });
+    fireEvent.change(familyInput,   { target: { value: '' } });
+
+    const saveBtn = screen.getByRole('button', { name: /modify/i });
+    await act(async () => { fireEvent.click(saveBtn); });
+
+    // name must be present (as '') alongside username so the server clears name.
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '', username: 'brandnewuser' });
+    expect(onUpdateProfile).toHaveBeenCalledTimes(1);
+    expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
   });
 
   it('invalid NAME_TYPE falls back to given_family and renders given/family inputs', () => {

@@ -237,6 +237,32 @@ describe('useNameForm', () => {
     expect(refreshData).toHaveBeenCalled();
   });
 
+  // Regression for BUG-PR-001: clearing both given and family name in
+  // given_family mode must send name: '' so the server can clear userData.name.
+  // Previously the falsy `if (name)` guard skipped onUpdateBasicInfo entirely,
+  // leaving userData.name stale while profile.givenName/familyName were cleared.
+  it('save sends name: "" in given_family mode when both fields are cleared (stale-name regression)', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: true });
+    const opts = makeOptions({
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      userData: makeUserData({ name: 'John Doe', profile: { givenName: 'John', familyName: 'Doe' } }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => {
+      result.current.setGivenName('');
+      result.current.setFamilyName('');
+    });
+    await act(async () => { await result.current.save(); });
+
+    // name must be sent (as '') so the server can clear userData.name.
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '' });
+    expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
+  });
+
   // ─── Save - username mode ─────────────────────────────────────────────────
 
   it('save calls onUpdateBasicInfo with username in username mode', async () => {
@@ -320,6 +346,32 @@ describe('useNameForm', () => {
     const rollbackCall = onUpdateBasicInfo.mock.calls[1];
     // name must be absent (null would be stripped by cleanUpdates); username present
     expect(rollbackCall[0]).toEqual({ username: 'jdoe' });
+  });
+
+  // Regression for BUG-PR-002: clearing both given and family name in full mode
+  // must include name: '' alongside username so the server can clear userData.name.
+  // Previously `if (name) basicUpdates.name = name` omitted the key when empty.
+  it('save sends name: "" in full mode when both name fields are cleared (stale-name regression)', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: true });
+    const opts = makeOptions({
+      nameType: 'full',
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      userData: makeUserData({ name: 'John Doe', username: 'jdoe', profile: { givenName: 'John', familyName: 'Doe' } }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => {
+      result.current.setGivenName('');
+      result.current.setFamilyName('');
+    });
+    await act(async () => { await result.current.save(); });
+
+    // name must be present (as '') alongside the (unchanged) username.
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '', username: 'jdoe' });
+    expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
   });
 
   // ─── Loading state ────────────────────────────────────────────────────────
