@@ -166,16 +166,21 @@ export function CrossFade({ activeKey, className, duration = 0.12, fillHeight, c
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
+    // The synchronous setState calls in this effect are the canonical
+    // state-preserving crossfade pattern (cf. the legacy TabFadePanel):
+    // we must reset fading (on early return) or record the new key and
+    // begin the fade-out phase in response to the activeKey prop changing.
+    /* eslint-disable react-hooks/set-state-in-effect */
+
     if (activeKey === displayedKey) {
+      // Reset fading in case the user switched back to the original key before
+      // the previous fade-out timer fired (rapid round-trip: A → B → A).
+      // Without this, fading stays true and the visible panel renders at
+      // opacity: 0 (invisible).
+      setFading(false);
       return;
     }
 
-    // Track every key that has ever been displayed so its component state
-    // survives when the user switches away and later returns. The synchronous
-    // setState calls here are the canonical state-preserving crossfade pattern
-    // (cf. the legacy TabFadePanel): we must record the new key and begin the
-    // fade-out phase in response to the activeKey prop changing.
-    /* eslint-disable react-hooks/set-state-in-effect */
     setRenderedKeys((prev) => (prev.has(activeKey) ? prev : new Set([...prev, activeKey])));
 
     setFading(true);

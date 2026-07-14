@@ -157,6 +157,46 @@ describe('CrossFade', () => {
     expect(screen.getByTestId('input-a')).toHaveValue('draft');
   });
 
+  it('handles rapid round-trip (A→B→A) before timer fires without getting stuck invisible', () => {
+    // Regression test: when the user rapidly switches A → B → A before the
+    // fade-out timer fires, the effect cleans up the B timer and the early
+    // return at `activeKey === displayedKey` must reset `fading` to false.
+    // Otherwise fading stays true and the visible panel renders at opacity: 0.
+    vi.useFakeTimers();
+
+    const renderTree = (key: string) => (
+      <CrossFade activeKey={key} duration={0.12}>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+
+    const { container, rerender } = render(renderTree('a'));
+
+    // 1. Switch A → B (triggers fade-out timer).
+    rerender(renderTree('b'));
+
+    // 2. Switch B → A BEFORE the timer fires (rapid round-trip).
+    //    The cleanup of the B-effect runs, and since activeKey ('a') ===
+    //    displayedKey ('a'), the early return fires. The fix adds
+    //    `setFading(false)` before that return so the panel doesn't get
+    //    stuck at opacity: 0.
+    rerender(renderTree('a'));
+
+    // 3. Panel 'a' must be visible (not display:none).
+    expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
+    // Panel 'b' was never shown so it should be hidden.
+    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
+
+    // Now advance the timer — the fade completes cleanly.
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    // After timer: 'a' still visible, 'b' still hidden.
+    expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
+  });
+
   it('supports an optional wrapItem wrapper (e.g. error boundary)', () => {
     const { container } = render(
       <CrossFade
