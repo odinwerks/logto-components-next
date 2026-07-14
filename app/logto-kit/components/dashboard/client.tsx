@@ -75,7 +75,6 @@ interface DashboardClientProps {
   onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onSignOut: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +116,6 @@ export function DashboardClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
-  onSignOut: _onSignOut,
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────

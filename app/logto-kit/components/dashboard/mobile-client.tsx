@@ -61,7 +61,6 @@ interface MobileClientProps {
   onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onSignOut: () => Promise<void>;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -111,7 +110,6 @@ export function MobileClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
-  onSignOut: _onSignOut,
 }: MobileClientProps) {
 
   const { mode, colors } = useThemeMode();

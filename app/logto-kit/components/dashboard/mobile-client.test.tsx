@@ -125,7 +125,6 @@ const requiredProps = {
   onGetSessionsWithDeviceMeta: stubDataAction as () => Promise<DataResult<LogtoSession[]>>,
   onRevokeSession: stubAction,
   onRevokeAllOtherSessions: stubAction,
-  onSignOut: async () => {},
 };
 
 beforeAll(() => {

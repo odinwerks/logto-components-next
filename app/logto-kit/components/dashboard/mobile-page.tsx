@@ -23,7 +23,6 @@ import {
   getSessionsWithDeviceMeta,
   revokeUserSession,
   revokeAllOtherSessions,
-  signOutUser,
   requestWebAuthnRegistration,
   verifyAndLinkWebAuthn,
   renamePasskey,
@@ -128,7 +127,6 @@ export async function MobileDashboard() {
           onGetSessionsWithDeviceMeta={getSessionsWithDeviceMeta}
           onRevokeSession={revokeUserSession}
           onRevokeAllOtherSessions={revokeAllOtherSessions}
-          onSignOut={signOutUser}
         />
   );
 }
