@@ -53,6 +53,11 @@ export function SecurityTab({
 }: SecurityTabProps) {
   const c = colors;
   const isMobile = mobmode === 1;
+  const isDark = mode === 'dark';
+  // Cyberpunk red palette for the mobile delete-account icon button (M6).
+  const cyberFill   = isDark ? '#7f1d1d' : '#fecaca';  // darker red fill
+  const cyberBorder = isDark ? '#ef4444' : '#dc2626';  // lighter red outline
+  const cyberIcon   = isDark ? '#fca5a5' : '#dc2626';  // bright red icon
   const T = {
     font: "'DM Sans', system-ui, sans-serif",
     mono: "'IBM Plex Mono', 'Courier New', monospace",
@@ -381,7 +386,14 @@ export function SecurityTab({
   };
 
   return (
-    <div>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 auto',
+        minHeight: 0,
+      }}
+    >
       <AnimatePresence>
       {/* TOTP setup / remove modal */}
       {totpStep && (
@@ -622,7 +634,20 @@ export function SecurityTab({
       )}
       </AnimatePresence>
 
-
+      {/* Scrollable upper area — holds Password / TOTP / Backup / Passkeys.
+           flex:1 1 auto grows to fill when content is short (pushing the danger
+           zone to the bottom); minHeight:0 + overflowY:auto lets it scroll
+           internally when the passkey list is long, keeping the danger zone
+           pinned. The global ::-webkit-scrollbar rules in globals.css style
+           this scroll region automatically (pretty scrollbar, no new CSS). */}
+      <div
+        data-testid="security-scroll-area"
+        style={{
+          flex: '1 1 auto',
+          minHeight: 0,
+          overflowY: 'auto',
+        }}
+      >
 
       {/* ── Password ── */}
       <Card mode={mode} colors={colors}>
@@ -897,8 +922,13 @@ export function SecurityTab({
         </div>
       </Card>
 
+      </div>
+
       {/* ── Danger zone ── */}
-      <div style={{ marginTop: '0.375rem' }}>
+      <div
+        data-testid="security-danger-zone"
+        style={{ flexShrink: 0, paddingTop: '1rem' }}
+      >
         <SL colors={colors}>{t.security.dangerZone}</SL>
         <Card danger mode={mode} colors={colors}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', gap: '1.25rem' }}>
@@ -918,18 +948,18 @@ export function SecurityTab({
                   width: '2rem',
                   height: '2rem',
                   borderRadius: '0.25rem',
-                  border: `1px solid ${colors.borderColor}`,
-                  background: colors.bgTertiary,
+                  border: `1px solid ${cyberBorder}`,
+                  background: cyberFill,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: colors.accentRed,
+                  color: cyberIcon,
                   padding: 0,
                   flexShrink: 0,
                 }}
               >
-                <Trash2 size={14} strokeWidth={1.5} color={T.redText} />
+                <Trash2 size={14} strokeWidth={1.5} color={cyberIcon} />
               </button>
             ) : (
               <Button variant="danger" size="sm" style={{ flexShrink: 0 }}

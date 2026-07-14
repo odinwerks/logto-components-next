@@ -173,6 +173,40 @@ describe('CrossFade', () => {
     expect(wrap).not.toBeNull();
     expect(wrap.getAttribute('data-visible')).toBe('true');
   });
+
+  it('fillHeight makes the visible panel a filling flex column and keeps hidden panels display:none', () => {
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <CrossFade activeKey="a" fillHeight>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+    const a = container.querySelector('[data-tab="a"]') as HTMLElement;
+    expect(a).toHaveStyle({ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: '0' });
+    // Outer wrapper is also a filling flex column.
+    expect(container.firstChild).toHaveStyle({ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: '0' });
+
+    rerender(
+      <CrossFade activeKey="b" fillHeight>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+    // During fade: 'a' still visible (flex), 'b' hidden (none).
+    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'flex' });
+    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
+
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'flex', flexDirection: 'column' });
+  });
+
+  it('fillHeight omitted (default) leaves display behavior identical to today', () => {
+    const { container } = render(
+      <CrossFade activeKey="a">{(k) => <div data-testid={`panel-${k}`}>{k}</div>}</CrossFade>
+    );
+    expect(container.firstChild).not.toHaveStyle({ display: 'flex' });
+    expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
+  });
 });
 
 describe('StaggerContainer + StaggerItem', () => {

@@ -221,6 +221,10 @@ export function DashboardClient({
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
 
+  // Security tab needs its tabpanel to be a flex column so the danger zone can
+  // pin to the bottom (D11). Opt-in keeps every other tab byte-identical.
+  const fillHeight = activeTab === 'security';
+
   return (
     <div
       className={ibmPlexMono.className}
@@ -374,12 +378,14 @@ export function DashboardClient({
             overflowY: 'auto',
             height: '100%',
             boxSizing: 'border-box',
+            ...(fillHeight ? { display: 'flex', flexDirection: 'column' } : {}),
           }}
         >
           <CrossFade
             activeKey={activeTab}
             className="dashboard-tabpanel-content"
             duration={0.05}
+            fillHeight={fillHeight}
             wrapItem={(tabId, isVisible, content) => (
               <TabErrorBoundary
                 resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}

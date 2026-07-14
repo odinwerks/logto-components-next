@@ -169,6 +169,10 @@ export function MobileClient({
   // retains its state across menu ↔ tab round-trips. Only the active view is
   // visible; the inactive view hides via `display: none`.
 
+  // Security tab pins its danger zone to the bottom (M6/D11). Other tabs keep
+  // their existing vertically-centered, min-height-grows-with-content layout.
+  const fillHeight = activeTab === 'security';
+
   return (
     <>
       {/* ── Menu view ────────────────────────────────────────────────────── */}
@@ -310,8 +314,12 @@ export function MobileClient({
             style={{
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center',
-              minHeight: 'calc(100dvh - 5.5rem)',
+              // When filling, use a DEFINITE height so the inner sticky-footer
+              // can scroll; otherwise keep the current min-height + centering.
+              justifyContent: fillHeight ? 'flex-start' : 'center',
+              ...(fillHeight
+                ? { height: 'calc(100dvh - 5.5rem)' }
+                : { minHeight: 'calc(100dvh - 5.5rem)' }),
             }}
           >
             {activeTab !== null ? (
@@ -319,6 +327,7 @@ export function MobileClient({
                 activeKey={activeTab}
               className="dashboard-tabpanel-content"
               duration={0.05}
+              fillHeight={fillHeight}
               wrapItem={(tabId, isVisible, content) => (
                 <TabErrorBoundary
                   resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}

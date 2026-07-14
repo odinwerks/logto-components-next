@@ -147,13 +147,20 @@ interface CrossFadeProps {
   className?: string;
   /** Fade duration in seconds (default 0.12). */
   duration?: number;
+  /**
+   * When true, the outer wrapper and the currently-visible panel become a
+   * flex column that fills its parent's height (flex:1 1 auto; minHeight:0).
+   * Hidden panels keep display:none. Default false → current behavior.
+   * Used only by the Security tab so its danger zone can pin to the bottom.
+   */
+  fillHeight?: boolean;
   /** Render function returning the content for a given key. */
   children: (key: string) => ReactNode;
   /** Optional per-item wrapper (e.g. error boundary). */
   wrapItem?: (key: string, isVisible: boolean, children: ReactNode) => ReactNode;
 }
 
-export function CrossFade({ activeKey, className, duration = 0.12, children, wrapItem }: CrossFadeProps) {
+export function CrossFade({ activeKey, className, duration = 0.12, fillHeight, children, wrapItem }: CrossFadeProps) {
   const [displayedKey, setDisplayedKey] = useState<string>(activeKey);
   const [renderedKeys, setRenderedKeys] = useState<Set<string>>(() => new Set([activeKey]));
   const [fading, setFading] = useState(false);
@@ -181,14 +188,29 @@ export function CrossFade({ activeKey, className, duration = 0.12, children, wra
     return () => clearTimeout(timer);
   }, [activeKey, displayedKey, duration]);
 
+  // When fillHeight is on, the wrapper chain becomes a flex column so a child
+  // tab can fill the tabpanel height (used by SecurityTab's sticky footer).
+  // The outer wrapper keeps its className so BUG-010's `.dashboard-tabpanel-content`
+  // selector still resolves; only its display model changes.
+  const wrapperStyle: CSSProperties | undefined = fillHeight
+    ? { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }
+    : undefined;
+
   return (
-    <div className={className}>
+    <div className={className} style={wrapperStyle}>
       {Array.from(renderedKeys).map((key) => {
         const isDisplayed = key === displayedKey;
         // During `fading`, the outgoing (still displayed) panel fades out;
         // the incoming panel stays hidden until `displayedKey` switches.
         const opacity = isDisplayed ? (fading ? 0 : 1) : 0;
         const content = children(key);
+
+        // Visible panel: fill the wrapper when fillHeight is on, else unchanged.
+        // Hidden panel: always display:none (state-preservation intact).
+        const itemStyle: CSSProperties =
+          fillHeight && isDisplayed
+            ? { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }
+            : { display: isDisplayed ? undefined : 'none' };
 
         return (
           <motion.div
@@ -197,7 +219,7 @@ export function CrossFade({ activeKey, className, duration = 0.12, children, wra
             initial={false}
             animate={{ opacity }}
             transition={{ duration, ease: 'easeOut' }}
-            style={{ display: isDisplayed ? undefined : 'none' }}
+            style={itemStyle}
             aria-hidden={isDisplayed ? undefined : true}
           >
             {wrapItem ? wrapItem(key, isDisplayed, content) : content}

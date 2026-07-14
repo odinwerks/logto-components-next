@@ -175,6 +175,37 @@ describe('SecurityTab', () => {
     expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
   });
 
+  it('renders the security tab root as a flex column that fills its parent', async () => {
+    renderSecurity();
+    await screen.findByText(enUS.security.dangerZone);
+    const root = screen.getByTestId('security-danger-zone').parentElement;
+    expect(root).toHaveStyle({ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: '0' });
+  });
+
+  it('pins the danger zone as the sibling after the scrollable upper area', async () => {
+    renderSecurity();
+    await screen.findByText(enUS.security.dangerZone);
+    const scrollArea = screen.getByTestId('security-scroll-area');
+    const dangerZone = screen.getByTestId('security-danger-zone');
+    // Danger zone is the next sibling after the scroll area (which contains the passkey card).
+    expect(dangerZone.previousElementSibling).toBe(scrollArea);
+    // Never shrinks → stays pinned at the bottom of the flex column.
+    expect(dangerZone).toHaveStyle({ flexShrink: '0' });
+    // Upper area is the scroll well (pretty scrollbar inherited globally).
+    expect(scrollArea).toHaveStyle({ overflowY: 'auto', flex: '1 1 auto', minHeight: '0' });
+  });
+
+  it('styles the mobile delete-account button cyberpunk red while staying square', async () => {
+    renderSecurity({ mobmode: 1 });
+    const deleteButton = await screen.findByRole('button', { name: enUS.security.deleteAccount });
+    // Dimensions preserved (existing square regression guard).
+    expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
+    // Cyberpunk red (dark mode, which renderSecurity uses): #7f1d1d fill, #ef4444 outline.
+    // jsdom normalizes hex → rgb()
+    expect(deleteButton.style.background).toBe('rgb(127, 29, 29)');
+    expect(deleteButton.style.border).toBe('1px solid rgb(239, 68, 68)');
+  });
+
   it('LOW-3: encodes TOTP secret with encodeURIComponent in otpauth URI', async () => {
     // Arrange: use a mock secret containing characters that need encoding
     // Base32 alphabet is safe (A-Z, 2-7, =), but test with a special char to verify encoding
