@@ -39,6 +39,34 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
 
     const token = await getManagementApiToken();
     const endpoint = getCleanEndpoint();
+
+    // IDOR guard: verify the caller is actually assigned to the requested role
+    // before fetching its details with the M2M token. Without this check any
+    // authenticated user could read any role's metadata by guessing or
+    // enumerating role IDs (Insecure Direct Object Reference). The caller's
+    // role assignments are fetched from the user-scoped endpoint using the
+    // server-derived userId (never client-supplied).
+    const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
+    debugLog(`[getRoleDetails] Fetching assigned roles for user ${userId} to authorize role ${roleId}`);
+
+    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
+
+    if (!rolesRes.ok) {
+      // Fail closed: if we cannot verify the caller's role assignments we
+      // must not proceed to fetch the requested role. Deny access rather
+      // than risk leaking unassigned role metadata.
+      const text = await rolesRes.text().catch(() => '');
+      warn(`[getRoleDetails] User roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    const assignedRoles = (await rolesRes.json()) as UserRole[];
+    const isAssigned = assignedRoles.some((role) => role.id === roleId);
+    if (!isAssigned) {
+      warn(`[getRoleDetails] User ${userId} attempted to access unassigned role ${roleId}`);
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
     const url = `${endpoint}/api/roles/${encodeURIComponent(roleId)}`;
 
     debugLog(`[getRoleDetails] Fetching role ${roleId} from ${url}`);

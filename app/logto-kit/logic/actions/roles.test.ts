@@ -166,7 +166,7 @@ describe('verifyPersonalAccess - existingIntrospection optimization', () => {
   });
 });
 
-describe('getRoleDetails session authentication', () => {
+describe('getRoleDetails authorization and IDOR guard', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -191,10 +191,17 @@ describe('getRoleDetails session authentication', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
+    // No Management API call should happen without a valid session
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('successfully fetches role details when session is valid', async () => {
+  it('successfully fetches role details when the caller is assigned to the role', async () => {
     const mockRole = makeRole('role-123', 'Admin');
+    // 1. User roles fetch — caller is assigned to the requested role
+    fetchSpy.mockResolvedValueOnce(
+      mockJsonResponse([makeRole('role-123', 'Admin'), makeRole('role-456', 'Viewer')])
+    );
+    // 2. Role details fetch
     fetchSpy.mockResolvedValueOnce(mockJsonResponse(mockRole));
 
     const { getRoleDetails } = await import('./roles');
@@ -203,6 +210,16 @@ describe('getRoleDetails session authentication', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data).toEqual(mockRole);
+
+    // Authorization cross-check: user-scoped roles endpoint must be called first
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://auth.example.org/api/users/user-test-123/roles',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Authorization: 'Bearer mock-m2m-token' },
+      })
+    );
+    // Role details endpoint called only after authorization passes
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://auth.example.org/api/roles/role-123',
       expect.objectContaining({
@@ -210,6 +227,56 @@ describe('getRoleDetails session authentication', () => {
         headers: { Authorization: 'Bearer mock-m2m-token' },
       })
     );
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects with UNAUTHORIZED when the requested role is not assigned to the caller', async () => {
+    // User roles fetch — does NOT include the requested role
+    fetchSpy.mockResolvedValueOnce(mockJsonResponse([makeRole('role-456', 'Viewer')]));
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+
+    // IDOR prevented: the role details endpoint must never be called
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://auth.example.org/api/users/user-test-123/roles',
+      expect.anything()
+    );
+  });
+
+  it('rejects with UNAUTHORIZED when the caller has no roles assigned', async () => {
+    fetchSpy.mockResolvedValueOnce(mockJsonResponse([]));
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed with UNAUTHORIZED when the user roles fetch itself fails', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      status: 500,
+      ok: false,
+      text: async () => 'Internal Server Error',
+    } as Response);
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+
+    // Must not proceed to fetch role details when authorization cannot be verified
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
 
