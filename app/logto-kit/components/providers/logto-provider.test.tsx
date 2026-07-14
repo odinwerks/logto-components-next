@@ -479,3 +479,81 @@ describe('LogtoProvider preference persist error toast', () => {
     expect(screen.getByRole('status').textContent).toContain('Failed to save language preference');
   });
 });
+
+describe('LogtoProvider dashboard flag cleanup', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  it('sets __LDD_DASHBOARD_OPEN__ to true when dashboard opens', () => {
+    // may already be set from prior test cleanup — just ensure it starts falsy
+    window.__LDD_DASHBOARD_OPEN__ = false;
+    expect(window.__LDD_DASHBOARD_OPEN__).toBeFalsy();
+
+    render(
+      <LogtoProvider userData={mockUserData}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(true);
+  });
+
+  it('resets __LDD_DASHBOARD_OPEN__ to false on unmount', () => {
+    window.__LDD_DASHBOARD_OPEN__ = false;
+
+    const { unmount } = render(
+      <LogtoProvider userData={mockUserData}>
+        <DashboardOpener />
+      </LogtoProvider>
+    );
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(true);
+
+    unmount();
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(false);
+  });
+
+  it('sets __LDD_DASHBOARD_OPEN__ to false when dashboard closes', async () => {
+    window.__LDD_DASHBOARD_OPEN__ = false;
+
+    let closeDashboard: (() => void) | null = null;
+
+    function Closer() {
+      const ctx = useLogto();
+      useEffect(() => {
+        ctx.openDashboard();
+        closeDashboard = ctx.closeDashboard;
+      }, [ctx]);
+      return null;
+    }
+
+    render(
+      <LogtoProvider userData={mockUserData}>
+        <Closer />
+      </LogtoProvider>
+    );
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(true);
+
+    await act(async () => {
+      closeDashboard?.();
+    });
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(false);
+  });
+});

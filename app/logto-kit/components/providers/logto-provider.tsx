@@ -123,6 +123,11 @@ function LogtoProviderContent({
     if (typeof window !== 'undefined') {
       window.__LDD_DASHBOARD_OPEN__ = dashboardState.isOpen;
     }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.__LDD_DASHBOARD_OPEN__ = false;
+      }
+    };
   }, [dashboardState.isOpen]);
 
   const openDashboard = useCallback((opts?: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => {
