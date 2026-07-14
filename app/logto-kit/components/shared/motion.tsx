@@ -328,6 +328,10 @@ MotionButton.displayName = 'MotionButton';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Spinner — rotating loading indicator (icon or CSS border-spinner)
+//
+// @deprecated Use BouncingDots instead. Spinner freezes under
+// prefers-reduced-motion (rotate: 0, duration: 0), while BouncingDots degrades
+// to a visible opacity pulse that never freezes.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SpinnerProps {
@@ -439,6 +443,96 @@ export function Pulse({ className, style, delay = 0, children }: PulseProps) {
     >
       {children}
     </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BouncingDots — three-dot loading indicator (replaces Spinner / SpinnerIcon)
+//
+// Three dots bounce sequentially under normal conditions. Under
+// prefers-reduced-motion, the bounce is replaced with an opacity pulse so the
+// indicator is always visible — it never freezes.
+//
+// Uses `role="status"` for screen-reader announcement; customize the label via
+// `ariaLabel`. When a visible text label already sits next to the dots, set
+// `ariaLabel=""` to avoid redundant announcements.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface BouncingDotsProps {
+  /** Dot diameter in px. Default: 8 */
+  size?: number;
+  /** Gap between dots in px. Default: 4 */
+  gap?: number;
+  /** Dot fill color. Default: 'currentColor' */
+  color?: string;
+  /** Full bounce cycle duration in seconds. Default: 0.9 */
+  duration?: number;
+  /** Accessible label. Default: 'Loading' */
+  ariaLabel?: string;
+  /** Additional CSS class */
+  className?: string;
+  /** Additional inline style */
+  style?: CSSProperties;
+}
+
+export function BouncingDots({
+  size = 8,
+  gap = 4,
+  color = 'currentColor',
+  duration = 0.9,
+  ariaLabel = 'Loading',
+  className,
+  style,
+}: BouncingDotsProps) {
+  const reduced = useReducedMotionConfig();
+
+  return (
+    <span
+      role="status"
+      aria-label={ariaLabel || undefined}
+      className={className}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap,
+        lineHeight: 0,
+        ...style,
+      }}
+    >
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          initial={false}
+          animate={
+            reduced
+              ? { opacity: [1, 0.3, 1] }
+              : { y: [0, -size * 0.7, 0] }
+          }
+          transition={
+            reduced
+              ? {
+                  duration: duration * 1.5,
+                  repeat: Infinity,
+                  delay: i * (duration / 3),
+                  ease: 'easeInOut',
+                }
+              : {
+                  duration,
+                  repeat: Infinity,
+                  delay: i * (duration / 3),
+                  ease: 'easeInOut',
+                }
+          }
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: color,
+            display: 'inline-block',
+          }}
+        />
+      ))}
+    </span>
   );
 }
 

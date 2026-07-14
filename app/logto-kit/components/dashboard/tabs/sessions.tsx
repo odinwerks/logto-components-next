@@ -8,7 +8,7 @@ import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Monitor, Smartphone, Trash2, MapPin, RefreshCw, Globe } from 'lucide-react';
 import { Button } from '../../shared/Button';
-import { AnimatePresence, Spinner, Pulse } from '../../shared/motion';
+import { AnimatePresence, BouncingDots, Pulse } from '../../shared/motion';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { useFocusTrap } from '../shared/focus-trap';
@@ -1069,7 +1069,7 @@ export function SessionsTab({
                         }}
                       >
                         {locatingIp === ip ? (
-                          <Spinner size={16} />
+                          <BouncingDots size={7} gap={4} ariaLabel={t.common.loading} />
                         ) : (
                           <MapPin size={16} />
                         )}
@@ -1090,7 +1090,7 @@ export function SessionsTab({
                     >
                       {locatingIp === ip ? (
                         <>
-                          <Spinner size={12} />
+                          <BouncingDots size={5} gap={3} ariaLabel="" />
                           {t.common.loading}
                         </>
                       ) : (

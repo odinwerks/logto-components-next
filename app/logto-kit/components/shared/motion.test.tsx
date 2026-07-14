@@ -11,6 +11,7 @@ import {
   StaggerItem,
   MotionButton,
   Spinner,
+  BouncingDots,
   Pulse,
   ToastSlide,
   MotionConfigProvider,
@@ -286,6 +287,59 @@ describe('Spinner', () => {
   });
 });
 
+describe('BouncingDots', () => {
+  it('renders 3 dots inside a status role span', () => {
+    const { container } = render(<BouncingDots />);
+    const status = container.querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status!.getAttribute('aria-label')).toBe('Loading');
+    // 3 dot spans
+    expect(status!.children).toHaveLength(3);
+    for (let i = 0; i < 3; i++) {
+      const dot = status!.children[i] as HTMLElement;
+      expect(dot.tagName).toBe('SPAN');
+      expect(dot.style.borderRadius).toBe('50%');
+    }
+  });
+
+  it('applies size, gap, color, className, and style props', () => {
+    const { container } = render(
+      <BouncingDots size={12} gap={6} color="#f00" className="custom" style={{ margin: '1rem' }} />
+    );
+    const status = container.querySelector('[role="status"]') as HTMLElement;
+    expect(status.className).toContain('custom');
+    expect(status.style.margin).toBe('1rem');
+    for (let i = 0; i < 3; i++) {
+      const dot = status.children[i] as HTMLElement;
+      expect(dot.style.width).toBe('12px');
+      expect(dot.style.height).toBe('12px');
+      expect(dot.style.background).toBe('rgb(255, 0, 0)');
+    }
+  });
+
+  it('custom ariaLabel is rendered', () => {
+    render(<BouncingDots ariaLabel="Fetching sessions" />);
+    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Fetching sessions');
+  });
+
+  it('renders without throwing under MotionConfig reducedMotion="always"', () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="always">
+        <BouncingDots />
+      </MotionConfig>
+    );
+    expect(container.firstChild).not.toBeNull();
+  });
+
+  it('applies custom duration via staggered delays', () => {
+    const { container } = render(<BouncingDots duration={1.5} />);
+    const status = container.querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    // All 3 dots render; duration propagates to transitions internally.
+    expect(status!.children).toHaveLength(3);
+  });
+});
+
 describe('Pulse', () => {
   it('renders children inside a motion div', () => {
     render(
@@ -345,6 +399,18 @@ describe('BUG-1 regression: force-animations with OS reduced-motion', () => {
       </MotionConfig>
     );
     expect(screen.getByTestId('pulse-sk')).toBeInTheDocument();
+  });
+
+  it('BouncingDots renders under MotionConfig "never" + OS reduced-motion (never freezes)', () => {
+    mockReducedMotionOS(true);
+    const { container } = render(
+      <MotionConfig reducedMotion="never">
+        <BouncingDots size={8} gap={4} />
+      </MotionConfig>
+    );
+    const status = container.querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status!.children).toHaveLength(3);
   });
 
   it('Spinner compute animates (not stopped) under MotionConfig "never" despite OS reduced-motion', () => {

@@ -23,6 +23,7 @@ import {
 } from '../../../server-actions';
 import type { OrgRoleScope } from '../../../logic/types';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
+import { BouncingDots } from '../../shared/motion';
 
 // ─── Hardcoded design tokens ───
 
@@ -415,10 +416,12 @@ const PermissionsBlock = ({ activeOrgId, colors, t, userData: _userData, scrollW
       </div>
       <div style={{ ...wellStyle, ...(scrollWell ? { flex: 1, minHeight: 0, overflowY: 'auto' as const, marginBottom: 0 } : {}) }}>
         {permsState.permissions.length === 0 ? (
-          <div style={emptyStateStyle}>
-            {permsState.loading
-              ? t.organizations.loadingPermissions
-              : t.organizations.noOrgPermissions}
+          <div style={{ ...emptyStateStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+            {permsState.loading ? (
+              <><BouncingDots size={5} gap={3} ariaLabel="" /> {t.organizations.loadingPermissions}</>
+            ) : (
+              t.organizations.noOrgPermissions
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

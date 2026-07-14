@@ -8,7 +8,7 @@ import { Check, Key, Plus, RefreshCw, Lock, Shield, Fingerprint, Pencil, Trash2 
 import { Button } from '../../shared/Button';
 import { FlowModal, BackupCodesModal, type ModalStep } from '../shared/FlowModal';
 import { FarewellOverlay } from '../shared/FarewellOverlay';
-import { AnimatePresence } from '../../shared/motion';
+import { AnimatePresence, BouncingDots } from '../../shared/motion';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
 import { captureMessage } from '../../../logic/capture-message';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
@@ -747,7 +747,8 @@ export function SecurityTab({
         </div>
 
         {mfaLoading && (
-          <div style={{ padding: '0.5rem 1.25rem 0.875rem', borderTop: `1px solid ${T.borderFaint}`, fontFamily: T.font, fontSize: '0.75rem', color: T.muted }}>
+          <div style={{ padding: '0.5rem 1.25rem 0.875rem', borderTop: `1px solid ${T.borderFaint}`, fontFamily: T.font, fontSize: '0.75rem', color: T.muted, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <BouncingDots size={5} gap={3} ariaLabel="" />
             {t.common.loading}
           </div>
         )}

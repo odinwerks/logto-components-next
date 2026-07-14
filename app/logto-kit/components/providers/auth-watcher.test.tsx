@@ -108,4 +108,49 @@ describe('AuthWatcher Component (P-BUG-004)', () => {
     // Should have refreshed a second time
     expect(mockRefresh).toHaveBeenCalledTimes(2);
   });
+
+  it('suppresses refresh when window.__LDD_DASHBOARD_OPEN__ is true (D12)', async () => {
+    // Set the dashboard-open flag before rendering
+    window.__LDD_DASHBOARD_OPEN__ = true;
+
+    render(<AuthWatcher debounceMs={1000} refreshIntervalMs={0} />);
+
+    const visibilityCb = documentListeners['visibilitychange']?.[0];
+    const onlineCb = windowListeners['online']?.[0];
+
+    visibilityState = 'visible';
+    await act(async () => {
+      visibilityCb?.();
+      onlineCb?.();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Must NOT call refresh when dashboard is open
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    // Clean up
+    delete window.__LDD_DASHBOARD_OPEN__;
+  });
+
+  it('allows refresh when window.__LDD_DASHBOARD_OPEN__ is false', async () => {
+    window.__LDD_DASHBOARD_OPEN__ = false;
+
+    render(<AuthWatcher debounceMs={1000} refreshIntervalMs={0} />);
+
+    const visibilityCb = documentListeners['visibilitychange']?.[0];
+
+    visibilityState = 'visible';
+    await act(async () => {
+      visibilityCb?.();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+
+    delete window.__LDD_DASHBOARD_OPEN__;
+  });
 });

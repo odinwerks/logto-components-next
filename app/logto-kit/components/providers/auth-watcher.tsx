@@ -44,6 +44,11 @@ export default function AuthWatcher({
 
   useEffect(() => {
     const refresh = () => {
+      // Suppress refresh while the dashboard overlay is open — prevents the
+      // cascade router.refresh() → proxy redirect → dashboard unmounts when
+      // the session has expired or cookies are stale.
+      if (typeof window !== 'undefined' && window.__LDD_DASHBOARD_OPEN__) return;
+
       // Cancel any pending refresh (in case two triggers fire close together)
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 

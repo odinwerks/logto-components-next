@@ -18,7 +18,7 @@ import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
-import { motion, AnimatePresence } from '../../shared/motion';
+import { motion, AnimatePresence, BouncingDots } from '../../shared/motion';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
 import { useRefreshable } from '../../../hooks/use-refreshable';
 import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
@@ -50,15 +50,6 @@ const CheckIcon = ({ size = 0.875, color = 'currentColor' }) => (
   </svg>
 );
 
-const SpinnerIcon = ({ size = 0.875, color = 'currentColor' }) => (
-  <svg width={`${size}rem`} height={`${size}rem`} viewBox="0 0 24 24" fill="none"
-    stroke={color} strokeWidth="2" strokeLinecap="round">
-    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-      <animateTransform attributeName="transform" type="rotate"
-        from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/>
-    </path>
-  </svg>
-);
 
 
 // ─── PersonalPermissionsBlock - refreshable wrapper for personal (global RBAC)
@@ -159,7 +150,7 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
           </div>
           {loading ? (
             <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
-              <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loadingPermissions}
+              <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loadingPermissions} /> {t.profile.loadingPermissions}
             </div>
           ) : error ? (
             <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.accentRed }}>
@@ -845,7 +836,7 @@ export function ProfileTab({
                     mode={mode} colors={colors}
                   >
                     {isUploading ? (
-                      <><SpinnerIcon size={0.8125} color={c.contrastText} /> {t.profile.loading}</>
+                      <><BouncingDots size={5} gap={3} color={c.contrastText} ariaLabel="" /> {t.profile.loading}</>
                     ) : (
                       <><CheckIcon size={0.8125} color={c.contrastText} /> {t.profile.applyCrop}</>
                     )}
@@ -878,7 +869,7 @@ export function ProfileTab({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'rgba(0,0,0,0.55)',
               }}>
-                <SpinnerIcon size={1.25} color={c.contrastText} />
+                <BouncingDots size={8} gap={4} color={c.contrastText} ariaLabel={t.profile.loading} />
               </div>
             )}
 
@@ -1134,7 +1125,7 @@ export function ProfileTab({
                         padding: 0,
                       }}
                     >
-                      {nameLoading ? <SpinnerIcon size={12} color="#fff" /> : <Check size={14} />}
+                      {nameLoading ? <BouncingDots size={5} gap={3} color="#fff" ariaLabel={t.profile.loading} /> : <Check size={14} />}
                     </button>
                   ) : (
                     <button
@@ -1223,7 +1214,7 @@ export function ProfileTab({
             </div>
             {rolesLoading ? (
               <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
-                <SpinnerIcon size={0.875} color={c.textTertiary} /> {t.profile.loading}
+                <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loading} /> {t.profile.loading}
               </div>
             ) : rolesError ? (
               <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>

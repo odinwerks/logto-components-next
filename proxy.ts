@@ -153,12 +153,35 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
 
+  // ── RSC soft-refresh detection ───────────────────────────────────────
+  // router.refresh() sends an RSC payload request with the `RSC` header set
+  // to '1'. A full document navigation does not carry this header. We use
+  // this to distinguish soft refreshes from full page loads so the proxy can
+  // return an auth-expired signal instead of a hard redirect when the session
+  // has lapsed. This keeps the dashboard overlay and other client state
+  // intact.
+  const isRsc = request.headers.get('RSC') === '1';
+
+  /**
+   * Helper: returns a pass-through response with the CSP header and the
+   * `X-Auth-Expired` signal header when this is an RSC request. The client
+   * (AuthWatcher / LogtoProvider) reads this header and shows a session-
+   * expired banner instead of the page doing a full hard redirect.
+   */
+  function rscAuthExpiredResponse() {
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    res.headers.set('Content-Security-Policy', cspHeader);
+    res.headers.set('X-Auth-Expired', '1');
+    return res;
+  }
+
   try {
     // Attempt to get Logto context to handle session error recovery and auth check.
     const context = await getClient().getLogtoContext(request, { fetchUserInfo: true });
 
     // If unauthenticated and on a protected route, redirect to sign-in.
     if (!context.isAuthenticated && !isPublicPath(pathname)) {
+      if (isRsc) return rscAuthExpiredResponse();
       const signInUrl = new URL('/api/auth/sign-in', request.url);
       return NextResponse.redirect(signInUrl);
     }
@@ -180,6 +203,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
+      if (isRsc) return rscAuthExpiredResponse();
       log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
       // Nonce is required so only this middleware-triggered flow can wipe via GET.
@@ -199,6 +223,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle invalid_grant (server-side grant revocation, e.g. session revoked elsewhere)
     if (isInvalidGrantError(error)) {
+      if (isRsc) return rscAuthExpiredResponse();
       logWarn('[Proxy] invalid_grant detected, redirecting to wipe:', errorMessage);
       const wipeNonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
@@ -224,6 +249,7 @@ export async function proxy(request: NextRequest) {
     // Only allow through for public paths (docs, /, /demo).
     logWarn('[Proxy] Non-critical error from Logto client:', errorMessage);
     if (!isPublicPath(pathname)) {
+      if (isRsc) return rscAuthExpiredResponse();
       return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
     }
     const response = NextResponse.next({ request: { headers: requestHeaders } });

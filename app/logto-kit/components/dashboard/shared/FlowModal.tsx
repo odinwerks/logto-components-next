@@ -7,7 +7,7 @@ import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
-import { AnimatePresence, Spinner } from '../../shared/motion';
+import { AnimatePresence, BouncingDots } from '../../shared/motion';
 import { motion } from 'framer-motion';
 import { Lbl, HR } from './primitives';
 
@@ -178,7 +178,7 @@ export function PasswordVerifyModal({
 
           {step.kind === 'loading' && (
             <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <Spinner borderSpinner size="1.875rem" trackColor={T.border} color={T.blue} />
+              <BouncingDots size={10} gap={5} color={T.blue} ariaLabel="Loading" />
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}
@@ -391,7 +391,7 @@ export function FlowModal({
 
           {step.kind === 'loading' && (
             <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <Spinner borderSpinner size="1.875rem" trackColor={T.border} color={T.blue} />
+              <BouncingDots size={10} gap={5} color={T.blue} ariaLabel="Loading" />
               <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
             </div>
           )}

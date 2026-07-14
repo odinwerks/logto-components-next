@@ -117,6 +117,14 @@ function LogtoProviderContent({
 
   const isAuthenticated = !!userData;
 
+  // ── Keep AuthWatcher's router.refresh() from firing while dashboard overlay
+  //     is open. See auth-watcher.tsx for the read-side gate.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__LDD_DASHBOARD_OPEN__ = dashboardState.isOpen;
+    }
+  }, [dashboardState.isOpen]);
+
   const openDashboard = useCallback((opts?: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => {
     setDashboardState({ isOpen: true, routeTo: opts?.routeTo, mode: opts?.mode });
   }, []);

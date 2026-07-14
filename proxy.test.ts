@@ -494,3 +494,84 @@ describe('proxy CSP fixes', () => {
     expect(cspDev).not.toMatch(/\bwss:\b/); // should not contain bare wss:
   });
 });
+
+describe('proxy RSC soft-refresh gating (D12)', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+    warnMock.mockReset();
+    errorMock.mockReset();
+    logMock.mockReset();
+  });
+
+  it('returns X-Auth-Expired for RSC unauthenticated protected route instead of redirecting', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    });
+    const res = await proxy(req);
+
+    // Must NOT redirect
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+    // Must signal auth expiry
+    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('returns X-Auth-Expired for RSC stale-cookie instead of redirecting to /api/wipe', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Cookies can only be modified by middleware'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    });
+    const res = await proxy(req);
+
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('returns X-Auth-Expired for RSC invalid_grant instead of redirecting to /api/wipe', async () => {
+    getLogtoContextMock.mockRejectedValue({
+      code: 'oidc.invalid_grant',
+      message: 'Grant request is invalid.',
+    });
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    });
+    const res = await proxy(req);
+
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('returns X-Auth-Expired for RSC unexpected error on protected route instead of redirecting', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Database connection lost'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    });
+    const res = await proxy(req);
+
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('still hard-redirects for non-RSC unauthenticated protected route', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/auth/sign-in');
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
+  });
+});
