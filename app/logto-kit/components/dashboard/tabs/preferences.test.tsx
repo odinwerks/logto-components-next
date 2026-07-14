@@ -48,7 +48,7 @@ describe('PreferencesTab theme semantics', () => {
 });
 
 describe('PreferencesTab language semantics', () => {
-  it('associates the language select with its label', () => {
+  it('renders a combobox trigger for language selection', () => {
     render(
       <PreferencesTab
         mode="dark"
@@ -58,9 +58,57 @@ describe('PreferencesTab language semantics', () => {
       />,
     );
 
-    const select = screen.getByLabelText(enUS.common.language);
-    expect(select).toBeInTheDocument();
-    expect(select.tagName).toBe('SELECT');
-    expect(select).toHaveAttribute('id', 'lang-select');
+    // Language heading is rendered
+    expect(screen.getByText(enUS.common.language)).toBeInTheDocument();
+
+    // The language selector is a combobox button, not a <select> element
+    const combobox = screen.getByRole('combobox', { name: /language selector/i });
+    expect(combobox).toBeInTheDocument();
+    expect(combobox.tagName).toBe('BUTTON');
+    expect(combobox).toHaveAttribute('aria-haspopup', 'listbox');
+  });
+
+  it('opens dropdown and selects a language via click', () => {
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US', 'ka-GE', 'uk-UA']}
+      />,
+    );
+
+    const combobox = screen.getByRole('combobox', { name: /language selector/i });
+    fireEvent.click(combobox);
+
+    // Dropdown is open — search input visible
+    expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+    // Find and click a language option
+    const ukrainianOption = screen.getByText('Ukrainian');
+    fireEvent.click(ukrainianOption);
+
+    expect(mockSetLang).toHaveBeenCalledWith('uk-UA');
+  });
+
+  it('opens dropdown and selects a language via keyboard (Enter)', () => {
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US', 'ka-GE', 'uk-UA']}
+      />,
+    );
+
+    const combobox = screen.getByRole('combobox', { name: /language selector/i });
+    fireEvent.keyDown(combobox, { key: 'Enter', code: 'Enter' });
+
+    const searchInput = screen.getByRole('searchbox', { name: /search languages/i });
+    // With en-US selected, Georgian is index 1 — ArrowDown moves to it
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown', code: 'ArrowDown' });
+    fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' });
+
+    expect(mockSetLang).toHaveBeenCalledWith('ka-GE');
   });
 });

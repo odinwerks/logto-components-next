@@ -129,7 +129,7 @@ export default function PreferencesSection() {
             <strong>Theme Selection Grid:</strong> Displays selectable <code style={styles.codeSmStyle}>ThemeOption</code> buttons for light and dark modes. Each option maps to a <code style={styles.codeSmStyle}>ThemeSVG</code> mockup, which dynamically renders styled SVG bars utilizing colors tied to the option mode. Selection changes trigger <code style={styles.codeSmStyle}>setMode(id)</code>.
           </li>
           <li style={{ marginBottom: '6px' }}>
-            <strong>Language Selector Dropdown:</strong> If <code style={styles.codeSmStyle}>supportedLangs</code> is provided, it populates a standard HTML select input wrapped in custom border wrappers. Selecting an option triggers <code style={styles.codeSmStyle}>setLang(value)</code>.
+            <strong>Language Selector Dropdown:</strong> If <code style={styles.codeSmStyle}>supportedLangs</code> is provided, it renders a custom searchable <code style={styles.codeSmStyle}>LanguageSelect</code> dropdown using a portal with keyboard navigation and ARIA listbox semantics. Selecting an option triggers <code style={styles.codeSmStyle}>setLang(value)</code>.
           </li>
         </ul>
 

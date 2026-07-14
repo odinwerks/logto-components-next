@@ -5,6 +5,7 @@ import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { useThemeMode, useLangMode } from '../../providers/preferences';
+import { LanguageSelect } from '../../shared/LanguageSelect';
 
 // ─── Hardcoded design tokens ───
 
@@ -174,31 +175,13 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
     marginBottom: '1rem',
   };
 
-  const selectStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '0.5625rem 0.75rem',
-    background: c.bgPrimary,
-    border: `1px solid ${c.borderColor}`,
-    color: c.textPrimary,
-    fontSize: '0.8125rem',
-    fontFamily: FONT_SANS,
-    outline: 'none',
-    boxSizing: 'border-box',
-    borderRadius: '0.25rem',
-    transition: 'border-color 0.15s ease, background 0.15s ease',
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    MozAppearance: 'none',
-    cursor: 'pointer',
-  };
-
   const options = [
     { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
     { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
   ] as const;
 
   return (
-    <div>
+    <div style={{ maxWidth: '32rem', margin: '0 auto' }}>
       <p style={sectionLabelStyle}>{t.common.appearance}</p>
 
       <div style={wellStyle}>
@@ -206,7 +189,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
         <div
           role="radiogroup"
           aria-label={t.common.appearance}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', marginBottom: '1.625rem' }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem' }}
         >
           {options.map(opt => {
             const isSelected = activeMode === opt.id;
@@ -225,49 +208,24 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
             );
           })}
         </div>
-
-        {/* Language selector */}
-        {supportedLangs && supportedLangs.length > 0 && (
-          <>
-            <label htmlFor="lang-select" style={{ ...sectionLabelStyle, marginBottom: '0.5rem', display: 'block' }}>
-              {t.common.language}
-            </label>
-            <div style={{
-              background: c.bgSecondary,
-              border: `1px solid ${c.borderColor}`,
-              padding: '0.875rem 1rem',
-              borderRadius: '0.25rem',
-            }}>
-              <div style={{ position: 'relative' }}>
-                <select
-                  id="lang-select"
-                  value={lang}
-                  onChange={e => setLang(e.target.value)}
-                  style={selectStyle}
-                >
-                  {supportedLangs.map(l => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-                <span style={{
-                  position: 'absolute',
-                  right: '0.75rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: c.textTertiary,
-                  pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </span>
-              </div>
-            </div>
-          </>
-        )}
       </div>
+
+      {/* Language selector — separate section, outside the Appearance box */}
+      {supportedLangs && supportedLangs.length > 0 && (
+        <>
+          <p style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>
+            {t.common.language}
+          </p>
+          <LanguageSelect
+            value={lang}
+            onChange={setLang}
+            options={supportedLangs}
+            mode={mode}
+            colors={c}
+            t={t}
+          />
+        </>
+      )}
     </div>
   );
 }
