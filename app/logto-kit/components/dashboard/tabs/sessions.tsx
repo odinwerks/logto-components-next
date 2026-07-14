@@ -12,9 +12,8 @@ import { AnimatePresence, BouncingDots, Pulse } from '../../shared/motion';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
 import { SessionMapModal } from '../shared/SessionMapModal';
 import { useFocusTrap } from '../shared/focus-trap';
-import { fetchGeo, getCachedGeo, clearGeoCache } from '../../../logic/geo-cache';
-import type { GeoLocation } from '../../../logic/geo-cache';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
+import { useSessionGeoLocate } from '../../../hooks/sessions';
 import { readEnv } from '../../../logic/env';
 import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
@@ -111,9 +110,15 @@ export function SessionsTab({
   const [modalStep, setModalStep] = useState<PasswordModalStep | null>(null);
   const [modalError, setModalError] = useState<string>('');
   const [modalPurpose, setModalPurpose] = useState<'view' | 'revoke'>('view');
-  const [locatingIp, setLocatingIp] = useState<string | null>(null);
-  const [mapModalGeo, setMapModalGeo] = useState<GeoLocation | null>(null);
-  const [mapModalIp, setMapModalIp] = useState<string>('');
+  const {
+    locatingIp,
+    mapModalGeo,
+    mapModalIp,
+    locate: handleLocate,
+    closeMapModal,
+    clearCache,
+  } = useSessionGeoLocate({ onError });
+
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
   const [verificationTimestamp, setVerificationTimestamp] = useState<number>(0);
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
@@ -150,22 +155,6 @@ export function SessionsTab({
       return () => clearTimeout(timer);
     }
   }, [verificationRecordId, verificationExpiry]);
-
-  const openMapModal = useCallback((geo: GeoLocation, ip: string) => {
-    setMapModalGeo(geo);
-    setMapModalIp(ip);
-  }, [setMapModalGeo, setMapModalIp]);
-
-  const handleLocate = useCallback(async (ip: string) => {
-    if (!ip) return;
-    const cached = getCachedGeo(ip);
-    if (cached) { openMapModal(cached, ip); return; }
-    setLocatingIp(ip);
-    const geo = await fetchGeo(ip);
-    setLocatingIp(null);
-    if (geo) openMapModal(geo, ip);
-    // silently no-op when fetchGeo returns null (private IP, rate-limited, etc.)
-  }, [openMapModal]);
 
   const verifyAndLoad = useCallback(async (password: string) => {
     setModalStep({ kind: 'loading', message: t.sessions.processing });
@@ -241,15 +230,14 @@ export function SessionsTab({
   }, [verificationRecordId, verificationTimestamp, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
 
   const handleRefresh = useCallback(async () => {
-    clearGeoCache();
-    setMapModalGeo(null);
-    setMapModalIp('');
+    clearCache();
+    closeMapModal();
     if (!isVerificationValid) {
       setViewState('unverified');
       return;
     }
     await loadSessions();
-  }, [loadSessions, isVerificationValid, setMapModalGeo, setMapModalIp, setViewState]);
+  }, [loadSessions, isVerificationValid, clearCache, closeMapModal, setViewState]);
 
   const startViewVerification = () => {
     setModalPurpose('view');
@@ -1132,7 +1120,7 @@ export function SessionsTab({
           mode={mode}
           colors={c}
           t={t}
-          onClose={() => { setMapModalGeo(null); setMapModalIp(''); }}
+          onClose={closeMapModal}
         />
       )}
       </AnimatePresence>
