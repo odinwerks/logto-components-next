@@ -25,10 +25,16 @@ describe('assertVerificationNotExpired', () => {
   });
 
   it('does not throw when timestamp is within tolerance (1ms margin)', () => {
-    // Date.now() - tolerance + 1 is safely within tolerance
-    // (the +1 accounts for clock advancement between assignment and check)
-    const withinToleranceTimestamp = Date.now() - VERIFICATION_CLOCK_SKEW_TOLERANCE_MS + 1;
+    // Freeze time so both Date.now() calls (here and inside the function) see the same clock.
+    // This prevents a flaky failure where >1ms elapses between the two calls.
+    const now = Date.now();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const withinToleranceTimestamp = now - VERIFICATION_CLOCK_SKEW_TOLERANCE_MS + 1;
     expect(() => assertVerificationNotExpired(withinToleranceTimestamp)).not.toThrow();
+
+    vi.useRealTimers();
   });
 
   it('throws VERIFICATION_EXPIRED when timestamp is beyond tolerance', () => {
