@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { DARK_COLORS } from '../../../themes';
@@ -332,26 +332,30 @@ describe('SessionsTab', () => {
 
       await act(async () => { fireEvent.click(nonCurrentRevokeBtn); });
 
+      // Scope to the revoke-purpose dialog to avoid conflict with the
+      // view-purpose PasswordVerifyModal that may still be in AnimatePresence exit.
+      const revokeDialog = screen.getByRole('dialog', { name: enUS.sessions.revokeSession });
+
       // Modal with password input should appear
-      const passwordInput = screen.getByPlaceholderText('Enter password');
+      const passwordInput = within(revokeDialog).getByPlaceholderText('Enter password');
       fireEvent.change(passwordInput, { target: { value: 'test-password' } });
 
       // Submit password - first revoke attempt (fails)
       // The modal's verify button has "VERIFY PASS" text
-      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      const modalSubmitBtn = within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' });
       await act(async () => { fireEvent.click(modalSubmitBtn); });
 
       // Wait for error to appear in modal (revoke failed)
       await waitFor(() => {
-        expect(screen.getByText('Failed to revoke')).toBeDefined();
+        expect(within(revokeDialog).getByText('Failed to revoke')).toBeDefined();
       });
 
       // Password input should still be visible for retry
-      const retryPasswordInput = screen.getByPlaceholderText('Enter password');
+      const retryPasswordInput = within(revokeDialog).getByPlaceholderText('Enter password');
       fireEvent.change(retryPasswordInput, { target: { value: 'test-password' } });
 
       // Submit password again - second revoke attempt (should succeed)
-      const retryModalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      const retryModalSubmitBtn = within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' });
       await act(async () => { fireEvent.click(retryModalSubmitBtn); });
 
       // The second revoke call should have the CORRECT session ID, not null
@@ -402,18 +406,21 @@ describe('SessionsTab', () => {
         fireEvent.click(nonCurrentRevokeBtn);
       });
 
+      // Scope to the revoke dialog to avoid AnimatePresence conflict
+      const revokeDialog = screen.getByRole('dialog', { name: enUS.sessions.revokeSession });
+
       // Submit password
-      const passwordInput = screen.getByPlaceholderText('Enter password');
+      const passwordInput = within(revokeDialog).getByPlaceholderText('Enter password');
       fireEvent.change(passwordInput, { target: { value: 'test-password' } });
 
-      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      const modalSubmitBtn = within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' });
       await act(async () => {
         fireEvent.click(modalSubmitBtn);
       });
 
       // Wait for revoke failure error
       await waitFor(() => {
-        expect(screen.getByText('Failed to revoke session')).toBeDefined();
+        expect(within(revokeDialog).getByText('Failed to revoke session')).toBeDefined();
       });
 
       // Since revoke failed, revokingId should be cleared (null), meaning
@@ -470,10 +477,14 @@ describe('SessionsTab', () => {
       });
 
       // Submit password — this triggers onRevokeSession which throws
-      const passwordInput = screen.getByPlaceholderText('Enter password');
+      // Scope to the revoke dialog to avoid AnimatePresence conflict with the
+      // view-purpose PasswordVerifyModal that may still be exiting.
+      const revokeDialog = screen.getByRole('dialog', { name: enUS.sessions.revokeSession });
+
+      const passwordInput = within(revokeDialog).getByPlaceholderText('Enter password');
       fireEvent.change(passwordInput, { target: { value: 'test-password' } });
 
-      const modalSubmitBtn = screen.getByRole('button', { name: 'VERIFY PASS' });
+      const modalSubmitBtn = within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' });
 
       await act(async () => {
         fireEvent.click(modalSubmitBtn);
@@ -489,7 +500,7 @@ describe('SessionsTab', () => {
 
       // The modal must NOT be stuck on the "Processing…" loading step — it should
       // recover back to the password step so the user can try again.
-      expect(screen.getByPlaceholderText('Enter password')).toBeInTheDocument();
+      expect(within(revokeDialog).getByPlaceholderText('Enter password')).toBeInTheDocument();
     });
   });
 
@@ -869,13 +880,14 @@ describe('SessionsTab', () => {
         fireEvent.click(gcAllBtn);
       });
 
-      // The modal should be open
-      const dialog = screen.getByRole('dialog');
+      // The modal should be open — scope by accessible name to avoid conflict
+      // with the exiting view-purpose PasswordVerifyModal's AnimatePresence dialog.
+      const dialog = screen.getByRole('dialog', { name: enUS.sessions.gcAllConfirmTitle });
       expect(dialog).toBeInTheDocument();
       expect(dialog.getAttribute('aria-modal')).toBe('true');
       expect(dialog.getAttribute('aria-labelledby')).toBe('gc-all-title');
 
-      const title = screen.getByText(enUS.sessions.gcAllConfirmTitle);
+      const title = within(dialog).getByText(enUS.sessions.gcAllConfirmTitle);
       expect(title).toBeInTheDocument();
       expect(title.getAttribute('id')).toBe('gc-all-title');
     });
