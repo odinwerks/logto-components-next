@@ -349,6 +349,9 @@ export const kaGE: Translations = {
     gcAllConfirmTitle: 'დარწმუნებული ხართ, რომ გსურთ ეს სესიები გაუქმება?',
     gcAllSuccess: 'ყველა სხვა სესია გაუქმებულია',
     viewMap: 'რუქის ნახვა',
+    gcOnlyOneTitle: 'თქვენ მხოლოდ ერთი სესია გაქვთ',
+    gcOnlyOneBody: 'თქვენ გაქვთ მხოლოდ ერთი სესია. და ეს არის ეს. თუ გსურთ მისი გაუქმება, უბრალოდ გამოდით.',
+    gcOnlyOneAck: 'გასაგებია',
   },
 
   // Common

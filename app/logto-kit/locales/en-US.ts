@@ -349,6 +349,9 @@ export const enUS: Translations = {
     gcAllConfirmTitle: 'Are you sure you want to invalidate these sessions?',
     gcAllSuccess: 'All other sessions revoked',
     viewMap: 'View map',
+    gcOnlyOneTitle: 'You only have one session',
+    gcOnlyOneBody: 'You only have one session. And it is this one. If you want to revoke it, just sign out.',
+    gcOnlyOneAck: 'I get it',
   },
    
   // Common

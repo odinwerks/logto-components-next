@@ -290,7 +290,7 @@ describe('SessionsTab', () => {
 
       // Sessions should still be rendered
       expect(screen.getByText('This device')).toBeDefined();
-      expect(screen.getByText('Chrome 120 · Windows 11')).toBeDefined();
+      expect(screen.getByText('Chrome on Windows')).toBeDefined();
     });
   });
 
@@ -1033,6 +1033,201 @@ describe('SessionsTab', () => {
 
       await waitFor(() => {
         expect(onGetSessions).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  // ─── Batch 6c: getSessionTitle simplification (D16) ───
+  describe('getSessionTitle simplification (Batch 6c)', () => {
+    it('renders "Firefox on macOS" instead of "Firefox 121 · macOS 14"', async () => {
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Firefox on macOS')).toBeDefined();
+      });
+
+      // Old format should not appear
+      expect(screen.queryByText('Firefox 121 · macOS 14')).toBeNull();
+    });
+  });
+
+  // ─── Batch 6c: Revoke-all button visibility (D16) ───
+  describe('Revoke all button visibility (Batch 6c)', () => {
+    it('shows revoke-all button even when no session has isCurrent: true', async () => {
+      const sessionsWithoutCurrent: LogtoSession[] = [
+        {
+          ...createdSessions[0],
+          meta: { ...createdSessions[0].meta!, isCurrent: false },
+        },
+        {
+          ...createdSessions[1],
+          meta: { ...createdSessions[1].meta!, isCurrent: false },
+        },
+      ];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: sessionsWithoutCurrent,
+      });
+
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Firefox on macOS')).toBeDefined();
+      });
+
+      // Revoke-all button should still be visible (gated on sessions.length > 0)
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      expect(gcAllBtn).toBeInTheDocument();
+    });
+  });
+
+  // ─── Batch 6c: Single-session guard (D16) ───
+  describe('Single-session guard (D16)', () => {
+    it('shows "only one session" modal when clicking revoke-all with exactly one session', async () => {
+      const singleSession: LogtoSession[] = [createdSessions[0]];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: singleSession,
+      });
+
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Chrome on Windows')).toBeDefined();
+      });
+
+      // Revoke-all button should exist (1 session, length > 0)
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      // "Only one session" modal should appear
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+      });
+
+      // GC ALL confirmation modal should NOT appear
+      expect(screen.queryByText(enUS.sessions.gcAllConfirmTitle)).toBeNull();
+    });
+
+    it('does not show "only one session" modal when there are multiple sessions', async () => {
+      renderSessionsTab();
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      // Click revoke-all with multiple sessions
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      // GC ALL confirmation should appear
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.gcAllConfirmTitle)).toBeDefined();
+      });
+
+      // "Only one session" modal should NOT appear
+      expect(screen.queryByText(enUS.sessions.gcOnlyOneTitle)).toBeNull();
+    });
+
+    it('"I get it" button closes the single-session modal', async () => {
+      const singleSession: LogtoSession[] = [createdSessions[0]];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: singleSession,
+      });
+
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Chrome on Windows')).toBeDefined();
+      });
+
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+      });
+
+      // Click "I get it" button
+      const ackBtn = screen.getByRole('button', { name: enUS.sessions.gcOnlyOneAck });
+      await act(async () => { fireEvent.click(ackBtn); });
+
+      // Modal should be gone
+      await waitFor(() => {
+        expect(screen.queryByText(enUS.sessions.gcOnlyOneTitle)).toBeNull();
+      });
+    });
+
+    it('Only One Session modal has no outside-click dismiss', async () => {
+      const singleSession: LogtoSession[] = [createdSessions[0]];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: singleSession,
+      });
+
+      const { container } = renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Chrome on Windows')).toBeDefined();
+      });
+
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+      });
+
+      // Click the overlay backdrop (the fixed motion.div that covers the viewport)
+      // The overlay is the outermost <motion.div> with position:fixed, inset:0
+      const overlay = container.querySelector('[style*="position: fixed"][style*="inset: 0"][style*="z-index: 9000"]');
+      if (overlay) {
+        await act(async () => { fireEvent.click(overlay); });
+      }
+
+      // Modal should STILL be in the DOM (no outside-click dismiss)
+      expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+    });
+
+    it('single-session modal does not trigger a password verification (no FlowModal)', async () => {
+      const singleSession: LogtoSession[] = [createdSessions[0]];
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: singleSession,
+      });
+
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      await verifyAndLoadSessions();
+
+      await waitFor(() => {
+        expect(screen.getByText('Chrome on Windows')).toBeDefined();
+      });
+
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      // "Only one session" modal should appear
+      await waitFor(() => {
+        expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+      });
+
+      // Wait for any lingering AnimatePresence exits to complete,
+      // then ensure no password input has appeared.
+      await waitFor(() => {
+        // No password input should appear (no FlowModal for verification)
+        expect(screen.queryByPlaceholderText('Enter password')).toBeNull();
       });
     });
   });

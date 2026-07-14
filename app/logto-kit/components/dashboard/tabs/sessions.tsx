@@ -119,6 +119,9 @@ export function SessionsTab({
     if (showGcAllModal && !gcAllLoading) setShowGcAllModal(false);
   });
 
+  // D16: "Only one session" informational modal
+  const [showOnlyOneModal, setShowOnlyOneModal] = useState(false);
+
   // Persists the revoke target through failed attempts so retries send the correct session ID
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
 
@@ -391,15 +394,14 @@ export function SessionsTab({
   };
 
   const getSessionTitle = (session: LogtoSession): string => {
+    if (session.meta?.browser && session.meta?.os) {
+      return `${session.meta.browser} on ${session.meta.os}`;
+    }
     if (session.meta?.browser) {
-      const parts: string[] = [];
-      parts.push(session.meta.browserVersion
-        ? `${session.meta.browser} ${session.meta.browserVersion}`
-        : session.meta.browser);
-      if (session.meta.os) {
-        parts.push(session.meta.osVersion ? `${session.meta.os} ${session.meta.osVersion}` : session.meta.os);
-      }
-      return parts.join(' · ');
+      return session.meta.browser;
+    }
+    if (session.meta?.os) {
+      return session.meta.os;
     }
     return '';
   };
@@ -661,9 +663,15 @@ export function SessionsTab({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           {isMobile ? (
             <>
-              {sessions.some(s => s.meta?.isCurrent) && (
+              {sessions.length > 0 && (
                 <button
-                  onClick={() => setShowGcAllModal(true)}
+                  onClick={() => {
+                    if (sessions.length === 1) {
+                      setShowOnlyOneModal(true);
+                    } else {
+                      setShowGcAllModal(true);
+                    }
+                  }}
                   disabled={revokingAll || loading}
                   aria-label={t.sessions.gcAllConfirmTitle}
                   style={{
@@ -710,11 +718,17 @@ export function SessionsTab({
             </>
           ) : (
             <>
-              {sessions.some(s => s.meta?.isCurrent) && (
+              {sessions.length > 0 && (
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => setShowGcAllModal(true)}
+                  onClick={() => {
+                    if (sessions.length === 1) {
+                      setShowOnlyOneModal(true);
+                    } else {
+                      setShowGcAllModal(true);
+                    }
+                  }}
                   disabled={revokingAll || loading}
                   mode={mode}
                   colors={c}
@@ -1084,6 +1098,66 @@ export function SessionsTab({
               >
                 {gcAllLoading ? t.common.loading : t.common.yes}
               </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      {/* D16: Only One Session informational modal */}
+      <AnimatePresence>
+      {showOnlyOneModal && (
+        <motion.div
+          key="only-one"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.06, ease: 'easeOut' }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(0.375rem) saturate(0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9000,
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="only-one-title"
+            style={{
+              background: T.bg,
+              border: `1px solid ${T.border}`,
+              borderRadius: DASHBOARD_RADIUS,
+              padding: '1.5rem',
+              width: 'min(92vw, 420px)',
+              fontFamily: T.font,
+            }}
+          >
+            <h3 id="only-one-title" style={{ fontSize: '1rem', fontWeight: 600, color: T.text, margin: '0 0 0.75rem 0' }}>
+              {t.sessions.gcOnlyOneTitle}
+            </h3>
+            <p style={{ fontSize: '0.8125rem', color: T.sub, lineHeight: 1.6, margin: '0 0 1.25rem 0' }}>
+              {t.sessions.gcOnlyOneBody}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                autoFocus
+                onClick={() => setShowOnlyOneModal(false)}
+                id="only-one-ack-btn"
+                className="ldd-btn ldd-btn-primary"
+                style={{
+                  padding: '0.375rem 1rem',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  fontFamily: T.font,
+                }}
+              >
+                {t.sessions.gcOnlyOneAck}
+              </button>
             </div>
           </div>
         </motion.div>

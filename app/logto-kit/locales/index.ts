@@ -364,6 +364,9 @@ export interface Translations {
     gcAllConfirmTitle: string;
     gcAllSuccess: string;
     viewMap: string;
+    gcOnlyOneTitle: string;
+    gcOnlyOneBody: string;
+    gcOnlyOneAck: string;
   };
    
   // Common

@@ -349,6 +349,9 @@ export const ukUA: Translations = {
     gcAllConfirmTitle: 'Ви впевнені, що хочете інвалідувати ці сесії?',
     gcAllSuccess: 'Усі інші сесії відкликано',
     viewMap: 'Переглянути карту',
+    gcOnlyOneTitle: 'У вас лише одна сесія',
+    gcOnlyOneBody: 'У вас лише одна сесія. І це — вона. Якщо хочете її відкликати, просто вийдіть.',
+    gcOnlyOneAck: 'Зрозуміло',
   },
   
   // Common
