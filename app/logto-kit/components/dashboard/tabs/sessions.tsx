@@ -105,8 +105,6 @@ export function SessionsTab({
   const [locatingIp, setLocatingIp] = useState<string | null>(null);
   const [mapModalGeo, setMapModalGeo] = useState<GeoLocation | null>(null);
   const [mapModalIp, setMapModalIp] = useState<string>('');
-  const [showGeoConsentForIp, setShowGeoConsentForIp] = useState<string | null>(null);
-
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
   const [verificationTimestamp, setVerificationTimestamp] = useState<number>(0);
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
@@ -148,17 +146,13 @@ export function SessionsTab({
 
   const handleLocate = useCallback(async (ip: string) => {
     if (!ip) return;
-    if (typeof window !== 'undefined' && window.sessionStorage.getItem('geo-consent') !== 'true') {
-      setShowGeoConsentForIp(ip);
-      return;
-    }
     const cached = getCachedGeo(ip);
     if (cached) { openMapModal(cached, ip); return; }
     setLocatingIp(ip);
     const geo = await fetchGeo(ip);
     setLocatingIp(null);
     if (geo) openMapModal(geo, ip);
-    // silently no-op when ipapi returns nothing (private IP, rate-limited, etc.)
+    // silently no-op when fetchGeo returns null (private IP, rate-limited, etc.)
   }, [openMapModal]);
 
   const verifyAndLoad = useCallback(async (password: string) => {
@@ -742,60 +736,6 @@ export function SessionsTab({
           )}
         </div>
       </div>
-
-      <p style={{
-        fontFamily: T.font,
-        fontSize: '0.625rem',
-        color: T.muted,
-        margin: '0 0 0.875rem 0',
-        lineHeight: 1.5,
-      }}>
-        {t.sessions.locationDisclosure}
-      </p>
-
-      {showGeoConsentForIp && (
-        <div style={{
-          background: T.surface,
-          border: `1px solid ${T.border}`,
-          borderRadius: DASHBOARD_RADIUS,
-          padding: '1rem',
-          margin: '0 0 1rem 0',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem',
-          fontFamily: T.font,
-        }}>
-          <p style={{ margin: 0, fontSize: '0.75rem', color: T.text, lineHeight: 1.5 }}>
-            {t.sessions.geoConsentPrompt}
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setShowGeoConsentForIp(null)}
-              mode={mode}
-              colors={c}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                const ip = showGeoConsentForIp;
-                setShowGeoConsentForIp(null);
-                if (typeof window !== 'undefined') {
-                  window.sessionStorage.setItem('geo-consent', 'true');
-                }
-                handleLocate(ip);
-              }}
-              mode={mode}
-              colors={c}
-            >
-              {t.common.allow}
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {sessions.length === 0 ? (

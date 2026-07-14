@@ -344,12 +344,11 @@ export const kaGE: Translations = {
     viewOnGoogleMaps: 'Google Maps-ზე ნახვა',
     refreshData: 'განახლება',
     activeNow: 'ახლა აქტიური',
-    locationDisclosure: 'მდებარეობა ძალიან მიახლოებითია. იგულისხმება 3 კმ რადიუსის ცდომილება.',
-    externalMapDisclosure: 'რუკის ბმულები ხსნის გარე სერვისებს მიახლოებითი კოორდინატებით.',
+    locationDisclosure: 'IP მისამართზე დაფუძნებული მიახლოებითი მდებარეობა.',
+    externalMapDisclosure: 'გარე რუქები იღებენ მიახლოებით კოორდინატებს და არა თქვენს ზუსტ მდებარეობას.',
     gcAllConfirmTitle: 'დარწმუნებული ხართ, რომ გსურთ ეს სესიები გაუქმება?',
     gcAllSuccess: 'ყველა სხვა სესია გაუქმებულია',
     viewMap: 'რუქის ნახვა',
-    geoConsentPrompt: 'დაუშვით რუქის ფუნქციას გამოიყენოს თქვენი IP მისამართი დაახლოებითი გეოლოკაციისთვის?',
   },
 
   // Common

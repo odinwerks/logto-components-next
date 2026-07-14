@@ -90,23 +90,7 @@ describe('useSessionGeoLocate', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('4. grants consent: sessionStorage geo-consent set to true, hasConsent becomes true', async () => {
-    mockGetCachedGeo.mockReturnValue(null);
-    mockFetchGeo.mockResolvedValue(null);
-
-    const { result } = renderHook(() => useSessionGeoLocate({}));
-
-    expect(result.current.hasConsent).toBe(false);
-
-    await act(async () => {
-      await result.current.locate('1.2.3.4');
-    });
-
-    expect(result.current.hasConsent).toBe(true);
-    expect(window.sessionStorage.getItem('geo-consent')).toBe('true');
-  });
-
-  it('5. closeMapModal: resets mapModalGeo and mapModalIp', async () => {
+  it('4. closeMapModal: resets mapModalGeo and mapModalIp', async () => {
     mockGetCachedGeo.mockReturnValue(GEO_RESULT);
 
     const { result } = renderHook(() => useSessionGeoLocate({}));
@@ -134,15 +118,7 @@ describe('useSessionGeoLocate', () => {
     expect(mockClearGeoCache).toHaveBeenCalledTimes(1);
   });
 
-  it('7. hasConsent initialization from sessionStorage', () => {
-    window.sessionStorage.setItem('geo-consent', 'true');
-
-    const { result } = renderHook(() => useSessionGeoLocate({}));
-
-    expect(result.current.hasConsent).toBe(true);
-  });
-
-  it('8. empty string ip: no-op, nothing happens', async () => {
+  it('7. empty string ip: no-op, nothing happens', async () => {
     const { result } = renderHook(() => useSessionGeoLocate({}));
 
     await act(async () => {

@@ -344,12 +344,11 @@ export const enUS: Translations = {
     viewOnGoogleMaps: 'View on Google Maps',
     refreshData: 'Refresh',
     activeNow: 'Active now',
-    locationDisclosure: 'Location is very approximate. Assume a 3km radius tolerance.',
-    externalMapDisclosure: 'Map links open external services with approximate coordinates.',
+    locationDisclosure: 'Approximate location based on your IP address.',
+    externalMapDisclosure: 'External maps receive approximate coordinates, not your exact location.',
     gcAllConfirmTitle: 'Are you sure you want to invalidate these sessions?',
     gcAllSuccess: 'All other sessions revoked',
     viewMap: 'View map',
-    geoConsentPrompt: 'Allow map feature to use your IP address for approximate geolocation lookup?',
   },
    
   // Common

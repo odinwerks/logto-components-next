@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchGeo, getCachedGeo, setCachedGeo, clearGeoCache } from './geo-cache';
+import { fetchGeo, clearGeoCache } from './geo-cache';
 
 // Mock window.sessionStorage
 const sessionStorageMock = {
@@ -30,26 +30,7 @@ describe('fetchGeo', () => {
     fetchMock.mockReset();
   });
 
-  it('returns null when no consent is given', async () => {
-    sessionStorageMock.getItem.mockReturnValue(null);
-    
-    const result = await fetchGeo('8.8.8.8');
-    
-    expect(result).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('returns null when consent is not "true"', async () => {
-    sessionStorageMock.getItem.mockReturnValue('false');
-    
-    const result = await fetchGeo('8.8.8.8');
-    
-    expect(result).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('makes API call when consent is "true"', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
+  it('makes API call with valid public IP', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -72,33 +53,7 @@ describe('fetchGeo', () => {
     expect(result?.lat).toBe(41.0082);
   });
 
-  it('returns null even with cached data when consent is not given', async () => {
-    // Set consent to false
-    sessionStorageMock.getItem.mockReturnValue(null);
-    
-    // Manually populate cache
-    setCachedGeo('1.1.1.1', {
-      lat: -33.8688,
-      lon: 151.2093,
-      city: 'Sydney',
-      country: 'Australia',
-      region: 'New South Wales',
-    });
-    
-    // getCachedGeo should still work (used by other code paths)
-    const cached = getCachedGeo('1.1.1.1');
-    expect(cached).not.toBeNull();
-    expect(cached?.city).toBe('Sydney');
-    
-    // fetchGeo should return null due to consent check (even with cached data)
-    const result = await fetchGeo('1.1.1.1');
-    expect(result).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it('returns null for empty IP', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
-    
     const result = await fetchGeo('');
     
     expect(result).toBeNull();
@@ -107,7 +62,6 @@ describe('fetchGeo', () => {
 
   // LOGIC-BUG-001: IP validation guard tests
   it('returns null and does not fetch for invalid IP (path traversal attempt)', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     
     const result = await fetchGeo('../etc/passwd');
     
@@ -116,7 +70,6 @@ describe('fetchGeo', () => {
   });
 
   it('returns null and does not fetch for hostname (SSRF attempt)', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     
     const result = await fetchGeo('internal.example.com');
     
@@ -125,28 +78,24 @@ describe('fetchGeo', () => {
   });
 
   it('blocks private IPv4 address (192.168.x.x) — does not forward to external geo API', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('192.168.0.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('blocks loopback IPv6 address (::1) — does not forward to external geo API', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('::1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects invalid IPv6 address containing triple colons (::: )', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo(':::');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects invalid IPv4 address containing leading zeros', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('192.168.01.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -154,35 +103,30 @@ describe('fetchGeo', () => {
 
   // BUG-M-003: Additional private/loopback IP block tests
   it('blocks loopback IPv4 (127.0.0.1)', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('127.0.0.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('blocks 10.x.x.x (RFC-1918)', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('10.0.0.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('blocks 172.16.x.x (RFC-1918)', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('172.16.0.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('blocks link-local 169.254.x.x', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     const result = await fetchGeo('169.254.1.1');
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('still allows public IPs like 8.8.8.8', async () => {
-    sessionStorageMock.getItem.mockReturnValue('true');
     fetchMock.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({

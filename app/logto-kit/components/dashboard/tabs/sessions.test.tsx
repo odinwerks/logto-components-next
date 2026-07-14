@@ -670,16 +670,6 @@ describe('SessionsTab', () => {
     });
   });
 
-  describe('geolocation disclosure copy', () => {
-    it('shows IP-based approximate location disclosure in loaded view', async () => {
-      renderSessionsTab();
-      await verifyAndLoadSessions();
-
-      await waitFor(() => {
-        expect(screen.getByText(enUS.sessions.locationDisclosure)).toBeInTheDocument();
-      });
-    });
-  });
 
 
   describe('BUG-014: macOS / Mac OS icon rendering', () => {
@@ -792,7 +782,7 @@ describe('SessionsTab', () => {
       });
     });
 
-    it('requires geo-consent approval and shows SessionMapModal with location info when allowed', async () => {
+    it('opens SessionMapModal directly when clicking the map button', async () => {
       const mockGeo = {
         lat: 41.7151,
         lon: 44.8271,
@@ -810,18 +800,8 @@ describe('SessionsTab', () => {
       const mapBtn = screen.getAllByTitle(enUS.sessions.ipLocation)[0];
       await act(async () => { fireEvent.click(mapBtn); });
 
-      // sessionStorage 'geo-consent' should NOT be set to 'true' yet
-      expect(sessionStorage.getItem('geo-consent')).not.toBe('true');
-
-      // The inline consent prompt should be visible
-      expect(screen.getByText(/Allow map feature to use your IP address/)).toBeInTheDocument();
-
-      // Click "Allow" button
-      const allowBtn = screen.getByRole('button', { name: 'Allow' });
-      await act(async () => { fireEvent.click(allowBtn); });
-
-      // sessionStorage 'geo-consent' should be set to 'true' now
-      expect(sessionStorage.getItem('geo-consent')).toBe('true');
+      // The inline consent prompt should NOT be visible — map opens directly
+      expect(screen.queryByText(/Allow map feature to use your IP address/)).not.toBeInTheDocument();
 
       // Check if SessionMapModal is open with correct information
       await waitFor(() => {
@@ -836,22 +816,41 @@ describe('SessionsTab', () => {
         expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnOpenStreetMap, 'i') })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: new RegExp(enUS.sessions.viewOnGoogleMaps, 'i') })).toBeInTheDocument();
       });
+
+      // fetchGeo should have been called
+      expect(mockFetchGeo).toHaveBeenCalled();
     });
 
-    it('does not fetch geolocation and hides prompt if geo-consent is cancelled', async () => {
+    it('opens SessionMapModal directly with cached geo data on map button click', async () => {
+      const cachedGeo = {
+        lat: 51.5,
+        lon: -0.1,
+        city: 'London',
+        country: 'UK',
+        region: 'London',
+      };
+      // Use mockReturnValue (not mockReturnValueOnce) so it survives
+      // any incidental calls during render / session loading.
+      mockGetCachedGeo.mockReturnValue(cachedGeo);
+
       renderSessionsTab();
       await verifyAndLoadSessions();
 
       const mapBtn = screen.getAllByTitle(enUS.sessions.ipLocation)[0];
       await act(async () => { fireEvent.click(mapBtn); });
 
-      expect(screen.getByText(/Allow map feature to use your IP address/)).toBeInTheDocument();
-
-      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
-      await act(async () => { fireEvent.click(cancelBtn); });
-
+      // Modal should open directly (no consent prompt)
       expect(screen.queryByText(/Allow map feature to use your IP address/)).not.toBeInTheDocument();
-      expect(sessionStorage.getItem('geo-consent')).not.toBe('true');
+
+      await waitFor(() => {
+        expect(screen.getByText('London, UK')).toBeInTheDocument();
+      });
+
+      // fetchGeo should NOT have been called (cache hit)
+      expect(mockFetchGeo).not.toHaveBeenCalled();
+
+      // Restore default so other tests are not affected
+      mockGetCachedGeo.mockReturnValue(null);
     });
   });
 

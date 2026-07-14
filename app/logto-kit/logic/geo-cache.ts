@@ -112,12 +112,6 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   // Block private/loopback IPs: do not send internal addresses to external geo API
   if (isPrivateOrLoopbackIp(ip)) return null;
 
-  // Check user consent before geolocation lookup
-  const consent = sessionStorage.getItem('geo-consent');
-  if (consent !== 'true') {
-    return null; // No consent, skip geolocation
-  }
-
   const cached = getCachedGeo(ip);
   if (cached) return cached;
 

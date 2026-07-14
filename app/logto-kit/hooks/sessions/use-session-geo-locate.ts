@@ -12,7 +12,6 @@ export interface UseSessionGeoLocateResult {
   locatingIp: string | null;
   mapModalGeo: GeoLocation | null;
   mapModalIp: string;
-  hasConsent: boolean;
   locate: (ip: string) => Promise<void>;
   closeMapModal: () => void;
   clearCache: () => void;
@@ -24,26 +23,10 @@ export function useSessionGeoLocate({
   const [locatingIp, setLocatingIp] = useState<string | null>(null);
   const [mapModalGeo, setMapModalGeo] = useState<GeoLocation | null>(null);
   const [mapModalIp, setMapModalIp] = useState<string>('');
-  const [hasConsent, setHasConsent] = useState<boolean>(
-    typeof window !== 'undefined' ? sessionStorage.getItem('geo-consent') === 'true' : false,
-  );
 
   const locate = useCallback(
     async (ip: string): Promise<void> => {
       if (!ip) return;
-
-      // INTENTIONAL: consent is recorded immediately when the user actively clicks "Locate"
-      // (the locate action IS the consent gesture). The lookup itself is cheap/fast, so
-      // deferring consent until after the network call would add unnecessary latency while
-      // providing no meaningful UX benefit. The consent flag persists for the browser
-      // session only (sessionStorage), not cross-session.
-      // NOTE: For deployments requiring explicit separate consent (e.g. government/regulated
-      // environments), consider adding a confirmation dialog before calling locate(), or
-      // disable the geo feature entirely by removing the geo button from the Sessions tab.
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('geo-consent', 'true');
-      }
-      setHasConsent(true);
 
       // Check cache first — no network request needed
       const cached = getCachedGeo(ip);
@@ -85,7 +68,6 @@ export function useSessionGeoLocate({
     locatingIp,
     mapModalGeo,
     mapModalIp,
-    hasConsent,
     locate,
     closeMapModal,
     clearCache,
