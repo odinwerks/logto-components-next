@@ -66,6 +66,17 @@ interface MobileClientProps {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+// Module-level stable references for useSyncExternalStore (BUG-A03 fix).
+// Matching the dashboard-router.tsx pattern: module-level functions avoid
+// re-subscription on every render.
+const subNarrow = (cb: () => void) => {
+  const mq = window.matchMedia('(max-width: 26rem)');
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+};
+const snapNarrow = () => window.matchMedia('(max-width: 26rem)').matches;
+const serverNarrow = () => false;
+
 export function MobileClient({
   initialData,
   countryFilter,
@@ -125,15 +136,7 @@ export function MobileClient({
       lastNonSessionsTabRef.current = activeTab;
     }
   }, [activeTab]);
-  const isNarrowViewport = useSyncExternalStore(
-    (callback) => {
-      const mq = window.matchMedia('(max-width: 26rem)');
-      mq.addEventListener('change', callback);
-      return () => mq.removeEventListener('change', callback);
-    },
-    () => window.matchMedia('(max-width: 26rem)').matches,
-    () => false
-  );
+  const isNarrowViewport = useSyncExternalStore(subNarrow, snapNarrow, serverNarrow);
 
   // Defer narrow-viewport layout decisions until after hydration so the first
   // client render matches the server snapshot (false) and avoids a flash.
