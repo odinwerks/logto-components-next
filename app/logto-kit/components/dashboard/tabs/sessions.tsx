@@ -76,6 +76,15 @@ export function SessionsTab({
   onError,
 }: SessionsTabProps) {
   const isMobile = mobmode === 1;
+  const isDark = mode === 'dark';
+
+  // Cyberpunk green for the mobile current-device button — mirrors the red
+  // cyberpunk delete button in security.tsx (Batch 5 / M6, commit eb2f4f3).
+  // Inline per-theme constants (NOT theme tokens) for symmetry with that precedent.
+  const greenFill   = isDark ? '#064e3b' : '#a7f3d0'; // emerald-900 / emerald-200
+  const greenBorder = isDark ? '#10b981' : '#059669'; // emerald-500 / emerald-600
+  const greenIcon   = isDark ? '#6ee7b7' : '#059669'; // emerald-300 / emerald-600
+
   const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
   const showLastActive = backendType === 'blacktop';
   // ─── Replaced tk(tc) with direct color references ───
@@ -411,6 +420,138 @@ export function SessionsTab({
   // loading (fetching sessions after successful verification) states.
   // The view-purpose PasswordVerifyModal renders as an overlay on top of the skeleton
   // so it stays visible during the async verifyAndLoad flow.
+
+  // ─── M7: Mobile skeleton rewrite ─────────────────────────────────────
+  // Renders a mobile loading skeleton whose box model exactly matches
+  // the loaded mobile session card so nothing shrinks or jumps on load.
+  if (loading && isMobile) {
+    return (
+      <div>
+        <div style={{ marginBottom: '1.625rem' }}>
+          <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.65 }}>
+            {t.sessions.description}
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {[0, 1, 2].map(i => {
+            const isCurrent = i === 0;
+            return (
+              <div key={`skeleton-m-${i}`} style={{
+                background: T.bg,
+                border: `1px solid ${T.border}`,
+                borderRadius: DASHBOARD_RADIUS,
+                display: 'flex',
+                alignItems: 'stretch',
+                overflow: 'hidden',
+                opacity: 1 - i * 0.2,
+              }}>
+                {/* 1. OS icon placeholder — mirrors loaded mobile OS container */}
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '3rem',
+                  padding: '0.75rem 0 0.75rem 0.75rem',
+                  boxSizing: 'content-box',
+                }}>
+                  <Pulse delay={i * 0.15} style={{ width: '3rem', height: '3rem', borderRadius: '0.25rem', background: T.raised }} />
+                </div>
+
+                {/* 2. Text content — mirrors loaded mobile text column */}
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  padding: '0.75rem 0.25rem 0.75rem 0.75rem',
+                  gap: '0.25rem',
+                }}>
+                  <Pulse delay={i * 0.15} style={{ height: '0.8125rem', borderRadius: '0.25rem', background: T.raised, width: '55%' }} />
+                  <Pulse delay={i * 0.15 + 0.1} style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '70%' }} />
+                  <Pulse delay={i * 0.15 + 0.2} style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '50%' }} />
+                  {showLastActive && (
+                    <Pulse delay={i * 0.15 + 0.3} style={{ height: '0.625rem', borderRadius: '0.25rem', background: T.raised, width: '40%' }} />
+                  )}
+                </div>
+
+                {/* 3. Right rail — mirrors loaded mobile action column */}
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                  padding: '0.75rem 0.75rem 0.75rem 0',
+                  gap: '0.25rem',
+                }}>
+                  {isCurrent ? (
+                    <button
+                      aria-label={t.sessions.thisDevice}
+                      disabled
+                      style={{
+                        width: '2rem', height: '2rem', borderRadius: '0.25rem',
+                        border: `1px solid ${c.borderColor}`,
+                        background: c.bgTertiary,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'default', opacity: 0.6, padding: 0, flexShrink: 0,
+                      }}
+                    >
+                      <Globe size={16} color={T.muted} />
+                    </button>
+                  ) : (
+                    <Pulse delay={i * 0.15} style={{ width: '2rem', height: '2rem', borderRadius: '0.25rem', background: T.raised }} />
+                  )}
+
+                  <button
+                    aria-label={t.sessions.ipLocation}
+                    title={t.sessions.ipLocation}
+                    disabled
+                    style={{
+                      width: '2rem', height: '2rem', borderRadius: '0.25rem',
+                      border: `1px solid ${c.borderColor}`,
+                      background: c.bgTertiary,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: T.muted, padding: 0, cursor: 'default', opacity: 0.6, flexShrink: 0,
+                    }}
+                  >
+                    <MapPin size={16} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* View-purpose verification modal — renders as overlay on top of skeleton */}
+        <AnimatePresence>
+        {modalStep && modalPurpose === 'view' && (
+          <PasswordVerifyModal
+            key="verify-view"
+            title={t.sessions.verifyToView}
+            subtitle={t.sessions.verifyToViewDesc}
+            step={modalStep}
+            onPasswordSubmit={handlePasswordSubmit}
+            onClose={() => {
+              if (!isVerificationValid) {
+                onVerificationDismissed?.();
+              }
+              setModalStep(null);
+              setModalError('');
+            }}
+            passwordError={modalError}
+            mode={mode}
+            colors={c}
+            t={t}
+          />
+        )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ─── Desktop skeleton (unchanged — isMobile ternaries resolved to desktop values) ───
   if ((viewState === 'unverified' && !loading) || loading) {
     return (
       <div>
@@ -430,8 +571,8 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                minHeight: isMobile ? 'auto' : '5.5rem',
-                padding: isMobile ? '0.75rem 0.75rem' : '0 0.875rem',
+                minHeight: '5.5rem',
+                padding: '0 0.875rem',
                 opacity: 1 - i * 0.2,
               }}>
                 {/* 1. OS Icon placeholder */}
@@ -439,14 +580,14 @@ export function SessionsTab({
                   flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
-                  padding: isMobile ? '0 0 0 0' : '0.5rem 1.25rem 0.5rem 0.125rem',
-                  marginRight: isMobile ? '0.75rem' : '0'
+                  padding: '0.5rem 1.25rem 0.5rem 0.125rem',
+                  marginRight: '0'
                 }}>
                   <Pulse
                     delay={i * 0.15}
                     style={{
-                      width: isMobile ? '3rem' : '3rem',
-                      height: isMobile ? '3rem' : '3rem',
+                      width: '3rem',
+                      height: '3rem',
                       borderRadius: '0.25rem',
                       background: T.raised,
                     }}
@@ -460,14 +601,14 @@ export function SessionsTab({
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
-                  padding: isMobile ? '0' : '0.5rem 1rem',
-                  gap: isMobile ? '0.25rem' : '0.375rem',
+                  padding: '0.5rem 1rem',
+                  gap: '0.375rem',
                 }}>
                   {/* Title */}
                   <Pulse
                     delay={i * 0.15}
                     style={{
-                      height: isMobile ? '0.625rem' : '0.75rem',
+                      height: '0.75rem',
                       borderRadius: '0.25rem',
                       background: T.raised,
                       width: '55%',
@@ -480,7 +621,7 @@ export function SessionsTab({
                       height: '0.5rem',
                       borderRadius: '0.25rem',
                       background: T.raised,
-                      width: isMobile ? '70%' : '45%',
+                      width: '45%',
                     }}
                   />
                   {/* Expires Timestamp */}
@@ -490,7 +631,7 @@ export function SessionsTab({
                       height: '0.5rem',
                       borderRadius: '0.25rem',
                       background: T.raised,
-                      width: isMobile ? '50%' : '35%',
+                      width: '35%',
                     }}
                   />
                   {/* Last Active (only if showLastActive) */}
@@ -501,7 +642,7 @@ export function SessionsTab({
                         height: '0.5rem',
                         borderRadius: '0.25rem',
                         background: T.raised,
-                        width: isMobile ? '40%' : '30%',
+                        width: '30%',
                       }}
                     />
                   )}
@@ -513,75 +654,38 @@ export function SessionsTab({
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
-                  alignItems: isMobile ? 'flex-end' : 'center',
-                  padding: isMobile ? '0' : '0.5rem 0.375rem 0.5rem 0',
+                  alignItems: 'center',
+                  padding: '0.5rem 0.375rem 0.5rem 0',
                   gap: '0.375rem',
                 }}>
                   {isCurrent ? (
-                    isMobile ? (
-                      // Globe icon placeholder for "This Device"
-                      <button
-                        aria-label={t.sessions.thisDevice}
-                        style={{
-                          width: '2rem',
-                          height: '2rem',
-                          borderRadius: '0.25rem',
-                          border: `1px solid ${c.borderColor}`,
-                          background: c.bgTertiary,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'default',
-                          opacity: 0.6,
-                        }}
-                        disabled
-                      >
-                        <Globe size={16} color={T.muted} />
-                      </button>
-                    ) : (
-                      // Desktop This Device Badge skeleton/placeholder
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        fontFamily: T.font,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        padding: '0.3125rem 0.75rem',
-                        borderRadius: '0.25rem',
-                        whiteSpace: 'nowrap',
-                        border: `1px solid ${c.borderColor}`,
-                        background: c.bgTertiary,
-                        color: T.muted,
-                        opacity: 0.6,
-                      }}>
-                        {t.sessions.thisDevice}
-                      </span>
-                    )
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontFamily: T.font,
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      padding: '0.3125rem 0.75rem',
+                      borderRadius: '0.25rem',
+                      whiteSpace: 'nowrap',
+                      border: `1px solid ${c.borderColor}`,
+                      background: c.bgTertiary,
+                      color: T.muted,
+                      opacity: 0.6,
+                    }}>
+                      {t.sessions.thisDevice}
+                    </span>
                   ) : (
-                    isMobile ? (
-                      // Other Device Revoke Trash button placeholder
-                      <Pulse
-                        delay={i * 0.15}
-                        style={{
-                          width: '1.75rem',
-                          height: '1.75rem',
-                          borderRadius: '0.25rem',
-                          background: T.raised,
-                        }}
-                      />
-                    ) : (
-                      // Desktop Other Device Revoke button placeholder
-                      <Pulse
-                        delay={i * 0.15}
-                        style={{
-                          width: '4rem',
-                          height: '1.75rem',
-                          borderRadius: '0.25rem',
-                          background: T.raised,
-                        }}
-                      />
-                    )
+                    <Pulse
+                      delay={i * 0.15}
+                      style={{
+                        width: '4rem',
+                        height: '1.75rem',
+                        borderRadius: '0.25rem',
+                        background: T.raised,
+                      }}
+                    />
                   )}
 
                   {/* Map Button Placeholder */}
@@ -589,7 +693,7 @@ export function SessionsTab({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.25rem',
-                    marginTop: isMobile ? '0.25rem' : '0.375rem',
+                    marginTop: '0.375rem',
                   }}>
                     <button
                       disabled
@@ -865,20 +969,22 @@ export function SessionsTab({
                     isMobile ? (
                       <button
                         aria-label={t.sessions.thisDevice}
+                        disabled
                         style={{
                           width: '2rem',
                           height: '2rem',
                           borderRadius: '0.25rem',
-                          border: `1px solid ${colors.borderColor}`,
-                          background: colors.bgTertiary,
+                          border: `1px solid ${greenBorder}`,
+                          background: greenFill,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           cursor: 'default',
+                          padding: 0,
+                          flexShrink: 0,
                         }}
-                        disabled
                       >
-                        <Globe size={16} color={T.greenText} />
+                        <Globe size={16} strokeWidth={1.5} color={greenIcon} />
                       </button>
                     ) : (
                       <span style={{

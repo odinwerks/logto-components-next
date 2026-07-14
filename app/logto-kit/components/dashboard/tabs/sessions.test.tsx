@@ -898,6 +898,18 @@ describe('SessionsTab', () => {
       expect(revokeBtn.style.background).toBe('rgb(26, 5, 5)');
     });
 
+    it('styles the mobile current-device button cyberpunk green', async () => {
+      renderSessionsTab({ mobmode: 1 });
+      await verifyAndLoadSessions();
+      // On mobile the current-device button uses only a Globe icon (no text).
+      // Use getByRole('button', {...}) which matches on aria-label.
+      const currentBtn = screen.getByRole('button', { name: enUS.sessions.thisDevice });
+      expect(currentBtn).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
+      // Dark mode (renderSessionsTab uses DARK_COLORS): greenFill #064e3b, greenBorder #10b981
+      expect(currentBtn.style.background).toBe('rgb(6, 78, 59)');
+      expect(currentBtn.style.border).toBe('1px solid rgb(16, 185, 129)');
+    });
+
     it('renders desktop Revoke All button with correct translation text', async () => {
       renderSessionsTab({ mobmode: 0 });
       await verifyAndLoadSessions();
