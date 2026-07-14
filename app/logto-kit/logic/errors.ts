@@ -47,6 +47,7 @@ export class LogtoApiError extends Error {
 
 export type ErrorCode =
   | 'VERIFICATION_FAILED'
+  | 'VERIFICATION_EXPIRED'
   | 'AUTHORIZATION_FAILED'
   | 'UPDATE_FAILED'
   | 'UPLOAD_FAILED'

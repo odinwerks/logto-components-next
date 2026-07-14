@@ -37,7 +37,7 @@ describe('FlowModal - localization', () => {
       <FlowModal
         title="Verify"
         subtitle="Code verification"
-        step={{ kind: 'code', destination: 'user@example.com', verificationId: 'v1', identityVerificationId: 'iv1', verificationTimestamp: Date.now() + 600000 }}
+        step={{ kind: 'code', destination: 'user@example.com', verificationId: 'v1', identityVerificationId: 'iv1' }}
         onPasswordSubmit={noop}
         onClose={noop}
         t={enUS}
@@ -63,7 +63,7 @@ describe('FlowModal - localization', () => {
       <FlowModal
         title="Setup TOTP"
         subtitle="Scan QR code"
-        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1', verificationTimestamp: 12345 }}
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
         onPasswordSubmit={noop}
         onClose={noop}
         t={enUS}
@@ -86,7 +86,7 @@ describe('FlowModal - localization', () => {
       <FlowModal
         title="Change password"
         subtitle="Enter new password"
-        step={{ kind: 'new-password', verificationRecordId: 'vr1', verificationTimestamp: Date.now() + 60000 }}
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
         onPasswordSubmit={noop}
         onClose={noop}
         onNewPasswordSubmit={noop}
@@ -137,7 +137,7 @@ describe('FlowModal - TOTP auto-submit behavior', () => {
       <FlowModal
         title="Setup TOTP"
         subtitle="Scan QR code"
-        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1', verificationTimestamp: 12345 }}
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
         onPasswordSubmit={noop}
         onClose={noop}
         onTotpSubmit={onTotpSubmit}
@@ -157,7 +157,7 @@ describe('FlowModal - TOTP auto-submit behavior', () => {
     // Typing the 6th digit should trigger submission
     fireEvent.change(input, { target: { value: '123456' } });
     expect(onTotpSubmit).toHaveBeenCalledTimes(1);
-    expect(onTotpSubmit).toHaveBeenCalledWith('123456', 'SECRET123', 'iv1', 12345);
+    expect(onTotpSubmit).toHaveBeenCalledWith('123456', 'SECRET123', 'iv1');
   });
 
   it('allows re-submission immediately when code changes (no 2-second dead zone)', () => {
@@ -166,7 +166,7 @@ describe('FlowModal - TOTP auto-submit behavior', () => {
       <FlowModal
         title="Setup TOTP"
         subtitle="Scan QR code"
-        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1', verificationTimestamp: 12345 }}
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
         onPasswordSubmit={noop}
         onClose={noop}
         onTotpSubmit={onTotpSubmit}
@@ -186,7 +186,7 @@ describe('FlowModal - TOTP auto-submit behavior', () => {
     // (simulating retry after failed verification)
     fireEvent.change(input, { target: { value: '654321' } });
     expect(onTotpSubmit).toHaveBeenCalledTimes(2);
-    expect(onTotpSubmit).toHaveBeenLastCalledWith('654321', 'SECRET123', 'iv1', 12345);
+    expect(onTotpSubmit).toHaveBeenLastCalledWith('654321', 'SECRET123', 'iv1');
   });
 });
 

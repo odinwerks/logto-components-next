@@ -22,15 +22,15 @@ interface SecurityTabProps {
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onGetMfaVerifications: () => Promise<DataResult<MfaVerification[]>>;
   onGenerateTotpSecret: () => Promise<DataResult<{ secret: string }>>;
-  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onGenerateBackupCodes: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp: number) => Promise<ActionResult>;
+  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
-  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -144,7 +144,7 @@ export function SecurityTab({
       const identityResult = await onVerifyPassword(pw);
       if (totpGenRef.current !== totpGen) return;
       if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
-      const delResult = await onDeleteMfaVerification(totpFactor.id, identityResult.data.verificationRecordId, identityResult.data.verificationTimestamp);
+      const delResult = await onDeleteMfaVerification(totpFactor.id, identityResult.data.verificationRecordId);
       if (totpGenRef.current !== totpGen) return;
       if (!delResult.ok) { onError(delResult.error); setTotpStep({ kind: 'password' }); return; }
       onSuccess(t.mfa.factorRemoved);
@@ -163,17 +163,17 @@ export function SecurityTab({
     const { secret } = secretResult.data;
     const account = userData.profile?.givenName || userData.username || 'user';
     const totpUri = `otpauth://totp/${encodeURIComponent(ISSUER)}:${encodeURIComponent(account)}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(ISSUER)}`;
-    setTotpStep({ kind: 'totp-scan', secret, totpUri, identityVerificationId: identityResult.data.verificationRecordId, verificationTimestamp: identityResult.data.verificationTimestamp });
+    setTotpStep({ kind: 'totp-scan', secret, totpUri, identityVerificationId: identityResult.data.verificationRecordId });
   };
 
-  const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => {
+  const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string) => {
     const totpGen = totpGenRef.current;
     setTotpStep({ kind: 'loading', message: t.mfa.activating });
     let r: ActionResult;
     if (totpFactor) {
-      r = await onReplaceTotpVerification(secret, code, identityVerificationId, verificationTimestamp);
+      r = await onReplaceTotpVerification(secret, code, identityVerificationId);
     } else {
-      r = await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerificationId, verificationTimestamp);
+      r = await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerificationId);
     }
     if (totpGenRef.current !== totpGen) return;
     if (!r.ok) { onError(r.error); closeTotp(); return; }
@@ -198,7 +198,7 @@ export function SecurityTab({
     const identityResult = await onVerifyPassword(pw);
     if (backupGenRef.current !== backupGen) return;
     if (!identityResult.ok) { setBackupPwErr(identityResult.error); setBackupStep({ kind: 'password' }); return; }
-    const codesResult = await onGenerateBackupCodes(identityResult.data.verificationRecordId, identityResult.data.verificationTimestamp);
+    const codesResult = await onGenerateBackupCodes(identityResult.data.verificationRecordId);
     if (backupGenRef.current !== backupGen) return;
     if (!codesResult.ok) { onError(codesResult.error); closeBackupModal(); return; }
     setBackupCodes(codesResult.data.codes.map(code => ({ code, used: false })));
@@ -227,7 +227,6 @@ export function SecurityTab({
     setDeleteStep({ kind: 'loading', message: t.security.deletingAccount });
     const deleteResult = await onDeleteAccount(
       identityResult.data.verificationRecordId,
-      identityResult.data.verificationTimestamp,  // server-derived, from Logto's expiresAt
     );
     if (deleteGenRef.current !== deleteGen) return;
     if (!deleteResult.ok) { onError(deleteResult.error); setDeleteStep(null); return; }
@@ -290,7 +289,7 @@ export function SecurityTab({
       const registrationResponse = await startRegistration({ optionsJSON: registrationOptions as Parameters<typeof startRegistration>[0]['optionsJSON'] });
       if (passkeyRegGenRef.current !== passkeyRegGen) return;
       setPasskeyRegStep({ kind: 'loading', message: t.mfa.linkingPasskey });
-      const linkResult = await onVerifyAndLinkWebAuthn(registrationResponse, verificationRecordId, identityResult.data.verificationRecordId, identityResult.data.verificationTimestamp);
+      const linkResult = await onVerifyAndLinkWebAuthn(registrationResponse, verificationRecordId, identityResult.data.verificationRecordId);
       if (passkeyRegGenRef.current !== passkeyRegGen) return;
       if (!linkResult.ok) { onError(linkResult.error); setPasskeyRegStep(null); return; }
       onSuccess(t.mfa.passkeyAdded);
@@ -315,7 +314,7 @@ export function SecurityTab({
     const identityResult = await onVerifyPassword(pw);
     if (delPasskeyGenRef.current !== delPasskeyGen) return;
     if (!identityResult.ok) { setDelPasskeyPwErr(identityResult.error); setDelPasskeyStep({ kind: 'password' }); return; }
-    const delResult = await onDeleteMfaVerification(passkeyToDelete, identityResult.data.verificationRecordId, identityResult.data.verificationTimestamp);
+    const delResult = await onDeleteMfaVerification(passkeyToDelete, identityResult.data.verificationRecordId);
     if (delPasskeyGenRef.current !== delPasskeyGen) return;
     if (!delResult.ok) { onError(delResult.error); setDelPasskeyStep(null); setPasskeyToDelete(null); return; }
     onSuccess(t.mfa.passkeyDeleted);
@@ -332,13 +331,13 @@ export function SecurityTab({
     const identityResult = await onVerifyPassword(pw);
     if (renameGenRef.current !== renameGen) return;
     if (!identityResult.ok) { setRenamePasskeyPwErr(identityResult.error); setRenamePasskeyStep({ kind: 'password' }); return; }
-    setRenamePasskeyStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyToRename, verificationTimestamp: identityResult.data.verificationTimestamp });
+    setRenamePasskeyStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyToRename });
   };
 
-  const handleRenamePasskeySubmit = async (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => {
+  const handleRenamePasskeySubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
     const renameGen = renameGenRef.current;
     setRenamePasskeyStep({ kind: 'loading', message: t.mfa.verifying });
-    const r = await onRenamePasskey(passkeyId, name, verificationRecordId, verificationTimestamp);
+    const r = await onRenamePasskey(passkeyId, name, verificationRecordId);
     if (renameGenRef.current !== renameGen) return;
     if (!r.ok) { onError(r.error); setRenamePasskeyStep(null); setPasskeyToRename(null); return; }
     onSuccess(t.mfa.passkeyRenamed);
@@ -357,7 +356,7 @@ export function SecurityTab({
       const identityResult = await onVerifyPassword(pw);
       if (passkeyActionGenRef.current !== passkeyActionGen) return;
       if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionStep({ kind: 'password' }); return; }
-      const delResult = await onDeleteMfaVerification(passkeyActionId, identityResult.data.verificationRecordId, identityResult.data.verificationTimestamp);
+      const delResult = await onDeleteMfaVerification(passkeyActionId, identityResult.data.verificationRecordId);
       if (passkeyActionGenRef.current !== passkeyActionGen) return;
       if (!delResult.ok) { onError(delResult.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
       onSuccess(t.mfa.passkeyDeleted);
@@ -370,13 +369,13 @@ export function SecurityTab({
     const identityResult = await onVerifyPassword(pw);
     if (passkeyActionGenRef.current !== passkeyActionGen) return;
     if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionStep({ kind: 'password' }); return; }
-    setPasskeyActionStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyActionId, verificationTimestamp: identityResult.data.verificationTimestamp });
+    setPasskeyActionStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyActionId });
   };
 
-  const handlePasskeyActionRenameSubmit = async (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => {
+  const handlePasskeyActionRenameSubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
     const passkeyActionGen = passkeyActionGenRef.current;
     setPasskeyActionStep({ kind: 'loading', message: t.mfa.verifying });
-    const r = await onRenamePasskey(passkeyId, name, verificationRecordId, verificationTimestamp);
+    const r = await onRenamePasskey(passkeyId, name, verificationRecordId);
     if (passkeyActionGenRef.current !== passkeyActionGen) return;
     if (!r.ok) { onError(r.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
     onSuccess(t.mfa.passkeyRenamed);
@@ -486,12 +485,12 @@ export function SecurityTab({
             const pwResult = await onVerifyPassword(pw);
             if (pwChangeGenRef.current !== pwChangeGen) return;
             if (!pwResult.ok) { setPwChangeErr(pwResult.error); setPwStep({ kind: 'password' }); return; }
-            setPwStep({ kind: 'new-password', verificationRecordId: pwResult.data.verificationRecordId, verificationTimestamp: pwResult.data.verificationTimestamp });
+            setPwStep({ kind: 'new-password', verificationRecordId: pwResult.data.verificationRecordId });
           }}
-          onNewPasswordSubmit={async (newPw, verificationRecordId, verificationTimestamp) => {
+          onNewPasswordSubmit={async (newPw, verificationRecordId) => {
             const pwChangeGen = pwChangeGenRef.current;
             setPwStep({ kind: 'loading', message: t.mfa.changingPassword });
-            const result = await onUpdatePassword(newPw, verificationRecordId, verificationTimestamp);
+            const result = await onUpdatePassword(newPw, verificationRecordId);
             if (pwChangeGenRef.current !== pwChangeGen) return;
             if (result.ok) {
               onSuccess(t.security.passwordChanged);

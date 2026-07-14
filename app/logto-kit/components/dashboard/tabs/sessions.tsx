@@ -15,7 +15,6 @@ import { useFocusTrap } from '../shared/focus-trap';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { useSessionGeoLocate } from '../../../hooks/sessions';
 import { readEnv } from '../../../logic/env';
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../../../logic/constants';
 
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
@@ -26,9 +25,9 @@ interface SessionsTabProps {
   colors: ThemeColors;
   t: Translations;
   mobmode?: number;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -120,7 +119,10 @@ export function SessionsTab({
   } = useSessionGeoLocate({ onError });
 
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
-  const [verificationTimestamp, setVerificationTimestamp] = useState<number>(0);
+  // verificationExpiry is the server-derived expiresAt (from onVerifyPassword),
+  // used ONLY for client UX (auto-invalidate timer + isVerificationValid gate).
+  // The authoritative staleness check now runs server-side via the sealed
+  // verification cookie (BUG-001 fix); this client value is not trusted back.
   const [verificationExpiry, setVerificationExpiry] = useState<number>(0);
   const [viewState, setViewState] = useState<'unverified' | 'loaded'>('unverified');
 
@@ -169,15 +171,14 @@ export function SessionsTab({
       return;
     }
     const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
-    const expiresAt = ts; // ts is already Logto's expiresAt
+    const expiresAt = ts; // ts is already Logto's expiresAt (UX-only; server seals it in a cookie)
     setVerificationRecordId(vid);
-    setVerificationTimestamp(ts);
     setVerificationExpiry(expiresAt);
 
     setModalStep(null);
 
     setLoading(true);
-    const sessionsResult = await onGetSessionsWithDeviceMeta(vid, ts);
+    const sessionsResult = await onGetSessionsWithDeviceMeta(vid);
     if (!sessionsResult.ok) {
       onError(sessionsResult.error);
       setVerificationRecordId(null);
@@ -197,24 +198,25 @@ export function SessionsTab({
     setModalStep,
     setModalError,
     setVerificationRecordId,
-    setVerificationTimestamp,
     setVerificationExpiry,
     setLoading,
     setSessions,
     setViewState
   ]);
 
-  const loadSessions = useCallback(async (verification?: { recordId: string; timestamp: number }) => {
-    const recordId = verification?.recordId ?? verificationRecordId;
-    const timestamp = verification?.timestamp ?? verificationTimestamp;
-    const hasValidVerification = verification
-      ? (Date.now() <= verification.timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS)
-      : isVerificationValid;
-
-    if (!recordId || !hasValidVerification) return;
+  const loadSessions = useCallback(async (recordId?: string) => {
+    const id = recordId ?? verificationRecordId;
+    if (!id) return;
+    // When an explicit recordId is passed (a fresh re-verification just
+    // completed in handlePasswordSubmit), proceed without the client-side
+    // validity gate — the caller already re-verified. When called with no
+    // arg (refresh button), gate on the client-held expiry so we don't round-
+    // trip to the server with an obviously-stale verification. The server's
+    // sealed-cookie check (requireVerifiedIdentity) is the authoritative gate.
+    if (!recordId && !isVerificationValid) return;
 
     setLoading(true);
-    const r = await onGetSessionsWithDeviceMeta(recordId, timestamp);
+    const r = await onGetSessionsWithDeviceMeta(id);
     if (!r.ok) {
       onError(r.error);
       // Only reset verification for auth-related failures
@@ -227,7 +229,7 @@ export function SessionsTab({
     }
     setSessions(r.data);
     setLoading(false);
-  }, [verificationRecordId, verificationTimestamp, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
+  }, [verificationRecordId, onGetSessionsWithDeviceMeta, onError, isVerificationValid]);
 
   const handleRefresh = useCallback(async () => {
     clearCache();
@@ -285,7 +287,6 @@ export function SessionsTab({
       setModalError('');
 
       let vid = verificationRecordId;
-      let vts = verificationTimestamp;
       if (!vid || Date.now() >= verificationExpiry) {
         const verifyResult = await onVerifyPassword(password);
         if (!verifyResult.ok) {
@@ -298,10 +299,8 @@ export function SessionsTab({
           return;
         }
         vid = verifyResult.data.verificationRecordId;
-        vts = verifyResult.data.verificationTimestamp;
         setVerificationRecordId(vid);
-        setVerificationTimestamp(vts);
-        setVerificationExpiry(vts); // vts IS the expiresAt
+        setVerificationExpiry(verifyResult.data.verificationTimestamp); // expiresAt (UX-only)
       }
 
       const target = revokeTargetRef.current;
@@ -313,7 +312,7 @@ export function SessionsTab({
 
       if (target.kind === 'all') {
         setRevokingAll(true);
-        const revokeResult = await onRevokeAllOtherSessions(vid, vts);
+        const revokeResult = await onRevokeAllOtherSessions(vid);
         if (!revokeResult.ok) {
           setModalError(revokeResult.error);
           setModalStep({ kind: 'password' });
@@ -326,7 +325,7 @@ export function SessionsTab({
           return;
         }
       } else {
-        const revokeResult = await onRevokeSession(target.id, vid, vts, 'firstParty');
+        const revokeResult = await onRevokeSession(target.id, vid, 'firstParty');
         if (!revokeResult.ok) {
           setModalError(revokeResult.error);
           setModalStep({ kind: 'password' });
@@ -341,7 +340,7 @@ export function SessionsTab({
         }
       }
       onSuccess(t.sessions.revoked);
-      await loadSessions({ recordId: vid, timestamp: vts });
+      await loadSessions(vid ?? undefined);
       setModalStep(null);
       revokeTargetRef.current = null;
       setRevokingId(null);

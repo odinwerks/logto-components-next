@@ -11,7 +11,7 @@ import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
 import { getCountryFilter, getBackendType } from '../../config';
-import { assertVerificationNotExpired } from './helpers';
+import { sealVerificationCookie, requireVerifiedIdentity } from './verification-cookie';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 
@@ -91,9 +91,19 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     if (!Number.isFinite(verificationTimestamp)) {
       throw plainCode('VERIFICATION_FAILED');
     }
+    // ── Seal the server-authoritative expiry into an httpOnly cookie ──────
+    // BUG-001 fix: the destructive actions now read this cookie (via
+    // requireVerifiedIdentity) instead of trusting a client-round-tripped
+    // timestamp. The cookie is HMAC-signed and bound to this recordId, so a
+    // malicious client cannot forge it or substitute a different expiry.
+    await sealVerificationCookie(parsed.verificationRecordId, verificationTimestamp);
     return {
       verificationRecordId: parsed.verificationRecordId,
-      verificationTimestamp,  // milliseconds; = expiresAt, server-derived
+      // NOTE: verificationTimestamp is returned for CLIENT UX ONLY (e.g. the
+      // Sessions tab auto-invalidate timer). It is NOT trusted on the return
+      // path — destructive actions ignore any client-supplied timestamp and
+      // use the sealed cookie's expiresAt instead.
+      verificationTimestamp,  // milliseconds; = expiresAt, server-derived (UX-only)
     };
   });
 }
@@ -257,7 +267,6 @@ export async function updateEmailWithVerification(
   email: string | null,
   newIdentifierVerificationRecordId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -271,11 +280,11 @@ export async function updateEmailWithVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
-    // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
-    // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: the expiry is read from the server-sealed httpOnly cookie
+    // (set by verifyPasswordForIdentity), NOT from a client-supplied timestamp.
+    // The cookie is HMAC-signed and bound to this identityVerificationRecordId,
+    // so a malicious client cannot forge a fresher expiry.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'POST',
@@ -290,7 +299,6 @@ export async function updatePhoneWithVerification(
   phone: string,
   newIdentifierVerificationRecordId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -305,11 +313,9 @@ export async function updatePhoneWithVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance — no
-    // hardcoded TTL. If Logto changes its TTL this check automatically adapts.
-    // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed cookie, not a
+    // client-supplied timestamp. See verifyPasswordForIdentity.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const cleanedPhone = cleanPhoneNumber(phone);
     assertPhoneCountryAllowed(cleanedPhone, countryFilter);
@@ -325,7 +331,6 @@ export async function updatePhoneWithVerification(
 
 export async function removeUserEmail(
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -338,10 +343,9 @@ export async function removeUserEmail(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
-    // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed cookie, not a
+    // client-supplied timestamp. See verifyPasswordForIdentity.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const res = await makeRequest('/api/my-account/primary-email', {
       method: 'DELETE',
@@ -353,7 +357,6 @@ export async function removeUserEmail(
 
 export async function removeUserPhone(
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -366,10 +369,9 @@ export async function removeUserPhone(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    // verificationTimestamp is Logto's expiresAt (server-derived from
-    // verifyPasswordForIdentity). We check Date.now() > expiresAt + tolerance.
-    // 15s forward tolerance handles app clock being ahead of Logto server clock.
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed cookie, not a
+    // client-supplied timestamp. See verifyPasswordForIdentity.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const res = await makeRequest('/api/my-account/primary-phone', {
       method: 'DELETE',

@@ -311,7 +311,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onVerifyCodeAndUpdate).toHaveBeenCalledWith(
-        'next@example.com', 'vid-1', 'vr-1', '123456', expect.any(Number),
+        'next@example.com', 'vid-1', 'vr-1', '123456',
       );
       expect(props.onSuccess).toHaveBeenCalledWith(enUS.profile.emailUpdated);
     });
@@ -408,7 +408,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onVerifyPassword).toHaveBeenCalledWith('pw123');
-      expect(props.onRemove).toHaveBeenCalledWith('vr-1', expect.any(Number));
+      expect(props.onRemove).toHaveBeenCalledWith('vr-1');
       expect(props.onSuccess).toHaveBeenCalledWith(enUS.profile.emailRemoved);
     });
   });

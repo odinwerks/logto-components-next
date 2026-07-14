@@ -8,7 +8,8 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult } from './safe';
 
-import { assertVerificationNotExpired, auditSafe } from './helpers';
+import { auditSafe } from './helpers';
+import { requireVerifiedIdentity } from './verification-cookie';
 /**
  * Changes the authenticated user's password.
  * Error messages are sanitised in production to prevent enumeration.
@@ -16,7 +17,6 @@ import { assertVerificationNotExpired, auditSafe } from './helpers';
 export async function updateUserPassword(
   newPassword: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const sessionToken = await getTokenForServerAction();
@@ -27,7 +27,10 @@ export async function updateUserPassword(
     const userId = introspection.sub;
 
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
+    // ── Staleness check (defense in depth) ────────────────────────────────
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie
+    // (set by verifyPasswordForIdentity), not a client-supplied timestamp.
+    await requireVerifiedIdentity(identityVerificationRecordId);
     if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {
       throw new ValidationError('INVALID_INPUT', 'newPassword');
     }

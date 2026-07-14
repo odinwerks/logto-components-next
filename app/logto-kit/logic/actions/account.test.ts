@@ -37,6 +37,12 @@ vi.mock('./request', () => ({
   makeRequest: vi.fn(),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
   sanitize: vi.fn((_err: unknown, opts: { fallback: string }) => {
@@ -62,6 +68,7 @@ import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { getManagementApiToken } from '../../config';
+import { requireVerifiedIdentity, clearVerificationCookie } from './verification-cookie';
 
 // ============================================================================
 // deleteUserAccount - freshness check + account deletion
@@ -91,11 +98,17 @@ describe('deleteUserAccount', () => {
 
   it('rejects a verification record whose expiresAt is in the past', async () => {
     const { deleteUserAccount } = await import('./account');
-    const expiredTs = Date.now() - 11 * 60 * 1000; // expiresAt was 11 min ago → rejected
+    // requireVerifiedIdentity now reads the server-sealed cookie and rejects
+    // on staleness. Simulate an expired verification.
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
 
-    const result = await deleteUserAccount('verif_record_1', expiredTs);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(false);
+    if (result.ok === false) {
+      expect(result.error).toBe('VERIFICATION_EXPIRED');
+    }
     // The deletion fetch should never have been called
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -104,11 +117,9 @@ describe('deleteUserAccount', () => {
 
   it('allows a verification record within the 10-minute window', async () => {
     const { deleteUserAccount } = await import('./account');
-    // verificationTimestamp is now expiresAt (not issued-at).
-    // 9 minutes from now = record was issued 1 min ago, expires in 9 min → valid.
-    const freshTs = Date.now() + 9 * 60 * 1000;
+    // requireVerifiedIdentity is mocked and resolves by default → fresh.
 
-    const result = await deleteUserAccount('verif_record_1', freshTs);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(true);
     // The deletion fetch must have been called
@@ -127,18 +138,19 @@ describe('deleteUserAccount', () => {
     expect(fetchCall[0]).not.toContain('revokeGrants');
   });
 
-  // ── SECURITY: timestamp is required ─────────────────────────────────────
-  // BUG-SEC-003: A malicious client can omit verificationRecordTimestamp to
-  // bypass the staleness check. Making it required prevents this.
+  // ── SECURITY: timestamp param removed ──────────────────────────────────
+  // BUG-SEC-003: The staleness check now reads the server-sealed verification
+  // cookie (via requireVerifiedIdentity) instead of a client-supplied
+  // timestamp, so a malicious client can no longer bypass it. The function is
+  // now called with a single recordId argument.
 
-  it('requires verificationRecordTimestamp - omitted timestamp should fail at type level', async () => {
+  it('accepts a single recordId argument (timestamp param removed)', async () => {
     const { deleteUserAccount } = await import('./account');
-    // Calling without the second argument is now a TYPE error (TS compile check).
-    // At runtime, this test documents that the function signature requires the timestamp.
-    // If someone removes the required param, this test documents the security intent.
+    // The client-supplied timestamp param has been removed; the action now reads
+    // the server-sealed verification cookie via requireVerifiedIdentity. The
+    // function is now called with a single recordId argument and succeeds.
     expect(typeof deleteUserAccount).toBe('function');
-    // Verify the function accepts both args (required + required)
-    const result = await deleteUserAccount('verif_record_1', Date.now() + 60000);
+    const result = await deleteUserAccount('verif_record_1');
     expect(result.ok).toBe(true);
   });
 
@@ -147,11 +159,17 @@ describe('deleteUserAccount', () => {
 
   it('always executes staleness check - expired record always rejected', async () => {
     const { deleteUserAccount } = await import('./account');
-    const expiredTs = Date.now() - 16_000; // 1 second ago → expired
+    // requireVerifiedIdentity now enforces staleness. Make it reject with a
+    // sanitized VERIFICATION_EXPIRED error to simulate an expired record.
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
 
-    const result = await deleteUserAccount('verif_record_1', expiredTs);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(false);
+    if (result.ok === false) {
+      expect(result.error).toBe('VERIFICATION_EXPIRED');
+    }
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
@@ -159,24 +177,18 @@ describe('deleteUserAccount', () => {
 
   it('allows a verification record that has not yet expired', async () => {
     const { deleteUserAccount } = await import('./account');
-    // verificationTimestamp is now expiresAt. Any future timestamp is valid.
-    const mockNow = 1700000000000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const result = await deleteUserAccount('verif_record_1', mockNow);
-      expect(result.ok).toBe(true);
-    } finally {
-      dateSpy.mockRestore();
-    }
+    // Staleness is now enforced via requireVerifiedIdentity (mock resolves),
+    // which reads the server-sealed cookie rather than a client timestamp.
+    const result = await deleteUserAccount('verif_record_1');
+    expect(result.ok).toBe(true);
   });
 
   // ── Negative timestamp (future) - should always be within window ────────
 
   it('allows a verification record with a future timestamp', async () => {
     const { deleteUserAccount } = await import('./account');
-    const futureTs = Date.now() + 60 * 1000; // 1 minute in the future
 
-    const result = await deleteUserAccount('verif_record_1', futureTs);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(true);
   });
@@ -191,15 +203,17 @@ describe('deleteUserAccount', () => {
     ]);
 
     const { deleteUserAccount } = await import('./account');
-    const result = await deleteUserAccount('verif_record_1', Date.now() + 60000);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(true);
-    
+
     expect(mockCookiesSet).toHaveBeenCalledTimes(3);
     expect(mockCookiesSet).toHaveBeenCalledWith('logto_session', '', { maxAge: 0, path: '/' });
     expect(mockCookiesSet).toHaveBeenCalledWith('logto_active', '', { maxAge: 0, path: '/' });
     expect(mockCookiesSet).toHaveBeenCalledWith('logto-active-org', '', { maxAge: 0, path: '/' });
     expect(mockCookiesSet).not.toHaveBeenCalledWith('other_cookie', expect.anything(), expect.anything());
+    // The sealed verification cookie must also be cleared after deletion.
+    expect(clearVerificationCookie).toHaveBeenCalled();
   });
 
   // MED-2: Logto internally revokes tokens/sessions during user deletion.
@@ -208,9 +222,8 @@ describe('deleteUserAccount', () => {
   // No ?revokeGrants=true parameter is required (it does not exist in the API).
   it('MED-2: does not append revokeGrants query param - Logto handles internal revocation', async () => {
     const { deleteUserAccount } = await import('./account');
-    const freshTs = Date.now() + 60000;
 
-    const result = await deleteUserAccount('verif_record_1', freshTs);
+    const result = await deleteUserAccount('verif_record_1');
 
     expect(result.ok).toBe(true);
     const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];

@@ -43,24 +43,24 @@ interface MobileClientProps {
   onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRemoveEmail: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRemovePhone: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onGetMfaVerifications: () => Promise<DataResult<MfaVerification[]>>;
   onGenerateTotpSecret: () => Promise<DataResult<{ secret: string }>>;
-  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onGenerateBackupCodes: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
-  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onDeleteAccount: (identityVerificationRecordId: string, verificationRecordTimestamp: number) => Promise<ActionResult>;
+  onAddMfaVerification: (verification: MfaVerificationPayload, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteMfaVerification: (verificationId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onReplaceTotpVerification: (secret: string, code: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGenerateBackupCodes: (identityVerificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
+  onUpdatePassword: (newPassword: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onDeleteAccount: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onRequestWebAuthnRegistration: () => Promise<DataResult<{ registrationOptions: unknown; verificationRecordId: string }>>;
-  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onVerifyAndLinkWebAuthn: (payload: unknown, verificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRenamePasskey: (verificationId: string, name: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────

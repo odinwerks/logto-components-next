@@ -291,10 +291,10 @@ interface ProfileTabProps {
   onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRemoveEmail: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRemovePhone: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
+  onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess:         (message: string) => void;
   onError:           (message: string) => void;
   refreshData:       () => void;
@@ -1166,15 +1166,15 @@ export function ProfileTab({
           placeholder={t.profile.emailPlaceholder}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendEmailVerification}
-          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code, verificationTimestamp): Promise<ActionResult> => {
+          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
             const vr = await onVerifyCode('email', value, verificationId, code);
             if (!vr.ok) return vr;
-            const ur = await onUpdateEmail(value, vr.data.verificationRecordId, identityVerificationId, verificationTimestamp);
+            const ur = await onUpdateEmail(value, vr.data.verificationRecordId, identityVerificationId);
             if (!ur.ok) return ur;
             refreshData();
             return { ok: true };
           }}
-          onRemove={async (id, timestamp): Promise<ActionResult> => { const r = await onRemoveEmail(id, timestamp); if (!r.ok) return r; refreshData(); return { ok: true }; }}
+          onRemove={async (id): Promise<ActionResult> => { const r = await onRemoveEmail(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
           onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
         <HR colors={colors} />
@@ -1187,15 +1187,15 @@ export function ProfileTab({
           countryFilter={countryFilter}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
-          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code, verificationTimestamp): Promise<ActionResult> => {
+          onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
             const vr = await onVerifyCode('phone', value, verificationId, code);
             if (!vr.ok) return vr;
-            const ur = await onUpdatePhone(value, vr.data.verificationRecordId, identityVerificationId, verificationTimestamp);
+            const ur = await onUpdatePhone(value, vr.data.verificationRecordId, identityVerificationId);
             if (!ur.ok) return ur;
             refreshData();
             return { ok: true };
           }}
-          onRemove={async (id, timestamp): Promise<ActionResult> => { const r = await onRemovePhone(id, timestamp); if (!r.ok) return r; refreshData(); return { ok: true }; }}
+          onRemove={async (id): Promise<ActionResult> => { const r = await onRemovePhone(id); if (!r.ok) return r; refreshData(); return { ok: true }; }}
           onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
       </Card>

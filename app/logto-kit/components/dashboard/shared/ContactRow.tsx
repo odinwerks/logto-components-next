@@ -31,8 +31,8 @@ export interface ContactRowProps {
   };
   onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
-  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string, verificationTimestamp: number) => Promise<ActionResult>;
-  onRemove: (identityVerificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
+  onRemove: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   mobmode?: number;
@@ -184,7 +184,7 @@ export function ContactRow({
       const r1 = await onVerifyPassword(pw);
       if (isStaleOperation()) return;
       if (!r1.ok) { setPwErr(r1.error); setStep({ kind: 'password' }); return; }
-      const r2 = await onRemove(r1.data.verificationRecordId, r1.data.verificationTimestamp);
+      const r2 = await onRemove(r1.data.verificationRecordId);
       if (isStaleOperation()) return;
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
@@ -201,7 +201,7 @@ export function ContactRow({
       if (isStaleOperation()) return;
       if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
       onSuccess(`${t.verification.codeSent} ${target}`);
-      setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId, verificationTimestamp: r1.data.verificationTimestamp });
+      setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId });
     }
   };
 
@@ -209,9 +209,9 @@ export function ContactRow({
     if (step.kind !== 'code') return;
     const operationToken = operationTokenRef.current;
     const isStaleOperation = () => operationToken !== operationTokenRef.current;
-    const { destination, verificationId, identityVerificationId, verificationTimestamp } = step;
+    const { destination, verificationId, identityVerificationId } = step;
     setStep({ kind: 'loading', message: t.mfa.verifyingCode });
-    const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code, verificationTimestamp);
+    const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
     if (isStaleOperation()) return;
     if (!r.ok) {
       onError(r.error);
@@ -220,7 +220,6 @@ export function ContactRow({
         destination,
         verificationId,
         identityVerificationId,
-        verificationTimestamp,
       });
       return;
     }

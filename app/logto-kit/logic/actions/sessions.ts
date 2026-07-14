@@ -9,7 +9,7 @@ import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 import { throwOnApiError, plainCode } from '../errors';
 import { safeAction, type ActionResult, type DataResult } from './safe';
-import { assertVerificationNotExpired } from './helpers';
+import { requireVerifiedIdentity } from './verification-cookie';
 import { warn } from '../log';
 
 // ============================================================================
@@ -46,10 +46,12 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
  */
 export async function getUserSessionsInternal(
   verificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<LogtoSession[]> {
   assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-  assertVerificationNotExpired(verificationTimestamp);
+  // ── Staleness check (defense in depth) ────────────────────────────────
+  // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie
+  // (set by verifyPasswordForIdentity), not a client-supplied timestamp.
+  await requireVerifiedIdentity(verificationRecordId);
   debugLog(`[getUserSessions] Fetching sessions with verification ID: ${verificationRecordId.substring(0, 8)}...`);
   const res = await makeRequest('/api/my-account/sessions', {
     extraHeaders: { 'logto-verification-id': verificationRecordId },
@@ -72,12 +74,10 @@ export async function getUserSessionsInternal(
 /**
  * Gets the user's active sessions.
  * @param verificationRecordId - Verification record for identity.
- * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of LogtoSession objects.
  */
 export async function getUserSessions(
   verificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -87,19 +87,17 @@ export async function getUserSessions(
       throw plainCode('UNAUTHENTICATED');
     }
 
-    return getUserSessionsInternal(verificationRecordId, verificationTimestamp);
+    return getUserSessionsInternal(verificationRecordId);
   });
 }
 
 /**
  * Gets the user's sessions with device metadata enriched.
  * @param verificationRecordId - Verification record for identity.
- * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of LogtoSession objects with enriched metadata.
  */
 export async function getSessionsWithDeviceMeta(
   verificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<DataResult<LogtoSession[]>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -109,7 +107,7 @@ export async function getSessionsWithDeviceMeta(
       throw plainCode('UNAUTHENTICATED');
     }
 
-    const sessions = await getUserSessionsInternal(verificationRecordId, verificationTimestamp);
+    const sessions = await getUserSessionsInternal(verificationRecordId);
 
     // userId is a display-only metadata field in SessionMeta. Token introspection
     // was previously used to populate it, but that added an unnecessary sequential
@@ -156,7 +154,6 @@ export async function getSessionsWithDeviceMeta(
 export async function revokeUserSessionInternal(
   sessionId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
   revokeGrantsTarget: 'all' | 'firstParty' = 'all',
   signal?: AbortSignal,
   skipVerificationCheck = false,
@@ -165,7 +162,9 @@ export async function revokeUserSessionInternal(
   assertRevokeGrantsTarget(revokeGrantsTarget);
   assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
   if (!skipVerificationCheck) {
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie,
+    // not a client-supplied timestamp.
+    await requireVerifiedIdentity(identityVerificationRecordId);
   }
 
   debugLog(`[revokeUserSession] Starting revocation for session ${sessionId}`);
@@ -205,13 +204,11 @@ export async function revokeUserSessionInternal(
  *
  * @param sessionId - The session ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
- * @param verificationTimestamp - Verification record creation timestamp.
  * @param revokeGrantsTarget - Target for grant revocation. Defaults to 'all'.
  */
 export async function revokeUserSession(
   sessionId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
   revokeGrantsTarget: 'all' | 'firstParty' = 'all',
   signal?: AbortSignal,
 ): Promise<ActionResult> {
@@ -226,7 +223,6 @@ export async function revokeUserSession(
     await revokeUserSessionInternal(
       sessionId,
       identityVerificationRecordId,
-      verificationTimestamp,
       revokeGrantsTarget,
       signal,
     );
@@ -242,11 +238,9 @@ export async function revokeUserSession(
  * Throws if neither method can identify the current session.
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
- * @param verificationTimestamp - Verification record creation timestamp.
  */
 export async function revokeAllOtherSessions(
   verificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -257,10 +251,12 @@ export async function revokeAllOtherSessions(
     }
 
     assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie,
+    // not a client-supplied timestamp.
+    await requireVerifiedIdentity(verificationRecordId);
     debugLog('[revokeAllOtherSessions] Fetching sessions');
 
-    const sessions = await getUserSessionsInternal(verificationRecordId, verificationTimestamp);
+    const sessions = await getUserSessionsInternal(verificationRecordId);
 
     // Identify current session via token introspection.
     // The introspection `sid` claim is the OIDC session UID - matches payload.uid.
@@ -290,7 +286,6 @@ export async function revokeAllOtherSessions(
         await revokeUserSessionInternal(
           s.payload.uid,
           verificationRecordId,
-          verificationTimestamp,
           'firstParty',
           controller.signal,
           true, // skipVerificationCheck (BUG-004)
@@ -327,12 +322,10 @@ export async function revokeAllOtherSessions(
 /**
  * Gets the user's grants.
  * @param identityVerificationRecordId - Verification record from a prior identity check.
- * @param verificationTimestamp - Verification record creation timestamp.
  * @returns Array of grants.
  */
 export async function getUserGrants(
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<DataResult<unknown[]>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -343,7 +336,8 @@ export async function getUserGrants(
     }
 
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
     const res = await makeRequest('/api/my-account/grants', {
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
@@ -357,12 +351,10 @@ export async function getUserGrants(
  * Revokes a user grant.
  * @param grantId - The grant ID to revoke.
  * @param identityVerificationRecordId - Required verification record for identity.
- * @param verificationTimestamp - Verification record creation timestamp.
  */
 export async function revokeUserGrant(
   grantId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
@@ -374,7 +366,8 @@ export async function revokeUserGrant(
 
     assertSafeLogtoId(grantId, 'grantId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const extraHeaders: Record<string, string> = {
       'logto-verification-id': identityVerificationRecordId,

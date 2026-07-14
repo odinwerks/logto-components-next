@@ -41,10 +41,10 @@ export type ModalStep =
   | { kind: 'value' }
   | { kind: 'password' }
   | { kind: 'loading'; message: string }
-  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string; verificationTimestamp: number }
-  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string; verificationTimestamp: number }
-  | { kind: 'new-password'; verificationRecordId: string; verificationTimestamp: number }
-  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string; verificationTimestamp: number };
+  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
+  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
+  | { kind: 'new-password'; verificationRecordId: string }
+  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };
 
 export function PasswordVerifyModal({
   title, subtitle, step, onPasswordSubmit, onClose, passwordError, mode, colors, t, danger,
@@ -201,9 +201,9 @@ export function FlowModal({
   valueSubmitLabel?: string;
   onPasswordSubmit: (password: string) => void | Promise<void>;
   onCodeSubmit?: (code: string) => void | Promise<void>;
-  onTotpSubmit?: (code: string, secret: string, identityVerificationId: string, verificationTimestamp: number) => void | Promise<void>;
-  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string, verificationTimestamp: number) => void | Promise<void>;
-  onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string, verificationTimestamp: number) => void | Promise<void>;
+  onTotpSubmit?: (code: string, secret: string, identityVerificationId: string) => void | Promise<void>;
+  onNewPasswordSubmit?: (newPassword: string, verificationRecordId: string) => void | Promise<void>;
+  onRenamePasskeySubmit?: (name: string, passkeyId: string, verificationRecordId: string) => void | Promise<void>;
   onClose: () => void;
   passwordError?: string;
   extra?: React.ReactNode;
@@ -478,10 +478,10 @@ export function FlowModal({
                       value={code}
 onChange={(e) => {
                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                         setCode(val);
-                         if (val.length === 6) {
-                           void Promise.resolve(onTotpSubmit?.(val, step.secret, step.identityVerificationId, step.verificationTimestamp)).catch(() => {});
-                         }
+                          setCode(val);
+                          if (val.length === 6) {
+                            void Promise.resolve(onTotpSubmit?.(val, step.secret, step.identityVerificationId)).catch(() => {});
+                          }
                        }}
                       placeholder="000000"
                       maxLength={6}
@@ -494,7 +494,7 @@ onChange={(e) => {
                         <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                       )}
                       <Button variant="primary"
-                        onClick={() => { void Promise.resolve(onTotpSubmit?.(code, step.secret, step.identityVerificationId, step.verificationTimestamp)).catch(() => {}); }}
+                        onClick={() => { void Promise.resolve(onTotpSubmit?.(code, step.secret, step.identityVerificationId)).catch(() => {}); }}
                         disabled={code.length !== 6} mode={mode} colors={colors}
                       >
                         Activate <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
@@ -515,7 +515,7 @@ onChange={(e) => {
                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 suffix={
                   <button
@@ -536,7 +536,7 @@ onChange={(e) => {
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }} disabled={!newPw} mode={mode} colors={colors}>
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }} disabled={!newPw} mode={mode} colors={colors}>
                   {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -552,14 +552,14 @@ onChange={(e) => {
                 value={renameVal}
                 onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}
                 autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
                   <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-                <Button variant="primary" onClick={() => { if (renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId, step.verificationTimestamp)).catch(() => {}); } }} disabled={!renameVal.trim()} mode={mode} colors={colors}>
+                <Button variant="primary" onClick={() => { if (renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }} disabled={!renameVal.trim()} mode={mode} colors={colors}>
                   {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
                 </Button>
               </div>

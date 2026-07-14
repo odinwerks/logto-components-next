@@ -16,21 +16,35 @@ import { ValidationError } from '../validation';
 /**
  * Throws if the verification record has expired.
  *
- * @param timestamp - The verification record's expiresAt timestamp (ms),
- *   server-derived from Logto's response.
- * @throws {Error} 'VERIFICATION_EXPIRED' if Date.now() > timestamp + tolerance.
+ * SECURITY CONTRACT (BUG-001 fix): this function MUST only be called with a
+ * server-sealed `expiresAt` — never with a client-supplied value. The value
+ * originates from Logto's `expiresAt` and is delivered to destructive actions
+ * via the HMAC-signed, httpOnly cookie in `./verification-cookie`
+ * (`requireVerifiedIdentity`). A client cannot tamper with it. Previously this
+ * was called with a `verificationTimestamp` round-tripped through the client,
+ * which was bypassable (a client could pass `Date.now()`); that round-trip has
+ * been removed.
+ *
+ * @param expiresAt - The verification record's expiresAt timestamp (ms),
+ *   server-sealed from Logto's response via the verification cookie.
+ * @throws {ValidationError} 'VERIFICATION_EXPIRED' if the value is non-finite,
+ *   implausibly far-future, or `Date.now() > expiresAt + tolerance`.
  */
-export function assertVerificationNotExpired(timestamp: number): void {
+export function assertVerificationNotExpired(expiresAt: number): void {
   const now = Date.now();
-  // Reject non-finite or implausibly far-future timestamps (bypass prevention).
-  // Logto's verification TTL is 10 minutes. No legitimate expiresAt will be
-  // more than 30 minutes from now (10 min TTL + 20 min skew buffer).
-  // MAX_SAFE_INTEGER and similar are rejected.
-  if (!Number.isFinite(timestamp) || timestamp > now + LOGTO_VERIFICATION_MAX_FUTURE_MS) {
+  // Reject non-finite or implausibly far-future expiresAt values. This is a
+  // sanity bound on the server-sealed value (Logto's TTL is 10 minutes; a
+  // legitimate expiresAt is at most ~10 min from now). The 30-minute cap
+  // tolerates clock skew between this app and Logto. It is NOT a bypass
+  // prevention control — the bypass protection comes from the cookie being
+  // httpOnly + HMAC-signed, not from this cap.
+  if (!Number.isFinite(expiresAt) || expiresAt > now + LOGTO_VERIFICATION_MAX_FUTURE_MS) {
     throw new ValidationError('VERIFICATION_EXPIRED', 'verificationTimestamp');
   }
-  // Original staleness check
-  if (now > timestamp + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
+  // Staleness check: reject if the sealed expiry has already passed (plus a
+  // small clock-skew tolerance so a slightly-ahead app clock does not reject a
+  // still-valid Logto record).
+  if (now > expiresAt + VERIFICATION_CLOCK_SKEW_TOLERANCE_MS) {
     throw new ValidationError('VERIFICATION_EXPIRED', 'verificationTimestamp');
   }
 }

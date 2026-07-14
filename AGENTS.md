@@ -54,10 +54,13 @@ These functions/environmental constants must NEVER be modified without explicit 
 
 ## Identity Verification Flow
 
-- **`verifyPasswordForIdentity`** returns an opaque `identityVerificationRecordId`. This is a server-issued token, not guessable by attackers.
+- **`verifyPasswordForIdentity`** returns an opaque `identityVerificationRecordId` (and a `verificationTimestamp` for CLIENT UX ONLY — it is never trusted on the return path).
 - All destructive operations (account deletion, password change, email/phone update, MFA enrollment, session revocation, identity linking) require this record ID via the `logto-verification-id` request header.
-- **Staleness check** (`VERIFICATION_CLOCK_SKEW_TOLERANCE_MS`, 15 seconds) is enforced on EVERY operation. Do NOT remove or weaken these checks.
-- The verification flow is: `POST /api/verifications/password` → get `verificationRecordId` → pass in `logto-verification-id` header on subsequent mutation.
+- **Server-sealed staleness check (BUG-001 fix):** after `verifyPasswordForIdentity` succeeds, the server seals `{ recordId, expiresAt }` into an httpOnly, HMAC-signed cookie (`app/logto-kit/logic/actions/verification-cookie.ts`). Each destructive action reads that cookie via `requireVerifiedIdentity(recordId)`, verifies the HMAC, binds the sealed `recordId` to the client-supplied record ID, and runs `assertVerificationNotExpired(sealed.expiresAt)`. The expiry is therefore server-authoritative and tamper-evident — a malicious client can no longer substitute `Date.now()` to bypass the local check.
+- **Destructive actions do NOT accept a `verificationTimestamp` parameter.** Do NOT re-add one. The old client-round-tripped timestamp was bypassable (BUG-001); it has been removed from all 18 destructive action signatures.
+- `assertVerificationNotExpired` (in `helpers.ts`) is a pure staleness check that MUST only be called with a server-sealed `expiresAt` (via `requireVerifiedIdentity`), never with a client-supplied value. Do NOT remove or weaken it; do NOT feed it client input.
+- The verification flow is: `POST /api/verifications/password` → server seals cookie + returns `verificationRecordId` → destructive action reads cookie (`requireVerifiedIdentity`) and forwards `verificationRecordId` in the `logto-verification-id` header. Logto's server-side TTL on that record is the authoritative gate; the sealed cookie is defense-in-depth.
+- **Signing secret:** `LOGTO_VERIFICATION_COOKIE_SECRET` (falls back to `COOKIE_SECRET`); required in production. Multi-instance safe (HMAC, no shared state).
 
 ## Server-Derived User Identity (IDOR Prevention)
 

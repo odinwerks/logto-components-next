@@ -54,7 +54,7 @@ const defaultMfaList: MfaVerification[] = [
 
 type RenderOptions = {
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
-  onGenerateBackupCodes?: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<{ codes: string[] }>>;
+  onGenerateBackupCodes?: (verificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
   mobmode?: number;
 };
 

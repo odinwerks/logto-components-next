@@ -8,7 +8,8 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 
-import { assertVerificationNotExpired, auditSafe } from './helpers';
+import { auditSafe } from './helpers';
+import { requireVerifiedIdentity } from './verification-cookie';
 /**
  * Step 1 of WebAuthn registration: requests registration options from Logto.
  * @returns Registration options (for @simplewebauthn/browser) and a verificationRecordId.
@@ -57,7 +58,6 @@ export async function verifyAndLinkWebAuthn(
   payload: unknown,
   verificationRecordId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const _token = await getTokenForServerAction();
@@ -71,7 +71,9 @@ export async function verifyAndLinkWebAuthn(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie
+    // (set by verifyPasswordForIdentity), not a client-supplied timestamp.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     if (!payload || typeof payload !== 'object') {
       throw new ValidationError('INVALID_INPUT', 'payload');
@@ -110,7 +112,6 @@ export async function renamePasskey(
   verificationId: string,
   name: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const _token = await getTokenForServerAction();
@@ -125,7 +126,8 @@ export async function renamePasskey(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
     const trimmedName = typeof name === 'string' ? name.trim() : name;
     assertPasskeyName(trimmedName);
 

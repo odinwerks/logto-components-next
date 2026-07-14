@@ -51,6 +51,12 @@ vi.mock('../../config', () => ({
   }),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock distributed-state with in-memory implementations.
 // State maps are stored on globalThis so they survive vi.mock hoisting
 // and can be cleared in afterEach for test isolation.
@@ -126,6 +132,7 @@ vi.mock('../../../lib/distributed-state', () => {
 import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { introspectToken } from '../utils';
+import { requireVerifiedIdentity } from './verification-cookie';
 
 // ============================================================================
 // Imports under test
@@ -139,7 +146,6 @@ import {
   replaceTotpVerification,
   generateTotpSecret,
 } from './mfa';
-import { VERIFICATION_CLOCK_SKEW_TOLERANCE_MS } from '../constants';
 
 // ============================================================================
 // Helpers
@@ -159,7 +165,6 @@ const mockOkResponse = (data?: unknown): Response =>
 
 describe('addMfaVerification', () => {
   const validIdentityVrecId = 'ivrec-def456';
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -177,7 +182,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
 
@@ -197,7 +202,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '1'.repeat(17), secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -211,7 +216,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'a'.repeat(65) },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -225,7 +230,7 @@ describe('addMfaVerification', () => {
         type: 'Totp' as const,
         payload: { code: 123456 as unknown as string, secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -239,7 +244,7 @@ describe('addMfaVerification', () => {
         type: 'Totp' as const,
         payload: { code: '123456', secret: 12345 as unknown as string },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -253,7 +258,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: 'a'.repeat(16), secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
   });
@@ -264,7 +269,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'a'.repeat(64) },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
   });
@@ -277,7 +282,7 @@ describe('addMfaVerification', () => {
           newIdentifierVerificationRecordId: 'r'.repeat(129),
         },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -293,7 +298,7 @@ describe('addMfaVerification', () => {
           newIdentifierVerificationRecordId: 'vrec-abc123',
         },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
 
@@ -314,7 +319,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' } as unknown as { code: string; secret: string; __proto__?: object; constructor?: object },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
 
@@ -333,7 +338,7 @@ describe('addMfaVerification', () => {
           anotherGarbage: 42,
         },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(true);
 
@@ -353,7 +358,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -367,7 +372,7 @@ describe('addMfaVerification', () => {
         type: 'Totp',
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
       },
-      validIdentityVrecId, validTimestamp,
+      validIdentityVrecId,
     );
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
@@ -377,7 +382,6 @@ describe('addMfaVerification', () => {
 
 describe('generateBackupCodes', () => {
   const validIdentityVrecId = 'ivrec-def456';
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -398,7 +402,7 @@ describe('generateBackupCodes', () => {
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] }))
       .mockResolvedValueOnce(mockOkResponse());
 
-    const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
+    const r = await generateBackupCodes(validIdentityVrecId);
 
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('Expected success');
@@ -441,7 +445,7 @@ describe('generateBackupCodes', () => {
       .mockResolvedValueOnce(mockOkResponse({ codes: ['C3'] }))
       .mockResolvedValueOnce(mockOkResponse());
 
-    const r = await generateBackupCodes(validIdentityVrecId, validTimestamp);
+    const r = await generateBackupCodes(validIdentityVrecId);
 
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('Expected success');
@@ -483,8 +487,8 @@ describe('generateBackupCodes', () => {
       // Second call's enroll request
       .mockResolvedValueOnce(mockOkResponse());
 
-    const promise1 = generateBackupCodes(validIdentityVrecId, Date.now() + 600000);
-    const promise2 = generateBackupCodes(validIdentityVrecId, Date.now() + 600000);
+    const promise1 = generateBackupCodes(validIdentityVrecId);
+    const promise2 = generateBackupCodes(validIdentityVrecId);
 
     // Wait for first call to start
     await new Promise(r => setTimeout(r, 10));
@@ -502,22 +506,60 @@ describe('generateBackupCodes', () => {
   });
 });
 
-describe('verification clock skew tolerance', () => {
-  const now = new Date('2026-01-01T00:00:00.000Z').getTime();
-  const validWithinToleranceTimestamp = now - VERIFICATION_CLOCK_SKEW_TOLERANCE_MS + 1;
-
+describe('identity verification enforcement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
-    vi.spyOn(Date, 'now').mockReturnValue(now);
+    vi.mocked(makeRequest).mockResolvedValue(mockOkResponse());
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it('requires verified identity for addMfaVerification', async () => {
+    const result = await addMfaVerification(
+      {
+        type: 'Totp',
+        payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
+      },
+      'ivrec-def456',
+    );
+
+    expect(result.ok).toBe(true);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(requireVerifiedIdentity).toHaveBeenCalledWith('ivrec-def456');
   });
 
-  it('allows addMfaVerification within skew tolerance', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce(mockOkResponse());
+  it('requires verified identity for deleteMfaVerification', async () => {
+    const result = await deleteMfaVerification('mfa-def789', 'ivrec-def456');
+
+    expect(result.ok).toBe(true);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(requireVerifiedIdentity).toHaveBeenCalledWith('ivrec-def456');
+  });
+
+  it('requires verified identity for getBackupCodes', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      mockOkResponse({ codes: [{ code: 'A1', usedAt: null }] }),
+    );
+
+    const result = await getBackupCodes('ivrec-def456');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(result.data.codes).toHaveLength(1);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(requireVerifiedIdentity).toHaveBeenCalledWith('ivrec-def456');
+  });
+
+  it('requires verified identity for replaceTotpVerification', async () => {
+    const result = await replaceTotpVerification('JBSWY3DPEHPK3PXP', '123456', 'ivrec-def456');
+
+    expect(result.ok).toBe(true);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(requireVerifiedIdentity).toHaveBeenCalledWith('ivrec-def456');
+  });
+
+  it('rejects with VERIFICATION_EXPIRED when requireVerifiedIdentity rejects', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
 
     const result = await addMfaVerification(
       {
@@ -525,51 +567,13 @@ describe('verification clock skew tolerance', () => {
         payload: { code: '123456', secret: 'JBSWY3DPEHPK3PXP' },
       },
       'ivrec-def456',
-      validWithinToleranceTimestamp,
     );
 
-    expect(result.ok).toBe(true);
-    expect(makeRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows deleteMfaVerification within skew tolerance', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce(mockOkResponse());
-
-    const result = await deleteMfaVerification(
-      'mfa-def789',
-      'ivrec-def456',
-      validWithinToleranceTimestamp,
-    );
-
-    expect(result.ok).toBe(true);
-    expect(makeRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows getBackupCodes within skew tolerance', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce(
-      mockOkResponse({ codes: [{ code: 'A1', usedAt: null }] }),
-    );
-
-    const result = await getBackupCodes('ivrec-def456', validWithinToleranceTimestamp);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error('Expected success');
-    expect(result.data.codes).toHaveLength(1);
-    expect(makeRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows replaceTotpVerification within skew tolerance', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce(mockOkResponse());
-
-    const result = await replaceTotpVerification(
-      'JBSWY3DPEHPK3PXP',
-      '123456',
-      'ivrec-def456',
-      validWithinToleranceTimestamp,
-    );
-
-    expect(result.ok).toBe(true);
-    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain('VERIFICATION_EXPIRED');
+    }
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -615,7 +619,6 @@ describe('generateTotpSecret rate limiting', () => {
 });
 
 describe('deleteMfaVerification authorized pattern', () => {
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -628,7 +631,7 @@ describe('deleteMfaVerification authorized pattern', () => {
   });
 
   it('successfully deletes verification', async () => {
-    const r = await deleteMfaVerification('v-123', 'vrec-123', validTimestamp);
+    const r = await deleteMfaVerification('v-123', 'vrec-123');
     expect(r.ok).toBe(true);
     expect(makeRequest).toHaveBeenCalledWith(
       '/api/my-account/mfa-verifications/v-123',
@@ -638,7 +641,7 @@ describe('deleteMfaVerification authorized pattern', () => {
 
   it('rejects with UNAUTHENTICATED if token is inactive or missing sub', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: false });
-    const r = await deleteMfaVerification('v-123', 'vrec-123', validTimestamp);
+    const r = await deleteMfaVerification('v-123', 'vrec-123');
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('UNAUTHENTICATED');
@@ -646,7 +649,6 @@ describe('deleteMfaVerification authorized pattern', () => {
 });
 
 describe('replaceTotpVerification authorized pattern', () => {
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -659,7 +661,7 @@ describe('replaceTotpVerification authorized pattern', () => {
   });
 
   it('successfully replaces totp', async () => {
-    const r = await replaceTotpVerification('sec', '123456', 'vrec-123', validTimestamp);
+    const r = await replaceTotpVerification('sec', '123456', 'vrec-123');
     expect(r.ok).toBe(true);
     expect(makeRequest).toHaveBeenCalledWith(
       '/api/my-account/mfa-verifications/totp',
@@ -672,7 +674,7 @@ describe('replaceTotpVerification authorized pattern', () => {
 
   it('rejects with UNAUTHENTICATED if token is inactive or missing sub', async () => {
     vi.mocked(introspectToken).mockResolvedValue({ active: false });
-    const r = await replaceTotpVerification('sec', '123456', 'vrec-123', validTimestamp);
+    const r = await replaceTotpVerification('sec', '123456', 'vrec-123');
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('UNAUTHENTICATED');
@@ -680,22 +682,22 @@ describe('replaceTotpVerification authorized pattern', () => {
 
   it('rejects if secret or code are invalid', async () => {
     // Test invalid secret: length 0
-    const r1 = await replaceTotpVerification('', '123456', 'vrec-123', validTimestamp);
+    const r1 = await replaceTotpVerification('', '123456', 'vrec-123');
     expect(r1.ok).toBe(false);
     if (!r1.ok) expect(r1.error).toContain('INVALID_INPUT');
 
     // Test invalid secret: length > 64
-    const r2 = await replaceTotpVerification('a'.repeat(65), '123456', 'vrec-123', validTimestamp);
+    const r2 = await replaceTotpVerification('a'.repeat(65), '123456', 'vrec-123');
     expect(r2.ok).toBe(false);
     if (!r2.ok) expect(r2.error).toContain('INVALID_INPUT');
 
     // Test invalid code: not 6 digits
-    const r3 = await replaceTotpVerification('sec', '12345', 'vrec-123', validTimestamp);
+    const r3 = await replaceTotpVerification('sec', '12345', 'vrec-123');
     expect(r3.ok).toBe(false);
     if (!r3.ok) expect(r3.error).toContain('INVALID_INPUT');
 
     // Test invalid code: non-digits
-    const r4 = await replaceTotpVerification('sec', '12345a', 'vrec-123', validTimestamp);
+    const r4 = await replaceTotpVerification('sec', '12345a', 'vrec-123');
     expect(r4.ok).toBe(false);
     if (!r4.ok) expect(r4.error).toContain('INVALID_INPUT');
   });

@@ -96,9 +96,9 @@ const defaultUserData: UserData = {
 };
 
 interface RenderSessionsOptions {
-  onGetSessionsWithDeviceMeta?: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions?: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta?: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession?: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions?: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   mobmode?: number;
   isActive?: boolean;
@@ -115,20 +115,20 @@ function renderSessionsTab({
   onVerificationDismissed,
 }: RenderSessionsOptions = {}) {
   const getSessionsFn = (onGetSessionsWithDeviceMeta ??
-    vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
+    vi.fn<(verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
       ok: true,
       data: createdSessions,
-    })) as (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
+    })) as (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
 
   const revokeSessionFn = (onRevokeSession ??
-    vi.fn<(sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>>().mockResolvedValue({
+    vi.fn<(sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>>().mockResolvedValue({
       ok: true,
-    })) as (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+    })) as (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
 
   const revokeAllFn = (onRevokeAllOtherSessions ??
-    vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>>().mockResolvedValue({
+    vi.fn<(verificationRecordId: string) => Promise<ActionResult>>().mockResolvedValue({
       ok: true,
-    })) as (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+    })) as (verificationRecordId: string) => Promise<ActionResult>;
 
   const verifyFn = (onVerifyPassword ??
     vi.fn<(password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>>().mockResolvedValue({
@@ -629,7 +629,6 @@ describe('SessionsTab', () => {
         });
 
         expect(onGetSessions.mock.calls[1][0]).toBe('refreshed-vid');
-        expect(onGetSessions.mock.calls[1][1]).toBe(refreshedVerificationTimestamp);
       } finally {
         dateNowSpy.mockRestore();
       }

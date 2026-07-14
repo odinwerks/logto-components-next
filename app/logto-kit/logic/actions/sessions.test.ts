@@ -39,6 +39,12 @@ vi.mock('../guards', () => ({
   assertRevokeGrantsTarget: vi.fn(),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ============================================================================
 // Imports of mocked modules (for vi.mocked usage)
 // ============================================================================
@@ -48,6 +54,7 @@ import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { warn } from '../log';
+import { requireVerifiedIdentity } from './verification-cookie';
 
 // ============================================================================
 // Test Helpers
@@ -109,7 +116,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -125,7 +132,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -140,7 +147,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -159,7 +166,7 @@ describe('getSessionsWithDeviceMeta', () => {
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
 
     // Should succeed
     expect(result.ok).toBe(true);
@@ -187,7 +194,7 @@ describe('getSessionsWithDeviceMeta', () => {
       vi.mocked(makeRequest).mockResolvedValue(mockJsonResponse({}, 500));
 
       const { getSessionsWithDeviceMeta } = await import('./sessions');
-      const result = await getSessionsWithDeviceMeta('verification-record-id', Date.now() + 60000);
+      const result = await getSessionsWithDeviceMeta('verification-record-id');
 
       expect(result.ok).toBe(false);
       if (result.ok) return;
@@ -212,7 +219,7 @@ describe('getUserSessions response shape assertions', () => {
     );
 
     const { getUserSessions } = await import('./sessions');
-    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+    const result = await getUserSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -228,7 +235,7 @@ describe('getUserSessions response shape assertions', () => {
     );
 
     const { getUserSessions } = await import('./sessions');
-    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+    const result = await getUserSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -243,7 +250,7 @@ describe('getUserSessions response shape assertions', () => {
     );
 
     const { getUserSessions } = await import('./sessions');
-    const result = await getUserSessions('verification-record-id', Date.now() + 60000);
+    const result = await getUserSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -277,7 +284,7 @@ describe('revokeAllOtherSessions', () => {
     );
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verification-record-id');
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
@@ -304,7 +311,7 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
 
@@ -347,7 +354,7 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
 
@@ -369,7 +376,7 @@ describe('revokeAllOtherSessions', () => {
 
     const { revokeAllOtherSessions } = await import('./sessions');
     // Should complete successfully - nothing to revoke
-    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verification-record-id');
     expect(result).toEqual({ ok: true });
   });
 
@@ -380,7 +387,7 @@ describe('revokeAllOtherSessions', () => {
     } as unknown as Response);
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verif_1', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verif_1');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
     expect(result.error).toContain('SESSION_REVOKE_FAILED');
@@ -406,7 +413,7 @@ describe('revokeAllOtherSessions', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verification-record-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verification-record-id');
 
     expect(result.ok).toBe(true);
     // The DELETE call should have received an AbortSignal
@@ -440,8 +447,9 @@ describe('revokeAllOtherSessions', () => {
 
     try {
       const { revokeAllOtherSessions } = await import('./sessions');
-      // Pass a timestamp that is valid at startTime (1700000000000 - 5000 is within 15s tolerance of 1700000000000)
-      const result = await revokeAllOtherSessions('verification-record-id', startTime - 5000);
+      // Verification staleness is now checked by requireVerifiedIdentity (called once upfront),
+      // so mid-loop Date.now() drift is irrelevant. We just verify the bulk revocation succeeds.
+      const result = await revokeAllOtherSessions('verification-record-id');
       expect(result.ok).toBe(true);
     } finally {
       dateSpy.mockRestore();
@@ -449,58 +457,82 @@ describe('revokeAllOtherSessions', () => {
   });
 });
 
-describe('verificationTimestamp staleness checks', () => {
+describe('sealed-verification staleness checks', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
   });
 
-  it('fails getUserSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails getUserSessions with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { getUserSessions } = await import('./sessions');
-    const result = await getUserSessions('verif_expired', Date.now() - 16_000);
+    const result = await getUserSessions('verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('fails getSessionsWithDeviceMeta with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails getSessionsWithDeviceMeta with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { getSessionsWithDeviceMeta } = await import('./sessions');
-    const result = await getSessionsWithDeviceMeta('verif_expired', Date.now() - 16_000);
+    const result = await getSessionsWithDeviceMeta('verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('fails revokeUserSession with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails revokeUserSession with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { revokeUserSession } = await import('./sessions');
-    const result = await revokeUserSession('session-1', 'verif_expired', Date.now() - 16_000);
+    const result = await revokeUserSession('session-1', 'verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('fails revokeAllOtherSessions with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails revokeAllOtherSessions with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verif_expired', Date.now() - 16_000);
+    const result = await revokeAllOtherSessions('verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('fails getUserGrants with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails getUserGrants with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { getUserGrants } = await import('./sessions');
-    const result = await getUserGrants('verif_expired', Date.now() - 16_000);
+    const result = await getUserGrants('verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('fails revokeUserGrant with VERIFICATION_EXPIRED if the timestamp is in the past', async () => {
+  it('fails revokeUserGrant with VERIFICATION_EXPIRED when verification is expired/missing', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
     const { revokeUserGrant } = await import('./sessions');
-    const result = await revokeUserGrant('grant-1', 'verif_expired', Date.now() - 16_000);
+    const result = await revokeUserGrant('grant-1', 'verif_expired');
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -533,7 +565,7 @@ describe('revokeUserSession default revokeGrantsTarget (LOW-2)', () => {
     });
 
     const { revokeUserSession } = await import('./sessions');
-    const result = await revokeUserSession('session-abc', 'verif-id', Date.now() + 60000);
+    const result = await revokeUserSession('session-abc', 'verif-id');
 
     expect(result.ok).toBe(true);
     const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
@@ -555,7 +587,7 @@ describe('revokeUserSession default revokeGrantsTarget (LOW-2)', () => {
     });
 
     const { revokeUserSession } = await import('./sessions');
-    const result = await revokeUserSession('session-abc', 'verif-id', Date.now() + 60000, 'firstParty');
+    const result = await revokeUserSession('session-abc', 'verif-id', 'firstParty');
 
     expect(result.ok).toBe(true);
     const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
@@ -593,7 +625,7 @@ describe('revokeUserSession default revokeGrantsTarget (LOW-2)', () => {
     });
 
     const { revokeAllOtherSessions } = await import('./sessions');
-    const result = await revokeAllOtherSessions('verif-id', Date.now() + 60000);
+    const result = await revokeAllOtherSessions('verif-id');
 
     expect(result.ok).toBe(true);
     const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');

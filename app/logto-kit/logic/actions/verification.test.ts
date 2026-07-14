@@ -42,6 +42,12 @@ vi.mock('../utils', () => ({
   introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', active: true }),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ============================================================================
 // Imports of mocked modules (for vi.mocked usage)
 // ============================================================================
@@ -50,6 +56,7 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import { requireVerifiedIdentity, sealVerificationCookie } from './verification-cookie';
 
 // ============================================================================
 // Test Helpers
@@ -140,6 +147,7 @@ describe('verifyPasswordForIdentity', () => {
         body: { password: 'MySecureP@ss1' },
       })
     );
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_test123', expect.any(Number));
   });
 
   it('returns verificationRecordId from successful API response', async () => {
@@ -162,6 +170,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000);
   });
 
   it('correctly handles expiresAt as a Unix timestamp in milliseconds', async () => {
@@ -173,6 +182,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000);
   });
 
   it('correctly handles expiresAt as an ISO string', async () => {
@@ -184,6 +194,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(new Date('2024-06-03T19:00:00.000Z').getTime());
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', new Date('2024-06-03T19:00:00.000Z').getTime());
   });
 
   it('does NOT call makeRequest when validation fails', async () => {
@@ -225,14 +236,14 @@ describe('updateEmailWithVerification', () => {
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
   });
 
-  it('rejects when verificationTimestamp is in the past (staleness check)', async () => {
+  it('rejects with VERIFICATION_EXPIRED when identity verification is expired', async () => {
     const { updateEmailWithVerification } = await import('./verification');
-    const expiredTimestamp = Date.now() - 16_000; // 16 seconds ago (beyond 15s tolerance)
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
     const result = await updateEmailWithVerification(
       'new@example.com',
       'vr_identifier',
       'vr_identity',
-      expiredTimestamp,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -240,54 +251,12 @@ describe('updateEmailWithVerification', () => {
     expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
 
-  it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
+  it('accepts when identity verification is valid and makes API request', async () => {
     const { updateEmailWithVerification } = await import('./verification');
-    const mockNow = 1234567890000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const withinTolerance = mockNow - 15_000; // exactly 15 seconds ago (within tolerance)
-      const result = await updateEmailWithVerification(
-        'new@example.com',
-        'vr_identifier',
-        'vr_identity',
-        withinTolerance,
-      );
-      expect(result.ok).toBe(true);
-      expect(vi.mocked(makeRequest)).toHaveBeenCalled();
-    } finally {
-      dateSpy.mockRestore();
-    }
-  });
-
-  it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
-    const { updateEmailWithVerification } = await import('./verification');
-    const mockNow = 1234567890000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const justBeyondTolerance = mockNow - 15_001; // 15.001 seconds ago (beyond tolerance)
-      const result = await updateEmailWithVerification(
-        'new@example.com',
-        'vr_identifier',
-        'vr_identity',
-        justBeyondTolerance,
-      );
-      expect(result.ok).toBe(false);
-      if (result.ok) throw new Error('Expected error');
-      expect(result.error).toBe('VERIFICATION_EXPIRED');
-      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
-    } finally {
-      dateSpy.mockRestore();
-    }
-  });
-
-  it('accepts when verificationTimestamp is in the future', async () => {
-    const { updateEmailWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000; // 10 minutes from now
     const result = await updateEmailWithVerification(
       'new@example.com',
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(true);
     expect(vi.mocked(makeRequest)).toHaveBeenCalledWith(
@@ -298,24 +267,6 @@ describe('updateEmailWithVerification', () => {
         extraHeaders: { 'logto-verification-id': 'vr_identity' },
       })
     );
-  });
-
-  it('accepts when verificationTimestamp is exactly now (boundary)', async () => {
-    const { updateEmailWithVerification } = await import('./verification');
-    const mockNow = 1700000000000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const result = await updateEmailWithVerification(
-        'new@example.com',
-        'vr_identifier',
-        'vr_identity',
-        mockNow,
-      );
-      expect(result.ok).toBe(true);
-      expect(vi.mocked(makeRequest)).toHaveBeenCalled();
-    } finally {
-      dateSpy.mockRestore();
-    }
   });
 });
 
@@ -332,14 +283,14 @@ describe('updatePhoneWithVerification', () => {
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
   });
 
-  it('rejects when verificationTimestamp is in the past (staleness check)', async () => {
+  it('rejects with VERIFICATION_EXPIRED when identity verification is expired', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const expiredTimestamp = Date.now() - 16_000; // 16 seconds ago (beyond 15s tolerance)
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
     const result = await updatePhoneWithVerification(
       '1234567890',
       'vr_identifier',
       'vr_identity',
-      expiredTimestamp,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -347,54 +298,12 @@ describe('updatePhoneWithVerification', () => {
     expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
 
-  it('accepts when verificationTimestamp is within 15s tolerance (boundary)', async () => {
+  it('accepts when identity verification is valid and makes API request', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const mockNow = 1234567890000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const withinTolerance = mockNow - 15_000; // exactly 15 seconds ago (within tolerance)
-      const result = await updatePhoneWithVerification(
-        '+1234567890',
-        'vr_identifier',
-        'vr_identity',
-        withinTolerance,
-      );
-      expect(result.ok).toBe(true);
-      expect(vi.mocked(makeRequest)).toHaveBeenCalled();
-    } finally {
-      dateSpy.mockRestore();
-    }
-  });
-
-  it('rejects when verificationTimestamp is just beyond 15s tolerance (boundary)', async () => {
-    const { updatePhoneWithVerification } = await import('./verification');
-    const mockNow = 1234567890000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(mockNow);
-    try {
-      const justBeyondTolerance = mockNow - 15_001; // 15.001 seconds ago (beyond tolerance)
-      const result = await updatePhoneWithVerification(
-        '+1234567890',
-        'vr_identifier',
-        'vr_identity',
-        justBeyondTolerance,
-      );
-      expect(result.ok).toBe(false);
-      if (result.ok) throw new Error('Expected error');
-      expect(result.error).toBe('VERIFICATION_EXPIRED');
-      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
-    } finally {
-      dateSpy.mockRestore();
-    }
-  });
-
-  it('accepts when verificationTimestamp is in the future', async () => {
-    const { updatePhoneWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
     const result = await updatePhoneWithVerification(
       '+1234567890',
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(true);
     expect(vi.mocked(makeRequest)).toHaveBeenCalledWith(
@@ -409,12 +318,10 @@ describe('updatePhoneWithVerification', () => {
 
   it('normalizes formatted phone number and updates with primary phone', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
     const result = await updatePhoneWithVerification(
       '+1 (234) 567-8901',
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(true);
     expect(vi.mocked(makeRequest)).toHaveBeenCalledWith(
@@ -429,12 +336,10 @@ describe('updatePhoneWithVerification', () => {
 
   it('rejects non-string phone input (undefined)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
     const result = await updatePhoneWithVerification(
       undefined as unknown as string,
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -443,12 +348,10 @@ describe('updatePhoneWithVerification', () => {
 
   it('rejects non-string phone input (null)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
     const result = await updatePhoneWithVerification(
       null as unknown as string,
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -457,12 +360,10 @@ describe('updatePhoneWithVerification', () => {
 
   it('rejects non-string phone input (object)', async () => {
     const { updatePhoneWithVerification } = await import('./verification');
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
     const result = await updatePhoneWithVerification(
       {} as unknown as string,
       'vr_identifier',
       'vr_identity',
-      futureTimestamp,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
@@ -896,11 +797,10 @@ describe('Country Gating on Phone Verification Actions', () => {
   });
 
   describe('updatePhoneWithVerification gating', () => {
-    const futureTimestamp = Date.now() + 10 * 60 * 1000;
 
     it('allows any country when mode is none', async () => {
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+380501234567', 'id_ver', 'id_ident', futureTimestamp);
+      const result = await updatePhoneWithVerification('+380501234567', 'id_ver', 'id_ident');
       expect(result.ok).toBe(true);
     });
 
@@ -909,7 +809,7 @@ describe('Country Gating on Phone Verification Actions', () => {
       mockCountryFilter.codes = ['380']; // Only Ukraine allowed
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+14155552671', 'id_ver', 'id_ident', futureTimestamp);
+      const result = await updatePhoneWithVerification('+14155552671', 'id_ver', 'id_ident');
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error('Expected failure');
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
@@ -920,7 +820,7 @@ describe('Country Gating on Phone Verification Actions', () => {
       mockCountryFilter.codes = ['380']; // Only Ukraine allowed
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+380501234567', 'id_ver', 'id_ident', futureTimestamp);
+      const result = await updatePhoneWithVerification('+380501234567', 'id_ver', 'id_ident');
       expect(result.ok).toBe(true);
     });
 
@@ -929,7 +829,7 @@ describe('Country Gating on Phone Verification Actions', () => {
       mockCountryFilter.codes = ['380']; // Only Ukraine allowed
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident', futureTimestamp); // MW (unmapped)
+      const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident'); // MW (unmapped)
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error('Expected failure');
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
@@ -940,7 +840,7 @@ describe('Country Gating on Phone Verification Actions', () => {
       mockCountryFilter.codes = ['380']; // Only Ukraine blocked
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident', futureTimestamp); // MW (unmapped)
+      const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident'); // MW (unmapped)
       expect(result.ok).toBe(true);
     });
 
@@ -949,7 +849,7 @@ describe('Country Gating on Phone Verification Actions', () => {
       mockCountryFilter.codes = ['1']; // US/CA blocked
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+14155552671', 'id_ver', 'id_ident', futureTimestamp);
+      const result = await updatePhoneWithVerification('+14155552671', 'id_ver', 'id_ident');
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error('Expected failure');
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');

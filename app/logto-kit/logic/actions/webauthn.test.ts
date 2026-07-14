@@ -17,6 +17,12 @@ vi.mock('./request', () => ({
   makeRequest: vi.fn(),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
   plainCode: vi.fn((code: string) => {
@@ -185,7 +191,6 @@ describe('verifyAndLinkWebAuthn', () => {
   const validPayload = { id: 'cred123', rawId: 'rawid', type: 'public-key', response: {} };
   const validVrecId = 'vrec-abc123';
   const validIdentityVrecId = 'ivrec-def456';
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -194,7 +199,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('makes two POST requests and succeeds', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(true);
 
     expect(makeRequest).toHaveBeenCalledTimes(2);
@@ -205,7 +210,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('sends correct body for verify step', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(true);
 
     const [firstCall] = vi.mocked(makeRequest).mock.calls;
@@ -216,7 +221,7 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('sends correct body and headers for link step', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(true);
 
     const [, secondCall] = vi.mocked(makeRequest).mock.calls;
@@ -228,26 +233,26 @@ describe('verifyAndLinkWebAuthn', () => {
   });
 
   it('returns error for invalid verificationRecordId', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, '../bad-id', validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, '../bad-id', validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for invalid identityVerificationRecordId', async () => {
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, '../bad-id', validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, '../bad-id');
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for non-object payload', async () => {
-    let r = await verifyAndLinkWebAuthn('not-an-object', validVrecId, validIdentityVrecId, validTimestamp);
+    let r = await verifyAndLinkWebAuthn('not-an-object', validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_INPUT');
 
-    r = await verifyAndLinkWebAuthn(null, validVrecId, validIdentityVrecId, validTimestamp);
+    r = await verifyAndLinkWebAuthn(null, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_INPUT');
@@ -256,7 +261,7 @@ describe('verifyAndLinkWebAuthn', () => {
   it('returns error when throwOnApiError rejects', async () => {
     vi.mocked(throwOnApiError).mockRejectedValueOnce(makeSanitizedError('MFA_ENROLL_FAILED'));
 
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
@@ -267,7 +272,7 @@ describe('verifyAndLinkWebAuthn', () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toBe('UNAUTHORIZED');
@@ -277,10 +282,21 @@ describe('verifyAndLinkWebAuthn', () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
-    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId, validTimestamp);
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toBe('UNAUTHORIZED');
+  });
+
+  it('fails with VERIFICATION_EXPIRED when the sealed verification is missing', async () => {
+    const { requireVerifiedIdentity } = await import('./verification-cookie');
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(makeSanitizedError('VERIFICATION_EXPIRED'));
+
+    const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -292,7 +308,6 @@ describe('renamePasskey', () => {
   const validId = 'passkey-abc123';
   const validIdentityId = 'ivrec-def456';
   const validName = 'My MacBook';
-  const validTimestamp = Date.now() + 600000;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -301,7 +316,7 @@ describe('renamePasskey', () => {
   });
 
   it('makes a PATCH request to the correct endpoint', async () => {
-    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(true);
 
     expect(makeRequest).toHaveBeenCalledWith(
@@ -315,54 +330,54 @@ describe('renamePasskey', () => {
   });
 
   it('returns error for invalid verificationId (path traversal)', async () => {
-    const r = await renamePasskey('../bad', validName, validIdentityId, validTimestamp);
+    const r = await renamePasskey('../bad', validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for invalid identityVerificationRecordId', async () => {
-    const r = await renamePasskey(validId, validName, '../bad', validTimestamp);
+    const r = await renamePasskey(validId, validName, '../bad');
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_ID');
   });
 
   it('returns error for empty passkey name', async () => {
-    let r = await renamePasskey(validId, '', validIdentityId, validTimestamp);
+    let r = await renamePasskey(validId, '', validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_FIELD_TYPE');
 
-    r = await renamePasskey(validId, '   ', validIdentityId, validTimestamp);
+    r = await renamePasskey(validId, '   ', validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_FIELD_TYPE');
   });
 
   it('returns error for name over 64 characters', async () => {
-    const r = await renamePasskey(validId, 'a'.repeat(65), validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, 'a'.repeat(65), validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('FIELD_TOO_LONG');
   });
 
   it('returns error for name with control characters', async () => {
-    const r = await renamePasskey(validId, 'name\x00inject', validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, 'name\x00inject', validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('INVALID_CHARS');
   });
 
   it('accepts a name exactly 64 characters long', async () => {
-    const r = await renamePasskey(validId, 'a'.repeat(64), validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, 'a'.repeat(64), validIdentityId);
     expect(r.ok).toBe(true);
   });
 
   it('returns error when throwOnApiError rejects', async () => {
     vi.mocked(throwOnApiError).mockRejectedValueOnce(makeSanitizedError('MFA_ENROLL_FAILED'));
 
-    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('MFA_ENROLL_FAILED');
@@ -372,7 +387,7 @@ describe('renamePasskey', () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
-    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toBe('UNAUTHORIZED');
@@ -382,9 +397,20 @@ describe('renamePasskey', () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
-    const r = await renamePasskey(validId, validName, validIdentityId, validTimestamp);
+    const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toBe('UNAUTHORIZED');
+  });
+
+  it('fails with VERIFICATION_EXPIRED when the sealed verification is missing', async () => {
+    const { requireVerifiedIdentity } = await import('./verification-cookie');
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(makeSanitizedError('VERIFICATION_EXPIRED'));
+
+    const r = await renamePasskey(validId, validName, validIdentityId);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });

@@ -14,6 +14,12 @@ vi.mock('./request', () => ({
   makeRequest: vi.fn(),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../errors', () => ({
   throwOnApiError: vi.fn().mockResolvedValue(undefined),
   plainCode: vi.fn((code: string) => {
@@ -57,14 +63,14 @@ describe('updateUserPassword', () => {
       json: async () => ({}),
     } as Response);
 
-    const res = await updateUserPassword('new-secure-password', 'vrec-123', Date.now());
+    const res = await updateUserPassword('new-secure-password', 'vrec-123');
     expect(res.ok).toBe(true);
   });
 
   it('fails with UNAUTHENTICATED when token is inactive', async () => {
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-123', active: false });
 
-    const res = await updateUserPassword('new-secure-password', 'vrec-123', Date.now());
+    const res = await updateUserPassword('new-secure-password', 'vrec-123');
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('Expected failure');
     expect(res.error).toBe('UNAUTHENTICATED');
@@ -75,9 +81,24 @@ describe('updateUserPassword', () => {
     // without a subject claim). The guard must reject this to prevent userId becoming undefined.
     vi.mocked(introspectToken).mockResolvedValueOnce({ active: true, sub: undefined });
 
-    const res = await updateUserPassword('new-secure-password', 'vrec-123', Date.now());
+    const res = await updateUserPassword('new-secure-password', 'vrec-123');
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('Expected failure');
     expect(res.error).toBe('UNAUTHENTICATED');
+  });
+
+  it('fails with VERIFICATION_EXPIRED when the sealed verification is missing/expired', async () => {
+    const { requireVerifiedIdentity } = await import('./verification-cookie');
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce((() => {
+      const e = new Error('VERIFICATION_EXPIRED');
+      e.name = 'SanitizedError';
+      return e;
+    })());
+
+    const res = await updateUserPassword('new-secure-password', 'vrec-123');
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('Expected failure');
+    expect(res.error).toBe('VERIFICATION_EXPIRED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });

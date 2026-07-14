@@ -7,10 +7,10 @@ import { assertSafeLogtoId } from '../guards';
 import { makeRequest } from './request';
 import { throwOnApiError, sanitize } from '../errors';
 import { auditSafe } from './helpers';
+import { requireVerifiedIdentity, clearVerificationCookie } from './verification-cookie';
 import { getTokenForServerAction } from './tokens';
 import { safeAction, type ActionResult } from './safe';
 
-import { assertVerificationNotExpired } from './helpers';
 /**
  * Permanently deletes the currently authenticated user's account.
  *
@@ -27,12 +27,20 @@ import { assertVerificationNotExpired } from './helpers';
  * The M2M token used for the final Management API call is minted with the
  * narrowest scope needed (see logto.ts :: getManagementApiToken).
  *
+ * Verification staleness (BUG-001 fix): the expiry is read from the
+ * server-sealed, HMAC-signed httpOnly cookie set by
+ * `verifyPasswordForIdentity` (via `requireVerifiedIdentity`), NOT from a
+ * client-supplied timestamp. A malicious client can no longer substitute
+ * `Date.now()` to bypass the local staleness check. Logto's server-side
+ * `logto-verification-id` TTL remains the authoritative gate.
+ *
  * Flow:
- *   1. Fetch user's access token from session cookie.
- *   2. Introspect it; reject if inactive or subject missing.
- *   3. Validate the subject format (defense in depth).
- *   4. Mint an M2M token scoped to user deletion.
- *   5. DELETE /api/users/{userId} with the M2M token.
+ *   1. Verify the sealed cookie + staleness (requireVerifiedIdentity).
+ *   2. Fetch user's access token from session cookie.
+ *   3. Introspect it; reject if inactive or subject missing.
+ *   4. Validate the subject format (defense in depth).
+ *   5. Mint an M2M token scoped to user deletion.
+ *   6. DELETE /api/users/{userId} with the M2M token.
  *
  * This action deliberately does NOT call signOut() or redirect(). Calling
  * signOut() inside a server action fires Next.js redirect() which races
@@ -40,29 +48,23 @@ import { assertVerificationNotExpired } from './helpers';
  * for navigating away after this resolves.
  *
  * @param identityVerificationRecordId - Opaque ID from a prior password
- *   verification. Only used to document intent; Logto enforces the actual
- *   verification via the preceding verifyPasswordForIdentity() flow that
- *   minted this record.
- * @param verificationRecordTimestamp - REQUIRED. Timestamp (ms) derived
- *   server-side from Logto's `expiresAt` field (returned by
- *   verifyPasswordForIdentity). Never trust a client-supplied value here -
- *   always pass the timestamp from the verification action's DataResult.
- *   Omitting this parameter bypasses the staleness check (BUG-SEC-003).
+ *   verification. Forwarded to Logto as the `logto-verification-id` header
+ *   and bound against the sealed verification cookie. Logto enforces the
+ *   actual verification record TTL server-side.
  */
 export async function deleteUserAccount(
   identityVerificationRecordId: string,
-  verificationRecordTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Require the caller to have completed password verification ─────────
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    // verificationTimestamp is now Logto's expiresAt (server-derived, changed
-    // in verification.ts). We just check Date.now() > expiresAt - no hardcoded
-    // TTL. If Logto changes its TTL this check automatically adapts.
-    // BUG-SEC-003: This check is mandatory - never skip it.
-    assertVerificationNotExpired(verificationRecordTimestamp);
+    // BUG-001 fix: reads the server-sealed httpOnly cookie (set by
+    // verifyPasswordForIdentity) and verifies its HMAC + binds the sealed
+    // recordId to the supplied identityVerificationRecordId + checks the
+    // sealed expiresAt. The client cannot tamper with this value.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     // ── Derive token + userId server-side (never trust the client) ─────────
     const sessionToken = await getTokenForServerAction();
@@ -114,7 +116,8 @@ export async function deleteUserAccount(
       // auditSafe already swallows errors; this is defense in depth
     }
 
-    // Clear all local logto_ and logto-active-org cookies on path / (BUG-003)
+    // Clear all local logto_ and logto-active-org cookies on path / (BUG-003),
+    // plus the sealed verification cookie (no longer valid after deletion).
     try {
       const cookieStore = await cookies();
       for (const cookie of cookieStore.getAll()) {
@@ -125,6 +128,9 @@ export async function deleteUserAccount(
     } catch {
       // Best-effort cookie cleanup — deletion already succeeded
     }
+    // Best-effort: clear the sealed verification cookie regardless of the
+    // loop above (it is not prefixed with logto_).
+    await clearVerificationCookie();
 
     // Client navigates away after this resolves (window.location.href).
   });

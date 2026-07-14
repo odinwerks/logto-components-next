@@ -11,7 +11,8 @@ import { ValidationError } from '../validation';
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../config';
 
-import { assertVerificationNotExpired, auditSafe } from './helpers';
+import { auditSafe } from './helpers';
+import { requireVerifiedIdentity } from './verification-cookie';
 import { createLockManager, createRateLimiter } from '../../../lib/distributed-state';
 
 // In-flight lock to prevent concurrent backup codes generation races
@@ -89,7 +90,6 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
 export async function addMfaVerification(
   verification: MfaVerificationPayload,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
@@ -101,7 +101,9 @@ export async function addMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie
+    // (set by verifyPasswordForIdentity), not a client-supplied timestamp.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const { type, payload } = verification;
 
@@ -176,7 +178,6 @@ export async function addMfaVerification(
 export async function deleteMfaVerification(
   verificationId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
@@ -188,7 +189,8 @@ export async function deleteMfaVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const res = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(verificationId)}`, {
       method: 'DELETE',
@@ -209,7 +211,6 @@ export async function deleteMfaVerification(
  */
 export async function generateBackupCodes(
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<DataResult<{ codes: string[] }>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
@@ -228,7 +229,8 @@ export async function generateBackupCodes(
     try {
 
       // ── Staleness check (defense in depth) ────────────────────────────────
-      assertVerificationNotExpired(verificationTimestamp);
+      // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+      await requireVerifiedIdentity(identityVerificationRecordId);
 
       // Step 1: Remove existing backup-code factors so old codes are invalidated.
       const listRes = await makeRequest('/api/my-account/mfa-verifications', {
@@ -292,7 +294,6 @@ export async function generateBackupCodes(
  */
 export async function getBackupCodes(
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<DataResult<{ codes: Array<{ code: string; usedAt: string | null }> }>> {
   return safeAction(async () => {
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
@@ -305,7 +306,8 @@ export async function getBackupCodes(
     }
 
     // ── Staleness check (defense in depth) ──────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     const res = await makeRequest('/api/my-account/mfa-verifications/backup-codes', {
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
@@ -321,7 +323,6 @@ export async function replaceTotpVerification(
   secret: string,
   code: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
@@ -332,7 +333,8 @@ export async function replaceTotpVerification(
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
     // ── Staleness check (defense in depth) ────────────────────────────────
-    assertVerificationNotExpired(verificationTimestamp);
+    // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
+    await requireVerifiedIdentity(identityVerificationRecordId);
 
     if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       throw new ValidationError('INVALID_INPUT', 'verification.code');
