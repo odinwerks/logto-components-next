@@ -91,7 +91,7 @@ describe('ScaleFade', () => {
 });
 
 describe('CrossFade', () => {
-  it('hides non-displayed panels with display:none and reveals them after the fade', () => {
+  it('hides non-displayed panels with display:none and unmounts them after the fade', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(
       <CrossFade activeKey="a">
@@ -117,14 +117,15 @@ describe('CrossFade', () => {
       vi.advanceTimersByTime(150);
     });
 
-    // After the timer: 'b' revealed, 'a' hidden.
-    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    // After the timer: 'b' revealed, 'a' unmounted (no state preserved).
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
     expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
   });
 
-  it('preserves child component state across key round-trips', () => {
-    // The BUG-010 regression guard: visited panels stay mounted (hidden via
-    // display:none) so their internal state survives tab round-trips.
+  it('does NOT preserve child component state across key round-trips', () => {
+    // Previous behaviour (BUG-010): visited panels stayed mounted (hidden via
+    // display:none) so internal state survived tab round-trips. After the
+    // simplification, CrossFade unmounts old panels — state is NOT preserved.
     vi.useFakeTimers();
 
     const Stateful = ({ id }: { id: string }) => {
@@ -146,15 +147,16 @@ describe('CrossFade', () => {
     act(() => {
       vi.advanceTimersByTime(150);
     });
-    // 'a' is hidden but still mounted → its input keeps the draft value.
-    expect(screen.getByTestId('input-a')).toHaveValue('draft');
+    // 'a' is unmounted — its input no longer exists.
+    expect(screen.queryByTestId('input-a')).toBeNull();
 
     // Switch back to 'a'.
     rerender(renderTree('a'));
     act(() => {
       vi.advanceTimersByTime(150);
     });
-    expect(screen.getByTestId('input-a')).toHaveValue('draft');
+    // The fresh 'a' input starts blank — state was not preserved.
+    expect(screen.getByTestId('input-a')).toHaveValue('');
   });
 
   it('handles rapid round-trip (A→B→A) before timer fires without getting stuck invisible', () => {
@@ -184,17 +186,17 @@ describe('CrossFade', () => {
 
     // 3. Panel 'a' must be visible (not display:none).
     expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
-    // Panel 'b' was never shown so it should be hidden.
-    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
+    // Panel 'b' was never shown and is unmounted (no state preservation).
+    expect(container.querySelector('[data-tab="b"]')).toBeNull();
 
     // Now advance the timer — the fade completes cleanly.
     act(() => {
       vi.advanceTimersByTime(150);
     });
 
-    // After timer: 'a' still visible, 'b' still hidden.
+    // After timer: 'a' still visible, 'b' still unmounted.
     expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
-    expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).toBeNull();
   });
 
   it('supports an optional wrapItem wrapper (e.g. error boundary)', () => {
@@ -237,7 +239,7 @@ describe('CrossFade', () => {
     expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'none' });
 
     act(() => { vi.advanceTimersByTime(150); });
-    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
     expect(container.querySelector('[data-tab="b"]')).toHaveStyle({ display: 'flex', flexDirection: 'column' });
   });
 

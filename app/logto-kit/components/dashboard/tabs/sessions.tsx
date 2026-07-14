@@ -248,8 +248,8 @@ export function SessionsTab({
   };
 
   // Auto-open password modal when the tab becomes active and is unverified (D13).
-  // Gated on isActive to prevent the modal from opening on background tabs
-  // (CrossFade keeps all visited tabs mounted via display:none).
+  // Gated on isActive because the sessions tab unmounts on tab switch
+  // (CrossFade no longer preserves state across tab changes).
   useEffect(() => {
     if (isActive && viewState === 'unverified' && !loading) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional D13 auto-open behavior

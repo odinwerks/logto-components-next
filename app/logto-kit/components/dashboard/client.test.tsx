@@ -236,10 +236,9 @@ describe('DashboardClient - userShape prop', () => {
     expect(screen.getByRole('tabpanel').querySelector('.dashboard-tabpanel-content')).not.toBeNull();
   });
 
-  it('preserves tab form state across tab switches (BUG A — keyed fade wrapper regression)', () => {
-    // The profile tab mock exposes a controlled input. Typing into it and
-    // switching tabs should NOT reset the value — the component must stay
-    // mounted (hidden via display:none, not unmounted) during the switch.
+  it('does NOT preserve tab form state across tab switches (CrossFade unmounts old panels)', () => {
+    // After the CrossFade simplification, panels unmount on tab switch.
+    // Form drafts are NOT preserved — the profile input resets on re-entry.
     vi.useFakeTimers();
 
     render(
@@ -254,16 +253,16 @@ describe('DashboardClient - userShape prop', () => {
     fireEvent.change(input, { target: { value: 'my draft' } });
     expect(input).toHaveValue('my draft');
 
-    // Switch to Security tab — triggers crossfade (isFading → timeout).
+    // Switch to Security tab — triggers crossfade.
     fireEvent.click(screen.getByRole('tab', { name: 'Security' }));
 
-    // Advance past the 50ms fade-out timer so displayedTab updates.
+    // Advance past the 50ms fade-out timer.
     act(() => {
       vi.advanceTimersByTime(80);
     });
 
-    // The profile input must still exist in the DOM (hidden, not unmounted).
-    expect(screen.getByTestId('profile-draft-input')).toBeInTheDocument();
+    // The profile input is unmounted — no longer in the DOM.
+    expect(screen.queryByTestId('profile-draft-input')).toBeNull();
 
     // Switch back to Profile tab.
     fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
@@ -272,16 +271,15 @@ describe('DashboardClient - userShape prop', () => {
       vi.advanceTimersByTime(80);
     });
 
-    // The draft value must survive the round-trip.
-    expect(screen.getByTestId('profile-draft-input')).toHaveValue('my draft');
+    // The fresh profile input starts blank — state was not preserved.
+    expect(screen.getByTestId('profile-draft-input')).toHaveValue('');
   });
 
   it('fades the outgoing tab out then reveals the incoming tab (CrossFade)', () => {
-    // Regression guard for the state-preserving crossfade: the outgoing panel
-    // stays visible (fading out) during the fade-out phase, then the incoming
-    // panel is revealed. Replaces the legacy ldd-tab-fade-out/in class checks
-    // — Framer Motion drives the opacity; we assert the display toggling that
-    // gates which panel is interactive.
+    // After the CrossFade simplification: the outgoing panel fades out then
+    // unmounts. Replaces the legacy ldd-tab-fade-out/in class checks — Framer
+    // Motion drives the opacity; we assert the display toggling that gates
+    // which panel is interactive.
     vi.useFakeTimers();
 
     render(
@@ -312,9 +310,9 @@ describe('DashboardClient - userShape prop', () => {
       vi.advanceTimersByTime(80);
     });
 
-    // After timeout: incoming tab is revealed, outgoing is hidden.
+    // After timeout: incoming tab is revealed, outgoing is unmounted.
     expect(securityWrapper).not.toHaveStyle({ display: 'none' });
-    expect(profileWrapper).toHaveStyle({ display: 'none' });
+    expect(panel.querySelector('[data-tab="profile"]')).toBeNull();
   });
 
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {
