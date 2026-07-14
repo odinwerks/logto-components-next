@@ -6,7 +6,7 @@ import type { UserData, LogtoSession } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { Monitor, Smartphone, Trash2, Lock, MapPin, RefreshCw, Globe } from 'lucide-react';
+import { Monitor, Smartphone, Trash2, MapPin, RefreshCw, Globe } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { AnimatePresence, Spinner, Pulse } from '../../shared/motion';
 import { PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
@@ -33,6 +33,10 @@ interface SessionsTabProps {
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  /** Whether this tab is the currently-visible tab in the shell. Gates auto-open of PasswordVerifyModal. */
+  isActive?: boolean;
+  /** Called when the user closes/dismisses the view-purpose PasswordVerifyModal without successfully verifying. */
+  onVerificationDismissed?: () => void;
 }
 
 function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: string | null; size: number }) {
@@ -62,6 +66,8 @@ export function SessionsTab({
   colors,
   t,
   mobmode,
+  isActive = false,
+  onVerificationDismissed,
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
@@ -245,6 +251,16 @@ export function SessionsTab({
     setModalError('');
   };
 
+  // Auto-open password modal when the tab becomes active and is unverified (D13).
+  // Gated on isActive to prevent the modal from opening on background tabs
+  // (CrossFade keeps all visited tabs mounted via display:none).
+  useEffect(() => {
+    if (isActive && viewState === 'unverified' && !loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional D13 auto-open behavior
+      startViewVerification();
+    }
+  }, [isActive, viewState, loading]);
+
   /**
    * Initiates session revocation flow.
    *
@@ -394,10 +410,12 @@ export function SessionsTab({
     return '';
   };
 
-  // BUG-022: Guard with `&& !loading` so that during verifyAndLoad's sessions
-  // fetch (where viewState is still 'unverified' but loading is true) the
-  // skeleton renders instead of briefly re-showing the verify-password card.
-  if (viewState === 'unverified' && !loading) {
+  // D13: Replace inline verify-card with skeleton + auto-opened modal.
+  // The skeleton renders for both unverified (waiting for password entry) and
+  // loading (fetching sessions after successful verification) states.
+  // The view-purpose PasswordVerifyModal renders as an overlay on top of the skeleton
+  // so it stays visible during the async verifyAndLoad flow.
+  if ((viewState === 'unverified' && !loading) || loading) {
     return (
       <div>
         <div style={{ marginBottom: '1.625rem' }}>
@@ -405,24 +423,207 @@ export function SessionsTab({
             {t.sessions.description}
           </p>
         </div>
-        <div style={{
-          padding: '2.5rem 2rem',
-          textAlign: 'center',
-          background: T.bg,
-          border: `1px solid ${T.border}`,
-          borderRadius: DASHBOARD_RADIUS,
-        }}>
-          <Lock size={28} color={T.muted} strokeWidth={1.5} style={{ marginBottom: '0.75rem' }} />
-          <h3 style={{ fontFamily: T.font, fontSize: '0.9375rem', fontWeight: 600, color: T.text, marginBottom: '0.5rem' }}>
-            {t.sessions.verifyToView}
-          </h3>
-          <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.muted, marginBottom: '1.25rem' }}>
-            {t.sessions.verifyToViewDesc}
-          </p>
-          <Button variant="primary" onClick={startViewVerification} mode={mode} colors={c}>
-            {t.sessions.verifyPassword}
-          </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {[0, 1, 2].map(i => {
+            const isCurrent = i === 0;
+            return (
+              <div key={`skeleton-${i}`} style={{
+                background: T.bg,
+                border: `1px solid ${T.border}`,
+                borderRadius: DASHBOARD_RADIUS,
+                display: 'flex',
+                alignItems: 'stretch',
+                overflow: 'hidden',
+                minHeight: isMobile ? 'auto' : '5.5rem',
+                padding: isMobile ? '0.75rem 0.75rem' : '0 0.875rem',
+                opacity: 1 - i * 0.2,
+              }}>
+                {/* 1. OS Icon placeholder */}
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: isMobile ? '0 0 0 0' : '0.5rem 1.25rem 0.5rem 0.125rem',
+                  marginRight: isMobile ? '0.75rem' : '0'
+                }}>
+                  <Pulse
+                    delay={i * 0.15}
+                    style={{
+                      width: isMobile ? '3rem' : '3rem',
+                      height: isMobile ? '3rem' : '3rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                    }}
+                  />
+                </div>
+
+                {/* 2. Text Content placeholder */}
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  padding: isMobile ? '0' : '0.5rem 1rem',
+                  gap: isMobile ? '0.25rem' : '0.375rem',
+                }}>
+                  {/* Title */}
+                  <Pulse
+                    delay={i * 0.15}
+                    style={{
+                      height: isMobile ? '0.625rem' : '0.75rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      width: '55%',
+                    }}
+                  />
+                  {/* Signed In Timestamp */}
+                  <Pulse
+                    delay={i * 0.15 + 0.1}
+                    style={{
+                      height: '0.5rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      width: isMobile ? '70%' : '45%',
+                    }}
+                  />
+                  {/* Expires Timestamp */}
+                  <Pulse
+                    delay={i * 0.15 + 0.2}
+                    style={{
+                      height: '0.5rem',
+                      borderRadius: '0.25rem',
+                      background: T.raised,
+                      width: isMobile ? '50%' : '35%',
+                    }}
+                  />
+                  {/* Last Active (only if showLastActive) */}
+                  {showLastActive && (
+                    <Pulse
+                      delay={i * 0.15 + 0.3}
+                      style={{
+                        height: '0.5rem',
+                        borderRadius: '0.25rem',
+                        background: T.raised,
+                        width: isMobile ? '40%' : '30%',
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* 3. Right-aligned button/action area */}
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: isMobile ? 'flex-end' : 'center',
+                  padding: isMobile ? '0' : '0.5rem 0.375rem 0.5rem 0',
+                  gap: '0.375rem',
+                }}>
+                  {isCurrent ? (
+                    isMobile ? (
+                      // Globe icon placeholder for "This Device"
+                      <button
+                        aria-label={t.sessions.thisDevice}
+                        style={{
+                          width: '2rem',
+                          height: '2rem',
+                          borderRadius: '0.25rem',
+                          border: `1px solid ${c.borderColor}`,
+                          background: c.bgTertiary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'default',
+                          opacity: 0.6,
+                        }}
+                        disabled
+                      >
+                        <Globe size={16} color={T.muted} />
+                      </button>
+                    ) : (
+                      // Desktop This Device Badge skeleton/placeholder
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        fontFamily: T.font,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        padding: '0.3125rem 0.75rem',
+                        borderRadius: '0.25rem',
+                        whiteSpace: 'nowrap',
+                        border: `1px solid ${c.borderColor}`,
+                        background: c.bgTertiary,
+                        color: T.muted,
+                        opacity: 0.6,
+                      }}>
+                        {t.sessions.thisDevice}
+                      </span>
+                    )
+                  ) : (
+                    isMobile ? (
+                      // Other Device Revoke Trash button placeholder
+                      <Pulse
+                        delay={i * 0.15}
+                        style={{
+                          width: '1.75rem',
+                          height: '1.75rem',
+                          borderRadius: '0.25rem',
+                          background: T.raised,
+                        }}
+                      />
+                    ) : (
+                      // Desktop Other Device Revoke button placeholder
+                      <Pulse
+                        delay={i * 0.15}
+                        style={{
+                          width: '4rem',
+                          height: '1.75rem',
+                          borderRadius: '0.25rem',
+                          background: T.raised,
+                        }}
+                      />
+                    )
+                  )}
+
+                  {/* Map Button Placeholder */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    marginTop: isMobile ? '0.25rem' : '0.375rem',
+                  }}>
+                    <button
+                      disabled
+                      aria-label={t.sessions.ipLocation}
+                      title={t.sessions.ipLocation}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '1.25rem',
+                        height: '1.25rem',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '0.25rem',
+                        color: T.muted,
+                        padding: 0,
+                        opacity: 0.4,
+                        cursor: 'default',
+                      }}
+                    >
+                      <MapPin size={10} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* View-purpose verification modal — renders as overlay on top of skeleton */}
         <AnimatePresence>
         {modalStep && modalPurpose === 'view' && (
           <PasswordVerifyModal
@@ -431,7 +632,13 @@ export function SessionsTab({
             subtitle={t.sessions.verifyToViewDesc}
             step={modalStep}
             onPasswordSubmit={handlePasswordSubmit}
-            onClose={() => { setModalStep(null); setModalError(''); }}
+            onClose={() => {
+              if (!isVerificationValid) {
+                onVerificationDismissed?.();
+              }
+              setModalStep(null);
+              setModalError('');
+            }}
             passwordError={modalError}
             mode={mode}
             colors={c}
@@ -439,210 +646,6 @@ export function SessionsTab({
           />
         )}
         </AnimatePresence>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {[0, 1, 2].map(i => {
-          const isCurrent = i === 0;
-          return (
-            <div key={`skeleton-${i}`} style={{
-              background: T.bg,
-              border: `1px solid ${T.border}`,
-              borderRadius: DASHBOARD_RADIUS,
-              display: 'flex',
-              alignItems: 'stretch',
-              overflow: 'hidden',
-              minHeight: isMobile ? 'auto' : '5.5rem',
-              padding: isMobile ? '0.75rem 0.75rem' : '0 0.875rem',
-              opacity: 1 - i * 0.2,
-            }}>
-              {/* 1. OS Icon placeholder */}
-              <div style={{
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                padding: isMobile ? '0 0 0 0' : '0.5rem 1.25rem 0.5rem 0.125rem',
-                marginRight: isMobile ? '0.75rem' : '0'
-              }}>
-                <Pulse
-                  delay={i * 0.15}
-                  style={{
-                    width: isMobile ? '3rem' : '3rem',
-                    height: isMobile ? '3rem' : '3rem',
-                    borderRadius: '0.25rem',
-                    background: T.raised,
-                  }}
-                />
-              </div>
-
-              {/* 2. Text Content placeholder */}
-              <div style={{
-                flex: 1,
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                padding: isMobile ? '0' : '0.5rem 1rem',
-                gap: isMobile ? '0.25rem' : '0.375rem',
-              }}>
-                {/* Title */}
-                <Pulse
-                  delay={i * 0.15}
-                  style={{
-                    height: isMobile ? '0.625rem' : '0.75rem',
-                    borderRadius: '0.25rem',
-                    background: T.raised,
-                    width: '55%',
-                  }}
-                />
-                {/* Signed In Timestamp */}
-                <Pulse
-                  delay={i * 0.15 + 0.1}
-                  style={{
-                    height: '0.5rem',
-                    borderRadius: '0.25rem',
-                    background: T.raised,
-                    width: isMobile ? '70%' : '45%',
-                  }}
-                />
-                {/* Expires Timestamp */}
-                <Pulse
-                  delay={i * 0.15 + 0.2}
-                  style={{
-                    height: '0.5rem',
-                    borderRadius: '0.25rem',
-                    background: T.raised,
-                    width: isMobile ? '50%' : '35%',
-                  }}
-                />
-                {/* Last Active (only if showLastActive) */}
-                {showLastActive && (
-                  <Pulse
-                    delay={i * 0.15 + 0.3}
-                    style={{
-                      height: '0.5rem',
-                      borderRadius: '0.25rem',
-                      background: T.raised,
-                      width: isMobile ? '40%' : '30%',
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* 3. Right-aligned button/action area */}
-              <div style={{
-                flexShrink: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: isMobile ? 'flex-end' : 'center',
-                padding: isMobile ? '0' : '0.5rem 0.375rem 0.5rem 0',
-                gap: '0.375rem',
-              }}>
-                {isCurrent ? (
-                  isMobile ? (
-                    // Globe icon placeholder for "This Device"
-                    <button
-                      aria-label={t.sessions.thisDevice}
-                      style={{
-                        width: '2rem',
-                        height: '2rem',
-                        borderRadius: '0.25rem',
-                        border: `1px solid ${c.borderColor}`,
-                        background: c.bgTertiary,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'default',
-                        opacity: 0.6,
-                      }}
-                      disabled
-                    >
-                      <Globe size={16} color={T.muted} />
-                    </button>
-                  ) : (
-                    // Desktop This Device Badge skeleton/placeholder
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      fontFamily: T.font,
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      padding: '0.3125rem 0.75rem',
-                      borderRadius: '0.25rem',
-                      whiteSpace: 'nowrap',
-                      border: `1px solid ${c.borderColor}`,
-                      background: c.bgTertiary,
-                      color: T.muted,
-                      opacity: 0.6,
-                    }}>
-                      {t.sessions.thisDevice}
-                    </span>
-                  )
-                ) : (
-                  isMobile ? (
-                    // Other Device Revoke Trash button placeholder
-                    <Pulse
-                      delay={i * 0.15}
-                      style={{
-                        width: '1.75rem',
-                        height: '1.75rem',
-                        borderRadius: '0.25rem',
-                        background: T.raised,
-                      }}
-                    />
-                  ) : (
-                    // Desktop Other Device Revoke button placeholder
-                    <Pulse
-                      delay={i * 0.15}
-                      style={{
-                        width: '4rem',
-                        height: '1.75rem',
-                        borderRadius: '0.25rem',
-                        background: T.raised,
-                      }}
-                    />
-                  )
-                )}
-
-                {/* Map Button Placeholder */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  marginTop: isMobile ? '0.25rem' : '0.375rem',
-                }}>
-                  <button
-                    disabled
-                    aria-label={t.sessions.ipLocation}
-                    title={t.sessions.ipLocation}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '1.25rem',
-                      height: '1.25rem',
-                      background: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.25rem',
-                      color: T.muted,
-                      padding: 0,
-                      opacity: 0.4,
-                      cursor: 'default',
-                    }}
-                  >
-                    <MapPin size={10} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
     );
   }

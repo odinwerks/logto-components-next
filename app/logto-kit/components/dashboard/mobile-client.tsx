@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useSyncExternalStore, useEffect } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
@@ -117,6 +117,14 @@ export function MobileClient({
 
   const [view, setView] = useState<'menu' | 'tab'>('menu');
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
+
+  // Last-tab tracking for Sessions verification dismissal (D13).
+  const lastNonSessionsTabRef = useRef<TabId | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'sessions' && activeTab !== null) {
+      lastNonSessionsTabRef.current = activeTab;
+    }
+  }, [activeTab]);
   const isNarrowViewport = useSyncExternalStore(
     (callback) => {
       const mq = window.matchMedia('(max-width: 26rem)');
@@ -423,6 +431,19 @@ export function MobileClient({
                       onVerifyPassword={onVerifyPassword}
                       onSuccess={(msg) => showToast('success', msg)}
                       onError={(msg) => showToast('error', mapErrorToast(msg))}
+                      isActive={view === 'tab' && activeTab === 'sessions'}
+                      onVerificationDismissed={() => {
+                        const fallbackTab = lastNonSessionsTabRef.current
+                          ?? loadedTabs.find((id) => id !== 'sessions')
+                          ?? loadedTabs[0]
+                          ?? 'profile';
+                        if (fallbackTab === activeTab) {
+                          // Sessions is the only tab — go back to menu
+                          backToMenu();
+                        } else {
+                          setActiveTab(fallbackTab);
+                        }
+                      }}
                     />
                   )}
 

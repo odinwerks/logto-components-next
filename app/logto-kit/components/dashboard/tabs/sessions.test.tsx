@@ -101,6 +101,8 @@ interface RenderSessionsOptions {
   onRevokeAllOtherSessions?: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   mobmode?: number;
+  isActive?: boolean;
+  onVerificationDismissed?: () => void;
 }
 
 function renderSessionsTab({
@@ -109,6 +111,8 @@ function renderSessionsTab({
   onRevokeAllOtherSessions,
   onVerifyPassword,
   mobmode = 0,
+  isActive = true,
+  onVerificationDismissed,
 }: RenderSessionsOptions = {}) {
   const getSessionsFn = (onGetSessionsWithDeviceMeta ??
     vi.fn<(verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>>().mockResolvedValue({
@@ -142,6 +146,8 @@ function renderSessionsTab({
       colors={DARK_COLORS}
       t={enUS}
       mobmode={mobmode}
+      isActive={isActive}
+      onVerificationDismissed={onVerificationDismissed}
       onGetSessionsWithDeviceMeta={getSessionsFn}
       onRevokeSession={revokeSessionFn}
       onRevokeAllOtherSessions={revokeAllFn}
@@ -156,11 +162,12 @@ function renderSessionsTab({
 
 // ── Helpers ──────────────────────────────────────────────────
 async function verifyAndLoadSessions() {
-  // In unverified state, click "Verify password" button
-  const verifyBtn = screen.getByRole('button', { name: /verify password/i });
-  await act(async () => { fireEvent.click(verifyBtn); });
+  // With isActive=true, the PasswordVerifyModal auto-opens via useEffect.
+  // Wait for the modal's password input to appear in the DOM.
+  await waitFor(() => {
+    expect(screen.getByPlaceholderText('Enter password')).toBeInTheDocument();
+  });
 
-  // Modal should now be visible with password input
   const passwordInput = screen.getByPlaceholderText('Enter password');
   fireEvent.change(passwordInput, { target: { value: 'test-password' } });
 
@@ -440,6 +447,7 @@ describe('SessionsTab', () => {
           mode="dark"
           colors={DARK_COLORS}
           t={enUS}
+          isActive={true}
           onGetSessionsWithDeviceMeta={onGetSessions}
           onRevokeSession={onRevokeSession}
           onRevokeAllOtherSessions={vi.fn()}
@@ -748,6 +756,7 @@ describe('SessionsTab', () => {
           colors={DARK_COLORS}
           t={enUS}
           mobmode={1} // Mobile Mode
+          isActive={true}
           onGetSessionsWithDeviceMeta={onGetSessions}
           onRevokeSession={vi.fn()}
           onRevokeAllOtherSessions={vi.fn()}

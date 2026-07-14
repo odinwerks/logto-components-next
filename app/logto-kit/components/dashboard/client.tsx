@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
@@ -140,6 +140,16 @@ export function DashboardClient({
   // ── Tabs
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
+
+  // Last-tab tracking for Sessions verification dismissal (D13).
+  // Stores the most recent non-sessions tab so that when the user dismisses
+  // the sessions verification modal, the shell can navigate back to it.
+  const lastNonSessionsTabRef = useRef<TabId | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'sessions') {
+      lastNonSessionsTabRef.current = activeTab;
+    }
+  }, [activeTab]);
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
@@ -477,6 +487,14 @@ export function DashboardClient({
                     onVerifyPassword={onVerifyPassword}
                     onSuccess={(msg) => showToast('success', msg)}
                     onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    isActive={activeTab === 'sessions'}
+                    onVerificationDismissed={() => {
+                      const fallbackTab = lastNonSessionsTabRef.current
+                        ?? loadedTabs.find((id) => id !== 'sessions')
+                        ?? loadedTabs[0]
+                        ?? 'profile';
+                      setActiveTab(fallbackTab);
+                    }}
                   />
                 )}
 
