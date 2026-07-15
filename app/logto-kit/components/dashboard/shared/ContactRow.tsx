@@ -31,6 +31,8 @@ export interface ContactRowProps {
   };
   /** When true, show the "or remove it" link in edit modals. Defaults to true. */
   hasOtherContact?: boolean;
+  /** When true, suppress the edit/add/remove buttons. Display values remain visible. */
+  hideEditButtons?: boolean;
   onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
@@ -44,7 +46,7 @@ export interface ContactRowProps {
 }
 
 export function ContactRow({
-  label, Icon, currentValue, type, placeholder, countryFilter, hasOtherContact = true,
+  label, Icon, currentValue, type, placeholder, countryFilter, hasOtherContact = true, hideEditButtons = false,
   onVerifyPassword, onSendVerification, onVerifyCodeAndUpdate, onRemove,
   onSuccess, onError, mobmode, t, mode, colors,
 }: ContactRowProps) {
@@ -361,6 +363,7 @@ export function ContactRow({
             </p>
           </div>
         </div>
+        {!hideEditButtons && (
         <div style={{ display: 'flex', gap: isMobile ? '0.25rem' : '0.375rem', flexDirection: isMobile ? 'column' : 'row', flexShrink: 0 }}>
           {currentValue ? (
             isMobile ? (
@@ -390,6 +393,7 @@ export function ContactRow({
             </Button>
           )}
         </div>
+        )}
       </div>
     </>
   );

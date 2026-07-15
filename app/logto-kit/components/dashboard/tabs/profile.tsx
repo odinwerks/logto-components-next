@@ -1077,7 +1077,7 @@ export function ProfileTab({
               </>
             ) : (
               /* Mobile: pen/check morph button + discard X */
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', width: '100%' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', width: '100%' }}>
                 {/* Fields column — always takes remaining space */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(nameType === 'username' || nameType === 'full') && (
@@ -1180,7 +1180,6 @@ export function ProfileTab({
           </div>
       </div>
 
-      {!isEditing && (
       <Card mode={mode} colors={colors}>
         <ContactRow
           label={t.security.email}
@@ -1189,6 +1188,7 @@ export function ProfileTab({
           type="email"
           placeholder={t.profile.emailPlaceholder}
           hasOtherContact={!!userData.primaryPhone}
+          hideEditButtons={isEditing}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendEmailVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
@@ -1211,6 +1211,7 @@ export function ProfileTab({
           placeholder={t.profile.phonePlaceholder}
           countryFilter={countryFilter}
           hasOtherContact={!!userData.primaryEmail}
+          hideEditButtons={isEditing}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
@@ -1225,7 +1226,6 @@ export function ProfileTab({
           onSuccess={onSuccess} onError={onError} mobmode={mobmode} t={t} mode={mode} colors={colors}
         />
       </Card>
-      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
         <Card mode={mode} colors={colors} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
