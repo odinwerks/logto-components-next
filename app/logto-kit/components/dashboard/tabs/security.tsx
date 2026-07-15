@@ -738,18 +738,22 @@ export function SecurityTab({
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {mfaLoading ? (
                 isMobile ? (
-                  <button disabled aria-label={t.common.loading} style={{
+                  <span style={{
                     width: '2rem', height: '2rem', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
-                    borderRadius: '0.25rem', cursor: 'not-allowed', opacity: 0.45, padding: 0,
                   }}>
-                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
-                  </button>
+                    <BouncingDots size={5} gap={3} color={c.accentBlue} ariaLabel={t.common.loading} />
+                  </span>
                 ) : (
-                  <Button size="sm" variant="primary" disabled mode={mode} colors={colors} style={{ minWidth: '6.5rem' }}>
-                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
-                  </Button>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '1.5rem',
+                    padding: '0 0.8125rem',
+                  }}>
+                    <BouncingDots size={5} gap={3} color={c.accentBlue} ariaLabel={t.common.loading} />
+                  </span>
                 )
               ) : (totpFactor ? (
                 isMobile ? (
@@ -818,18 +822,22 @@ export function SecurityTab({
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               {mfaLoading ? (
                 isMobile ? (
-                  <button disabled aria-label={t.common.loading} style={{
+                  <span style={{
                     width: '2rem', height: '2rem', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
-                    borderRadius: '0.25rem', cursor: 'not-allowed', opacity: 0.45, padding: 0,
                   }}>
-                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel="" />
-                  </button>
+                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel={t.common.loading} />
+                  </span>
                 ) : (
-                  <Button size="sm" disabled mode={mode} colors={colors} style={{ minWidth: '8.5rem' }}>
-                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel="" />
-                  </Button>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '1.5rem',
+                    padding: '0 0.8125rem',
+                  }}>
+                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel={t.common.loading} />
+                  </span>
                 )
               ) : (isMobile ? (
                 <button
