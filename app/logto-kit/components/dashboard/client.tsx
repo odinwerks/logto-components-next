@@ -354,7 +354,6 @@ export function DashboardClient({
                       aria-hidden="true"
                       style={{
                         height: 1,
-                        margin: '0 0.75rem',
                         borderTop: `1px dashed ${colors.borderColor}`,
                       }}
                     />

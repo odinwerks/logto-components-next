@@ -391,6 +391,36 @@ describe('DashboardClient - userShape prop', () => {
     expect(profileTab).toHaveFocus();
   });
 
+  it('renders dash separators at full width matching nav button highlight block', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security', 'sessions']}
+      />,
+    );
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBe(3);
+
+    // 2 separators between 3 tabs. Target the separator divs directly:
+    // they are <div aria-hidden="true"> elements that are direct children
+    // of the wrapper divs (siblings of the buttons).
+    const nav = screen.getByRole('tablist');
+    const separators = nav.querySelectorAll(':scope > div > div[aria-hidden="true"]');
+    expect(separators.length).toBe(2);
+
+    // Separators should have no horizontal margin so they span full width
+    // (same as the active highlight block which also has no horizontal margin).
+    for (const sep of separators) {
+      const style = window.getComputedStyle(sep);
+      // jsdom may report 0 as "0" or "0px" — both mean no margin.
+      expect(Number.parseFloat(style.marginLeft)).toBe(0);
+      expect(Number.parseFloat(style.marginRight)).toBe(0);
+      // Height should remain 1px for the dashed line.
+      expect(Number.parseFloat(style.height)).toBe(1);
+    }
+  });
+
   it('isolates crashing tab content with an in-panel fallback', () => {
     shouldThrowProfileTab.value = true;
 
