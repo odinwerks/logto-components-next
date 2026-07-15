@@ -898,20 +898,11 @@ export function ProfileTab({
           </div>
 
           <div style={{ ...cs.surfaces.well, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.75rem' }}>
-            {/* "Edit" button — only on desktop, only when NOT editing */}
-            {!isMobile && !isEditing && (
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="secondary" onClick={() => setIsEditing(true)} mode={mode} colors={colors}>
-                  {t.profile.edit}
-                </Button>
-              </div>
-            )}
-
             {!isMobile ? (
               <>
                 {/* Desktop: Username-only mode */}
                 {nameType === 'username' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-end' }}>
                     <motion.div
                       layout
                       transition={{ duration: 0.1, ease: 'easeOut' }}
@@ -931,22 +922,28 @@ export function ProfileTab({
                       </div>
                     </motion.div>
 
-                    {isEditing && (
-                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      {isEditing ? (
+                        <>
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {nameLoading ? t.profile.saving : t.profile.modify}
                           </Button>
-                        </div>
+                        </>
+                      ) : (
+                        <Button variant="secondary" onClick={() => setIsEditing(true)} mode={mode} colors={colors}>
+                          {t.profile.edit}
+                        </Button>
                       )}
+                    </div>
                   </div>
                 )}
 
                 {/* Desktop: Given/Family mode */}
                 {nameType === 'given_family' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-end' }}>
                     <motion.div
                       layout
                       transition={{ duration: 0.1, ease: 'easeOut' }}
@@ -976,22 +973,28 @@ export function ProfileTab({
                       </div>
                     </motion.div>
 
-                    {isEditing && (
-                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      {isEditing ? (
+                        <>
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {nameLoading ? t.profile.saving : t.profile.modify}
                           </Button>
-                        </div>
+                        </>
+                      ) : (
+                        <Button variant="secondary" onClick={() => setIsEditing(true)} mode={mode} colors={colors}>
+                          {t.profile.edit}
+                        </Button>
                       )}
+                    </div>
                   </div>
                 )}
 
                 {/* Desktop: Full mode — username + given/family + vertical button stack */}
                 {nameType === 'full' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'flex-end' }}>
                     <motion.div
                       layout
                       transition={{ duration: 0.1, ease: 'easeOut' }}
@@ -1038,16 +1041,22 @@ export function ProfileTab({
                       </div>
                     </motion.div>
 
-                    {isEditing && (
-                        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                      {isEditing ? (
+                        <>
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
                           <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {nameLoading ? t.profile.saving : t.profile.modify}
                           </Button>
-                        </div>
+                        </>
+                      ) : (
+                        <Button variant="secondary" onClick={() => setIsEditing(true)} mode={mode} colors={colors}>
+                          {t.profile.edit}
+                        </Button>
                       )}
+                    </div>
                   </div>
                 )}
               </>
