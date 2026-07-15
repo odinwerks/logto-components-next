@@ -161,18 +161,18 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
   const sectionLabelStyle: React.CSSProperties = {
     fontFamily: FONT_SANS,
     fontWeight: 500,
-    fontSize: '0.6875rem',
+    fontSize: '1rem',
     color: c.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: '0.07em',
-    marginBottom: '0.75rem',
+    marginBottom: '1.125rem',
   };
 
   const wellStyle: React.CSSProperties = {
     background: c.bgSecondary,
     border: `1px solid ${c.borderColor}`,
-    padding: '1rem 1.25rem',
-    marginBottom: '1rem',
+    padding: '1.5rem 1.875rem',
+    marginBottom: '1.5rem',
   };
 
   const options = [
@@ -181,7 +181,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
   ] as const;
 
   return (
-    <div style={{ maxWidth: '32rem', margin: '0 auto' }}>
+    <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
       <p style={sectionLabelStyle}>{t.common.appearance}</p>
 
       <div style={wellStyle}>
@@ -189,7 +189,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
         <div
           role="radiogroup"
           aria-label={t.common.appearance}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem' }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.9375rem' }}
         >
           {options.map(opt => {
             const isSelected = activeMode === opt.id;
@@ -213,7 +213,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
       {/* Language selector — separate section, outside the Appearance box */}
       {supportedLangs && supportedLangs.length > 0 && (
         <>
-          <p style={{ ...sectionLabelStyle, marginBottom: '0.5rem' }}>
+          <p style={{ ...sectionLabelStyle, marginBottom: '0.75rem' }}>
             {t.common.language}
           </p>
           <LanguageSelect
@@ -223,6 +223,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
             mode={mode}
             colors={c}
             t={t}
+            scale={1.5}
           />
         </>
       )}
@@ -277,16 +278,16 @@ function ThemeOption({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.5625rem 0.75rem',
+        padding: '0.84375rem 1.125rem',
         width: '100%',
         boxSizing: 'border-box',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4375rem' }}>
-          <Icon size={12} color={isSelected ? c.textPrimary : c.textTertiary} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65625rem' }}>
+          <Icon size={18} color={isSelected ? c.textPrimary : c.textTertiary} />
           <span style={{
             fontFamily: FONT_MONO,
             fontWeight: 500,
-            fontSize: '0.75rem',
+            fontSize: '1.125rem',
             color: isSelected ? c.textPrimary : c.textSecondary,
           }}>
             {label}

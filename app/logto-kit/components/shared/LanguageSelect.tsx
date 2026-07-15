@@ -17,6 +17,8 @@ export interface LanguageSelectProps {
   colors: ThemeColors;
   t: Translations;
   disabled?: boolean;
+  /** Scale factor for font sizes, padding, and icon sizes. Default 1. */
+  scale?: number;
 }
 
 export function LanguageSelect({
@@ -27,6 +29,7 @@ export function LanguageSelect({
   colors,
   t: _t,
   disabled = false,
+  scale = 1,
 }: LanguageSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,12 +264,12 @@ export function LanguageSelect({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0.5625rem 0.75rem',
+    padding: `${0.5625 * scale}rem ${0.75 * scale}rem`,
     background: colors.bgPrimary,
     border: `1px solid ${colors.borderColor}`,
     color: colors.textPrimary,
-    fontSize: '0.8125rem',
-    borderRadius: '0.25rem',
+    fontSize: `${0.8125 * scale}rem`,
+    borderRadius: `${0.25 * scale}rem`,
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.6 : 1,
     boxSizing: 'border-box',
@@ -278,12 +281,12 @@ export function LanguageSelect({
     position: 'absolute',
     top: `${coords.top}px`,
     left: `${coords.left}px`,
-    width: triggerWidth ? `${triggerWidth}px` : '16rem',
-    maxHeight: '15rem',
+    width: triggerWidth ? `${triggerWidth}px` : `${16 * scale}rem`,
+    maxHeight: `${15 * scale}rem`,
     overflow: 'hidden',
     background: colors.bgSecondary,
     border: `1px solid ${colors.borderColor}`,
-    borderRadius: '0.25rem',
+    borderRadius: `${0.25 * scale}rem`,
     boxShadow: _mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)',
     zIndex: 2100,
     display: 'flex',
@@ -292,7 +295,7 @@ export function LanguageSelect({
 
   const searchContainerStyle: React.CSSProperties = {
     position: 'relative',
-    padding: '0.5rem',
+    padding: `${0.5 * scale}rem`,
     borderBottom: `1px solid ${colors.borderColor}`,
     display: 'flex',
     alignItems: 'center',
@@ -301,20 +304,20 @@ export function LanguageSelect({
 
   const searchInputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '0.375rem 0.5rem 0.375rem 1.75rem',
+    padding: `${0.375 * scale}rem ${0.5 * scale}rem ${0.375 * scale}rem ${1.75 * scale}rem`,
     background: colors.bgPrimary,
     border: `1px solid ${colors.borderColor}`,
     color: colors.textPrimary,
-    fontSize: '0.8125rem',
+    fontSize: `${0.8125 * scale}rem`,
     fontFamily: "'DM Sans', system-ui, sans-serif",
-    borderRadius: '0.25rem',
+    borderRadius: `${0.25 * scale}rem`,
     boxSizing: 'border-box',
   };
 
   const listStyle: React.CSSProperties = {
     flex: 1,
     overflowY: 'auto',
-    padding: '0.25rem 0',
+    padding: `${0.25 * scale}rem 0`,
     margin: 0,
     listStyle: 'none',
   };
@@ -323,12 +326,12 @@ export function LanguageSelect({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0.5rem 0.75rem',
+    padding: `${0.5 * scale}rem ${0.75 * scale}rem`,
     cursor: 'pointer',
-    fontSize: '0.8125rem',
+    fontSize: `${0.8125 * scale}rem`,
     fontFamily: "'DM Sans', system-ui, sans-serif",
     color: colors.textPrimary,
-    gap: '0.5rem',
+    gap: `${0.5 * scale}rem`,
   };
 
   const flag = selectedLang ? getLangFlag(selectedLang.code) : null;
@@ -350,7 +353,7 @@ export function LanguageSelect({
         aria-activedescendant={isOpen ? activeOptionId : undefined}
         style={triggerStyle}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: `${0.25 * scale}rem` }}>
           {selectedLang ? (
             <>
               <span>{flag}</span>
@@ -358,12 +361,12 @@ export function LanguageSelect({
             </>
           ) : (
             <>
-              <Globe size={14} style={{ color: colors.textTertiary, flexShrink: 0 }} />
+              <Globe size={Math.round(14 * scale)} style={{ color: colors.textTertiary, flexShrink: 0 }} />
               <span>{value || ''}</span>
             </>
           )}
         </span>
-        <ChevronDown size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
+        <ChevronDown size={Math.round(14 * scale)} style={{ opacity: 0.7, flexShrink: 0 }} />
       </button>
 
       {isOpen &&
@@ -374,10 +377,10 @@ export function LanguageSelect({
           <div ref={dropdownRef} style={dropdownStyle}>
             <div style={searchContainerStyle}>
               <Search
-                size={14}
+                size={Math.round(14 * scale)}
                 style={{
                   position: 'absolute',
-                  left: '0.875rem',
+                  left: `${0.875 * scale}rem`,
                   color: colors.textTertiary,
                   pointerEvents: 'none',
                 }}
@@ -426,7 +429,7 @@ export function LanguageSelect({
                       background: isHighlighted ? colors.bgTertiary : 'transparent',
                     }}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: `${0.5 * scale}rem`, overflow: 'hidden' }}>
                       <span style={{ flexShrink: 0 }}>{getLangFlag(lang.code)}</span>
                       <span
                         style={{
@@ -438,9 +441,9 @@ export function LanguageSelect({
                         {lang.name}
                       </span>
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: `${0.25 * scale}rem`, flexShrink: 0 }}>
                       <span style={{ color: colors.textSecondary }}>{lang.nativeName}</span>
-                      {isSelected && <Check size={14} style={{ color: colors.accentGreen }} />}
+                      {isSelected && <Check size={Math.round(14 * scale)} style={{ color: colors.accentGreen }} />}
                     </span>
                   </li>
                 );
