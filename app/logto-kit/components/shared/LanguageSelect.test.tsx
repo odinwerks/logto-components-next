@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageSelect } from './LanguageSelect';
 import { DARK_COLORS } from '../../themes';
 import { enUS } from '../../locales/en-US';
@@ -143,7 +143,7 @@ describe('LanguageSelect', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('closes dropdown when focus leaves the component (focusout)', () => {
+  it('closes dropdown when focus leaves the component (focusout)', async () => {
     render(<LanguageSelect {...defaultProps} />);
 
     const trigger = screen.getByRole('combobox');
@@ -157,7 +157,10 @@ describe('LanguageSelect', () => {
       relatedTarget: document.body,
     });
 
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    // Close is now deferred (defense-in-depth) — wait for the setTimeout(0) to flush
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
   });
 
   it('shows fallback Globe icon when value is unrecognized', () => {

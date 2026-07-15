@@ -127,7 +127,8 @@ export function PhoneCountrySelect({
         ) {
           return;
         }
-        closeDropdown(false);
+        // Defer close to allow click event to fire before unmount (defense-in-depth)
+        setTimeout(() => closeDropdown(false), 0);
       } else {
         // Fallback for null relatedTarget (e.g. clicking non-focusable elements)
         setTimeout(() => {
@@ -414,6 +415,7 @@ export function PhoneCountrySelect({
                     key={`${country.iso}-${country.code}`}
                     id={optionId}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={isSelected}
                     onClick={() => selectCountry(country)}
                     onMouseEnter={() => {
@@ -448,6 +450,7 @@ export function PhoneCountrySelect({
               {filteredCountries.length === 0 && (
                 <li
                   role="option"
+                  tabIndex={-1}
                   aria-disabled="true"
                   aria-selected="false"
                   style={{

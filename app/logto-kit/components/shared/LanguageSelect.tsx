@@ -133,7 +133,8 @@ export function LanguageSelect({
         ) {
           return;
         }
-        closeDropdown(false);
+        // Defer close to allow click event to fire before unmount (defense-in-depth)
+        setTimeout(() => closeDropdown(false), 0);
       } else {
         // Fallback for null relatedTarget (e.g. clicking non-focusable elements)
         setTimeout(() => {
@@ -417,6 +418,7 @@ export function LanguageSelect({
                     key={lang.code}
                     id={optionId}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={isSelected}
                     onClick={() => selectLang(lang)}
                     onMouseEnter={() => {
@@ -451,6 +453,7 @@ export function LanguageSelect({
               {filteredLangs.length === 0 && (
                 <li
                   role="option"
+                  tabIndex={-1}
                   aria-disabled="true"
                   aria-selected="false"
                   style={{
