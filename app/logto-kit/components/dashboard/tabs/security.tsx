@@ -712,7 +712,22 @@ export function SecurityTab({
             </div>
 
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              {totpFactor ? (
+              {mfaLoading ? (
+                isMobile ? (
+                  <button disabled aria-label={t.common.loading} style={{
+                    width: '2rem', height: '2rem', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: c.accentBlue, border: `1px solid ${c.accentBlue}`,
+                    borderRadius: '0.25rem', cursor: 'not-allowed', opacity: 0.45, padding: 0,
+                  }}>
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  </button>
+                ) : (
+                  <Button size="sm" variant="primary" disabled mode={mode} colors={colors} style={{ minWidth: '6.5rem' }}>
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  </Button>
+                )
+              ) : (totpFactor ? (
                 isMobile ? (
                   <button onClick={openTotp} aria-label={t.security.reconfigure} style={{
                     width: '2rem', height: '2rem',
@@ -740,17 +755,11 @@ export function SecurityTab({
                 <Button size="sm" variant="primary" onClick={openTotp} mode={mode} colors={colors}>
                   {t.mfa.generateTotpSecret}
                 </Button>
-              )}
+              ))}
             </div>
           </div>
         </div>
 
-        {mfaLoading && (
-          <div style={{ padding: '0.5rem 1.25rem 0.875rem', borderTop: `1px solid ${T.borderFaint}`, fontFamily: T.font, fontSize: '0.75rem', color: T.muted, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <BouncingDots size={5} gap={3} ariaLabel="" />
-            {t.common.loading}
-          </div>
-        )}
       </Card>
 
       {/* ── Backup codes ── */}
@@ -783,7 +792,22 @@ export function SecurityTab({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-              {isMobile ? (
+              {mfaLoading ? (
+                isMobile ? (
+                  <button disabled aria-label={t.common.loading} style={{
+                    width: '2rem', height: '2rem', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: c.bgTertiary, border: `1px solid ${c.borderColor}`,
+                    borderRadius: '0.25rem', cursor: 'not-allowed', opacity: 0.45, padding: 0,
+                  }}>
+                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel="" />
+                  </button>
+                ) : (
+                  <Button size="sm" disabled mode={mode} colors={colors} style={{ minWidth: '8.5rem' }}>
+                    <BouncingDots size={5} gap={3} color={c.textSecondary} ariaLabel="" />
+                  </Button>
+                )
+              ) : (isMobile ? (
                 <button
                   onClick={() => {
                     if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
@@ -816,7 +840,7 @@ export function SecurityTab({
                 >
                   {t.security.generateBackupCodesTitle}
                 </Button>
-              )}
+              ))}
             </div>
           </div>
         </div>
