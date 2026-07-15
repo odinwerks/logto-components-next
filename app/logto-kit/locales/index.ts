@@ -158,6 +158,8 @@ export interface Translations {
     takePicture: string;
     chooseFromGallery: string;
     deleteHint: string;
+    sameEmailError: string;
+    samePhoneError: string;
     refreshPersonalPermissions: string;
     refreshRoles: string;
   };

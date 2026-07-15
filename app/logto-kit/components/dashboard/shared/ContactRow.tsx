@@ -29,6 +29,8 @@ export interface ContactRowProps {
     mode: 'allow' | 'block' | 'none';
     codes: string[];
   };
+  /** When true, show the "or remove it" link in edit modals. Defaults to true. */
+  hasOtherContact?: boolean;
   onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
@@ -42,7 +44,7 @@ export interface ContactRowProps {
 }
 
 export function ContactRow({
-  label, Icon, currentValue, type, placeholder, countryFilter,
+  label, Icon, currentValue, type, placeholder, countryFilter, hasOtherContact = true,
   onVerifyPassword, onSendVerification, onVerifyCodeAndUpdate, onRemove,
   onSuccess, onError, mobmode, t, mode, colors,
 }: ContactRowProps) {
@@ -173,6 +175,19 @@ export function ContactRow({
     const target = getTrimmedTarget();
     if (!target) { setPwErr(t.security.enterValueFirst); return; }
     if (type === 'phone' && phoneErr) { setPwErr(phoneErr); return; }
+    // Reject if the new value is the same as the current one
+    if (currentValue) {
+      const targetEq = type === 'email'
+        ? target.toLowerCase()
+        : target.replace(/\D/g, '');
+      const currentEq = type === 'email'
+        ? currentValue.toLowerCase()
+        : currentValue.replace(/\D/g, '');
+      if (targetEq === currentEq) {
+        setPwErr(type === 'email' ? t.profile.sameEmailError : t.profile.samePhoneError);
+        return;
+      }
+    }
     setPwErr('');
     setStep({ kind: 'password' });
   };
@@ -308,7 +323,7 @@ export function ContactRow({
                 )}
             </div>
           ) : undefined}
-          headerExtra={modalKind === 'edit' && currentValue && (step.kind === 'value' || step.kind === 'password') ? (
+          headerExtra={modalKind === 'edit' && currentValue && hasOtherContact && (step.kind === 'value' || step.kind === 'password') ? (
             <button
               onClick={() => {
                 invalidateInFlightOperations();

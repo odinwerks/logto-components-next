@@ -142,6 +142,8 @@ export const ukUA: Translations = {
     takePicture: 'Зробити фото',
     chooseFromGallery: 'Обрати з галереї',
     deleteHint: 'або видалити',
+    sameEmailError: 'Це та сама електронна пошта, що й ваша поточна.',
+    samePhoneError: 'Це той самий номер телефону, що й ваш поточний.',
     refreshPersonalPermissions: 'Оновити особисті дозволи',
     refreshRoles: 'Оновити ролі',
   },

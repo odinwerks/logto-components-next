@@ -142,6 +142,8 @@ export const enUS: Translations = {
     takePicture: 'Take a picture',
     chooseFromGallery: 'Choose from gallery',
     deleteHint: 'or remove it',
+    sameEmailError: 'This is the same email as your current one.',
+    samePhoneError: 'This is the same phone as your current one.',
     refreshPersonalPermissions: 'Refresh personal permissions',
     refreshRoles: 'Refresh roles',
   },

@@ -928,8 +928,13 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading ? t.profile.saving : t.profile.modify}
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                            <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
+                            {nameLoading && (
+                              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                              </span>
+                            )}
                           </Button>
                         </>
                       ) : (
@@ -979,8 +984,13 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading ? t.profile.saving : t.profile.modify}
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                            <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
+                            {nameLoading && (
+                              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                              </span>
+                            )}
                           </Button>
                         </>
                       ) : (
@@ -1047,8 +1057,13 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
-                            {nameLoading ? t.profile.saving : t.profile.modify}
+                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                            <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
+                            {nameLoading && (
+                              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                              </span>
+                            )}
                           </Button>
                         </>
                       ) : (
@@ -1173,6 +1188,7 @@ export function ProfileTab({
           currentValue={userData.primaryEmail}
           type="email"
           placeholder={t.profile.emailPlaceholder}
+          hasOtherContact={!!userData.primaryPhone}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendEmailVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {
@@ -1194,6 +1210,7 @@ export function ProfileTab({
           type="phone"
           placeholder={t.profile.phonePlaceholder}
           countryFilter={countryFilter}
+          hasOtherContact={!!userData.primaryEmail}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {

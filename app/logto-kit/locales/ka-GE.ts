@@ -142,6 +142,8 @@ export const kaGE: Translations = {
     takePicture: 'სურათის გადაღება',
     chooseFromGallery: 'აირჩიეთ გალერეიდან',
     deleteHint: 'ან წაშალეთ',
+    sameEmailError: 'ეს იგივე ელფოსტაა, რაც თქვენი ამჟამინდელი.',
+    samePhoneError: 'ეს იგივე ტელეფონია, რაც თქვენი ამჟამინდელი.',
     refreshPersonalPermissions: 'პერსონალური ნებართვების განახლება',
     refreshRoles: 'როლების განახლება',
   },
