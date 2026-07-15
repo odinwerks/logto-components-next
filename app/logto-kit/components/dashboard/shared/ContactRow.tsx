@@ -59,6 +59,7 @@ export function ContactRow({
   const [newValue, setNewValue] = useState('');
   const [step, setStep] = useState<ModalStep>({ kind: 'password' });
   const [pwErr, setPwErr] = useState('');
+  const [loading, setLoading] = useState(false);
   const operationTokenRef = React.useRef(0);
   const newValueRef = React.useRef(newValue);
 
@@ -140,6 +141,7 @@ export function ContactRow({
     setNewValue('');
     setPwErr('');
     setStep({ kind: 'value' });
+    setLoading(false);
     if (type === 'phone') {
       const { countryCode, localDigits } = getPhoneParts(currentValue);
       setSelectedCountry(countryCode);
@@ -152,6 +154,7 @@ export function ContactRow({
     setModalKind(null);
     setStep({ kind: 'password' });
     setPwErr('');
+    setLoading(false);
   };
 
   const getTrimmedTarget = () => newValueRef.current.trim();
@@ -180,27 +183,28 @@ export function ContactRow({
 
     setPwErr('');
     if (modalKind === 'remove') {
-      setStep({ kind: 'loading', message: t.mfa.verifying });
+      setLoading(true);
       const r1 = await onVerifyPassword(pw);
       if (isStaleOperation()) return;
-      if (!r1.ok) { setPwErr(r1.error); setStep({ kind: 'password' }); return; }
+      if (!r1.ok) { setPwErr(r1.error); setLoading(false); return; }
       const r2 = await onRemove(r1.data.verificationRecordId);
       if (isStaleOperation()) return;
-      if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
+      if (!r2.ok) { onError(r2.error); setLoading(false); return; }
       onSuccess(type === 'email' ? t.profile.emailRemoved : t.profile.phoneRemoved);
       close();
     } else {
       const target = newValueRef.current.trim();
       if (!target) { setPwErr(t.security.enterValueFirst); return; }
       if (type === 'phone' && phoneErr) { setPwErr(phoneErr); return; }
-      setStep({ kind: 'loading', message: t.mfa.sendingCode });
+      setLoading(true);
       const r1 = await onVerifyPassword(pw);
       if (isStaleOperation()) return;
-      if (!r1.ok) { setPwErr(r1.error); setStep({ kind: 'password' }); return; }
+      if (!r1.ok) { setPwErr(r1.error); setLoading(false); return; }
       const r2 = await onSendVerification(target);
       if (isStaleOperation()) return;
-      if (!r2.ok) { onError(r2.error); setStep({ kind: 'password' }); return; }
+      if (!r2.ok) { onError(r2.error); setLoading(false); return; }
       onSuccess(`${t.verification.codeSent} ${target}`);
+      setLoading(false);
       setStep({ kind: 'code', destination: target, verificationId: r2.data.verificationId, identityVerificationId: r1.data.verificationRecordId });
     }
   };
@@ -210,17 +214,12 @@ export function ContactRow({
     const operationToken = operationTokenRef.current;
     const isStaleOperation = () => operationToken !== operationTokenRef.current;
     const { destination, verificationId, identityVerificationId } = step;
-    setStep({ kind: 'loading', message: t.mfa.verifyingCode });
+    setLoading(true);
     const r = await onVerifyCodeAndUpdate(destination, verificationId, identityVerificationId, code);
     if (isStaleOperation()) return;
     if (!r.ok) {
       onError(r.error);
-      setStep({
-        kind: 'code',
-        destination,
-        verificationId,
-        identityVerificationId,
-      });
+      setLoading(false);
       return;
     }
     onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);
@@ -248,6 +247,7 @@ export function ContactRow({
           onCodeSubmit={handleCode}
           onClose={close}
           passwordError={pwErr}
+          loading={loading}
           mode={mode}
           colors={colors}
           t={t}
@@ -314,6 +314,7 @@ export function ContactRow({
                 invalidateInFlightOperations();
                 setModalKind('remove');
                 setPwErr('');
+                setLoading(false);
                 setStep({ kind: 'password' });
               }}
               style={{

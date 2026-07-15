@@ -108,6 +108,7 @@ export function SessionsTab({
   const [revokingAll, setRevokingAll] = useState(false);
   const [modalStep, setModalStep] = useState<PasswordModalStep | null>(null);
   const [modalError, setModalError] = useState<string>('');
+  const [modalLoading, setModalLoading] = useState(false);
   const [modalPurpose, setModalPurpose] = useState<'view' | 'revoke'>('view');
   const {
     locatingIp,
@@ -159,13 +160,13 @@ export function SessionsTab({
   }, [verificationRecordId, verificationExpiry]);
 
   const verifyAndLoad = useCallback(async (password: string) => {
-    setModalStep({ kind: 'loading', message: t.sessions.processing });
+    setModalLoading(true);
     setModalError('');
 
     const verifyResult = await onVerifyPassword(password);
     if (!verifyResult.ok) {
       setModalError(verifyResult.error);
-      setModalStep({ kind: 'password' });
+      setModalLoading(false);
       setViewState('unverified');
       revokeTargetRef.current = null;
       return;
@@ -176,6 +177,7 @@ export function SessionsTab({
     setVerificationExpiry(expiresAt);
 
     setModalStep(null);
+    setModalLoading(false);
 
     setLoading(true);
     const sessionsResult = await onGetSessionsWithDeviceMeta(vid);
@@ -245,6 +247,7 @@ export function SessionsTab({
     setModalPurpose('view');
     setModalStep({ kind: 'password' });
     setModalError('');
+    setModalLoading(false);
   };
 
   // Auto-open password modal when the tab becomes active and is unverified (D13).
@@ -274,6 +277,7 @@ export function SessionsTab({
     setModalPurpose('revoke');
     setModalStep({ kind: 'password' });
     setModalError('');
+    setModalLoading(false);
   };
 
   const handlePasswordSubmit = async (password: string) => {
@@ -283,7 +287,7 @@ export function SessionsTab({
         return;
       }
 
-      setModalStep({ kind: 'loading', message: t.sessions.processing });
+      setModalLoading(true);
       setModalError('');
 
       let vid = verificationRecordId;
@@ -291,7 +295,7 @@ export function SessionsTab({
         const verifyResult = await onVerifyPassword(password);
         if (!verifyResult.ok) {
           setModalError(verifyResult.error);
-          setModalStep({ kind: 'password' });
+          setModalLoading(false);
           setRevokingId(null);
           setRevokingAll(false);
           revokeTargetRef.current = null;
@@ -306,6 +310,7 @@ export function SessionsTab({
       const target = revokeTargetRef.current;
       if (!target) {
         setModalStep(null);
+        setModalLoading(false);
         revokeTargetRef.current = null;
         return;
       }
@@ -315,7 +320,7 @@ export function SessionsTab({
         const revokeResult = await onRevokeAllOtherSessions(vid);
         if (!revokeResult.ok) {
           setModalError(revokeResult.error);
-          setModalStep({ kind: 'password' });
+          setModalLoading(false);
           setRevokingAll(false);
           if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
             setViewState('unverified');
@@ -328,7 +333,7 @@ export function SessionsTab({
         const revokeResult = await onRevokeSession(target.id, vid, 'firstParty');
         if (!revokeResult.ok) {
           setModalError(revokeResult.error);
-          setModalStep({ kind: 'password' });
+          setModalLoading(false);
           setRevokingId(null);
           setRevokingAll(false);
           if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
@@ -342,6 +347,7 @@ export function SessionsTab({
       onSuccess(t.sessions.revoked);
       await loadSessions(vid ?? undefined);
       setModalStep(null);
+      setModalLoading(false);
       revokeTargetRef.current = null;
       setRevokingId(null);
       setRevokingAll(false);
@@ -355,6 +361,7 @@ export function SessionsTab({
       setRevokingId(null);
       setRevokingAll(false);
       setGcAllLoading(false);
+      setModalLoading(false);
       setModalStep({ kind: 'password' });
       onError(t.common.unexpectedError || 'Unexpected error');
     } finally {
@@ -526,8 +533,10 @@ export function SessionsTab({
               }
               setModalStep(null);
               setModalError('');
+              setModalLoading(false);
             }}
             passwordError={modalError}
+            loading={modalLoading}
             mode={mode}
             colors={c}
             t={t}
@@ -725,8 +734,10 @@ export function SessionsTab({
               }
               setModalStep(null);
               setModalError('');
+              setModalLoading(false);
             }}
             passwordError={modalError}
+            loading={modalLoading}
             mode={mode}
             colors={c}
             t={t}
@@ -1100,8 +1111,9 @@ export function SessionsTab({
           subtitle={t.sessions.revokeSessionDesc}
           step={modalStep}
           onPasswordSubmit={handlePasswordSubmit}
-          onClose={() => { setModalStep(null); setRevokingId(null); revokeTargetRef.current = null; setModalError(''); }}
+          onClose={() => { setModalStep(null); setRevokingId(null); revokeTargetRef.current = null; setModalError(''); setModalLoading(false); }}
           passwordError={modalError}
+          loading={modalLoading}
           mode={mode}
           colors={c}
           t={t}

@@ -131,34 +131,34 @@ export function SecurityTab({
   const [totpStep, setTotpStep] = useState<ModalStep | null>(null);
   const [totpPwErr, setTotpPwErr] = useState('');
   const [totpMode, setTotpMode] = useState<'setup' | 'remove'>('setup');
+  const [totpLoading, setTotpLoading] = useState(false);
 
-  const openTotp = () => { ++totpGenRef.current; setTotpStep({ kind: 'password' }); setTotpMode('setup'); setTotpPwErr(''); };
-  const closeTotp = () => { totpGenRef.current++; setTotpStep(null); setTotpMode('setup'); };
+  const openTotp = () => { ++totpGenRef.current; setTotpStep({ kind: 'password' }); setTotpMode('setup'); setTotpPwErr(''); setTotpLoading(false); };
+  const closeTotp = () => { totpGenRef.current++; setTotpStep(null); setTotpMode('setup'); setTotpLoading(false); };
 
   const handleTotpPassword = async (pw: string) => {
     const totpGen = totpGenRef.current;
     setTotpPwErr('');
+    setTotpLoading(true);
     if (totpMode === 'remove') {
       if (!totpFactor) return;
-      setTotpStep({ kind: 'loading', message: t.mfa.verifying });
       const identityResult = await onVerifyPassword(pw);
       if (totpGenRef.current !== totpGen) return;
-      if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
+      if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpLoading(false); return; }
       const delResult = await onDeleteMfaVerification(totpFactor.id, identityResult.data.verificationRecordId);
       if (totpGenRef.current !== totpGen) return;
-      if (!delResult.ok) { onError(delResult.error); setTotpStep({ kind: 'password' }); return; }
+      if (!delResult.ok) { onError(delResult.error); setTotpLoading(false); return; }
       onSuccess(t.mfa.factorRemoved);
       closeTotp();
       await refreshMfa();
       return;
     }
-    setTotpStep({ kind: 'loading', message: t.mfa.verifying });
     const identityResult = await onVerifyPassword(pw);
     if (totpGenRef.current !== totpGen) return;
-    if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpStep({ kind: 'password' }); return; }
-    setTotpStep({ kind: 'loading', message: t.mfa.generatingSecret });
+    if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpLoading(false); return; }
     const secretResult = await onGenerateTotpSecret();
     if (totpGenRef.current !== totpGen) return;
+    setTotpLoading(false);
     if (!secretResult.ok) { onError(secretResult.error); closeTotp(); return; }
     const { secret } = secretResult.data;
     const account = userData.profile?.givenName || userData.username || 'user';
@@ -168,7 +168,7 @@ export function SecurityTab({
 
   const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string) => {
     const totpGen = totpGenRef.current;
-    setTotpStep({ kind: 'loading', message: t.mfa.activating });
+    setTotpLoading(true);
     let r: ActionResult;
     if (totpFactor) {
       r = await onReplaceTotpVerification(secret, code, identityVerificationId);
@@ -176,6 +176,7 @@ export function SecurityTab({
       r = await onAddMfaVerification({ type: 'Totp', payload: { secret, code } }, identityVerificationId);
     }
     if (totpGenRef.current !== totpGen) return;
+    setTotpLoading(false);
     if (!r.ok) { onError(r.error); closeTotp(); return; }
     onSuccess(t.mfa.totpEnrolled);
     closeTotp();
@@ -185,21 +186,23 @@ export function SecurityTab({
   // ── Backup codes ──
   const [backupStep, setBackupStep] = useState<ModalStep | null>(null);
   const [backupPwErr, setBackupPwErr] = useState('');
+  const [backupLoading, setBackupLoading] = useState(false);
   const [backupCodes, setBackupCodes] = useState<Array<{ code: string; used: boolean }> | null>(null);
 
-  const openBackup = () => { ++backupGenRef.current; setBackupPwErr(''); setBackupStep({ kind: 'value' }); };
-  const closeBackupModal = () => { backupGenRef.current++; setBackupPwErr(''); setBackupStep(null); };
+  const openBackup = () => { ++backupGenRef.current; setBackupPwErr(''); setBackupStep({ kind: 'value' }); setBackupLoading(false); };
+  const closeBackupModal = () => { backupGenRef.current++; setBackupPwErr(''); setBackupStep(null); setBackupLoading(false); };
   const closeCodesModal = async () => { setBackupCodes(null); await refreshMfa(); };
 
   const handleBackupPw = async (pw: string) => {
     const backupGen = backupGenRef.current;
     setBackupPwErr('');
-    setBackupStep({ kind: 'loading', message: t.mfa.generatingCodes });
+    setBackupLoading(true);
     const identityResult = await onVerifyPassword(pw);
     if (backupGenRef.current !== backupGen) return;
-    if (!identityResult.ok) { setBackupPwErr(identityResult.error); setBackupStep({ kind: 'password' }); return; }
+    if (!identityResult.ok) { setBackupPwErr(identityResult.error); setBackupLoading(false); return; }
     const codesResult = await onGenerateBackupCodes(identityResult.data.verificationRecordId);
     if (backupGenRef.current !== backupGen) return;
+    setBackupLoading(false);
     if (!codesResult.ok) { onError(codesResult.error); closeBackupModal(); return; }
     setBackupCodes(codesResult.data.codes.map(code => ({ code, used: false })));
     closeBackupModal();
@@ -208,10 +211,12 @@ export function SecurityTab({
   // ── Password change modal ──
   const [pwStep, setPwStep] = useState<ModalStep | null>(null);
   const [pwChangeErr, setPwChangeErr] = useState('');
+  const [pwChangeLoading, setPwChangeLoading] = useState(false);
 
   // ── Delete account modal ──
   const [deleteStep, setDeleteStep] = useState<ModalStep | null>(null);
   const [deletePwErr, setDeletePwErr] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // ── Farewell overlay ──
   const [showFarewell, setShowFarewell] = useState(false);
@@ -219,19 +224,18 @@ export function SecurityTab({
   const handleDeleteAccount = async (pw: string) => {
     const deleteGen = deleteGenRef.current;
     setDeletePwErr('');
-    setDeleteStep({ kind: 'loading', message: t.mfa.verifying });
+    setDeleteLoading(true);
     const identityResult = await onVerifyPassword(pw);
     if (deleteGenRef.current !== deleteGen) return;
-    if (!identityResult.ok) { setDeletePwErr(identityResult.error); setDeleteStep({ kind: 'password' }); return; }
+    if (!identityResult.ok) { setDeletePwErr(identityResult.error); setDeleteLoading(false); return; }
 
-    setDeleteStep({ kind: 'loading', message: t.security.deletingAccount });
     const deleteResult = await onDeleteAccount(
       identityResult.data.verificationRecordId,
     );
     if (deleteGenRef.current !== deleteGen) return;
-    if (!deleteResult.ok) { onError(deleteResult.error); setDeleteStep(null); return; }
+    if (!deleteResult.ok) { onError(deleteResult.error); setDeleteStep(null); setDeleteLoading(false); return; }
 
-    setDeleteStep({ kind: 'loading', message: t.security.accountDeleted });
+    setDeleteLoading(false);
     onSuccess(t.security.accountDeleted);
 
     // Show farewell overlay instead of redirecting
@@ -242,6 +246,7 @@ export function SecurityTab({
   // ── Passkey registration ──
   const [passkeyRegStep, setPasskeyRegStep] = useState<ModalStep | null>(null);
   const [passkeyRegPwErr, setPasskeyRegPwErr] = useState('');
+  const [passkeyRegLoading, setPasskeyRegLoading] = useState(false);
   const [webAuthnSupported, setWebAuthnSupported] = useState(true); // optimistic default
 
   useEffect(() => {
@@ -257,30 +262,32 @@ export function SecurityTab({
   // ── Passkey deletion ──
   const [delPasskeyStep, setDelPasskeyStep] = useState<ModalStep | null>(null);
   const [delPasskeyPwErr, setDelPasskeyPwErr] = useState('');
+  const [delPasskeyLoading, setDelPasskeyLoading] = useState(false);
   const [passkeyToDelete, setPasskeyToDelete] = useState<string | null>(null);
 
   // ── Passkey rename ──
   const [renamePasskeyStep, setRenamePasskeyStep] = useState<ModalStep | null>(null);
   const [renamePasskeyPwErr, setRenamePasskeyPwErr] = useState('');
+  const [renamePasskeyLoading, setRenamePasskeyLoading] = useState(false);
   const [passkeyToRename, setPasskeyToRename] = useState<string | null>(null);
 
   // ── Passkey action (mobile unified rename/remove modal) ──
   const [passkeyActionMode, setPasskeyActionMode] = useState<'rename' | 'remove'>('rename');
   const [passkeyActionStep, setPasskeyActionStep] = useState<ModalStep | null>(null);
   const [passkeyActionPwErr, setPasskeyActionPwErr] = useState('');
+  const [passkeyActionLoading, setPasskeyActionLoading] = useState(false);
   const [passkeyActionId, setPasskeyActionId] = useState<string | null>(null);
 
   const handlePasskeyRegPassword = async (pw: string) => {
     const passkeyRegGen = passkeyRegGenRef.current;
     setPasskeyRegPwErr('');
-    setPasskeyRegStep({ kind: 'loading', message: t.mfa.verifying });
+    setPasskeyRegLoading(true);
     const identityResult = await onVerifyPassword(pw);
     if (passkeyRegGenRef.current !== passkeyRegGen) return;
-    if (!identityResult.ok) { setPasskeyRegPwErr(identityResult.error); setPasskeyRegStep({ kind: 'password' }); return; }
-    setPasskeyRegStep({ kind: 'loading', message: t.mfa.checkDevice });
+    if (!identityResult.ok) { setPasskeyRegPwErr(identityResult.error); setPasskeyRegLoading(false); return; }
     const registrationResult = await onRequestWebAuthnRegistration();
     if (passkeyRegGenRef.current !== passkeyRegGen) return;
-    if (!registrationResult.ok) { onError(registrationResult.error); setPasskeyRegStep(null); return; }
+    if (!registrationResult.ok) { onError(registrationResult.error); setPasskeyRegStep(null); setPasskeyRegLoading(false); return; }
     const { registrationOptions, verificationRecordId } = registrationResult.data;
     try {
       // Dynamic import - if chunk fails to load, error is caught below
@@ -288,9 +295,9 @@ export function SecurityTab({
       // browser ceremony - native prompt appears here
       const registrationResponse = await startRegistration({ optionsJSON: registrationOptions as Parameters<typeof startRegistration>[0]['optionsJSON'] });
       if (passkeyRegGenRef.current !== passkeyRegGen) return;
-      setPasskeyRegStep({ kind: 'loading', message: t.mfa.linkingPasskey });
       const linkResult = await onVerifyAndLinkWebAuthn(registrationResponse, verificationRecordId, identityResult.data.verificationRecordId);
       if (passkeyRegGenRef.current !== passkeyRegGen) return;
+      setPasskeyRegLoading(false);
       if (!linkResult.ok) { onError(linkResult.error); setPasskeyRegStep(null); return; }
       onSuccess(t.mfa.passkeyAdded);
       setPasskeyRegStep(null);
@@ -299,10 +306,12 @@ export function SecurityTab({
       // User cancelled the browser's WebAuthn prompt - close silently
       if (err instanceof Error && (err.name === 'NotAllowedError' || err.message.includes('not allowed'))) {
         setPasskeyRegStep(null);
+        setPasskeyRegLoading(false);
         return;
       }
       onError(captureMessage(err));
       setPasskeyRegStep(null);
+      setPasskeyRegLoading(false);
     }
   };
 
@@ -310,12 +319,13 @@ export function SecurityTab({
     const delPasskeyGen = delPasskeyGenRef.current;
     if (!passkeyToDelete) return;
     setDelPasskeyPwErr('');
-    setDelPasskeyStep({ kind: 'loading', message: t.mfa.removing });
+    setDelPasskeyLoading(true);
     const identityResult = await onVerifyPassword(pw);
     if (delPasskeyGenRef.current !== delPasskeyGen) return;
-    if (!identityResult.ok) { setDelPasskeyPwErr(identityResult.error); setDelPasskeyStep({ kind: 'password' }); return; }
+    if (!identityResult.ok) { setDelPasskeyPwErr(identityResult.error); setDelPasskeyLoading(false); return; }
     const delResult = await onDeleteMfaVerification(passkeyToDelete, identityResult.data.verificationRecordId);
     if (delPasskeyGenRef.current !== delPasskeyGen) return;
+    setDelPasskeyLoading(false);
     if (!delResult.ok) { onError(delResult.error); setDelPasskeyStep(null); setPasskeyToDelete(null); return; }
     onSuccess(t.mfa.passkeyDeleted);
     setDelPasskeyStep(null);
@@ -327,18 +337,20 @@ export function SecurityTab({
     const renameGen = renameGenRef.current;
     if (!passkeyToRename) return;
     setRenamePasskeyPwErr('');
-    setRenamePasskeyStep({ kind: 'loading', message: t.mfa.verifying });
+    setRenamePasskeyLoading(true);
     const identityResult = await onVerifyPassword(pw);
     if (renameGenRef.current !== renameGen) return;
-    if (!identityResult.ok) { setRenamePasskeyPwErr(identityResult.error); setRenamePasskeyStep({ kind: 'password' }); return; }
+    if (!identityResult.ok) { setRenamePasskeyPwErr(identityResult.error); setRenamePasskeyLoading(false); return; }
+    setRenamePasskeyLoading(false);
     setRenamePasskeyStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyToRename });
   };
 
   const handleRenamePasskeySubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
     const renameGen = renameGenRef.current;
-    setRenamePasskeyStep({ kind: 'loading', message: t.mfa.verifying });
+    setRenamePasskeyLoading(true);
     const r = await onRenamePasskey(passkeyId, name, verificationRecordId);
     if (renameGenRef.current !== renameGen) return;
+    setRenamePasskeyLoading(false);
     if (!r.ok) { onError(r.error); setRenamePasskeyStep(null); setPasskeyToRename(null); return; }
     onSuccess(t.mfa.passkeyRenamed);
     setRenamePasskeyStep(null);
@@ -351,13 +363,14 @@ export function SecurityTab({
     const passkeyActionGen = passkeyActionGenRef.current;
     if (!passkeyActionId) return;
     setPasskeyActionPwErr('');
+    setPasskeyActionLoading(true);
     if (passkeyActionMode === 'remove') {
-      setPasskeyActionStep({ kind: 'loading', message: t.mfa.removing });
       const identityResult = await onVerifyPassword(pw);
       if (passkeyActionGenRef.current !== passkeyActionGen) return;
-      if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionStep({ kind: 'password' }); return; }
+      if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionLoading(false); return; }
       const delResult = await onDeleteMfaVerification(passkeyActionId, identityResult.data.verificationRecordId);
       if (passkeyActionGenRef.current !== passkeyActionGen) return;
+      setPasskeyActionLoading(false);
       if (!delResult.ok) { onError(delResult.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
       onSuccess(t.mfa.passkeyDeleted);
       setPasskeyActionStep(null);
@@ -365,18 +378,19 @@ export function SecurityTab({
       await refreshMfa();
       return;
     }
-    setPasskeyActionStep({ kind: 'loading', message: t.mfa.verifying });
     const identityResult = await onVerifyPassword(pw);
     if (passkeyActionGenRef.current !== passkeyActionGen) return;
-    if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionStep({ kind: 'password' }); return; }
+    if (!identityResult.ok) { setPasskeyActionPwErr(identityResult.error); setPasskeyActionLoading(false); return; }
+    setPasskeyActionLoading(false);
     setPasskeyActionStep({ kind: 'rename-passkey', verificationRecordId: identityResult.data.verificationRecordId, passkeyId: passkeyActionId });
   };
 
   const handlePasskeyActionRenameSubmit = async (name: string, passkeyId: string, verificationRecordId: string) => {
     const passkeyActionGen = passkeyActionGenRef.current;
-    setPasskeyActionStep({ kind: 'loading', message: t.mfa.verifying });
+    setPasskeyActionLoading(true);
     const r = await onRenamePasskey(passkeyId, name, verificationRecordId);
     if (passkeyActionGenRef.current !== passkeyActionGen) return;
+    setPasskeyActionLoading(false);
     if (!r.ok) { onError(r.error); setPasskeyActionStep(null); setPasskeyActionId(null); return; }
     onSuccess(t.mfa.passkeyRenamed);
     setPasskeyActionStep(null);
@@ -409,6 +423,7 @@ export function SecurityTab({
           onTotpSubmit={handleTotpActivate}
           onClose={closeTotp}
           passwordError={totpPwErr}
+          loading={totpLoading}
           headerExtra={totpMode === 'setup' && totpFactor && totpStep.kind === 'password' ? (
             <button
               onClick={() => { setTotpMode('remove'); setTotpPwErr(''); }}
@@ -443,6 +458,7 @@ export function SecurityTab({
           onPasswordSubmit={handleBackupPw}
           onClose={closeBackupModal}
           passwordError={backupPwErr}
+          loading={backupLoading}
           extra={backupStep.kind === 'value' ? (
             <p style={{ fontFamily: T.font, fontSize: '0.8125rem', fontWeight: 700, color: T.text, lineHeight: 1.55, margin: 0 }}>
               {t.security.generateBackupCodesConfirm}
@@ -481,17 +497,19 @@ export function SecurityTab({
           onPasswordSubmit={async (pw) => {
             const pwChangeGen = pwChangeGenRef.current;
             setPwChangeErr('');
-            setPwStep({ kind: 'loading', message: t.mfa.verifying });
+            setPwChangeLoading(true);
             const pwResult = await onVerifyPassword(pw);
             if (pwChangeGenRef.current !== pwChangeGen) return;
-            if (!pwResult.ok) { setPwChangeErr(pwResult.error); setPwStep({ kind: 'password' }); return; }
+            if (!pwResult.ok) { setPwChangeErr(pwResult.error); setPwChangeLoading(false); return; }
+            setPwChangeLoading(false);
             setPwStep({ kind: 'new-password', verificationRecordId: pwResult.data.verificationRecordId });
           }}
           onNewPasswordSubmit={async (newPw, verificationRecordId) => {
             const pwChangeGen = pwChangeGenRef.current;
-            setPwStep({ kind: 'loading', message: t.mfa.changingPassword });
+            setPwChangeLoading(true);
             const result = await onUpdatePassword(newPw, verificationRecordId);
             if (pwChangeGenRef.current !== pwChangeGen) return;
+            setPwChangeLoading(false);
             if (result.ok) {
               onSuccess(t.security.passwordChanged);
             } else {
@@ -499,8 +517,9 @@ export function SecurityTab({
             }
             setPwStep(null);
           }}
-          onClose={() => { pwChangeGenRef.current++; setPwStep(null); }}
+          onClose={() => { pwChangeGenRef.current++; setPwStep(null); setPwChangeLoading(false); }}
           hideFooterClose
+          loading={pwChangeLoading}
           mode={mode}
           colors={colors}
           t={t}
@@ -517,7 +536,8 @@ export function SecurityTab({
           step={deleteStep}
           passwordError={deletePwErr}
           onPasswordSubmit={handleDeleteAccount}
-          onClose={() => { deleteGenRef.current++; setDeletePwErr(''); setDeleteStep(null); }}
+          onClose={() => { deleteGenRef.current++; setDeletePwErr(''); setDeleteStep(null); setDeleteLoading(false); }}
+          loading={deleteLoading}
           danger
           hideFooterClose
           mode={mode}
@@ -536,7 +556,8 @@ export function SecurityTab({
           step={passkeyRegStep}
           passwordError={passkeyRegPwErr}
           onPasswordSubmit={handlePasskeyRegPassword}
-          onClose={() => { passkeyRegGenRef.current++; setPasskeyRegPwErr(''); setPasskeyRegStep(null); }}
+          onClose={() => { passkeyRegGenRef.current++; setPasskeyRegPwErr(''); setPasskeyRegStep(null); setPasskeyRegLoading(false); }}
+          loading={passkeyRegLoading}
           hideFooterClose
           mode={mode}
           colors={colors}
@@ -554,7 +575,8 @@ export function SecurityTab({
           step={delPasskeyStep}
           passwordError={delPasskeyPwErr}
           onPasswordSubmit={handleDelPasskeyPw}
-          onClose={() => { delPasskeyGenRef.current++; setDelPasskeyPwErr(''); setDelPasskeyStep(null); setPasskeyToDelete(null); }}
+          onClose={() => { delPasskeyGenRef.current++; setDelPasskeyPwErr(''); setDelPasskeyStep(null); setPasskeyToDelete(null); setDelPasskeyLoading(false); }}
+          loading={delPasskeyLoading}
           danger
           hideFooterClose
           mode={mode}
@@ -574,7 +596,8 @@ export function SecurityTab({
           passwordError={renamePasskeyPwErr}
           onPasswordSubmit={handleRenamePasskeyPw}
           onRenamePasskeySubmit={handleRenamePasskeySubmit}
-          onClose={() => { renameGenRef.current++; setRenamePasskeyPwErr(''); setRenamePasskeyStep(null); setPasskeyToRename(null); }}
+          onClose={() => { renameGenRef.current++; setRenamePasskeyPwErr(''); setRenamePasskeyStep(null); setPasskeyToRename(null); setRenamePasskeyLoading(false); }}
+          loading={renamePasskeyLoading}
           hideFooterClose
           mode={mode}
           colors={colors}
@@ -593,7 +616,8 @@ export function SecurityTab({
           passwordError={passkeyActionPwErr}
           onPasswordSubmit={handlePasskeyActionPw}
           onRenamePasskeySubmit={handlePasskeyActionRenameSubmit}
-          onClose={() => { passkeyActionGenRef.current++; setPasskeyActionPwErr(''); setPasskeyActionStep(null); setPasskeyActionId(null); }}
+          onClose={() => { passkeyActionGenRef.current++; setPasskeyActionPwErr(''); setPasskeyActionStep(null); setPasskeyActionId(null); setPasskeyActionLoading(false); }}
+          loading={passkeyActionLoading}
           danger={passkeyActionMode === 'remove'}
           hideFooterClose
           headerExtra={passkeyActionMode === 'rename' && passkeyActionStep.kind === 'password' ? (

@@ -15,10 +15,11 @@ let flowModalHandlers: {
 
 let flowModalStep: string = 'password';
 let flowModalValueSubmitDisabled: boolean | undefined;
+let flowModalLoading: boolean | undefined;
 
 vi.mock('./FlowModal', () => ({
   FlowModal: ({
-    step, onValueSubmit, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra, headerExtra, valueSubmitDisabled,
+    step, onValueSubmit, onPasswordSubmit, onCodeSubmit, onClose, passwordError, extra, headerExtra, valueSubmitDisabled, loading,
   }: Record<string, unknown>) => {
     // Expose handlers for test access
     flowModalHandlers = {
@@ -29,6 +30,7 @@ vi.mock('./FlowModal', () => ({
     };
     flowModalStep = (step as { kind: string }).kind;
     flowModalValueSubmitDisabled = valueSubmitDisabled as boolean | undefined;
+    flowModalLoading = loading as boolean | undefined;
     return (
       <div data-testid="flow-modal" data-step={flowModalStep}>
         {passwordError ? <div data-testid="password-error">{passwordError as string}</div> : null}
@@ -103,6 +105,7 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     flowModalHandlers = {};
     flowModalStep = 'password';
     flowModalValueSubmitDisabled = undefined;
+    flowModalLoading = undefined;
   });
 
   // ══════════════════════════════════════════════════════════
@@ -543,6 +546,88 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
 
     await waitFor(() => {
       expect(props.onSendVerification).toHaveBeenCalledWith('+17778888');
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════
+  // Loading state: loading prop is passed to FlowModal during async ops
+  // ══════════════════════════════════════════════════════════
+
+  it('passes loading=true to FlowModal while password verification is in flight, then false on success', async () => {
+    const props = buildDefaults();
+    const verifyDeferred = deferred<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>();
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockReturnValue(verifyDeferred.promise);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationId: 'vid-1' },
+    } satisfies DataResult<{ verificationId: string }>);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput();
+    await act(async () => flowModalHandlers.onValueSubmit!());
+
+    // Before submitting password, loading is not true
+    expect(flowModalLoading).not.toBe(true);
+
+    // Submit password — triggers handlePassword which sets loading=true
+    await act(async () => {
+      void flowModalHandlers.onPasswordSubmit!('pw123');
+    });
+
+    // While onVerifyPassword is pending, loading should be true
+    expect(flowModalLoading).toBe(true);
+
+    // Resolve verification — loading should reset and step advances to 'code'
+    await act(async () => {
+      verifyDeferred.resolve({
+        ok: true,
+        data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+      } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(flowModalStep).toBe('code');
+    });
+    expect(flowModalLoading).toBe(false);
+  });
+
+  it('passes loading=true during code verification, then false on error (stays on code step)', async () => {
+    const props = buildDefaults();
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationRecordId: 'vr-1', verificationTimestamp: Date.now() + 600000 },
+    } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+    (props.onSendVerification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, data: { verificationId: 'vid-1' },
+    } satisfies DataResult<{ verificationId: string }>);
+    const codeDeferred = deferred<ActionResult>();
+    (props.onVerifyCodeAndUpdate as ReturnType<typeof vi.fn>).mockReturnValue(codeDeferred.promise);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput();
+    await act(async () => flowModalHandlers.onValueSubmit!());
+    await act(async () => flowModalHandlers.onPasswordSubmit!('pw123'));
+    await waitFor(() => { expect(flowModalStep).toBe('code'); });
+
+    // Submit code — triggers handleCode which sets loading=true
+    await act(async () => {
+      void flowModalHandlers.onCodeSubmit!('123456');
+    });
+
+    expect(flowModalLoading).toBe(true);
+
+    // Resolve with error — loading resets, step stays 'code'
+    await act(async () => {
+      codeDeferred.resolve({ ok: false, error: 'Invalid code' } satisfies ActionResult);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(flowModalLoading).toBe(false);
+      expect(flowModalStep).toBe('code');
     });
   });
 });

@@ -41,6 +41,7 @@ describe('useSessionRevocation', () => {
     expect(result.current.revokingId).toBe('session-1');
     expect(result.current.revokeModalStep).toEqual({ kind: 'password' });
     expect(result.current.revokeError).toBe('');
+    expect(result.current.revokeLoading).toBe(false);
   });
 
   it('2. startRevoke guard: does nothing if another revocation in flight', () => {
@@ -75,6 +76,7 @@ describe('useSessionRevocation', () => {
     expect(opts.onSuccess).toHaveBeenCalledWith('Session revoked successfully');
     expect(result.current.revokeModalStep).toBeNull();
     expect(result.current.revokingId).toBeNull();
+    expect(result.current.revokeLoading).toBe(false);
     expect(opts.onRevokeSession).toHaveBeenCalledWith('session-1', 'vid-1', FUTURE_EXPIRY, 'firstParty');
   });
 
@@ -96,6 +98,7 @@ describe('useSessionRevocation', () => {
     // Bug LOG-003: revokingId should be null even on failure (finally block)
     expect(result.current.revokingId).toBeNull();
     expect(result.current.revokeModalStep).toEqual({ kind: 'password' });
+    expect(result.current.revokeLoading).toBe(false);
   });
 
   it('5. handleRevokePassword retry: onRevokeSession receives correct sessionId on retry after failure (Bug 1)', async () => {
@@ -290,5 +293,37 @@ describe('useSessionRevocation', () => {
       resolveRevoke({ ok: true });
       await passwordPromise;
     });
+  });
+
+  it('13. revokeLoading is true while handleRevokePassword is in flight, false after', async () => {
+    let resolveRevoke!: (val: { ok: boolean }) => void;
+    const revokePromise = new Promise<{ ok: boolean }>((resolve) => {
+      resolveRevoke = resolve;
+    });
+    const opts = makeOpts({
+      onRevokeSession: vi.fn().mockReturnValue(revokePromise),
+    });
+    const { result } = renderHook(() => useSessionRevocation(opts));
+
+    act(() => {
+      result.current.startRevoke('session-1');
+    });
+    expect(result.current.revokeLoading).toBe(false);
+
+    let passwordPromise: Promise<void>;
+    act(() => {
+      passwordPromise = result.current.handleRevokePassword('password');
+    });
+
+    // revokeLoading is true while revoke is in flight
+    expect(result.current.revokeLoading).toBe(true);
+
+    await act(async () => {
+      resolveRevoke({ ok: true });
+      await passwordPromise;
+    });
+
+    // revokeLoading resets to false after success
+    expect(result.current.revokeLoading).toBe(false);
   });
 });

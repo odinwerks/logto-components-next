@@ -36,7 +36,8 @@ export interface UseSessionRevocationResult {
   showGcAllModal: boolean;
   gcAllLoading: boolean;
   revokeError: string;
-  revokeModalStep: { kind: 'password' } | { kind: 'loading'; message: string } | null;
+  revokeModalStep: { kind: 'password' } | null;
+  revokeLoading: boolean;
   startRevoke: (sessionId: string) => void;
   handleRevokePassword: (password: string) => Promise<void>;
   cancelRevoke: () => void;
@@ -61,8 +62,9 @@ export function useSessionRevocation({
   const [gcAllLoading, setGcAllLoading] = useState(false);
   const [revokeError, setRevokeError] = useState<string>('');
   const [revokeModalStep, setRevokeModalStep] = useState<
-    { kind: 'password' } | { kind: 'loading'; message: string } | null
+    { kind: 'password' } | null
   >(null);
+  const [revokeLoading, setRevokeLoading] = useState(false);
 
   // Persists the revoke target through failed attempts so retries send the correct session ID (Bug 1 fix)
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
@@ -108,10 +110,11 @@ export function useSessionRevocation({
     setRevokingId(sessionId);
     setRevokeError('');
     setRevokeModalStep({ kind: 'password' });
+    setRevokeLoading(false);
   }, [revokingId, revokingAll]);
 
   const handleRevokePassword = useCallback(async (password: string): Promise<void> => {
-    setRevokeModalStep({ kind: 'loading', message: 'Processing...' });
+    setRevokeLoading(true);
     setRevokeError('');
 
     // Read latest verification credentials from refs
@@ -123,7 +126,7 @@ export function useSessionRevocation({
       const verifyResult = await onVerifyPasswordRef.current(password);
       if (!verifyResult.ok) {
         setRevokeError(verifyResult.error);
-        setRevokeModalStep({ kind: 'password' });
+        setRevokeLoading(false);
         // Clear revokingId in finally-equivalent path
         setRevokingId(null);
         return;
@@ -135,6 +138,7 @@ export function useSessionRevocation({
     const target = revokeTargetRef.current;
     if (!target) {
       setRevokeModalStep(null);
+      setRevokeLoading(false);
       return;
     }
 
@@ -144,7 +148,7 @@ export function useSessionRevocation({
       const revokeResult = await onRevokeAllOtherSessionsRef.current(vid, vts);
       if (!revokeResult.ok) {
         setRevokeError(revokeResult.error);
-        setRevokeModalStep({ kind: 'password' });
+        setRevokeLoading(false);
         setRevokingAll(false);
         setGcAllLoading(false);
         return;
@@ -156,7 +160,7 @@ export function useSessionRevocation({
         const revokeResult = await onRevokeSessionRef.current(target.id, vid, vts, 'firstParty');
         if (!revokeResult.ok) {
           setRevokeError(revokeResult.error);
-          setRevokeModalStep({ kind: 'password' });
+          setRevokeLoading(false);
           return;
         }
         singleOk = true;
@@ -172,6 +176,7 @@ export function useSessionRevocation({
     onSuccessRef.current('Session revoked successfully');
     await onReloadSessionsRef.current(vid, vts);
     setRevokeModalStep(null);
+    setRevokeLoading(false);
     revokeTargetRef.current = null;
     setRevokingId(null);
     setRevokingAll(false);
@@ -180,6 +185,7 @@ export function useSessionRevocation({
 
   const cancelRevoke = useCallback(() => {
     setRevokeModalStep(null);
+    setRevokeLoading(false);
     revokeTargetRef.current = null;
     setRevokingId(null);
     setRevokeError('');
@@ -200,6 +206,7 @@ export function useSessionRevocation({
     setShowGcAllModal(false);
     setRevokeModalStep({ kind: 'password' });
     setRevokeError('');
+    setRevokeLoading(false);
   }, []);
 
   return {
@@ -209,6 +216,7 @@ export function useSessionRevocation({
     gcAllLoading,
     revokeError,
     revokeModalStep,
+    revokeLoading,
     startRevoke,
     handleRevokePassword,
     cancelRevoke,

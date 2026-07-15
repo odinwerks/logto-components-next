@@ -1255,3 +1255,71 @@ describe('SessionsTab', () => {
     });
   });
 
+  // ─── Loading state: BouncingDots render inside the verify button ───
+  describe('Loading state: in-button BouncingDots during verification', () => {
+    it('shows loading dots inside the verify button (not a separate stage) during session verification', async () => {
+      type VerifyResult = DataResult<{ verificationRecordId: string; verificationTimestamp: number }>;
+      let resolveVerify!: (val: VerifyResult) => void;
+      const verifyPromise = new Promise<VerifyResult>((resolve) => {
+        resolveVerify = resolve;
+      });
+
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+
+      render(
+        <SessionsTab
+          userData={defaultUserData}
+          mode="dark"
+          colors={DARK_COLORS}
+          t={enUS}
+          isActive={true}
+          onGetSessionsWithDeviceMeta={onGetSessions}
+          onRevokeSession={vi.fn()}
+          onRevokeAllOtherSessions={vi.fn()}
+          onVerifyPassword={vi.fn().mockReturnValue(verifyPromise)}
+          onSuccess={vi.fn()}
+          onError={vi.fn()}
+        />,
+      );
+
+      // Wait for the auto-opened password modal
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Enter password')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByPlaceholderText('Enter password'), {
+        target: { value: 'test-password' },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'VERIFY PASS' }));
+      });
+
+      // While onVerifyPassword is pending: BouncingDots render inside the
+      // verify button (no separate loading stage), the button is disabled.
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toBeInTheDocument();
+      });
+      const loadingBtn = screen.getByRole('status').closest('button') as HTMLElement;
+      expect(loadingBtn).toBeDisabled();
+      // The verify button text is gone — replaced by dots.
+      expect(screen.queryByRole('button', { name: 'VERIFY PASS' })).not.toBeInTheDocument();
+      // Dots are white
+      const dots = screen.getByRole('status').querySelectorAll('span');
+      expect(dots[0]).toHaveStyle({ background: 'rgb(255, 255, 255)' });
+
+      // Resolve verification → modal closes on success (no separate stage),
+      // and sessions load.
+      await act(async () => {
+        resolveVerify({ ok: true, data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 } });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+    });
+  });
+

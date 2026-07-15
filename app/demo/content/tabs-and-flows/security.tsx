@@ -143,11 +143,13 @@ export default function SecuritySection() {
         <CodeBlock title="ModalStep Discriminated Union" code={`export type ModalStep =
   | { kind: 'value' }
   | { kind: 'password' }
-  | { kind: 'loading'; message: string }
-  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string; verificationTimestamp: number }
-  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string; verificationTimestamp: number }
-  | { kind: 'new-password'; verificationRecordId: string; verificationTimestamp: number }
-  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string; verificationTimestamp: number };`} />
+  | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
+  | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
+  | { kind: 'new-password'; verificationRecordId: string }
+  | { kind: 'rename-passkey'; verificationRecordId: string; passkeyId: string };
+
+// Loading is conveyed via a \`loading: boolean\` prop — white BouncingDots
+// render inside the triggering button (no separate loading step).`} />
 
         <p style={styles.textStyle}>
           The flow transition states operate as follows:
@@ -160,7 +162,7 @@ export default function SecuritySection() {
             <strong>password:</strong> User enters password to get <code>verificationRecordId</code> and <code>verificationTimestamp</code>.
           </li>
           <li>
-            <strong>loading:</strong> Shows progress while requests are running.
+            <strong>loading:</strong> Not a step — a <code>loading: boolean</code> prop renders white BouncingDots inside the triggering button while requests run.
           </li>
           <li>
             <strong>code:</strong> User enters a 6-digit code for contact verification.

@@ -34,13 +34,11 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
 import { useFocusTrap } from './focus-trap';
 
 export type PasswordModalStep =
-  | { kind: 'password' }
-  | { kind: 'loading'; message: string };
+  | { kind: 'password' };
 
 export type ModalStep =
   | { kind: 'value' }
   | { kind: 'password' }
-  | { kind: 'loading'; message: string }
   | { kind: 'code'; destination: string; verificationId: string; identityVerificationId: string }
   | { kind: 'totp-scan'; secret: string; totpUri: string; identityVerificationId: string }
   | { kind: 'new-password'; verificationRecordId: string }
@@ -48,6 +46,7 @@ export type ModalStep =
 
 export function PasswordVerifyModal({
   title, subtitle, step, onPasswordSubmit, onClose, passwordError, mode, colors, t, danger,
+  loading = false,
 }: {
   title: string;
   subtitle: string;
@@ -59,6 +58,7 @@ export function PasswordVerifyModal({
   colors: ThemeColors;
   t: Translations;
   danger?: boolean;
+  loading?: boolean;
 }) {
   const c = colors;
   const T = {
@@ -142,12 +142,14 @@ export function PasswordVerifyModal({
         onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
         mode={mode}
         colors={colors}
+        disabled={loading}
                 describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPw(s => !s)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                    disabled={loading}
                   >
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
@@ -162,25 +164,23 @@ export function PasswordVerifyModal({
           <Button
             variant={danger ? 'danger' : 'primary'}
             onClick={() => {
-              if (!pw) return;
+              if (!pw || loading) return;
               setHidePwErrorWhileTyping(false);
               void Promise.resolve(onPasswordSubmit(pw)).catch(() => {});
             }}
-            disabled={!pw}
+            disabled={!pw || loading}
             mode={mode}
             colors={colors}
+            style={{ minWidth: '8rem' }}
           >
-            {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+            {loading ? (
+              <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+            ) : (
+              <>{t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} /></>
+            )}
                 </Button>
               </div>
             </>
-          )}
-
-          {step.kind === 'loading' && (
-            <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <BouncingDots size={10} gap={5} color={T.blue} ariaLabel="Loading" />
-              <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
-            </div>
           )}
           </motion.div>
         </AnimatePresence>
@@ -192,6 +192,7 @@ export function PasswordVerifyModal({
 export function FlowModal({
   title, subtitle, step, onValueSubmit, valueSubmitDisabled, valueSubmitLabel, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
   passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger, mobmode,
+  loading = false,
 }: {
   title: string;
   subtitle: string;
@@ -214,6 +215,7 @@ export function FlowModal({
   t: Translations;
   danger?: boolean;
   mobmode?: number;
+  loading?: boolean;
 }) {
   const c = colors;
   const isMobile = mobmode === 1;
@@ -320,16 +322,21 @@ export function FlowModal({
               {extra}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
-                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                  <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
                 <Button
                   variant={danger ? 'danger' : 'primary'}
                   onClick={() => onValueSubmit?.()}
-                  disabled={valueSubmitDisabled}
+                  disabled={valueSubmitDisabled || loading}
                   mode={mode}
                   colors={colors}
+                  style={{ minWidth: '6.5rem' }}
                 >
-                  {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                  {loading ? (
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  ) : (
+                    <>{(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} /></>
+                  )}
                 </Button>
               </div>
             </>
@@ -350,14 +357,16 @@ export function FlowModal({
                 placeholder={t.mfa.enterPasswordPlaceholder}
                 autoFocus={!extra}
                 hasError={!!passwordError}
-                onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && pw && !loading) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
                 mode={mode} colors={colors}
+                disabled={loading}
                 describedby={passwordError && !hidePwErrorWhileTyping ? pwdErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPw(s => !s)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                    disabled={loading}
                   >
                     {showPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
@@ -370,30 +379,28 @@ export function FlowModal({
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
-                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                  <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
                 <Button
                   variant={danger ? 'danger' : 'primary'}
                   onClick={() => {
-                    if (!pw) return;
+                    if (!pw || loading) return;
                     setHidePwErrorWhileTyping(false);
                     void Promise.resolve(onPasswordSubmit(pw)).catch(() => {});
                   }}
-                  disabled={!pw}
+                  disabled={!pw || loading}
                   mode={mode}
                   colors={colors}
+                  style={{ minWidth: '8rem' }}
                 >
-                  {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                  {loading ? (
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  ) : (
+                    <>{t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} /></>
+                  )}
                 </Button>
               </div>
             </>
-          )}
-
-          {step.kind === 'loading' && (
-            <div style={{ padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.875rem' }}>
-              <BouncingDots size={10} gap={5} color={T.blue} ariaLabel="Loading" />
-              <p style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub }}>{step.message}</p>
-            </div>
           )}
 
           {step.kind === 'code' && (
@@ -414,14 +421,19 @@ export function FlowModal({
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); } }}
                 mode={mode} colors={colors}
+                disabled={loading}
                 style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.125rem' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
-                  <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                  <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant="primary" onClick={() => { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); }} disabled={code.length !== 6} mode={mode} colors={colors}>
-                  Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+                <Button variant="primary" onClick={() => { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); }} disabled={code.length !== 6 || loading} mode={mode} colors={colors} style={{ minWidth: '5.5rem' }}>
+                  {loading ? (
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  ) : (
+                    <>Verify <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} /></>
+                  )}
                 </Button>
               </div>
             </>
@@ -487,17 +499,23 @@ onChange={(e) => {
                       maxLength={6}
                       autoFocus
                       mode={mode} colors={colors}
+                      disabled={loading}
                       style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: isMobile ? '1.5rem' : '1.125rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                       {!hideFooterClose && (
-                        <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                        <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                       )}
                       <Button variant="primary"
                         onClick={() => { void Promise.resolve(onTotpSubmit?.(code, step.secret, step.identityVerificationId)).catch(() => {}); }}
-                        disabled={code.length !== 6} mode={mode} colors={colors}
+                        disabled={code.length !== 6 || loading} mode={mode} colors={colors}
+                        style={{ minWidth: '7rem' }}
                       >
-                        Activate <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+                        {loading ? (
+                          <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                        ) : (
+                          <>Activate <Check size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} /></>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -517,11 +535,13 @@ onChange={(e) => {
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
+                disabled={loading}
                 suffix={
                   <button
                     aria-label={showNewPw ? 'Hide password' : 'Show password'}
                     onClick={() => setShowNewPw(s => !s)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex', padding: 0 }}
+                    disabled={loading}
                   >
                     {showNewPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
@@ -534,10 +554,14 @@ onChange={(e) => {
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
-                  <Button onClick={onClose} mode={mode} colors={colors}>{t.profile.cancel}</Button>
+                  <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-                <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }} disabled={!newPw} mode={mode} colors={colors}>
-                  {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }} disabled={!newPw || loading} mode={mode} colors={colors} style={{ minWidth: '7.5rem' }}>
+                  {loading ? (
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  ) : (
+                    <>{danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} /></>
+                  )}
                 </Button>
               </div>
             </>
@@ -554,13 +578,18 @@ onChange={(e) => {
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
+                disabled={loading}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
-                  <Button onClick={onClose} mode={mode} colors={colors}>{t.common.close}</Button>
+                  <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-                <Button variant="primary" onClick={() => { if (renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }} disabled={!renameVal.trim()} mode={mode} colors={colors}>
-                  {t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+                <Button variant="primary" onClick={() => { if (renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }} disabled={!renameVal.trim() || loading} mode={mode} colors={colors} style={{ minWidth: '6rem' }}>
+                  {loading ? (
+                    <BouncingDots size={5} gap={3} color="#fff" ariaLabel="" />
+                  ) : (
+                    <>{t.mfa.renamePasskey} <ChevronRight size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} /></>
+                  )}
                 </Button>
               </div>
             </>

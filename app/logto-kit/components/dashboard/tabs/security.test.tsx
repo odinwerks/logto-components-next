@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { UserData, MfaVerification } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { DARK_COLORS } from '../../../themes';
@@ -267,5 +267,76 @@ describe('SecurityTab', () => {
     expect(encodedSecret).toContain('%3D'); // = should be encoded
     // Confirm the encoded form does not contain unencoded + or trailing =
     expect(encodedSecret).not.toContain('+');
+  });
+
+  it('shows loading dots inside the verify button (not a separate stage) during delete-account verification', async () => {
+    type VerifyResult = DataResult<{ verificationRecordId: string; verificationTimestamp: number }>;
+    let resolveVerify!: (val: VerifyResult) => void;
+    const verifyPromise = new Promise<VerifyResult>((resolve) => {
+      resolveVerify = resolve;
+    });
+
+    render(
+      <SecurityTab
+        userData={defaultUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onVerifyPassword={vi.fn().mockReturnValue(verifyPromise)}
+        onGetMfaVerifications={vi.fn().mockResolvedValue({ ok: true, data: defaultMfaList })}
+        onGenerateTotpSecret={vi.fn().mockResolvedValue({ ok: true, data: { secret: 'secret' } })}
+        onAddMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onReplaceTotpVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onGenerateBackupCodes={vi.fn().mockResolvedValue({ ok: true, data: { codes: ['A1'] } })}
+        onUpdatePassword={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteAccount={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRequestWebAuthnRegistration={vi.fn().mockResolvedValue({ ok: true, data: { registrationOptions: {}, verificationRecordId: 'wa-1' } })}
+        onVerifyAndLinkWebAuthn={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRenamePasskey={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onSuccess={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+
+    // Open the delete-account modal
+    await screen.findByText(enUS.security.dangerZone);
+    fireEvent.click(screen.getAllByRole('button', { name: enUS.security.deleteAccount })[0]);
+
+    // Enter password and submit
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'mypassword' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+    });
+
+    // While onVerifyPassword is pending: BouncingDots render inside the verify
+    // button (no separate loading stage), the button is disabled, and the
+    // password input is disabled.
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toBeInTheDocument();
+    });
+    const loadingBtn = screen.getByRole('status').closest('button') as HTMLElement;
+    expect(loadingBtn).toBeDisabled();
+    expect(screen.queryByRole('button', { name: enUS.verification.verifyPassword })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeDisabled();
+
+    // Dots are white
+    const dots = screen.getByRole('status').querySelectorAll('span');
+    expect(dots[0]).toHaveStyle({ background: 'rgb(255, 255, 255)' });
+
+    // Resolve verification → modal closes on success (no separate success stage)
+    await act(async () => {
+      resolveVerify({ ok: true, data: { verificationRecordId: 'vid-1', verificationTimestamp: Date.now() + 600_000 } });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(enUS.security.confirmDeleteAccount)).not.toBeInTheDocument();
+    });
   });
 });

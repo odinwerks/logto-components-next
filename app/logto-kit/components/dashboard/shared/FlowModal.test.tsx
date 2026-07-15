@@ -571,3 +571,209 @@ describe('FlowModal - focus management', () => {
     expect(document.activeElement).toBe(openButton);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loading state: BouncingDots render inside the triggering button instead of
+// a separate modal loading stage. The button text disappears, white dots
+// appear inside the same button, the button retains its width and is disabled,
+// and inputs are disabled while loading.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('FlowModal - loading state (in-button BouncingDots)', () => {
+  const noop = () => {};
+
+  /** Find the submit button that currently contains the BouncingDots status. */
+  function getLoadingButton(): HTMLElement {
+    const status = screen.getByRole('status');
+    return status.closest('button') as HTMLElement;
+  }
+
+  it('PasswordVerifyModal: replaces verify button text with white BouncingDots and disables input when loading', () => {
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    // The verify button text is gone — replaced by dots.
+    expect(screen.queryByRole('button', { name: enUS.verification.verifyPassword })).not.toBeInTheDocument();
+
+    // BouncingDots (role=status) render inside the button.
+    const status = screen.getByRole('status');
+    expect(status).toBeInTheDocument();
+    const btn = status.closest('button') as HTMLElement;
+    expect(btn).toBeDisabled();
+
+    // Dots are white.
+    const dots = status.querySelectorAll('span');
+    expect(dots.length).toBe(3);
+    expect(dots[0]).toHaveStyle({ background: 'rgb(255, 255, 255)' });
+
+    // Password input is disabled.
+    expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeDisabled();
+  });
+
+  it('FlowModal password step: shows dots in verify button, disables input, retains min-width', () => {
+    render(
+      <FlowModal
+        title="Verify"
+        subtitle="Enter password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: enUS.verification.verifyPassword })).not.toBeInTheDocument();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '8rem' });
+    expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeDisabled();
+  });
+
+  it('FlowModal value step: shows dots in save button and retains min-width', () => {
+    render(
+      <FlowModal
+        title="Update email"
+        subtitle="Step 1"
+        step={{ kind: 'value' }}
+        onPasswordSubmit={noop}
+        onValueSubmit={noop}
+        onClose={noop}
+        extra={<div>VALUE FORM</div>}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    // Value form (modal body) stays visible — no separate loading stage.
+    expect(screen.getByText('VALUE FORM')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: enUS.profile.saveChanges })).not.toBeInTheDocument();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '6.5rem' });
+  });
+
+  it('FlowModal code step: shows dots in verify button and disables code input', () => {
+    render(
+      <FlowModal
+        title="Verify"
+        subtitle="Code verification"
+        step={{ kind: 'code', destination: 'user@example.com', verificationId: 'v1', identityVerificationId: 'iv1' }}
+        onPasswordSubmit={noop}
+        onCodeSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    const codeInput = screen.getByPlaceholderText('000000');
+    expect(codeInput).toBeDisabled();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '5.5rem' });
+  });
+
+  it('FlowModal totp-scan step: shows dots in activate button and disables totp input', () => {
+    render(
+      <FlowModal
+        title="Setup TOTP"
+        subtitle="Scan QR code"
+        step={{ kind: 'totp-scan', secret: 'SECRET123', totpUri: 'otpauth://totp/test?secret=TEST', identityVerificationId: 'iv1' }}
+        onPasswordSubmit={noop}
+        onTotpSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    expect(screen.getByPlaceholderText('000000')).toBeDisabled();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '7rem' });
+  });
+
+  it('FlowModal new-password step: shows dots in change-password button and disables input', () => {
+    render(
+      <FlowModal
+        title="Change password"
+        subtitle="Enter new password"
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        onPasswordSubmit={noop}
+        onNewPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    expect(screen.getByPlaceholderText(enUS.security.enterNewPassword)).toBeDisabled();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '7.5rem' });
+  });
+
+  it('FlowModal rename-passkey step: shows dots in rename button and disables input', () => {
+    render(
+      <FlowModal
+        title="Rename passkey"
+        subtitle="Enter new name"
+        step={{ kind: 'rename-passkey', verificationRecordId: 'vr1', passkeyId: 'pk1' }}
+        onPasswordSubmit={noop}
+        onRenamePasskeySubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    // The rename input is labelled by t.mfa.newPasskeyName (Lbl → htmlFor).
+    expect(screen.getByLabelText(enUS.mfa.newPasskeyName)).toBeDisabled();
+    const btn = getLoadingButton();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle({ minWidth: '6rem' });
+  });
+
+  it('does not render a separate centered loading stage — modal body content remains visible', () => {
+    render(
+      <FlowModal
+        title="Verify"
+        subtitle="Enter password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading
+      />,
+    );
+
+    // The password input (modal body) is still present, just disabled —
+    // it is NOT replaced by a centered BouncingDots + message div.
+    expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
+  });
+});
