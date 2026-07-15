@@ -196,7 +196,7 @@ export function SessionsTab({
     onVerifyPassword,
     onGetSessionsWithDeviceMeta,
     onError,
-    t,
+    setModalLoading,
     setModalStep,
     setModalError,
     setVerificationRecordId,
