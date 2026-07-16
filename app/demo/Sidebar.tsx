@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserCard } from '../logto-kit/components/UserButton';
 import { useThemeMode } from '../logto-kit/components/providers/preferences';
-import { SlideIn } from '../logto-kit/components/shared/motion';
+// SlideIn import removed — sidebar is static, no slide animation
 import type { NavItem } from './types';
 import { slugify } from './components/SectionComponents';
 
@@ -237,7 +237,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
   const themedNavBarStyle = { ...navBarStyle, background: colors.navIndicator };
 
   return (
-    <SlideIn direction="right" style={themedSidebarStyle}>
+    <div style={themedSidebarStyle}>
       <div style={themedBrandStyle}>
         <div style={themedBrandIconStyle}>
           <BrandIcon />
@@ -345,6 +345,6 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
           Size="42px"
         />
       </div>
-    </SlideIn>
+    </div>
   );
 }
