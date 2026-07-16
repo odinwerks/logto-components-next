@@ -336,6 +336,7 @@ export function MobileClient({
                 activeKey={activeTab}
               className="dashboard-tabpanel-content"
               duration={0.05}
+              instant
               fillHeight={fillHeight}
               wrapItem={(tabId, isVisible, content) => (
                 <TabErrorBoundary

@@ -397,6 +397,15 @@ export interface Translations {
     unexpectedError: string;
   };
 
+  // Auth prompt (unauthenticated user)
+  auth: {
+    signInToContinue: string;
+    needToSignIn: string;
+    signIn: string;
+    readOnlyMode: string;
+    ariaSignIn: string;
+  };
+
   // Sign-out modal (playful farewell flow)
   signout: {
     title: string;

@@ -101,7 +101,7 @@ const defaultUserData: UserData = {
 
 interface RenderProfileOptions {
   userData?: UserData;
-  onUpdateBasicInfo?: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateBasicInfo?: (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
   onUpdateProfile?: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 }
 
@@ -116,7 +116,7 @@ function renderProfile(
     return undefined;
   });
 
-  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
   const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 
   const result = render(
@@ -144,6 +144,16 @@ function renderProfile(
   );
 
   return { ...result, basicInfoFn, profileFn };
+}
+
+// MCP-001c: Helper to complete the password verification step that now gates
+// username/full name saves. The onVerifyPassword mock (resolvedVerifyPassword)
+// always succeeds and returns verificationRecordId: 'mock'.
+async function completeNameVerification() {
+  const pwInput = await screen.findByPlaceholderText(enUS.mfa.enterPasswordPlaceholder);
+  fireEvent.change(pwInput, { target: { value: 'test-password' } });
+  const verifyBtn = screen.getByRole('button', { name: new RegExp(enUS.verification.verifyPassword, 'i') });
+  await act(async () => { fireEvent.click(verifyBtn); });
 }
 
 describe('ProfileTab - NAME_TYPE gating', () => {
@@ -217,8 +227,11 @@ describe('ProfileTab - behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
-    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ username: 'newname' });
+    // MCP-001c: username changes now require password verification
+    await completeNameVerification();
+
+    await waitFor(() => expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1));
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ username: 'newname' }, 'mock');
     expect(onUpdateProfile).not.toHaveBeenCalled();
   });
 
@@ -249,8 +262,11 @@ describe('ProfileTab - behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
-    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
-    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ username: 'newuser', name: 'Alice Smith' });
+    // MCP-001c: full mode includes username, requires password verification
+    await completeNameVerification();
+
+    await waitFor(() => expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1));
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ username: 'newuser', name: 'Alice Smith' }, 'mock');
     expect(onUpdateProfile).toHaveBeenCalledTimes(1);
     expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: 'Alice', familyName: 'Smith' });
   });
@@ -278,10 +294,13 @@ describe('ProfileTab - behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
+    // MCP-001c: full mode includes username, requires password verification
+    await completeNameVerification();
+
     // onUpdateBasicInfo MUST be called with username; name is now sent as '' so
     // the server can clear any stale userData.name (previously the falsy guard
     // omitted the key, leaving the name stale — see regression tests below).
-    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1));
     const callArg = onUpdateBasicInfo.mock.calls[0][0] as Record<string, unknown>;
     expect(callArg.username).toBe('brandnewuser');
     expect(callArg.name).toBe('');
@@ -352,9 +371,12 @@ describe('ProfileTab - behavioral', () => {
     const saveBtn = screen.getByRole('button', { name: /modify/i });
     await act(async () => { fireEvent.click(saveBtn); });
 
+    // MCP-001c: full mode includes username, requires password verification
+    await completeNameVerification();
+
     // name must be present (as '') alongside username so the server clears name.
-    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
-    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '', username: 'brandnewuser' });
+    await waitFor(() => expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1));
+    expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '', username: 'brandnewuser' }, 'mock');
     expect(onUpdateProfile).toHaveBeenCalledTimes(1);
     expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
   });
@@ -791,8 +813,14 @@ describe('ProfileTab - behavioral', () => {
       const saveBtn = screen.getByRole('button', { name: /modify/i });
       await act(async () => { fireEvent.click(saveBtn); });
 
-      // Still in edit mode: Modify button still visible, field still editable
-      expect(screen.getByRole('button', { name: /modify/i })).toBeInTheDocument();
+      // MCP-001c: username mode requires password verification before save
+      await completeNameVerification();
+
+      // After verification + failed save: still in edit mode
+      // Modify button still visible, field still editable
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /modify/i })).toBeInTheDocument();
+      });
       expect((screen.getByPlaceholderText('Enter username (optional)') as HTMLInputElement).readOnly).toBe(false);
     });
 
@@ -830,7 +858,7 @@ describe('ProfileTab - behavioral', () => {
         return undefined;
       });
 
-      const onUpdateBasicInfo = vi.fn<(updates: { name?: string; username?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
+      const onUpdateBasicInfo = vi.fn<(updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
       const onUpdateProfile = vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
 
       const result = render(

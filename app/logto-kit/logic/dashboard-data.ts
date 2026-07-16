@@ -19,12 +19,25 @@ const BASE_DELAY_MS = 500;
 // ============================================================================
 
 async function fetchWithTimeout<T>(fn: () => Promise<T>, timeoutMs = 10_000): Promise<T> {
-  return Promise.race([
-    fn(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
-    ),
-  ]);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const result = await Promise.race([
+      fn(),
+      new Promise<never>((_, reject) => {
+        const onAbort = () => {
+          controller.signal.removeEventListener('abort', onAbort);
+          reject(new Error('Request timed out'));
+        };
+        controller.signal.addEventListener('abort', onAbort);
+      }),
+    ]);
+    clearTimeout(timer);
+    return result;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
 }
 
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
@@ -46,6 +59,12 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): P
       } else {
         if (!isTransientError(err)) {
           warn(`[fetchWithRetry] Non-transient error on attempt ${i + 1}, not retrying:`, err instanceof Error ? err.message : err);
+        } else {
+          // BUG-L08: Final attempt failed with a transient error — all retries
+          // exhausted. Previously this fell through the !isTransientError
+          // check with no log, silently dropping the decisive failure that
+          // causes the FETCH_FAILED throw below.
+          warn(`[fetchWithRetry] Transient error on final attempt ${i + 1}/${retries} — giving up:`, err instanceof Error ? err.message : err);
         }
         break;
       }

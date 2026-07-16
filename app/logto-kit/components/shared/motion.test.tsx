@@ -250,6 +250,65 @@ describe('CrossFade', () => {
     expect(container.firstChild).not.toHaveStyle({ display: 'flex' });
     expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
   });
+
+  it('instant prop swaps the displayed key immediately without a fade-out frame', () => {
+    // BUG-1 fix (mobile tab-switch flash): when `instant` is true, CrossFade
+    // must NOT keep the outgoing panel visible for a fade-out frame. It swaps
+    // displayedKey to the new key immediately, so only the incoming panel is
+    // in the DOM — no stale frame of the previous tab.
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <CrossFade activeKey="a" instant>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+
+    // Initial: only 'a' rendered and visible.
+    expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).toBeNull();
+
+    // Switch to 'b' with instant — no fade-out frame.
+    rerender(
+      <CrossFade activeKey="b" instant>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+
+    // Immediately (before any timer advances): only 'b' is rendered and
+    // visible. The outgoing 'a' panel was never kept visible for a fade-out
+    // frame — this is the mobile tab-switch flash fix.
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
+    expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
+
+    // Advancing timers changes nothing — no pending fade timer was scheduled.
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
+  });
+
+  it('instant prop handles rapid round-trip (A→B→A) without getting stuck invisible', () => {
+    // Regression guard: the V-001 rapid round-trip fix must still hold when
+    // `instant` is true. The early `setFading(false)` in the instant branch
+    // ensures the panel never gets stuck at opacity: 0.
+    vi.useFakeTimers();
+    const renderTree = (key: string) => (
+      <CrossFade activeKey={key} instant>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+
+    const { container, rerender } = render(renderTree('a'));
+
+    // A → B
+    rerender(renderTree('b'));
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
+    expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
+
+    // B → A (rapid round-trip, before any timer — though instant schedules none)
+    rerender(renderTree('a'));
+    expect(container.querySelector('[data-tab="b"]')).toBeNull();
+    expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
+  });
 });
 
 describe('StaggerContainer + StaggerItem', () => {

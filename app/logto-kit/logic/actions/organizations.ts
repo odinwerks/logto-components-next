@@ -93,6 +93,32 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
       throw new Error('UNAUTHORIZED');
     }
 
+    // BUG-L01: Persist a rotated refresh token back into the SDK's cookie-backed
+    // session storage so the SDK's getAccessToken doesn't hit invalid_grant on
+    // the now-revoked old token on the next call.
+    //
+    // The SDK stores ALL session keys (refreshToken, idToken, accessToken,
+    // signInSession) inside a SINGLE encrypted cookie named `logto:{appId}`
+    // (CookieStorage) — NOT in per-key cookies. The SDK's `setRefreshToken` is
+    // private, but `adapter.setStorageItem` is the public method it delegates
+    // to: it calls `storage.setItem('refreshToken', value)`, which re-encrypts
+    // the session blob and writes the cookie. Persisting here happens BEFORE
+    // decodeLogtoAccessToken so a decode failure cannot cause us to discard a
+    // rotated token.
+    //
+    // This preserves the by-design refresh_token grant pattern (NEVER-TOUCH):
+    // we only persist the token the grant produced; we do NOT replace the grant
+    // with the SDK's getOrganizationToken (which would reintroduce the
+    // cookie-persisted accessTokenMap cache this function intentionally avoids).
+    if (data.refresh_token) {
+      try {
+        await nodeClient.adapter.setStorageItem('refreshToken', data.refresh_token);
+      } catch {
+        // Best-effort: if persisting fails, the next getAccessToken triggers
+        // invalid_grant recovery (proxy.ts handles this gracefully).
+      }
+    }
+
     const claims = decodeLogtoAccessToken(orgToken);
     debugLog(`[getOrganizationUserPermissions] Org token scope for ${orgId}:`, claims.scope);
 
@@ -344,9 +370,11 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     // Aggregate all scopes, deduplicate by name
     const seen = new Set<string>();
     const allScopes: OrgRoleScope[] = [];
+    let successfulFetches = 0;
 
     for (const result of scopeResults) {
       if (result.status === 'fulfilled') {
+        successfulFetches++;
         for (const scope of result.value) {
           if (scope.name && !seen.has(scope.name)) {
             seen.add(scope.name);
@@ -356,6 +384,16 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
       } else {
         warn(`[getOrgPermissionsWithDescriptions] Scope fetch failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
       }
+    }
+
+    // BUG-L10: Guard against total scope-fetch failure. Without this, a full
+    // M2M outage on the scopes endpoint is indistinguishable from "user has
+    // zero permissions" and silently returns []. Mirrors the sibling guards in
+    // verifyOrgAccess (roles.length > 0 && successfulFetches === 0) and
+    // getUserScopes (successfulResults.length === 0). roles.length === 0
+    // returns early above, so reaching here guarantees roles.length > 0.
+    if (successfulFetches === 0) {
+      throw plainCode('FETCH_FAILED');
     }
 
     debugLog(`[getOrgPermissionsWithDescriptions] Found ${allScopes.length} unique permissions for org ${orgId}`);

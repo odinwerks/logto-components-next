@@ -504,6 +504,8 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         </button>
         <input
           type="range"
+          aria-label="Zoom level"
+          aria-valuetext={`${zoomPct}%`}
           min={minScale}
           max={minScale * 3}
           step={minScale * 0.005}

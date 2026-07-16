@@ -6,6 +6,7 @@ import { makeRequest } from './request';
 import { throwOnApiError, plainCode } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import { warn } from '../log';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 import { getLogtoContext } from '@logto/next/server-actions';
@@ -232,7 +233,10 @@ export async function generateBackupCodes(
       // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
       await requireVerifiedIdentity(identityVerificationRecordId);
 
-      // Step 1: Remove existing backup-code factors so old codes are invalidated.
+      // Step 1: List existing backup-code factors (read-only). We capture the
+      // list up front so we know what to invalidate later, but we DO NOT delete
+      // them yet — deleting is deferred until after a successful enrollment so
+      // a failed enroll never leaves the user with zero backup codes (BUG-L04).
       const listRes = await makeRequest('/api/my-account/mfa-verifications', {
         extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
       });
@@ -250,16 +254,21 @@ export async function generateBackupCodes(
 
       const existingBackupFactors = verifications.filter(verification => verification.type === 'BackupCode');
 
-      for (const factor of existingBackupFactors) {
-        const removeRes = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {
-          method: 'DELETE',
-          extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-        });
+      // Invalidate every previously-listed backup-code factor. Used as a
+      // deferred cleanup AFTER a successful enroll, or as the compensation
+      // step when Logto rejects concurrent BackupCode factors (409/422).
+      const deleteOldBackupFactors = async (): Promise<void> => {
+        for (const factor of existingBackupFactors) {
+          const removeRes = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {
+            method: 'DELETE',
+            extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+          });
 
-        await throwOnApiError(removeRes, 'BACKUP_CODES_FAILED', 'backup-remove-old');
-      }
+          await throwOnApiError(removeRes, 'BACKUP_CODES_FAILED', 'backup-remove-old');
+        }
+      };
 
-      // Step 2: Generate codes (no verification header needed)
+      // Step 2: Generate new codes (no verification header needed)
       const genRes = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
         method: 'POST',
       });
@@ -268,14 +277,42 @@ export async function generateBackupCodes(
 
       const { codes } = await genRes.json();
 
-      // Step 3: Enroll/bind codes to the account.
+      // Step 3: Enroll/bind codes to the account. We enroll WITHOUT first
+      // deleting the old factors, so a failure here leaves the user's existing
+      // backup codes intact (BUG-L04). If Logto does not permit multiple
+      // concurrent BackupCode factors, the enroll is rejected with 409/422 —
+      // in that case we delete the old factors and retry the enrollment.
       const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
         method: 'POST',
         body: { type: 'BackupCode', codes },
         extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
       });
 
-      await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
+      if (
+        !enrollRes.ok &&
+        (enrollRes.status === 409 || enrollRes.status === 422) &&
+        existingBackupFactors.length > 0
+      ) {
+        warn(
+          `[generateBackupCodes] Enrollment rejected with ${enrollRes.status} ` +
+            '(concurrent BackupCode factor not permitted); deleting old factors and retrying.'
+        );
+        await deleteOldBackupFactors();
+        const retryRes = await makeRequest('/api/my-account/mfa-verifications', {
+          method: 'POST',
+          body: { type: 'BackupCode', codes },
+          extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+        });
+
+        await throwOnApiError(retryRes, 'BACKUP_CODES_FAILED', 'backup-enroll-retry');
+      } else {
+        await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
+
+        // Step 4: New codes are now bound — invalidate the old ones so they can
+        // no longer be used. This only runs after a successful enrollment, so a
+        // failure above never reaches here (old codes stay intact).
+        await deleteOldBackupFactors();
+      }
 
       // Audit (best-effort - failure must not break the main action)
       auditSafe(userId, 'mfa.backup_codes.generate');

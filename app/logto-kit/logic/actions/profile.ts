@@ -17,11 +17,10 @@ import { warn } from '../log';
 import { createLockManager } from '../../../lib/distributed-state';
 import { getTokenForServerAction } from './tokens';
 
-export async function updateUserBasicInfo(updates: {
-  name?: string;
-  username?: string;
-  avatar?: string;
-}): Promise<ActionResult> {
+export async function updateUserBasicInfo(
+  updates: { name?: string; username?: string; avatar?: string },
+  identityVerificationRecordId?: string,
+): Promise<ActionResult> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
@@ -34,11 +33,23 @@ export async function updateUserBasicInfo(updates: {
     assertUsername(updates.username);
     assertHttpUrl(updates.avatar, 'avatar');
 
+    // MCP-001c: Logto requires the `logto-verification-id` header for username
+    // changes (PATCH /api/my-account with a `username` field). If username is
+    // in the updates but no identityVerificationRecordId is provided, the
+    // change cannot proceed — reject before reaching the API.
+    const hasUsernameUpdate = updates.username !== undefined;
+    if (hasUsernameUpdate && !identityVerificationRecordId) {
+      throw plainCode('VERIFICATION_REQUIRED');
+    }
+
     const cleanUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, v]) => v !== undefined && v !== '')
     );
     if (Object.keys(cleanUpdates).length === 0) return;
-    await patchMyAccount(cleanUpdates, 'Basic info update failed');
+    const extraHeaders = hasUsernameUpdate && identityVerificationRecordId
+      ? { 'logto-verification-id': identityVerificationRecordId }
+      : undefined;
+    await patchMyAccount(cleanUpdates, 'Basic info update failed', extraHeaders);
   });
 }
 

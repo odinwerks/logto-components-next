@@ -145,7 +145,49 @@ describe('DashboardRouter', () => {
     expect(screen.queryByTestId('mobile')).not.toBeInTheDocument();
   });
 
-  it('renderToString always uses SSR snapshot (desktop); client render follows matchMedia', () => {
+  it('renders a neutral placeholder before the mount effect runs (BUG-2 no branch flash)', () => {
+    // BUG-2 fix: during the `!mounted` gate, neither the desktop nor the
+    // mobile branch should be painted — only a neutral placeholder. This
+    // prevents the desktop profile tab ("personal") from flashing on portrait
+    // devices before the orientation check flips to the mobile menu.
+    //
+    // The authoritative assertion is the renderToString SSR test above (SSR
+    // never runs effects, so `mounted` stays false and the placeholder is
+    // produced). Here we additionally confirm that the client, once mounted,
+    // shows the mobile branch (portrait) and the placeholder is gone.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(orientation: portrait)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    const { container } = render(
+      <DashboardRouter
+        desktop={<div data-testid="desktop">desktop-dashboard</div>}
+        mobile={<div data-testid="mobile">mobile-dashboard</div>}
+      />,
+    );
+
+    // After effects flush (RTL default), the mobile branch is shown — the
+    // placeholder was replaced by the real branch.
+    expect(screen.getByTestId('mobile')).toBeInTheDocument();
+    expect(screen.queryByTestId('desktop')).not.toBeInTheDocument();
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('renderToString always uses SSR snapshot; renders a neutral placeholder (no branch flash)', () => {
+    // BUG-2 fix: the `!mounted` gate now renders a neutral placeholder div
+    // instead of the desktop branch, so SSR + first client render never paint
+    // the desktop profile tab on a portrait device. SSR (renderToString) has
+    // no effects, so `mounted` stays false and the placeholder is produced.
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -160,8 +202,6 @@ describe('DashboardRouter', () => {
       })),
     });
 
-    // renderToString always uses useSyncExternalStore's SSR snapshot (third arg = false),
-    // so it always renders desktop regardless of matchMedia
     const ssrMarkup = renderToString(
       <DashboardRouter
         desktop={<div>desktop-dashboard</div>}
@@ -169,7 +209,14 @@ describe('DashboardRouter', () => {
       />,
     );
 
-    // Client render with render() picks up matchMedia → mobile
+    // SSR renders the neutral placeholder, NOT the desktop branch — so the
+    // "personal" tab never flashes on portrait devices during hydration.
+    expect(ssrMarkup).not.toContain('desktop-dashboard');
+    expect(ssrMarkup).not.toContain('mobile-dashboard');
+    expect(ssrMarkup).toContain('aria-busy');
+
+    // Client render with render() picks up matchMedia → mobile (after the
+    // mount effect flushes via RTL).
     render(
       <DashboardRouter
         desktop={<div>desktop-dashboard</div>}
@@ -177,8 +224,6 @@ describe('DashboardRouter', () => {
       />,
     );
 
-    // SSR snapshot always returns false → desktop; client follows matchMedia → mobile
-    expect(ssrMarkup).toContain('desktop-dashboard');
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 });

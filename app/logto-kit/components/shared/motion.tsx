@@ -149,6 +149,20 @@ interface CrossFadeProps {
   /** Fade duration in seconds (default 0.12). */
   duration?: number;
   /**
+   * When true, swap the displayed panel instantly with no fade-out frame.
+   * Used by the mobile shell (full-viewport tabpanel) where the 50ms
+   * fade-out of the outgoing panel reads as a jarring flash of the previous
+   * tab. When `instant` is true, no `setTimeout` is scheduled and `fading`
+   * never flips — `displayedKey` is set to `activeKey` synchronously, so
+   * only the incoming panel is in the DOM at any time.
+   *
+   * The V-001 rapid round-trip (A→B→A) fix is preserved: when `instant` is
+   * true and `activeKey === displayedKey`, the effect still calls
+   * `setFading(false)` before returning, so a panel can never get stuck at
+   * opacity: 0.
+   */
+  instant?: boolean;
+  /**
    * When true, the outer wrapper and the currently-visible panel become a
    * flex column that fills its parent's height (flex:1 1 auto; minHeight:0).
    * Used only by the Security tab so its danger zone can pin to the bottom.
@@ -160,7 +174,7 @@ interface CrossFadeProps {
   wrapItem?: (key: string, isVisible: boolean, children: ReactNode) => ReactNode;
 }
 
-export function CrossFade({ activeKey, className, duration = 0.12, fillHeight, children, wrapItem }: CrossFadeProps) {
+export function CrossFade({ activeKey, className, duration = 0.12, instant = false, fillHeight, children, wrapItem }: CrossFadeProps) {
   const [displayedKey, setDisplayedKey] = useState<string>(activeKey);
   const [fading, setFading] = useState(false);
 
@@ -169,7 +183,18 @@ export function CrossFade({ activeKey, className, duration = 0.12, fillHeight, c
 
     if (activeKey === displayedKey) {
       // Rapid round-trip (A → B → A): reset fading so the panel doesn't stay
-      // stuck at opacity: 0.
+      // stuck at opacity: 0. Runs for both `instant` and the normal fade path
+      // (V-001 fix).
+      setFading(false);
+      return;
+    }
+
+    if (instant) {
+      // BUG-1 fix (mobile tab-switch flash): skip the fade-out frame entirely.
+      // Swap `displayedKey` to the incoming key synchronously and keep
+      // `fading` false, so only the new panel is rendered — no stale frame of
+      // the outgoing tab. No `setTimeout` is scheduled.
+      setDisplayedKey(activeKey);
       setFading(false);
       return;
     }
@@ -182,7 +207,7 @@ export function CrossFade({ activeKey, className, duration = 0.12, fillHeight, c
     }, Math.round(duration * 1000));
 
     return () => clearTimeout(timer);
-  }, [activeKey, displayedKey, duration]);
+  }, [activeKey, displayedKey, duration, instant]);
 
   // When fillHeight is on, the wrapper chain becomes a flex column so a child
   // tab can fill the tabpanel height (used by SecurityTab's sticky footer).

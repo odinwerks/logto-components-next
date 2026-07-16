@@ -5,7 +5,9 @@ import { signInUser } from '@/app/logto-kit/logic/actions/auth';
 import { Button } from '@/app/logto-kit/components/shared/Button';
 import { Overlay } from '@/app/logto-kit/components/dashboard/shared/FlowModal';
 import { useLogto } from '@/app/logto-kit/components/providers/logto-provider';
-import { useThemeMode } from '@/app/logto-kit/components/providers/preferences';
+import { useThemeMode, useLangMode } from '@/app/logto-kit/components/providers/preferences';
+import { getTranslations } from '@/app/logto-kit/locales';
+import type { LocaleCode } from '@/app/logto-kit/locales';
 import { useFocusTrap } from '@/app/logto-kit/components/dashboard/shared/focus-trap';
 import { LogIn } from 'lucide-react';
 
@@ -18,6 +20,8 @@ export interface AuthPromptModalProps {
 export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProps) {
   const { closeDashboard } = useLogto();
   const { mode: themeMode, colors } = useThemeMode();
+  const { lang } = useLangMode();
+  const t = getTranslations((lang in { 'en-US': true, 'ka-GE': true, 'uk-UA': true } ? lang : 'en-US') as LocaleCode);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -69,7 +73,7 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
               margin: 0,
             }}
           >
-            Sign in to continue
+            {t.auth.signInToContinue}
           </p>
           <p
             id={descriptionId}
@@ -81,7 +85,7 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
               margin: 0,
             }}
           >
-            You need to sign in to access this feature.
+            {t.auth.needToSignIn}
           </p>
         </div>
 
@@ -95,16 +99,16 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
           }}
         >
           <Button onClick={closeDashboard} mode={themeMode} colors={colors}>
-            {authMode === 'mandatory' ? 'Read Only Mode' : 'Cancel'}
+            {authMode === 'mandatory' ? t.auth.readOnlyMode : t.common.cancel}
           </Button>
           <Button
-            aria-label="Sign in"
+            aria-label={t.auth.ariaSignIn}
             variant="primary"
             onClick={handleSignIn}
             mode={themeMode}
             colors={colors}
           >
-            Sign In <LogIn size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+            {t.auth.signIn} <LogIn size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
           </Button>
         </div>
       </div>

@@ -4,10 +4,26 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Module Mocks - hoisted above all imports
 // ============================================================================
 
+// Hoisted mocks for the Logto SDK node-client chain used by
+// getOrganizationUserPermissions (BUG-L01). Declared via vi.hoisted so they
+// are accessible inside the vi.mock factory below and can be re-established
+// in beforeEach after vi.clearAllMocks() resets implementations.
+const {
+  mockGetRefreshToken,
+  mockSetStorageItem,
+  mockCreateNodeClient,
+  mockLogtoClient,
+} = vi.hoisted(() => ({
+  mockGetRefreshToken: vi.fn<() => Promise<string | null>>(),
+  mockSetStorageItem: vi.fn<(key: string, value: string) => Promise<void>>(),
+  mockCreateNodeClient: vi.fn(),
+  mockLogtoClient: vi.fn(),
+}));
+
 vi.mock('next/navigation', () => ({}));
 
 vi.mock('@logto/next/server-actions', () => ({
-  default: vi.fn(),
+  default: mockLogtoClient,
   getAccessToken: vi.fn(),
 }));
 
@@ -32,6 +48,7 @@ vi.mock('../utils', () => ({
 vi.mock('../guards', () => ({
   assertSafeLogtoId: vi.fn(),
   assertSafeUserId: vi.fn(),
+  decodeLogtoAccessToken: vi.fn(),
 }));
 
 vi.mock('./tokens', () => ({
@@ -45,7 +62,7 @@ vi.mock('./tokens', () => ({
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { getManagementApiToken, getLogtoConfig } from '../../config';
-import { assertSafeLogtoId } from '../guards';
+import { assertSafeLogtoId, decodeLogtoAccessToken } from '../guards';
 
 // ============================================================================
 // Test Helpers
@@ -182,6 +199,42 @@ describe('getOrgPermissionsWithDescriptions', () => {
     // Should still have the Admin role's scopes
     expect(result.data).toHaveLength(1);
     expect(result.data[0].name).toBe('read:orders');
+  });
+
+  // ── Throws FETCH_FAILED when every scope fetch fails (BUG-L10) ───────────
+
+  it('throws FETCH_FAILED when all per-role scope fetches fail', async () => {
+    fetchSpy
+      // Roles endpoint: user has two roles
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin'), makeRole('r2', 'Editor')]))
+      // Admin role scopes - fails
+      .mockResolvedValueOnce(mockJsonResponse(null, 500))
+      // Editor role scopes - fails
+      .mockResolvedValueOnce(mockJsonResponse(null, 503));
+
+    const { getOrgPermissionsWithDescriptions } = await import('./organizations');
+    const result = await getOrgPermissionsWithDescriptions('org-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('FETCH_FAILED');
+  });
+
+  // ── Does NOT false-positive when fetches succeed with zero scopes ─────────
+  // Guards against the `allScopes.length === 0` formulation: a successful
+  // fetch that returns [] is NOT a fetch failure.
+
+  it('returns empty data (not FETCH_FAILED) when scope fetches succeed but roles have no scopes', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([])); // role has zero scopes
+
+    const { getOrgPermissionsWithDescriptions } = await import('./organizations');
+    const result = await getOrgPermissionsWithDescriptions('org-123');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(result.data).toEqual([]);
   });
 
   // ── Returns UNAUTHORIZED when session token is inactive ──────────────────
@@ -369,5 +422,102 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('FETCH_FAILED');
+  });
+});
+
+// ============================================================================
+// getOrganizationUserPermissions — refresh-token rotation persistence (BUG-L01)
+// ============================================================================
+
+describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getLogtoConfig).mockReturnValue({
+      endpoint: 'https://auth.example.org',
+      appId: 'mock-app-id',
+      appSecret: 'mock-app-secret',
+      baseUrl: 'http://localhost:3000',
+      cookieSecret: 'mock-cookie-secret',
+      cookieSecure: false,
+      resources: [],
+      scopes: [],
+    });
+    vi.mocked(decodeLogtoAccessToken).mockReturnValue({ scope: 'read:orders write:orders' });
+
+    // Re-establish the SDK node-client chain after clearAllMocks reset
+    // implementations. new LogtoClient(config) → { createNodeClient } →
+    // nodeClient with controllable getRefreshToken and adapter.setStorageItem.
+    // NOTE: a regular function (not an arrow) is required so `new` can
+    // construct the mock; arrow functions have no [[Construct]].
+    mockLogtoClient.mockImplementation(function () {
+      return { createNodeClient: mockCreateNodeClient };
+    });
+    mockGetRefreshToken.mockResolvedValue('old-refresh-token');
+    mockSetStorageItem.mockResolvedValue(undefined);
+    mockCreateNodeClient.mockResolvedValue({
+      getRefreshToken: mockGetRefreshToken,
+      adapter: { setStorageItem: mockSetStorageItem },
+    });
+
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('persists a rotated refresh token to the SDK storage when the grant returns one', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockJsonResponse({ access_token: 'org-jwt', refresh_token: 'rotated-refresh' })
+    );
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+    const result = await getOrganizationUserPermissions('org-123');
+
+    expect(result.ok).toBe(true);
+    // The rotated refresh token must be written back via the SDK's public
+    // adapter.setStorageItem so the SDK's getAccessToken doesn't hit
+    // invalid_grant on the now-revoked old token.
+    expect(mockSetStorageItem).toHaveBeenCalledWith('refreshToken', 'rotated-refresh');
+  });
+
+  it('does NOT persist when the grant response omits a refresh_token', async () => {
+    fetchSpy.mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt' }));
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+    const result = await getOrganizationUserPermissions('org-123');
+
+    expect(result.ok).toBe(true);
+    expect(mockSetStorageItem).not.toHaveBeenCalled();
+  });
+
+  it('still returns permissions even if persisting the rotated token throws', async () => {
+    mockSetStorageItem.mockRejectedValueOnce(new Error('cookie write failed'));
+    fetchSpy.mockResolvedValueOnce(
+      mockJsonResponse({ access_token: 'org-jwt', refresh_token: 'rotated-refresh' })
+    );
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+    const result = await getOrganizationUserPermissions('org-123');
+
+    // Best-effort persist: a failure must not break the permissions result.
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(result.data).toEqual(['read:orders', 'write:orders']);
+    expect(mockSetStorageItem).toHaveBeenCalledWith('refreshToken', 'rotated-refresh');
+  });
+
+  it('returns UNAUTHORIZED when the session has no refresh token', async () => {
+    mockGetRefreshToken.mockResolvedValue(null);
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+    const result = await getOrganizationUserPermissions('org-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

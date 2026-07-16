@@ -87,9 +87,15 @@ export function buildUpdatedCustomData(
   const existing = (userData.customData as Record<string, unknown>) ?? {};
   const existingPrefs = (existing[PREFS_KEY] as Partial<UserPreferences>) ?? {};
 
-  const newPrefs: UserPreferences = {
-    theme: safeUpdates.theme ?? existingPrefs.theme ?? 'dark',
-    lang: safeUpdates.lang ?? existingPrefs.lang ?? 'en-US',
+  // BUG-L07: Align with the live server action's preserve-and-override merge
+  // (profile.ts updateUserCustomData does `{ ...existingPrefs, ...safePrefs }`
+  // and never invents defaults). Previously this invented 'dark' / 'en-US'
+  // when no value was present, diverging from the server action. Now an
+  // unset theme/lang resolves to undefined, which JSON.stringify drops —
+  // i.e. those keys are preserved as-is on the server, matching the live path.
+  const newPrefs: Partial<UserPreferences> = {
+    theme: safeUpdates.theme ?? existingPrefs.theme,
+    lang: safeUpdates.lang ?? existingPrefs.lang,
     asOrg: safeUpdates.asOrg !== undefined ? safeUpdates.asOrg : (existingPrefs.asOrg ?? null),
   };
 

@@ -523,17 +523,19 @@ describe('POST /api/protected - handler errors', () => {
   });
 });
 
-// ── BUG-001: Content-length check ─────────────────────────────────────────
-describe('POST /api/protected - BUG-001 content-length check', () => {
-  it('returns 413 PAYLOAD_TOO_LARGE when content-length exceeds 1MB', async () => {
+// ── BUG-011: Stream-based body byte cap (replaces header-only Content-Length) ──
+describe('POST /api/protected - BUG-011 stream-based body byte cap', () => {
+  it('returns 413 PAYLOAD_TOO_LARGE when actual body exceeds 1 MiB', async () => {
+    // Build a body whose JSON serialization exceeds 1 MiB. Content-Length is
+    // intentionally NOT set to prove the cap reads actual stream bytes.
+    const largePayload = 'x'.repeat(1_048_577);
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
-        'content-length': '2000000',
       },
-      body: JSON.stringify({ action: 'test' }),
+      body: JSON.stringify({ action: 'test', payload: largePayload }),
     });
     const { POST } = await import('./route');
     const res = await POST(req);
@@ -543,49 +545,56 @@ describe('POST /api/protected - BUG-001 content-length check', () => {
     expect(body.error).toBe('PAYLOAD_TOO_LARGE');
   });
 
-  it('allows request when content-length is under 1MB', async () => {
+  it('allows request when actual body is under 1 MiB', async () => {
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
-        'content-length': '100',
       },
       body: JSON.stringify({ action: 'test' }),
     });
     const { POST } = await import('./route');
     const res = await POST(req);
 
-    // Should not be 413 (may be other errors like missing token, but not payload too large)
+    // Should not be 413 (may be other errors like action not found, but not payload too large)
     expect(res.status).not.toBe(413);
   });
 
-  it('BUG-M-012: allows chunked request with no Content-Length header', async () => {
+  it('enforces byte cap even when Content-Length header is absent (chunked)', async () => {
+    // No Content-Length header — the stream reader must still cap actual bytes.
+    // This is the key BUG-011 fix: the old header-only check was bypassable by
+    // chunked requests without Content-Length.
+    const largePayload = 'x'.repeat(1_048_577);
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
-        // 'content-length' is intentionally omitted (chunked encoding)
+        // 'content-length' intentionally omitted (chunked encoding)
       },
-      body: JSON.stringify({ action: 'test' }),
+      body: JSON.stringify({ action: 'test', payload: largePayload }),
     });
     const { POST } = await import('./route');
     const res = await POST(req);
+    const body = await res.json();
 
-    // Should NOT be 413 — missing Content-Length means chunked/streaming request
-    expect(res.status).not.toBe(413);
+    expect(res.status).toBe(413);
+    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
   });
 
-  it('BUG-M-012: still rejects request with Content-Length > 1MiB', async () => {
+  it('ignores spoofed small Content-Length header when actual body is large', async () => {
+    // Attacker sets a small Content-Length but sends a large body. The stream
+    // cap must reject based on actual bytes, not the spoofed header.
+    const largePayload = 'x'.repeat(1_048_577);
     const req = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         'content-type': 'application/json',
-        'content-length': '1048577',
+        'content-length': '100', // spoofed — actual body is > 1 MiB
       },
-      body: JSON.stringify({ action: 'test' }),
+      body: JSON.stringify({ action: 'test', payload: largePayload }),
     });
     const { POST } = await import('./route');
     const res = await POST(req);

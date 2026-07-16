@@ -139,7 +139,17 @@ export function createLockManager(maxEntries = 1000) {
     locks.set(key, promise);
 
     return () => {
-      locks.delete(key);
+      // BUG-L05: Only delete the entry if it still belongs to us. A prior
+      // holder whose acquire timed out may have had its entry forcibly evicted
+      // (see the timeout path above) and a subsequent waiter may now own the
+      // key; deleting unconditionally would drop that waiter's lock. This
+      // mirrors the production guard in distributed-state.ts (which compares
+      // `entry.promise === promise` on stored objects); here the map stores
+      // bare Promise<void> values, so we compare the reference directly.
+      const entry = locks.get(key);
+      if (entry === promise) {
+        locks.delete(key);
+      }
       release();
     };
   }

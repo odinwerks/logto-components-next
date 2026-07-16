@@ -61,6 +61,12 @@ export default async function RootLayout({
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
   const resolvedOrg   = userPrefs?.asOrg ?? null;
+  // Defensive normalization for the inline theme-flash script. `resolvedTheme`
+  // is always 'dark' | 'light' (getDefaultThemeMode validates; userPrefs.theme is
+  // typed 'dark' | 'light'), but we harden here so the value interpolated into
+  // the nonce'd <script> can NEVER carry injected characters (XSS belt-and-
+  // suspenders). This is the server-side default used when no theme is stored.
+  const safeServerTheme: 'dark' | 'light' = resolvedTheme === 'light' ? 'light' : 'dark';
   const forceAnimationsClass =
     process.env.NEXT_PUBLIC_FORCE_ANIMATIONS === 'true' ? 'ldd-force-animations' : '';
 
@@ -73,6 +79,13 @@ export default async function RootLayout({
           which is why suppressHydrationWarning is on <html>. This is the ONLY
           expected source of mismatch.
           The nonce is provided by the middleware's per-request CSP (proxy.ts).
+
+          BUG-002 fix: when no theme is stored, fall back to the server-resolved
+          default (`safeServerTheme`) instead of `prefers-color-scheme`. The
+          server renders `data-theme="dark"` and the post-hydration React effect
+          (preferences.tsx) also converges to the server default, so using the
+          OS preference here caused a visible light→dark flash for OS-light
+          users on first visit. `safeServerTheme` is always 'dark' | 'light'.
         */}
         <script
           nonce={nonce}
@@ -80,13 +93,13 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                var serverDefault = '${safeServerTheme}';
                 var stored = window.sessionStorage.getItem('theme-mode');
                 var valid = stored === 'dark' || stored === 'light' ? stored : null;
                 if (valid) {
                   document.documentElement.setAttribute('data-theme', valid);
                 } else {
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+                  document.documentElement.setAttribute('data-theme', serverDefault);
                 }
               } catch (e) {}
             `,

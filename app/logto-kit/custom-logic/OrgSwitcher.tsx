@@ -34,20 +34,25 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
 
   const handleChange = useCallback(async (newOrgId: string) => {
     const orgIdToSet = newOrgId || null;
-    
+
     setIsLoading(true);
     try {
       if (orgIdToSet !== null) {
         const isValid = await setActiveOrg(orgIdToSet);
         if (!isValid) return;
+        startTransition(() => {
+          setAsOrg(orgIdToSet);
+          router.refresh();
+        });
       } else {
         await setActiveOrg(null);
+        // BUG-L06: setActiveOrg(null) already persists asOrg:null with
+        // best-effort warn (NEVER-TOUCH rule). Skip the redundant client-side
+        // setAsOrg persist to avoid a double-write round trip.
+        startTransition(() => {
+          router.refresh();
+        });
       }
-      
-      startTransition(() => {
-        setAsOrg(orgIdToSet);
-        router.refresh();
-      });
     } catch (error) {
       console.error('[OrgSwitcher] Failed to switch organization:', error);
     } finally {

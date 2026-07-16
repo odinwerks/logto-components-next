@@ -288,6 +288,18 @@ export function PreferencesProvider({
   ) => {
     const onUpdateCustomData = onUpdateCustomDataRef.current;
     if (!onUpdateCustomData) return;
+    // BUG-L06: Skip the redundant client-side persist for the null ("be
+    // yourself") case. `setActiveOrg(null)` is the canonical writer of
+    // asOrg:null (NEVER-TOUCH — persist + best-effort warn) and has already
+    // persisted by the time setAsOrg(null) runs in every caller
+    // (OrgSwitcher.handleChange, use-org-switcher.switchToSelf,
+    // OrganizationsTab.handleBeYourself). Local state (setStoredOrg /
+    // setAsOrgState) is still updated by setAsOrg, so the UI reflects "be
+    // yourself" immediately; only the second redundant PATCH round-trip is
+    // dropped. Non-null persists are untouched (setActiveOrg validates but
+    // does NOT persist non-null — BUG-015 — so setAsOrg remains the single
+    // writer there).
+    if (newOrgId === null) return;
     const seq = ++asOrgPersistMutationSeqRef.current;
     try {
       const r = await onUpdateCustomData({ Preferences: { asOrg: newOrgId } });

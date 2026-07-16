@@ -382,6 +382,15 @@ export const enUS: Translations = {
     unexpectedError: 'Unexpected error',
   },
 
+  // Auth prompt (unauthenticated user)
+  auth: {
+    signInToContinue: 'Sign in to continue',
+    needToSignIn: 'You need to sign in to access this feature.',
+    signIn: 'Sign In',
+    readOnlyMode: 'Read Only Mode',
+    ariaSignIn: 'Sign in',
+  },
+
   // Sign-out modal (playful farewell flow)
   signout: {
     title: 'Leaving already?',

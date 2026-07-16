@@ -33,6 +33,7 @@ vi.mock('@/app/logto-kit/components/providers/preferences', () => ({
       errorBg: '#1a0000',
     },
   }),
+  useLangMode: () => ({ lang: 'en-US' }),
 }));
 
 import { signInUser } from '@/app/logto-kit/logic/actions/auth';

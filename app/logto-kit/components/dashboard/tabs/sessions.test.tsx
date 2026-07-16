@@ -1190,7 +1190,7 @@ describe('SessionsTab', () => {
       });
     });
 
-    it('Only One Session modal has no outside-click dismiss', async () => {
+    it('closes the single-session modal on outside-click (backdrop)', async () => {
       const singleSession: LogtoSession[] = [createdSessions[0]];
 
       const onGetSessions = vi.fn().mockResolvedValue({
@@ -1198,7 +1198,7 @@ describe('SessionsTab', () => {
         data: singleSession,
       });
 
-      const { container } = renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
+      renderSessionsTab({ onGetSessionsWithDeviceMeta: onGetSessions });
       await verifyAndLoadSessions();
 
       await waitFor(() => {
@@ -1212,15 +1212,18 @@ describe('SessionsTab', () => {
         expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
       });
 
-      // Click the overlay backdrop (the fixed motion.div that covers the viewport)
-      // The overlay is the outermost <motion.div> with position:fixed, inset:0
-      const overlay = container.querySelector('[style*="position: fixed"][style*="inset: 0"][style*="z-index: 9000"]');
-      if (overlay) {
-        await act(async () => { fireEvent.click(overlay); });
-      }
+      // Scope to the only-one dialog, then click its backdrop (the parent
+      // motion.div overlay). BUG-004 fix: outside-click now dismisses the modal
+      // via the `e.target === e.currentTarget` guard on the backdrop.
+      const dialog = screen.getByRole('dialog', { name: enUS.sessions.gcOnlyOneTitle });
+      const backdrop = dialog.parentElement;
+      expect(backdrop).not.toBeNull();
+      await act(async () => { fireEvent.click(backdrop!); });
 
-      // Modal should STILL be in the DOM (no outside-click dismiss)
-      expect(screen.getByText(enUS.sessions.gcOnlyOneTitle)).toBeDefined();
+      // Modal should be dismissed by the outside-click
+      await waitFor(() => {
+        expect(screen.queryByText(enUS.sessions.gcOnlyOneTitle)).toBeNull();
+      });
     });
 
     it('single-session modal does not trigger a password verification (no FlowModal)', async () => {

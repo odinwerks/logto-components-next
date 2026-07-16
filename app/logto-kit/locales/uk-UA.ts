@@ -382,6 +382,15 @@ export const ukUA: Translations = {
     unexpectedError: 'Неочікувана помилка',
   },
 
+  // Auth prompt (unauthenticated user)
+  auth: {
+    signInToContinue: 'Увійдіть, щоб продовжити',
+    needToSignIn: 'Вам потрібно увійти, щоб отримати доступ до цієї функції.',
+    signIn: 'Увійти',
+    readOnlyMode: 'Лише читання',
+    ariaSignIn: 'Увійти',
+  },
+
   // Sign-out modal (playful farewell flow)
   signout: {
     title: 'Вже йдеш?',

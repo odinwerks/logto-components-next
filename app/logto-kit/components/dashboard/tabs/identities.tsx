@@ -164,10 +164,14 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: 
     fontSize: '0.625rem',
     fontFamily: FONT_MONO,
     background: `${c.accentGreen}1a`,
-    color: c.accentGreen,
     border: `1px solid ${c.accentGreen}44`,
     letterSpacing: 0.2,
   };
+  // BUG-007: Light-mode accentGreen (#059669) on tint background has 3.34:1
+  // contrast. Use a darker green only in light mode.
+  const successBadgeColor: React.CSSProperties = mode === 'light'
+    ? { color: '#047857' }
+    : { color: c.accentGreen };
 
   const chipStyle: React.CSSProperties = {
     fontFamily: FONT_MONO,
@@ -182,6 +186,11 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: 
     textOverflow: 'ellipsis',
     maxWidth: '10rem',
   };
+  // BUG-007: Light-mode textTertiary (#6b7280) on bgTertiary (#e5e7eb) = 3.90:1
+  // contrast. Dark mode is fine; use textSecondary only in light mode.
+  const chipColor: React.CSSProperties = mode === 'light'
+    ? { color: c.textSecondary }
+    : { color: c.textTertiary };
 
   const dividerStyle: React.CSSProperties = {
     height: '1px',
@@ -238,7 +247,7 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: 
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.1875rem' }}>
                       <p style={{ ...bodyStyle, fontWeight: 500, margin: 0 }}>{name}</p>
-                      <span style={successBadge}>
+                      <span style={{ ...successBadge, ...successBadgeColor }}>
                         <Check size={9} strokeWidth={2} />
                         {t.identities.connected}
                       </span>
@@ -250,9 +259,9 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: 
                 </div>
 
                 {/* Right - external user ID chip */}
-                {identity.userId && (
-                  <div style={chipStyle} aria-label={`${t.identities.userIdLabel}: ${identity.userId}`}>{identity.userId}</div>
-                )}
+                  {identity.userId && (
+                    <div style={{ ...chipStyle, ...chipColor }} aria-label={`${t.identities.userIdLabel}: ${identity.userId}`}>{identity.userId}</div>
+                  )}
               </div>
 
               {!isLast && <div style={dividerStyle} />}

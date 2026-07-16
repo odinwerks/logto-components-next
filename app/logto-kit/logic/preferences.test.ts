@@ -109,4 +109,29 @@ describe('buildUpdatedCustomData', () => {
 
     expect(result['someOtherKey']).toBe('preserved');
   });
+
+  it('does not invent default theme/lang when none exist (BUG-L07)', () => {
+    // No existing Preferences at all; update only sets asOrg.
+    const userData = makeUserData({ otherKey: 'preserved' });
+    const result = buildUpdatedCustomData(userData, { asOrg: 'org_1' });
+    const prefs = result['Preferences'] as Record<string, unknown>;
+
+    // asOrg is set from the update; theme/lang are NOT invented as 'dark'/'en-US'.
+    expect(prefs.asOrg).toBe('org_1');
+    expect(prefs.theme).toBeUndefined();
+    expect(prefs.lang).toBeUndefined();
+    // Other customData keys are preserved.
+    expect(result['otherKey']).toBe('preserved');
+  });
+
+  it('preserves existing theme without inventing a default for missing lang (BUG-L07)', () => {
+    const userData = makePrefsUserData({ theme: 'light', asOrg: null });
+    const result = buildUpdatedCustomData(userData, { asOrg: 'org_2' });
+    const prefs = result['Preferences'] as Record<string, unknown>;
+
+    // Existing theme preserved; lang was absent and must NOT default to 'en-US'.
+    expect(prefs.theme).toBe('light');
+    expect(prefs.lang).toBeUndefined();
+    expect(prefs.asOrg).toBe('org_2');
+  });
 });

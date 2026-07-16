@@ -16,7 +16,7 @@ import { Input } from '../../shared/Input';
 import { ContactRow, Card, HR } from '../shared/ContactRow';
 import { RoleCard } from '../shared/RoleCard';
 import { RefreshButton } from '../shared/RefreshButton';
-import { Overlay } from '../shared/FlowModal';
+import { Overlay, PasswordVerifyModal, type PasswordModalStep } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
 import { motion, AnimatePresence, BouncingDots } from '../../shared/motion';
 import { getClampedTooltipPosition } from '../shared/tooltip-position';
@@ -284,7 +284,7 @@ interface ProfileTabProps {
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   mobmode?: number;
   nameType?: string;
-  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateBasicInfo: (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
@@ -343,6 +343,14 @@ export function ProfileTab({
   const [username,    setUsername]    = useState(userData.username ?? '');
   const [nameLoading, setNameLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // MCP-001c: Password verification gate for username/full name updates.
+  // Logto requires identity verification (logto-verification-id header) for
+  // username changes, so we open a PasswordVerifyModal before handleSaveName
+  // when nameType is 'username' or 'full'. The 'given_family' mode does NOT
+  // send a username, so it skips the verification gate.
+  const [nameVerifyStep, setNameVerifyStep] = useState<PasswordModalStep | null>(null);
+  const [nameVerifyError, setNameVerifyError] = useState('');
+  const [nameVerifyLoading, setNameVerifyLoading] = useState(false);
 
   const [{ userRoles, loading: rolesLoading, error: rolesError }, rolesDispatch] = useReducer(rolesReducer, {
     userRoles: [], loading: true, error: false,
@@ -370,7 +378,7 @@ export function ProfileTab({
     return () => { cancelled = true; };
   }, [userData.id, rolesRefreshKey]);
 
-  const handleSaveName = useCallback(async () => {
+  const handleSaveName = useCallback(async (verificationRecordId?: string) => {
     setNameLoading(true);
     try {
       if (nameType === 'given_family') {
@@ -378,6 +386,7 @@ export function ProfileTab({
         // Always send name (as '' when both fields are cleared) so the server can
         // clear userData.name. The previous falsy guard skipped the call, leaving
         // the name stale when both given and family names were emptied.
+        // given_family mode does NOT send username, so no verification ID needed.
         const basicResult = await onUpdateBasicInfo({ name: name || '' });
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         const profileResult = await onUpdateProfile({ givenName, familyName });
@@ -399,7 +408,8 @@ export function ProfileTab({
           return;
         }
       } else if (nameType === 'username') {
-        const result = await onUpdateBasicInfo({ username });
+        // MCP-001c: username changes require the logto-verification-id header.
+        const result = await onUpdateBasicInfo({ username }, verificationRecordId);
         if (!result.ok) { onError(result.error); refreshData(); return; }
       } else { // full
         const nameFieldsChanged =
@@ -409,8 +419,11 @@ export function ProfileTab({
         // Always include name (as '' when both fields are cleared) so the server can
         // clear userData.name. The previous conditional omitted the key when name
         // was empty, leaving the name stale.
+        // MCP-001c: username is always included in full mode, so the verification
+        // ID is forwarded to the server action (and to any rollback that includes
+        // a username restore).
         const basicUpdates: { name: string; username: string } = { name: name || '', username };
-        const basicResult = await onUpdateBasicInfo(basicUpdates);
+        const basicResult = await onUpdateBasicInfo(basicUpdates, verificationRecordId);
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         if (nameFieldsChanged) {
           const profileResult = await onUpdateProfile({ givenName, familyName });
@@ -420,7 +433,7 @@ export function ProfileTab({
               const rollbackUpdates: { name?: string; username?: string } = {};
               if (userData.name != null) rollbackUpdates.name = userData.name;
               if (userData.username != null) rollbackUpdates.username = userData.username;
-              const rollbackResult = await onUpdateBasicInfo(rollbackUpdates);
+              const rollbackResult = await onUpdateBasicInfo(rollbackUpdates, verificationRecordId);
               if (!rollbackResult.ok) {
                 console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
                 refreshData();
@@ -441,6 +454,43 @@ export function ProfileTab({
       setNameLoading(false);
     }
   }, [nameType, givenName, familyName, username, userData, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
+
+  // MCP-001c: Gate the save action behind password verification when the name
+  // type includes a username field. 'given_family' does NOT send username and
+  // therefore skips the verification modal entirely.
+  const handleNameSaveClick = useCallback(() => {
+    if (nameType === 'username' || nameType === 'full') {
+      setNameVerifyStep({ kind: 'password' });
+      setNameVerifyError('');
+      setNameVerifyLoading(false);
+    } else {
+      void handleSaveName(undefined);
+    }
+  }, [nameType, handleSaveName]);
+
+  const handleNameVerifyPassword = useCallback(async (password: string) => {
+    setNameVerifyLoading(true);
+    setNameVerifyError('');
+    try {
+      const result = await onVerifyPassword(password);
+      if (!result.ok) {
+        setNameVerifyError(result.error);
+        setNameVerifyLoading(false);
+        return;
+      }
+      // Verification succeeded — close the modal and proceed with the save,
+      // forwarding the identity verification record ID to the server action.
+      setNameVerifyStep(null);
+      setNameVerifyLoading(false);
+      void handleSaveName(result.data.verificationRecordId);
+    } catch {
+      // BUG-003: PasswordVerifyModal calls onPasswordSubmit without await/.catch.
+      // Recover in-place instead of re-throwing (which would cause unhandledrejection
+      // and leave the modal stuck on the loading step).
+      setNameVerifyError(t.common?.unexpectedError || 'Unexpected error');
+      setNameVerifyLoading(false);
+    }
+  }, [onVerifyPassword, handleSaveName, t]);
 
   const handleDiscardName = useCallback(() => {
     setGivenName(userData.profile?.givenName  ?? '');
@@ -854,6 +904,31 @@ export function ProfileTab({
       )}
       </AnimatePresence>
 
+      {/* MCP-001c: Password verification gate for username/full name updates.
+          Logto requires identity verification for username changes, so we
+          prompt for the user's password before forwarding the save. */}
+      <AnimatePresence>
+      {nameVerifyStep && (
+        <PasswordVerifyModal
+          key="name-verify"
+          title={t.sessions.verifyToView}
+          subtitle={t.security.enterCurrentPassword}
+          step={nameVerifyStep}
+          onPasswordSubmit={handleNameVerifyPassword}
+          onClose={() => {
+            setNameVerifyStep(null);
+            setNameVerifyError('');
+            setNameVerifyLoading(false);
+          }}
+          passwordError={nameVerifyError}
+          loading={nameVerifyLoading}
+          mode={mode}
+          colors={colors}
+          t={t}
+        />
+      )}
+      </AnimatePresence>
+
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
         <div style={{ position: 'relative', width: '6rem', height: '6rem', flexShrink: 0 }}>
             <UserBadge
@@ -928,7 +1003,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -984,7 +1059,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1057,7 +1132,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleSaveName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1138,7 +1213,7 @@ export function ProfileTab({
                   {isEditing ? (
                     <button
                       type="button"
-                      onClick={handleSaveName}
+                      onClick={handleNameSaveClick}
                       disabled={nameLoading}
                       aria-label={t.profile.modify}
                       style={{

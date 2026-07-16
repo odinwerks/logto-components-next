@@ -93,8 +93,15 @@ describe('OrgSwitcher auto-switching behavior', () => {
     await waitFor(() => {
       // Fix for BUG-M12: setActiveOrg(null) must be called to persist personal-mode
       expect(mockSetActiveOrg).toHaveBeenCalledWith(null);
-      expect(mockSetAsOrg).toHaveBeenCalledWith(null);
+      // BUG-L06 fix: setActiveOrg(null) already persists asOrg:null via the
+      // server action — the client-side setAsOrg(null) is skipped to avoid
+      // a redundant double-write round trip.
+      expect(mockSetAsOrg).not.toHaveBeenCalledWith(null);
     });
+
+    // Simulate the state update that router.refresh() would produce: the
+    // server-side persist (asOrg:null) is picked up on the next render cycle.
+    currentAsOrg = null;
 
     // 4. Re-render after manual switch back (simulating state change asOrg -> null)
     rerender(

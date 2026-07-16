@@ -69,6 +69,7 @@ export type ErrorCode =
   | 'UNAUTHENTICATED'
   | 'UNAUTHORIZED'
   | 'MISSING_VERIFICATION'
+  | 'VERIFICATION_REQUIRED'
   | 'INTERNAL_ERROR';
 
 // ============================================================================

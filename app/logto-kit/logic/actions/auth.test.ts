@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { signInUser, signOutUser } from './auth';
+import { assertSafeRouteTo } from '../assert-safe-route';
+import { ValidationError } from '../validation';
 
 vi.mock('@logto/next/server-actions', () => ({
   signIn: vi.fn(),
@@ -25,11 +27,37 @@ describe('signInUser', () => {
   });
 
   it('rejects absolute external URLs', async () => {
-    await expect(signInUser('https://evil.com')).rejects.toThrow('Invalid routeTo');
+    await expect(signInUser('https://evil.com')).rejects.toThrow('INVALID_ROUTE');
   });
 
   it('rejects protocol-relative URLs', async () => {
-    await expect(signInUser('//evil.com')).rejects.toThrow('Invalid routeTo');
+    await expect(signInUser('//evil.com')).rejects.toThrow('INVALID_ROUTE');
+  });
+
+  // BUG-010 regression: backslash-prefixed hosts bypass the old startsWith('//')
+  // check because the WHATWG URL parser normalises `\` to `/` inside special
+  // schemes. The origin-equality fix rejects these.
+  it('rejects backslash-prefixed hosts (BUG-010)', async () => {
+    await expect(signInUser('/\\evil.com')).rejects.toThrow('INVALID_ROUTE');
+  });
+
+  it('rejects backslash-at-prefixed hosts (BUG-010)', async () => {
+    await expect(signInUser('/\\@evil.com')).rejects.toThrow('INVALID_ROUTE');
+  });
+
+  it('allows same-origin relative paths', () => {
+    expect(() => assertSafeRouteTo('/dashboard', 'https://example.com')).not.toThrow();
+    expect(() => assertSafeRouteTo('/docs/foo', 'http://localhost:3000')).not.toThrow();
+  });
+
+  it('throws ValidationError on invalid route', () => {
+    try {
+      assertSafeRouteTo('https://evil.com', 'https://example.com');
+      throw new Error('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError);
+      expect((err as Error).message).toBe('INVALID_ROUTE');
+    }
   });
 });
 

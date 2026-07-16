@@ -63,39 +63,63 @@ interface ProtectedRequestBody {
   payload?: unknown;
 }
 
+// Maximum request body size (1 MiB). Enforced by reading the actual stream
+// bytes (BUG-011) rather than trusting the Content-Length header, which is
+// trivially spoofable and absent for chunked transfers.
+const MAX_BODY_BYTES = 1_048_576;
+
+/**
+ * Reads and JSON-parses the request body, enforcing a real byte cap on the
+ * streamed content (BUG-011). Replaces the previous header-only Content-Length
+ * check, which was bypassable via chunked requests without a Content-Length
+ * header.
+ *
+ * Throws an Error with message 'PAYLOAD_TOO_LARGE' when the body exceeds
+ * `maxBytes`; the caller maps this to a 413 response.
+ */
+async function readBodyWithByteCap(request: NextRequest, maxBytes: number): Promise<unknown> {
+  const reader = request.body?.getReader();
+  if (!reader) {
+    // No stream available (e.g. edge runtime quirk) — fall back to request.json().
+    // Auth has already succeeded at this point, so the DoS surface is bounded.
+    return request.json();
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error('PAYLOAD_TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const text = new TextDecoder().decode(merged);
+  return JSON.parse(text);
+}
+
 export async function POST(request: NextRequest) {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
   if (originError) return originError;
 
   try {
-    // Body size guard: rejects requests with a declared Content-Length > 1 MiB.
-    // NOTE: This only checks the declared header, not the actual body bytes.
-    // Real body-size enforcement must be done at the reverse proxy level
-    // (e.g. nginx client_max_body_size 1m). Chunked requests without
-    // Content-Length are allowed through.
-    const contentLengthHeader = request.headers.get('content-length');
-    if (contentLengthHeader) {
-      const declared = parseInt(contentLengthHeader, 10);
-      if (!isNaN(declared) && declared > 1_048_576) {
-        return apiError('PAYLOAD_TOO_LARGE', 413);
-      }
-    }
-
-    const body: ProtectedRequestBody = await request.json();
-
-    const { action, payload } = body;
-
-    if (!action) {
-      return apiError('MISSING_FIELDS', 400);
-    }
-
-    // BUG-008: Validate action name format and length.
-    if (typeof action !== 'string' || action.length === 0 || action.length > 128) {
-      return apiError('MISSING_FIELDS', 400);
-    }
-
-    // ── Step 0: verify session token ─────────────────────────────────────────
+    // ── Step 0: verify session token (BEFORE body parse) ───────────────────
+    // BUG-011: Authenticate before buffering the request body. The session
+    // token comes from the SDK cookie (not the request body), so auth CAN run
+    // before body parse. This prevents unauthenticated same-origin requests
+    // from consuming memory and bypassing the rate limiter (which is keyed on
+    // introspection.sub and therefore only runs after successful auth).
     let token: string;
     try {
       token = await getTokenForServerAction();
@@ -140,7 +164,7 @@ export async function POST(request: NextRequest) {
       return apiError('TOKEN_INVALID', 400);
     }
 
-    // ── Per-user rate limit ───────────────────────────────────────────────────
+    // ── Per-user rate limit (BEFORE body parse, keyed on introspection.sub) ──
     if (!(await protectedRouteRateLimiter.check(id))) {
       debugLog(`[Protected API] Rate limit exceeded for user ${id}`);
       // RFC 7231: 429 SHOULD include Retry-After. We use a fixed window of 60s.
@@ -148,6 +172,34 @@ export async function POST(request: NextRequest) {
         { error: 'RATE_LIMITED', data: null },
         { status: 429, headers: { 'Retry-After': '60' } }
       );
+    }
+
+    // ── Parse body with a real byte cap ──────────────────────────────────────
+    // BUG-011: Replaces the previous header-only Content-Length check, which
+    // was bypassable (chunked requests without Content-Length were allowed
+    // through). This reads the actual body bytes from the stream and rejects
+    // anything exceeding 1 MiB. Runs AFTER auth + rate limit so unauthenticated
+    // requests never buffer a body.
+    let body: ProtectedRequestBody;
+    try {
+      body = (await readBodyWithByteCap(request, MAX_BODY_BYTES)) as ProtectedRequestBody;
+    } catch (err) {
+      if (err instanceof Error && err.message === 'PAYLOAD_TOO_LARGE') {
+        return apiError('PAYLOAD_TOO_LARGE', 413);
+      }
+      debugError('[Protected API] Body parse error:', err instanceof Error ? err.message : String(err));
+      return apiError('MISSING_FIELDS', 400);
+    }
+
+    const { action, payload } = body;
+
+    if (!action) {
+      return apiError('MISSING_FIELDS', 400);
+    }
+
+    // BUG-008: Validate action name format and length.
+    if (typeof action !== 'string' || action.length === 0 || action.length > 128) {
+      return apiError('MISSING_FIELDS', 400);
     }
 
     // ── Resolve action ────────────────────────────────────────────────────────

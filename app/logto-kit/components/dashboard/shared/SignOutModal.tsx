@@ -19,6 +19,167 @@ interface SignOutModalProps {
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
+// ── SignOutConfirm (Stage 1: countdown confirmation) ─────────────────────────
+// Extracted into a child component so `useFocusTrap` runs on mount, when the
+// dialog ref is already attached. The parent (SignOutModal) is always mounted
+// in the tree, so calling the hook at the parent level left the ref null at the
+// first effect run and the trap never installed (BUG-001). This mirrors the
+// clean pattern used by FlowModal / PasswordVerifyModal / BackupCodesModal, all
+// of which call `useFocusTrap` inside the conditionally-rendered modal body.
+function SignOutConfirm({
+  onAbort,
+  onCancel,
+  onConfirm,
+  countdown,
+  mode,
+  colors,
+  t,
+}: {
+  onAbort: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+  countdown: number;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  t: Translations;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onAbort);
+
+  const bodyText = t.signout.bodyCountdown.replace('{n}', String(countdown));
+  const parts = bodyText.split(String(countdown));
+
+  return (
+    <motion.div
+      key="confirm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
+    >
+      <Overlay onDismiss={onCancel}>
+        <div
+          ref={dialogRef}
+          tabIndex={-1}
+          style={{
+            width: '100%',
+            maxWidth: '27.5rem',
+            background: colors.bgSecondary,
+            border: `1px solid ${colors.borderColor}`,
+            boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+            overflow: 'hidden',
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="signout-modal-title"
+          aria-describedby="signout-modal-desc"
+        >
+          <div
+            style={{
+              padding: '1.125rem 1.375rem 1rem',
+              borderBottom: `1px solid ${colors.borderColor}`,
+            }}
+          >
+            <p
+              id="signout-modal-title"
+              style={{
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                color: colors.textPrimary,
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
+              {t.signout.title}
+            </p>
+          </div>
+
+          <div style={{ padding: '1.25rem 1.375rem' }}>
+            <p
+              id="signout-modal-desc"
+              style={{
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: colors.textSecondary,
+                lineHeight: 1.55,
+                margin: 0,
+              }}
+            >
+              {parts[0]}
+              <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
+              {parts[1] || ''}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
+              <Button variant="secondary" onClick={onCancel} mode={mode} colors={colors}>
+                {t.signout.abort}
+              </Button>
+              <Button variant="danger" onClick={onConfirm} mode={mode} colors={colors}>
+                {t.signout.confirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Overlay>
+    </motion.div>
+  );
+}
+
+// ── SignOutFarewell (Stage 2: sign-out success overlay) ──────────────────────
+// Extracted child so the farewell focus trap installs on mount (BUG-001).
+// Escape is intentionally a no-op while sign-out is in progress.
+function SignOutFarewell({
+  colors,
+  t,
+}: {
+  colors: ThemeColors;
+  t: Translations;
+}) {
+  const farewellRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(farewellRef, () => { /* farewell overlay: Escape is a no-op while sign-out is in progress */ });
+
+  return (
+    <motion.div
+      key="farewell"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
+      ref={farewellRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t.signout.farewell}
+      tabIndex={-1}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9000,
+        background: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(0.375rem) saturate(0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.25rem',
+      }}
+    >
+      <p
+        aria-label={t.signout.farewell}
+        style={{
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          color: colors.textPrimary,
+          textAlign: 'center',
+          margin: 0,
+        }}
+      >
+        {t.signout.farewell}
+      </p>
+    </motion.div>
+  );
+}
+
 export function SignOutModal({
   isOpen,
   onAbort,
@@ -31,11 +192,6 @@ export function SignOutModal({
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [showFarewell, setShowFarewell] = useState(false);
   const prevIsOpenRef = useRef(isOpen);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const farewellRef = useRef<HTMLDivElement>(null);
-
-  useFocusTrap(dialogRef, onAbort);
-  useFocusTrap(farewellRef, () => { /* farewell overlay: Escape is a no-op while sign-out is in progress */ });
 
   useEffect(() => {
     // Reset state when transitioning from open to closed (not on initial render)
@@ -94,124 +250,21 @@ export function SignOutModal({
 
   if (!isOpen) return null;
 
-  // Stage 1: Countdown confirmation
-  const bodyText = t.signout.bodyCountdown.replace('{n}', String(countdown));
-  const parts = bodyText.split(String(countdown));
-
   return (
     <AnimatePresence mode="sync">
       {showFarewell ? (
-        <motion.div
-          key="farewell"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.06, ease: 'easeOut' }}
-          ref={farewellRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t.signout.farewell}
-          tabIndex={-1}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9000,
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(0.375rem) saturate(0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1.25rem',
-          }}
-        >
-          <p
-            aria-label={t.signout.farewell}
-            style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              color: colors.textPrimary,
-              textAlign: 'center',
-              margin: 0,
-            }}
-          >
-            {t.signout.farewell}
-          </p>
-        </motion.div>
+        <SignOutFarewell key="farewell" colors={colors} t={t} />
       ) : (
-        <motion.div
+        <SignOutConfirm
           key="confirm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.06, ease: 'easeOut' }}
-        >
-          <Overlay onDismiss={handleAbort}>
-            <div
-              ref={dialogRef}
-              tabIndex={-1}
-              style={{
-                width: '100%',
-                maxWidth: '27.5rem',
-                background: colors.bgSecondary,
-                border: `1px solid ${colors.borderColor}`,
-                boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
-                overflow: 'hidden',
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="signout-modal-title"
-              aria-describedby="signout-modal-desc"
-            >
-              <div
-                style={{
-                  padding: '1.125rem 1.375rem 1rem',
-                  borderBottom: `1px solid ${colors.borderColor}`,
-                }}
-              >
-                <p
-                  id="signout-modal-title"
-                  style={{
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
-                    fontWeight: 600,
-                    fontSize: '0.9375rem',
-                    color: colors.textPrimary,
-                    letterSpacing: '-0.02em',
-                    margin: 0,
-                  }}
-                >
-                  {t.signout.title}
-                </p>
-              </div>
-
-              <div style={{ padding: '1.25rem 1.375rem' }}>
-                <p
-                  id="signout-modal-desc"
-                  style={{
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: colors.textSecondary,
-                    lineHeight: 1.55,
-                    margin: 0,
-                  }}
-                >
-                  {parts[0]}
-                  <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
-                  {parts[1] || ''}
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
-                  <Button variant="secondary" onClick={handleAbort} mode={mode} colors={colors}>
-                    {t.signout.abort}
-                  </Button>
-                  <Button variant="danger" onClick={handleConfirm} mode={mode} colors={colors}>
-                    {t.signout.confirm}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Overlay>
-        </motion.div>
+          onAbort={onAbort}
+          onCancel={handleAbort}
+          onConfirm={handleConfirm}
+          countdown={countdown}
+          mode={mode}
+          colors={colors}
+          t={t}
+        />
       )}
     </AnimatePresence>
   );

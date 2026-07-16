@@ -28,12 +28,26 @@ function buildConnectSrc(): string {
     }
   }
 
+  // BUG-016: Pin the specific Supabase project origin from NEXT_PUBLIC_SUPABASE_URL
+  // instead of the wildcard `https://*.supabase.co`. Supabase issues free
+  // `<project-ref>.supabase.co` subdomains to anyone, so the wildcard allowed
+  // exfiltration to an attacker-controlled Supabase project. When the env var
+  // is absent we omit Supabase from connect-src entirely (no fallback wildcard).
+  let supabaseOrigin: string | null = null;
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    try {
+      supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin;
+    } catch {
+      console.warn('[CSP] NEXT_PUBLIC_SUPABASE_URL env var is not a valid URL; omitting from connect-src');
+    }
+  }
+
   const sources = [
     "connect-src 'self'",
     logtoOrigin,
     'https://ipapi.co',
     'https://*.basemaps.cartocdn.com',
-    'https://*.supabase.co',
+    ...(supabaseOrigin ? [supabaseOrigin] : []),
   ];
 
   if (process.env.NODE_ENV === 'development') {
@@ -214,7 +228,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.set(WIPE_NONCE_COOKIE, wipeNonce, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: request.nextUrl.protocol === 'https:',
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
         maxAge: WIPE_NONCE_TTL_SECONDS,
       });
@@ -232,7 +246,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.set(WIPE_NONCE_COOKIE, wipeNonce, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: request.nextUrl.protocol === 'https:',
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
         maxAge: WIPE_NONCE_TTL_SECONDS,
       });

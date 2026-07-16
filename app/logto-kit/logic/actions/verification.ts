@@ -36,7 +36,7 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -119,7 +119,7 @@ export async function sendEmailVerificationCode(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -164,7 +164,7 @@ export async function sendPhoneVerificationCode(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -214,7 +214,7 @@ export async function verifyVerificationCode(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -271,7 +271,7 @@ export async function updateEmailWithVerification(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -303,7 +303,7 @@ export async function updatePhoneWithVerification(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -335,7 +335,7 @@ export async function removeUserEmail(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -361,7 +361,7 @@ export async function removeUserPhone(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }

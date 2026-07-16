@@ -42,10 +42,17 @@ function getSetCookies(res: Response): string[] {
 
 describe('proxy stale-cookie recovery', () => {
   beforeEach(() => {
+    // BUG-013: secure flag is now NODE_ENV-based (not protocol-based), so
+    // stub production to verify the Secure attribute is set on the wipe nonce.
+    vi.stubEnv('NODE_ENV', 'production');
     getLogtoContextMock.mockReset();
     warnMock.mockReset();
     errorMock.mockReset();
     logMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('issues nonce contract for stale-cookie branch redirect', async () => {
@@ -123,9 +130,16 @@ describe('proxy /api/wipe infinite redirect loop fix', () => {
 
 describe('proxy invalid_grant recovery', () => {
   beforeEach(() => {
+    // BUG-013: secure flag is now NODE_ENV-based (not protocol-based), so
+    // stub production to verify the Secure attribute is set on the wipe nonce.
+    vi.stubEnv('NODE_ENV', 'production');
     getLogtoContextMock.mockReset();
     warnMock.mockReset();
     errorMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('issues nonce contract for invalid_grant redirect', async () => {

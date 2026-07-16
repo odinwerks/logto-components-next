@@ -58,6 +58,170 @@ function OsIcon({ os, deviceType, size }: { os: string | null; deviceType: strin
   return <Monitor size={size} strokeWidth={1.5} />;
 }
 
+// ── GcAllConfirmModal ────────────────────────────────────────────────────────
+// Extracted child so `useFocusTrap` installs on mount (BUG-005). The parent
+// (SessionsTab) is always mounted, so calling the hook at the parent level left
+// the dialog ref null at the first effect run and the trap never installed.
+// Mirrors the FlowModal / PasswordVerifyModal pattern.
+function GcAllConfirmModal({
+  onCancel,
+  onConfirm,
+  loading,
+  t,
+  mode,
+  colors,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+  /** Number of sessions that would be revoked (reserved for future copy). */
+  sessionsCount?: number;
+  t: Translations;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, () => {
+    if (!loading) onCancel();
+  });
+
+  return (
+    <motion.div
+      key="gc-all"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(0.375rem) saturate(0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9000,
+      }}
+      onClick={() => !loading && onCancel()}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gc-all-title"
+        style={{
+          background: colors.bgSecondary,
+          border: `1px solid ${colors.borderColor}`,
+          borderRadius: DASHBOARD_RADIUS,
+          padding: '1.5rem',
+          width: 'min(92vw, 420px)',
+          fontFamily: FONT_SANS,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="gc-all-title" style={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary, margin: '0 0 1rem 0' }}>
+          {t.sessions.gcAllConfirmTitle}
+        </h3>
+
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={loading}
+            mode={mode}
+            colors={colors}
+          >
+            {t.common.close}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={onConfirm}
+            disabled={loading}
+            mode={mode}
+            colors={colors}
+          >
+            {loading ? t.common.loading : t.common.yes}
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── OnlyOneSessionModal ──────────────────────────────────────────────────────
+// Extracted child so `useFocusTrap` installs on mount (BUG-004). Adds Escape
+// handling, focus trapping, tabIndex on the dialog, and backdrop click-outside
+// dismiss — matching every other modal in the dashboard.
+function OnlyOneSessionModal({
+  onCancel,
+  t,
+  mode,
+  colors,
+}: {
+  onCancel: () => void;
+  t: Translations;
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onCancel);
+
+  return (
+    <motion.div
+      key="only-one"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.06, ease: 'easeOut' }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(0.375rem) saturate(0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9000,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="only-one-title"
+        style={{
+          background: colors.bgSecondary,
+          border: `1px solid ${colors.borderColor}`,
+          borderRadius: DASHBOARD_RADIUS,
+          padding: '1.5rem',
+          width: 'min(92vw, 420px)',
+          fontFamily: FONT_SANS,
+        }}
+      >
+        <h3 id="only-one-title" style={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary, margin: '0 0 0.75rem 0' }}>
+          {t.sessions.gcOnlyOneTitle}
+        </h3>
+        <p style={{ fontSize: '0.8125rem', color: colors.textSecondary, lineHeight: 1.6, margin: '0 0 1.25rem 0' }}>
+          {t.sessions.gcOnlyOneBody}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="primary"
+            onClick={onCancel}
+            mode={mode}
+            colors={colors}
+          >
+            {t.sessions.gcOnlyOneAck}
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function SessionsTab({
   userData: _userData,
   mode,
@@ -130,11 +294,6 @@ export function SessionsTab({
   // GC ALL modal state (Task 1)
   const [showGcAllModal, setShowGcAllModal] = useState(false);
   const [gcAllLoading, setGcAllLoading] = useState(false);
-
-  const gcAllDialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(gcAllDialogRef, () => {
-    if (showGcAllModal && !gcAllLoading) setShowGcAllModal(false);
-  });
 
   // D16: "Only one session" informational modal
   const [showOnlyOneModal, setShowOnlyOneModal] = useState(false);
@@ -1139,133 +1298,37 @@ export function SessionsTab({
       {/* GC ALL Confirmation Modal (Task 1) */}
       <AnimatePresence>
       {showGcAllModal && (
-        <motion.div
+        <GcAllConfirmModal
           key="gc-all"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.06, ease: 'easeOut' }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(0.375rem) saturate(0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9000,
+          onCancel={() => setShowGcAllModal(false)}
+          onConfirm={() => {
+            if (revokeTargetRef.current !== null) { setShowGcAllModal(false); return; }
+            setGcAllLoading(true);
+            revokeTargetRef.current = { kind: 'all' };
+            setModalPurpose('revoke');
+            setModalStep({ kind: 'password' });
+            setModalError('');
+            setShowGcAllModal(false);
           }}
-          onClick={() => !gcAllLoading && setShowGcAllModal(false)}
-        >
-          <div
-            ref={gcAllDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="gc-all-title"
-            style={{
-              background: T.bg,
-              border: `1px solid ${T.border}`,
-              borderRadius: DASHBOARD_RADIUS,
-              padding: '1.5rem',
-              width: 'min(92vw, 420px)',
-              fontFamily: T.font,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="gc-all-title" style={{ fontSize: '1rem', fontWeight: 600, color: T.text, margin: '0 0 1rem 0' }}>
-              {t.sessions.gcAllConfirmTitle}
-            </h3>
-
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-              <Button
-                variant="secondary"
-                onClick={() => setShowGcAllModal(false)}
-                disabled={gcAllLoading}
-                mode={mode}
-                colors={c}
-              >
-                {t.common.close}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  if (revokeTargetRef.current !== null) { setShowGcAllModal(false); return; }
-                  setGcAllLoading(true);
-                  revokeTargetRef.current = { kind: 'all' };
-                  setModalPurpose('revoke');
-                  setModalStep({ kind: 'password' });
-                  setModalError('');
-                  setShowGcAllModal(false);
-                }}
-                disabled={gcAllLoading}
-                mode={mode}
-                colors={c}
-              >
-                {gcAllLoading ? t.common.loading : t.common.yes}
-              </Button>
-            </div>
-          </div>
-        </motion.div>
+          loading={gcAllLoading}
+          sessionsCount={sessions.length}
+          t={t}
+          mode={mode}
+          colors={c}
+        />
       )}
       </AnimatePresence>
 
       {/* D16: Only One Session informational modal */}
       <AnimatePresence>
       {showOnlyOneModal && (
-        <motion.div
+        <OnlyOneSessionModal
           key="only-one"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.06, ease: 'easeOut' }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(0.375rem) saturate(0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9000,
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="only-one-title"
-            style={{
-              background: T.bg,
-              border: `1px solid ${T.border}`,
-              borderRadius: DASHBOARD_RADIUS,
-              padding: '1.5rem',
-              width: 'min(92vw, 420px)',
-              fontFamily: T.font,
-            }}
-          >
-            <h3 id="only-one-title" style={{ fontSize: '1rem', fontWeight: 600, color: T.text, margin: '0 0 0.75rem 0' }}>
-              {t.sessions.gcOnlyOneTitle}
-            </h3>
-            <p style={{ fontSize: '0.8125rem', color: T.sub, lineHeight: 1.6, margin: '0 0 1.25rem 0' }}>
-              {t.sessions.gcOnlyOneBody}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                autoFocus
-                onClick={() => setShowOnlyOneModal(false)}
-                id="only-one-ack-btn"
-                className="ldd-btn ldd-btn-primary"
-                style={{
-                  padding: '0.375rem 1rem',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  fontFamily: T.font,
-                }}
-              >
-                {t.sessions.gcOnlyOneAck}
-              </button>
-            </div>
-          </div>
-        </motion.div>
+          onCancel={() => setShowOnlyOneModal(false)}
+          t={t}
+          mode={mode}
+          colors={c}
+        />
       )}
       </AnimatePresence>
     </div>

@@ -313,4 +313,31 @@ describe('createLockManager', () => {
     // Clean up
     neverRelease();
   });
+
+  // BUG-L05: release must check ownership before deleting the map entry.
+  it('does not delete a subsequent waiter lock when a prior holder releases after timeout eviction (BUG-L05)', async () => {
+    const manager = createLockManager();
+
+    // Holder A acquires the key.
+    const releaseA = await manager.acquire('shared-key');
+
+    // Waiter B tries to acquire and times out — this forcibly evicts A's
+    // entry from the map (simulating a hung holder).
+    await expect(manager.acquire('shared-key', 50)).rejects.toThrow(/timed out/i);
+    expect(manager.locks.has('shared-key')).toBe(false);
+
+    // Waiter C acquires the key — creates a NEW entry owned by C.
+    const releaseC = await manager.acquire('shared-key');
+    expect(manager.locks.has('shared-key')).toBe(true);
+
+    // A's release runs late. Under the old (buggy) code it would
+    // unconditionally `locks.delete('shared-key')`, dropping C's lock. Under
+    // the fixed code it must check ownership and leave C's entry intact.
+    releaseA();
+    expect(manager.locks.has('shared-key')).toBe(true); // C's lock survives
+
+    // C can still release cleanly.
+    releaseC();
+    expect(manager.locks.has('shared-key')).toBe(false);
+  });
 });

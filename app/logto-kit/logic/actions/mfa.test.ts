@@ -388,7 +388,7 @@ describe('generateBackupCodes', () => {
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
   });
 
-  it('removes existing backup-code factors before generating and enrolling new codes', async () => {
+  it('enrolls new backup codes before removing old factors so a failed enroll keeps old codes (BUG-L04)', async () => {
     vi.mocked(makeRequest)
       .mockResolvedValueOnce(mockOkResponse([
         {
@@ -398,9 +398,9 @@ describe('generateBackupCodes', () => {
           updatedAt: new Date('2024-01-01').toISOString(),
         },
       ]))
-      .mockResolvedValueOnce(mockOkResponse())
-      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] }))
-      .mockResolvedValueOnce(mockOkResponse());
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] })) // generate
+      .mockResolvedValueOnce(mockOkResponse())                         // enroll
+      .mockResolvedValueOnce(mockOkResponse());                        // delete old
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
@@ -408,6 +408,8 @@ describe('generateBackupCodes', () => {
     if (!r.ok) throw new Error('Expected success');
     expect(r.data.codes).toEqual(['A1', 'B2']);
 
+    // BUG-L04: order is now list → generate → enroll → delete old
+    // (previously list → delete old → generate → enroll).
     expect(makeRequest).toHaveBeenNthCalledWith(
       1,
       '/api/my-account/mfa-verifications',
@@ -417,23 +419,104 @@ describe('generateBackupCodes', () => {
     );
     expect(makeRequest).toHaveBeenNthCalledWith(
       2,
+      '/api/my-account/mfa-verifications/backup-codes/generate',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      3,
+      '/api/my-account/mfa-verifications',
+      expect.objectContaining({
+        method: 'POST',
+        body: { type: 'BackupCode', codes: ['A1', 'B2'] },
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      4,
       '/api/my-account/mfa-verifications/backup-old-1',
       expect.objectContaining({
         method: 'DELETE',
         extraHeaders: { 'logto-verification-id': validIdentityVrecId },
       }),
     );
-    expect(makeRequest).toHaveBeenNthCalledWith(
-      3,
-      '/api/my-account/mfa-verifications/backup-codes/generate',
-      expect.objectContaining({ method: 'POST' }),
+  });
+
+  it('does NOT delete old backup codes when enrollment fails with a non-conflict error (BUG-L04)', async () => {
+    // Make throwOnApiError behave like the real implementation: throw on
+    // non-ok responses so the enroll failure actually propagates.
+    vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
+      if (!res.ok) throw new Error('BACKUP_CODES_FAILED');
+    });
+
+    const failResponse = {
+      status: 500,
+      ok: false,
+      json: vi.fn().mockResolvedValue({}),
+      text: vi.fn().mockResolvedValue('Internal Server Error'),
+    } as unknown as Response;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
+      .mockResolvedValueOnce(failResponse);                     // enroll → 500
+
+    const r = await generateBackupCodes(validIdentityVrecId);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected error');
+    expect(r.error).toBe('BACKUP_CODES_FAILED');
+    // Crucially: only 3 calls (list, generate, enroll). The old backup factor
+    // was NEVER deleted, so the user keeps their existing backup codes.
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+    const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
+    const deleteCalled = calls.some(
+      ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
     );
+    expect(deleteCalled).toBe(false);
+  });
+
+  it('deletes old factors and retries enrollment when Logto rejects concurrent BackupCode factors (409)', async () => {
+    const conflictResponse = {
+      status: 409,
+      ok: false,
+      json: vi.fn().mockResolvedValue({ code: 'backup_code.exists' }),
+      text: vi.fn().mockResolvedValue('Conflict'),
+    } as unknown as Response;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
+      .mockResolvedValueOnce(conflictResponse)                  // enroll (1st) → 409
+      .mockResolvedValueOnce(mockOkResponse())                  // delete old
+      .mockResolvedValueOnce(mockOkResponse());                 // enroll (retry) → ok
+
+    const r = await generateBackupCodes(validIdentityVrecId);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected success');
+    expect(r.data.codes).toEqual(['A1']);
+    expect(makeRequest).toHaveBeenCalledTimes(5);
+    // The retry enroll re-sends the same body after deleting the old factor.
     expect(makeRequest).toHaveBeenNthCalledWith(
-      4,
+      5,
       '/api/my-account/mfa-verifications',
       expect.objectContaining({
         method: 'POST',
-        body: { type: 'BackupCode', codes: ['A1', 'B2'] },
+        body: { type: 'BackupCode', codes: ['A1'] },
         extraHeaders: { 'logto-verification-id': validIdentityVrecId },
       }),
     );

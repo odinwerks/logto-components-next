@@ -382,6 +382,15 @@ export const kaGE: Translations = {
     unexpectedError: 'მოულოდნელი შეცდომა',
   },
 
+  // Auth prompt (unauthenticated user)
+  auth: {
+    signInToContinue: 'გასაგრძელებლად შედით',
+    needToSignIn: 'ამ ფუნქციაზე წვდომისთვის საჭიროა შესვლა.',
+    signIn: 'შესვლა',
+    readOnlyMode: 'მხოლოდ კითხვის რეჟიმი',
+    ariaSignIn: 'შესვლა',
+  },
+
   // Sign-out modal (playful farewell flow)
   signout: {
     title: 'უკვე მიდიხარ?',
