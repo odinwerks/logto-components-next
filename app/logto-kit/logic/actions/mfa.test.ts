@@ -38,19 +38,6 @@ vi.mock('../guards', async (importOriginal) => {
   };
 });
 
-vi.mock('@logto/next/server-actions', () => ({
-  getLogtoContext: vi.fn().mockResolvedValue({
-    claims: { sub: 'user-test-123' },
-    isAuthenticated: true,
-  }),
-}));
-
-vi.mock('../../config', () => ({
-  getLogtoConfig: vi.fn().mockReturnValue({
-    endpoint: 'https://logto.example.com',
-  }),
-}));
-
 vi.mock('./verification-cookie', () => ({
   requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
   sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
@@ -538,12 +525,6 @@ describe('generateBackupCodes', () => {
 
   it('serializes concurrent backup-code generation for the same user', async () => {
     // This test verifies the lock manager prevents concurrent calls from the same user
-    const { getLogtoContext } = await import('@logto/next/server-actions');
-    vi.mocked(getLogtoContext).mockResolvedValue({
-      claims: { sub: 'same-user-lock-test' },
-      isAuthenticated: true,
-    } as unknown as Awaited<ReturnType<typeof getLogtoContext>>);
-
     let firstCallStarted = false;
     let secondCallStarted = false;
     let resolveFirst!: () => void;
@@ -674,7 +655,16 @@ describe('generateTotpSecret rate limiting', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    // Only restore Date.now spy — NOT all mocks.
+    // vi.restoreAllMocks() would reset module-level mocks like introspectToken
+    // and break downstream tests relying on their default implementations.
+    const dateNowMock = vi.mocked(Date.now);
+    // vitest spy: mockRestore restores original; for vi.fn, mockReset clears impl
+    if (typeof dateNowMock.mockRestore === 'function') {
+      dateNowMock.mockRestore();
+    }
+    // Restore introspectToken to default (auth rejection tests override it)
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
     // Clear rate limit state after test
     const rlState = (globalThis as Record<string, unknown>).__mfa_test_rl_state as Map<string, unknown> | undefined;
     rlState?.clear();
@@ -688,16 +678,35 @@ describe('generateTotpSecret rate limiting', () => {
     expect(res1.data).toEqual({ secret: 'new-secret-abc' });
 
     // A consecutive request within 10s (e.g. 5s later) should fail with MFA_ENROLL_FAILED
-    vi.spyOn(Date, 'now').mockReturnValue(baseTime + 5000);
+    vi.mocked(Date.now).mockReturnValue(baseTime + 5000);
     const res2 = await generateTotpSecret();
     expect(res2.ok).toBe(false);
     if (res2.ok) throw new Error('Expected failure');
     expect(res2.error).toContain('MFA_ENROLL_FAILED');
 
     // A request just after 10s should succeed (window expired)
-    vi.spyOn(Date, 'now').mockReturnValue(baseTime + 10001);
+    vi.mocked(Date.now).mockReturnValue(baseTime + 10001);
     const res3 = await generateTotpSecret();
     expect(res3.ok).toBe(true);
+  });
+
+  // ── M5: live auth rejection tests for generateTotpSecret ────────────────
+  it('rejects with UNAUTHENTICATED when introspectToken returns active: false', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({ active: false });
+    const r = await generateTotpSecret();
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('UNAUTHENTICATED');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects with UNAUTHENTICATED when introspectToken returns no sub', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({ active: true });
+    const r = await generateTotpSecret();
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('UNAUTHENTICATED');
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -707,6 +716,7 @@ describe('deleteMfaVerification authorized pattern', () => {
     vi.clearAllMocks();
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
     vi.mocked(makeRequest).mockResolvedValue(mockOkResponse());
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
   });
 
   afterEach(() => {
@@ -737,6 +747,7 @@ describe('replaceTotpVerification authorized pattern', () => {
     vi.clearAllMocks();
     vi.mocked(throwOnApiError).mockResolvedValue(undefined);
     vi.mocked(makeRequest).mockResolvedValue(mockOkResponse());
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
   });
 
   afterEach(() => {

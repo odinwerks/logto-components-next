@@ -104,6 +104,19 @@ describe('POST /api/wipe', () => {
     expect(setCookies.some(c => c.includes('logto_active_org') && c.includes('Max-Age=0'))).toBe(true);
   });
 
+  it('BUG-M6: clears verification cookie (logto-verification-seal) on normal wipe (no force)', async () => {
+    const { POST } = await import('./route');
+    const req = makeWipeRequest('POST', false, 'http://localhost:3000');
+    // Add verification cookie to the request so it can be cleared
+    req.cookies.set('logto-verification-seal', 'fake.seal.value');
+    const res = await POST(req);
+
+    expect(res.status).toBe(307);
+
+    const setCookies = getSetCookies(res);
+    expect(setCookies.some(c => c.includes('logto-verification-seal') && c.includes('Max-Age=0'))).toBe(true);
+  });
+
   it('BUG-007: clears wipe nonce cookie on POST', async () => {
     const { POST } = await import('./route');
     const req = makeWipeRequest('POST', false, 'http://localhost:3000', undefined, 'some-nonce');

@@ -58,6 +58,54 @@ function buildConnectSrc(): string {
 }
 
 /**
+ * Builds the img-src CSP directive from configured origins.
+ *
+ * Always allows:
+ *   - 'self' (same-origin images)
+ *   - data: (base64-encoded images — avatars, QR codes)
+ *   - blob: (image cropper temporary URLs)
+ *   - The app origin (from BASE_URL / APP_URL / PUBLIC_BASE_URL)
+ *   - The Logto origin (from ENDPOINT)
+ *
+ * Additionally, if IMG_ORIGIN is set, its origin is also allowed.
+ * When IMG_ORIGIN is unset, no additional image origins are permitted
+ * (no more `https:` wildcard).
+ */
+function buildImgSrc(): string {
+  const sources = ["'self'", 'data:', 'blob:'];
+
+  // Allow the app origin
+  const appUrl = process.env.BASE_URL || process.env.APP_URL || process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+  try {
+    sources.push(new URL(appUrl).origin);
+  } catch {
+    // Malformed URL — skip
+  }
+
+  // Allow the Logto origin (from ENDPOINT)
+  const endpoint = process.env.ENDPOINT ?? process.env.NEXT_PUBLIC_ENDPOINT;
+  if (endpoint) {
+    try {
+      sources.push(new URL(endpoint).origin);
+    } catch {
+      // Malformed ENDPOINT — skip
+    }
+  }
+
+  // Optional additional image origin
+  const imgOrigin = process.env.IMG_ORIGIN;
+  if (imgOrigin) {
+    try {
+      sources.push(new URL(imgOrigin).origin);
+    } catch {
+      console.warn('[CSP] IMG_ORIGIN env var is not a valid URL; omitting from img-src');
+    }
+  }
+
+  return `img-src ${sources.join(' ')}`;
+}
+
+/**
  * Builds a per-request Content-Security-Policy header using a nonce for
  * script-src. This removes 'unsafe-inline' from script-src, replacing it
  * with a nonce that is embedded in the theme-flash-prevention inline script
@@ -75,9 +123,7 @@ function buildCsp(nonce: string): string {
     scriptSrc,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    // img-src: self + data URIs (avatars, QR codes) + blob (image cropper)
-    // + any HTTPS source (avatar URLs from S3/Supabase can vary)
-    "img-src 'self' data: blob: https:",
+    buildImgSrc(),
     // connect-src: Next.js HMR in dev, Logto OIDC endpoint (derived from ENDPOINT
     // env var - no hardcoded domains), ipapi.co for geo, CartoCDN for map tiles,
     // Supabase for storage.

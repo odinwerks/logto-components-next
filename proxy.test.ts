@@ -509,6 +509,93 @@ describe('proxy CSP fixes', () => {
   });
 });
 
+describe('proxy CSP img-src (M1)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('omits https: wildcard from img-src and includes app/logto origins', async () => {
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('ENDPOINT', 'https://auth.example.com');
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://app.example.com/callback');
+    const res = await proxy(req);
+    const csp = res.headers.get('Content-Security-Policy') || '';
+
+    // Extract just the img-src part to test it
+    const imgSrcMatch = csp.match(/img-src (.+?)(?=;|$)/);
+    expect(imgSrcMatch).toBeTruthy();
+    const imgSrcValue = imgSrcMatch![1];
+
+    // The old CSP had a bare "https:" wildcard which should NOT appear
+    // The new CSP includes specific origins, not a bare https: wildcard
+    // Note: imgSrcValue should NOT have the "img-src " prefix - it should be like "'self' data: blob: ..."
+    expect(imgSrcValue).toContain("'self'");
+    expect(imgSrcValue).toContain('data:');
+    expect(imgSrcValue).toContain('blob:');
+    expect(imgSrcValue).toContain('https://app.example.com');
+    expect(imgSrcValue).toContain('https://auth.example.com');
+
+    // Verify we have all required sources and NO bare https: wildcard
+    const parts = imgSrcValue.split(' ');
+    // The bare https: wildcard should NOT be present as a standalone value
+    // (not as part of a full URL like https://app.example.com)
+    const bareHttpsPresent = parts.some(part => part === 'https:' || part === 'https:');
+    expect(bareHttpsPresent).toBe(false);
+
+    // We have all the required sources
+    expect(parts).toContain("'self'");
+    expect(parts).toContain('data:');
+    expect(parts).toContain('blob:');
+    expect(parts).toContain('https://app.example.com');
+    expect(parts).toContain('https://auth.example.com');
+    // Any additional parts are allowed (IMG_ORIGIN if set)
+  });
+
+  it('includes IMG_ORIGIN origin when env var is set', async () => {
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('ENDPOINT', 'https://auth.example.com');
+    vi.stubEnv('IMG_ORIGIN', 'https://cdn.example.com/images');
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://app.example.com/callback');
+    const res = await proxy(req);
+    const csp = res.headers.get('Content-Security-Policy') || '';
+
+    expect(csp).toContain('https://cdn.example.com');
+  });
+
+  it('omits IMG_ORIGIN when env var is unset', async () => {
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('ENDPOINT', 'https://auth.example.com');
+    // IMG_ORIGIN intentionally not set
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://app.example.com/callback');
+    const res = await proxy(req);
+    const csp = res.headers.get('Content-Security-Policy') || '';
+
+    // Should have only the mandatory origins
+    const imgSrcPart = csp.match(/img-src (.+?);/)?.[1] || '';
+    const origins = imgSrcPart.split(' ');
+    // Only 'self', data:, blob:, app origin, logto origin
+    expect(origins).toHaveLength(5);
+  });
+
+  it('handles malformed IMG_ORIGIN gracefully', async () => {
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('ENDPOINT', 'https://auth.example.com');
+    vi.stubEnv('IMG_ORIGIN', 'not-a-valid-url!!!');
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://app.example.com/callback');
+    const res = await proxy(req);
+    const csp = res.headers.get('Content-Security-Policy') || '';
+
+    // Must still have a valid img-src (no crash)
+    expect(csp).toContain("img-src 'self'");
+    // Malformed origin should NOT appear
+    expect(csp).not.toContain('not-a-valid-url');
+  });
+});
+
 describe('proxy RSC soft-refresh gating (D12)', () => {
   beforeEach(() => {
     getLogtoContextMock.mockReset();

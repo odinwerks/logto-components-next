@@ -9,8 +9,6 @@ import { introspectToken } from '../utils';
 import { warn } from '../log';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
-import { getLogtoContext } from '@logto/next/server-actions';
-import { getLogtoConfig } from '../../config';
 
 import { auditSafe } from './helpers';
 import { requireVerifiedIdentity } from './verification-cookie';
@@ -60,12 +58,13 @@ export async function getMfaVerifications(): Promise<DataResult<MfaVerification[
  */
 export async function generateTotpSecret(): Promise<DataResult<{ secret: string }>> {
   return safeAction(async () => {
-    // Rate limit check
-    const { claims, isAuthenticated } = await getLogtoContext(getLogtoConfig());
-    if (!isAuthenticated || !claims?.sub) {
+    // ── Explicit auth check (live token introspection) ──────────────────
+    const token = await getTokenForServerAction();
+    const intro = await introspectToken(token);
+    if (!intro.active || !intro.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
-    const userId = claims.sub;
+    const userId = intro.sub;
     assertSafeLogtoId(userId, 'userId');
 
     // Rate limit check (1 request per 10s per user)

@@ -4,13 +4,14 @@ import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { error } from '../../logto-kit/logic/log';
 import crypto from 'crypto';
+import { VERIFICATION_COOKIE_NAME } from '../../logto-kit/logic/actions/verification-cookie';
 
 const ACTIVE_ORG_COOKIE = 'logto-active-org';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
 
 function clearLogtoCookies(request: NextRequest, response: NextResponse): NextResponse {
   request.cookies.getAll().forEach(cookie => {
-    if (cookie.name.startsWith('logto_') || cookie.name === ACTIVE_ORG_COOKIE) {
+    if (cookie.name.startsWith('logto_') || cookie.name === ACTIVE_ORG_COOKIE || cookie.name === VERIFICATION_COOKIE_NAME) {
       response.cookies.set(cookie.name, '', { maxAge: 0, path: '/' });
     }
   });

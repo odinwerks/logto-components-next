@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, ExternalLink, MapPin } from 'lucide-react';
 import type { ThemeColors } from '../../../themes';
@@ -21,6 +21,8 @@ import { useFocusTrap } from './focus-trap';
 export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMapModalProps) {
   const c = colors;
   const isDark = mode === 'dark';
+
+  const titleId = useId();
 
   const locationLabel = [...new Set([geo.city, geo.region, geo.country].filter(Boolean))].join(', ') || t.sessions.ipLocation;
   const osmLink = `https://www.openstreetmap.org/?mlat=${geo.lat}&mlon=${geo.lon}#map=14/${geo.lat}/${geo.lon}`;
@@ -82,6 +84,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         ref={dialogRef}
         style={{
           width: '100%',
@@ -118,7 +121,9 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
               <MapPin size={24} strokeWidth={1.5} color={c.accentRed} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{
+              <p
+                id={titleId}
+                style={{
                 fontFamily: "'DM Sans', system-ui, sans-serif",
                 fontWeight: 600,
                 fontSize: '0.9375rem',
