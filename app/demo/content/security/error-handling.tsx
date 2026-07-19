@@ -66,9 +66,9 @@ export default function SecurityErrorHandlingDoc() {
         Error handling is split across helpers. <code style={styles.codeSmStyle}>safeAction</code> wraps server actions. <code style={styles.codeSmStyle}>sanitize</code> and <code style={styles.codeSmStyle}>throwOnApiError</code> shape what messages cross the boundary.
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
-        <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs upstream response details server-side and may extract <code style={styles.codeSmStyle}>message</code> from known Logto JSON errors.</li>
+        <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs the HTTP status and upstream error code server-side (not the upstream message or body) and may extract the <code style={styles.codeSmStyle}>message</code> field from known Logto JSON errors for opt-in client exposure (<code style={styles.codeSmStyle}>exposeMessage=true</code>).</li>
         <li><code style={styles.codeSmStyle}>safeAction</code> returns <code style={styles.codeSmStyle}>{`{ ok: false, error }`}</code> and preserves pre-sanitized errors in production.</li>
-            <li><code style={styles.codeSmStyle}>sanitize</code> always returns a fixed fallback error code and never exposes upstream details. Only <code style={styles.codeSmStyle}>throwOnApiError</code> with <code style={styles.codeSmStyle}>exposeMessage=true</code> passes upstream messages to the client.</li>
+            <li><code style={styles.codeSmStyle}>sanitize</code> returns a fixed fallback error code for most errors, but <code style={styles.codeSmStyle}>ValidationError</code> instances pass through unmodified (they are pre-sanitized, client-safe). Only <code style={styles.codeSmStyle}>throwOnApiError</code> with <code style={styles.codeSmStyle}>exposeMessage=true</code> passes upstream Logto <code style={styles.codeSmStyle}>message</code> fields to the client.</li>
       </ul>
 
       <h2 id={slugify("Safe Error Codes")} style={h2Style}>Safe Error Codes</h2>
@@ -86,6 +86,10 @@ export default function SecurityErrorHandlingDoc() {
           <tr>
             <td style={customTdPropStyle}>VERIFICATION_FAILED</td>
             <td style={customTdStyle}>The email or phone verification code is invalid or has expired.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>VERIFICATION_EXPIRED</td>
+            <td style={customTdStyle}>The identity verification record has expired and the operation can no longer be completed. Re-verify identity to proceed.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>AUTHORIZATION_FAILED</td>
@@ -160,12 +164,20 @@ export default function SecurityErrorHandlingDoc() {
             <td style={customTdStyle}>The origin header failed cross-origin validation checks.</td>
           </tr>
           <tr>
+            <td style={customTdPropStyle}>UNAUTHENTICATED</td>
+            <td style={customTdStyle}>The request requires authentication and none was provided or the session has expired.</td>
+          </tr>
+          <tr>
             <td style={customTdPropStyle}>UNAUTHORIZED</td>
             <td style={customTdStyle}>The request lacks valid authentication credentials or session tokens.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>MISSING_VERIFICATION</td>
             <td style={customTdStyle}>The action requires a verification step that has not been completed.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>VERIFICATION_REQUIRED</td>
+            <td style={customTdStyle}>The request requires identity verification (password) before performing this operation.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>INTERNAL_ERROR</td>

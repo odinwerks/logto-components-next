@@ -25,29 +25,49 @@ export default function ReplaceTheDemo() {
       <h2 id={slugify("Replacing the Demo App")} style={{ ...h2Style, marginTop: 0 }}>Replacing the Demo App</h2>
       
       <p style={styles.textStyle}>
-        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, global layout + server-side OIDC hydration live in <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code>, while <code style={styles.codeSmStyle}>app/page.tsx</code> currently redirects to the docs route. When replacing the demo, either move this provider wiring into your root layout (<code style={styles.codeSmStyle}>app/layout.tsx</code>) or keep the route-group approach.
+        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, global layout + server-side OIDC hydration live in the ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code> (which wraps everything with <code style={styles.codeSmStyle}>LogtoProvider</code>). The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs additional data fetching for the docs shell and renders <code style={styles.codeSmStyle}>DocsLayoutClient</code>. When replacing the demo, either keep both layout files or consolidate into your root layout.
       </p>
       
-      <CodeBlock title="Current provider wiring (from app/(docs)/layout.tsx)" code={`import { LogtoProvider } from '../logto-kit/components/providers/logto-provider';
-import { Dashboard } from '../logto-kit/components/dashboard';
-import { MobileDashboard } from '../logto-kit/components/dashboard/mobile-page';
+      <CodeBlock title="Current docs layout (from app/(docs)/layout.tsx)" code={`export const dynamic = 'force-dynamic';
 
-export default async function DocsLayout({ children }) {
-  const result = await fetchDashboardData();
+import React, { Suspense } from 'react';
+import { fetchDashboardDataCached } from '../logto-kit/logic/cached-dashboard';
+import { AuthErrorBanner } from '../logto-kit/components/auth-error-banner';
+import DocsLayoutClient from './layout-client';
+import { DocsErrorFallback } from './docs-error-fallback';
+
+export default async function DocsLayout({ children }: { children: React.ReactNode }) {
+  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+
   if (!result.success) {
-    if ('needsAuth' in result && result.needsAuth) redirect('/callback');
-    return <div>Failed to load user data</div>;
+    if ('needsAuth' in result && result.needsAuth) {
+      return (
+        <Suspense fallback={null}>
+          <DocsLayoutClient>
+            {children}
+          </DocsLayoutClient>
+        </Suspense>
+      );
+    }
+    const errorMessage = 'error' in result ? String(result.error) : 'Failed to load user data';
+    return <DocsErrorFallback message={errorMessage} />;
   }
 
   return (
-    <LogtoProvider
-      userData={result.userData}
-      dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
-    >
-      {children}
-    </LogtoProvider>
+    <Suspense fallback={null}>
+      <DocsLayoutClient>
+        <Suspense fallback={null}>
+          <AuthErrorBanner />
+        </Suspense>
+        {children}
+      </DocsLayoutClient>
+    </Suspense>
   );
 }`} />
+
+      <p style={styles.textStyle}>
+        Note: <code style={styles.codeSmStyle}>LogtoProvider</code> wrapping (with <code style={styles.codeSmStyle}>userData</code> + dashboard JSX props) lives in the ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code>, not in <code style={styles.codeSmStyle}>(docs)/layout.tsx</code>. The docs layout only performs additional data fetching for the docs shell.
+      </p>
 
       <h2 id={slugify("Using the Kit inside your components")} style={h2Style}>Using the Kit inside your components</h2>
       
@@ -56,16 +76,17 @@ export default async function DocsLayout({ children }) {
       </p>
       
       <CodeBlock title="Import API" code={`import {
-  useLogto, useThemeMode, useLangMode,
+  useLogto, useThemeMode, useLangMode, useUserDataContext,
   UserButton, UserBadge, UserCard,
   Protected, OrgSwitcher,
 } from './logto-kit';`} />
       
       <CodeBlock title="Usage Example" code={`function Header() {
-  const { userData, openDashboard } = useLogto();
+  const { isAuthenticated, openDashboard } = useLogto();
+  const userData = useUserDataContext();
   return (
     <header style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <span>Hello, {userData.name}</span>
+      {isAuthenticated && <span>Hello, {userData?.name ?? 'User'}</span>}
       <UserButton Size="36px" />
       <button onClick={openDashboard}>Settings Dashboard</button>
     </header>
@@ -125,7 +146,7 @@ docker compose up -d`} />
       </p>
       
       <div style={styles.noteStyle}>
-            <strong style={styles.strongNoteStyle}>1. Proxy Guard (Next.js Middleware):</strong> <code style={styles.codeSmStyle}>proxy.ts</code> (the project&apos;s custom Next.js middleware) intercepts incoming server-side requests. Unauthenticated requests are redirected straight to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
+            <strong style={styles.strongNoteStyle}>1. Proxy Guard (Next.js Middleware):</strong> <code style={styles.codeSmStyle}>proxy.ts</code> (the project&apos;s custom Next.js middleware) intercepts incoming server-side requests. Unauthenticated requests on PROTECTED routes are redirected to <code style={styles.codeSmStyle}>/api/auth/sign-in</code>. Public paths (root, <code style={styles.codeSmStyle}>/demo/*</code>, docs topic prefixes, <code style={styles.codeSmStyle}>/api/auth/sign-in</code>, <code style={styles.codeSmStyle}>/callback</code>, <code style={styles.codeSmStyle}>/api/wipe</code>) are excluded.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>2. OIDC Authorize:</strong> Sign-in endpoint redirects to Logto. After successful login, Logto routes back to the <code style={styles.codeSmStyle}>/callback</code> route.
@@ -134,13 +155,13 @@ docker compose up -d`} />
             <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The <code style={styles.codeSmStyle}>/callback</code> route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which completes the OAuth callback by exchanging the authorization code for tokens. Sign-in initiation is handled exclusively by <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> loads user profile credentials server-side and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context.
+        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> The ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code> loads user data via <code style={styles.codeSmStyle}>fetchDashboardDataCached</code> and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context. The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs a secondary auth-tolerant fetch for the docs error banner.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 5-minute intervals to silently refresh authentication states.
+        <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 60-second intervals to silently refresh authentication states.
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-        <strong style={styles.strongNoteStyle}>6. Client Sign-out:</strong> Clearing access tokens redirects back to Logto. Any remaining residual session cookies are systematically purged by the client-initiated <code style={styles.codeSmStyle}>/api/wipe</code> endpoint.
+        <strong style={styles.strongNoteStyle}>6. Client Sign-out:</strong> Sign-out is handled by the <code style={styles.codeSmStyle}>signOutUser()</code> Server Action, which calls Logto&apos;s <code style={styles.codeSmStyle}>signOut()</code> and redirects back to the app. The <code style={styles.codeSmStyle}>/api/wipe</code> endpoint is a recovery path for stale cookies (e.g., <code style={styles.codeSmStyle}>invalid_grant</code>), not the primary sign-out mechanism.
       </div>
     </div>
   );

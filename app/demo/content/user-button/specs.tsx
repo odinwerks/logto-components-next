@@ -70,10 +70,10 @@ export default function UserButtonSpecs() {
         Import and mount inside a <code style={styles.codeStyle}>LogtoProvider</code>.
         Reads user data from context, opens Dashboard on click.
       </p>
-      <CodeBlock title="Import" code={`import { UserButton, UserBadge, UserCard } from '../../logto-kit/components/UserButton';`} />
+      <CodeBlock title="Import" code={`import { UserButton, UserBadge, UserCard } from '../../../logto-kit/components/UserButton';`} />
       <CodeBlock title="Minimal usage" code={`<UserButton />`} />
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>
-        Clickable circle avatar. Falls back to user icon after 1.5 seconds if no data.
+        Clickable circle avatar. Falls back to a user icon immediately when <code style={styles.codeSmStyle}>isAuthenticated === false</code>, or after a 1.5-second timeout while auth state is loading/unknown.
         Priority: prop, then provider context, then fallback icon.
       </p>
 
@@ -127,16 +127,16 @@ export default function UserButtonSpecs() {
           <tr>
             <td style={customTdPropStyle}>shape</td>
             <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
-            <td style={customTdTypeStyle}>{"'circle' | 'sq' | 'rsq' | string"}</td>
+            <td style={customTdTypeStyle}>{"'circle' | 'sq' | 'rsq' | (string & {})"}</td>
             <td style={customTdStyle}>{"prop → USER_SHAPE → 'circle'"}</td>
-            <td style={customTdStyle}>Border radius strategy. Custom CSS radius strings are supported (for example <code style={styles.codeSmStyle}>{"'8px'"}</code>, <code style={styles.codeSmStyle}>{"'1rem'"}</code>).</td>
+            <td style={customTdStyle}>Border radius strategy. Custom CSS radius strings are supported (for example <code style={styles.codeSmStyle}>{"'8px'"}</code>, <code style={styles.codeSmStyle}>{"'1rem'"}</code>). <code style={styles.codeSmStyle}>{"(string & {})"}</code> is a TypeScript autocomplete trick that preserves suggestions while accepting any string.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>userData</td>
             <td style={customTdStyle}>UserButton, UserBadge, UserCard</td>
             <td style={customTdTypeStyle}>UserData</td>
             <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Optional override mainly for demos, tests, or controlled previews. Normal production path is <code style={styles.codeSmStyle}>userData</code> from <code style={styles.codeSmStyle}>LogtoProvider</code> context.</td>
+            <td style={customTdStyle}>Optional override mainly for demos, tests, or controlled previews. Normal production path is <code style={styles.codeSmStyle}>userData</code> from <code style={styles.codeSmStyle}>UserDataProvider</code> context (via <code style={styles.codeSmStyle}>useUserDataContext()</code>).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>colors</td>
@@ -164,7 +164,7 @@ export default function UserButtonSpecs() {
       <CodeBlock title="UserButtonProps interface" code={`export interface UserButtonProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq' | string;
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;
@@ -173,7 +173,7 @@ export default function UserButtonSpecs() {
       <CodeBlock title="UserBadgeProps interface" code={`export interface UserBadgeProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq' | string;
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
 }`} />
@@ -181,7 +181,7 @@ export default function UserButtonSpecs() {
       <CodeBlock title="UserCardProps interface" code={`export interface UserCardProps {
   Canvas?: 'Avatar' | 'Initials';
   Size?: string;
-  shape?: 'circle' | 'sq' | 'rsq' | string;
+  shape?: 'circle' | 'sq' | 'rsq' | (string & {});
   userData?: UserData;
   colors?: ThemeColors;
   do?: () => void;
@@ -191,8 +191,8 @@ export default function UserButtonSpecs() {
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Data resolution priority:</strong>{' '}
         1. Custom prop <code style={styles.codeSmStyle}>userData</code> if provided.
-        2. Context <code style={styles.codeSmStyle}>userData</code> from <code style={styles.codeSmStyle}>useLogto()</code>.
-        3. Fallback standard user icon after a 1.5 seconds timeout if no data is found.
+         2. Context <code style={styles.codeSmStyle}>userData</code> from <code style={styles.codeSmStyle}>UserDataProvider</code> (via <code style={styles.codeSmStyle}>useUserDataContext()</code>).
+         3. Fallback standard user icon immediately when <code style={styles.codeSmStyle}>isAuthenticated === false</code>, or after a 1.5-second timeout if auth state is still loading.
       </div>
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Shape configuration:</strong>{' '}
@@ -223,6 +223,10 @@ export default function UserButtonSpecs() {
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Image fallback:</strong>{' '}
         Automatic fallback to generated name initials if avatar image loading fails.
+      </div>
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Unauthenticated state:</strong>{' '}
+        When <code style={styles.codeSmStyle}>isAuthenticated</code> is <code style={styles.codeSmStyle}>false</code>, the component immediately shows a fallback user icon (skips the 1.5-second loading timeout). <code style={styles.codeSmStyle}>UserCard</code> displays an &quot;Unauthenticated&quot; label in this state (vs &quot;...&quot; while loading). Clicking the unauthenticated <code style={styles.codeSmStyle}>UserButton</code> opens the <code style={styles.codeSmStyle}>AuthPromptModal</code>, which triggers a full-page OAuth redirect to Logto.
       </div>
     </div>
   );

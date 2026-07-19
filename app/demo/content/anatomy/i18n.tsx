@@ -75,6 +75,7 @@ export default function AnatomyI18nDoc() {
 const locales: Record<LocaleCode, Translations> = {
   'en-US': enUS,
   'ka-GE': kaGE,
+  'uk-UA': ukUA,
 };`}
       />
 

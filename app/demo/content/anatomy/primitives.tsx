@@ -77,19 +77,27 @@ const REFRESH_GAP_MS = 35;
 export function useRefreshable() {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const triggerRefresh = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setVisible(false);
-    timerRef.current = setTimeout(() => {
-      setVisible(true);
-    }, REFRESH_GAP_MS);
-  }, []);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
     };
+  }, []);
+
+  const triggerRefresh = useCallback(() => {
+    if (!mountedRef.current) return;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    setVisible(false);
+    timerRef.current = setTimeout(() => {
+      if (mountedRef.current) setVisible(true);
+    }, REFRESH_GAP_MS);
   }, []);
 
   return { visible, triggerRefresh };
@@ -130,6 +138,13 @@ export function useRefreshable() {
             <td style={customTdStyle}><code>ThemeColors</code></td>
             <td style={customTdStyle}>
               Supplies color tokens for drawing matching boundaries, hover borders, and icon fills.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>ariaLabel</td>
+            <td style={customTdStyle}><code>string</code></td>
+            <td style={customTdStyle}>
+              Accessible label for the refresh button (applied via <code>aria-label</code>).
             </td>
           </tr>
         </tbody>
@@ -193,6 +208,7 @@ export function useRefreshable() {
           onClick={triggerRefresh}
           loading={loading}
           colors={colors}
+          ariaLabel="Refresh permissions"
         />
       </div>
       <ul>

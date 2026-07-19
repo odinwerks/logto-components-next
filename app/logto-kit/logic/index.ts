@@ -87,3 +87,8 @@ export {
 export { formatPhone } from './formatting';
 
 export type { ValidationResult } from './validation';
+
+// UI components moved from ../custom-logic (kept here for barrel re-export).
+// Note: setActiveOrg and OrgSwitcherWrapper remain in ../custom-logic.
+export { Protected } from './Protected';
+export { OrgSwitcher } from './OrgSwitcher';

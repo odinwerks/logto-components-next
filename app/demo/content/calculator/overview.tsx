@@ -68,7 +68,7 @@ export default function CalculatorOverviewDoc() {
       </p>
       <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>
-          <strong>Basic Tier:</strong> Grants access to fundamental operations (addition, subtraction, multiplication, and division).
+          <strong>Basic Tier:</strong> Grants access to fundamental operations (addition, subtraction, multiplication, division, modulo, and power).
         </li>
         <li>
           <strong>Scientific Tier:</strong> Grants access to advanced operations (trigonometric calculations, logarithms, square roots, and factorials).
@@ -92,17 +92,17 @@ export default function CalculatorOverviewDoc() {
           <tr>
             <td style={customTdPropStyle}>app/demo/content/calculator/live-calculator.tsx</td>
             <td style={customTdStyle}>
-              Interactive calculator interface component. It parses mathematical expressions and dispatches them to secure server-side routes.
+              Documentation page that renders the live <code style={styles.codeSmStyle}>&lt;CalculatorPanel /&gt;</code> component and explains the architecture. The actual expression parsing and evaluation logic lives in <code>CalculatorClient.tsx</code>.
             </td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>app/api/protected/route.ts</td>
             <td style={customTdStyle}>
-              The server-side endpoint handling calculations. It validates the user session, organization identity, and permissions.
+              The server-side endpoint handling calculations. It enforces origin guard (CSRF), authenticates the session token before body parsing (BUG-011), verifies token audience (BUG-H02), rate-limits per-user (429 with Retry-After), caps body size at 1 MiB (413), validates action config, branches on self vs. organization-scoped RBAC (checking org membership via Management API customData, not token claims), verifies roles and permissions, and cross-checks the token principal via sid-based verification.
             </td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>logto-kit/action-registry/calc-actions.ts</td>
+            <td style={customTdPropStyle}>app/logto-kit/action-registry/calc-actions.ts</td>
             <td style={customTdStyle}>
               Safe action registry mapping math operations to specific roles, permissions, and organization checks.
             </td>

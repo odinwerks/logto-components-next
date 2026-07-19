@@ -102,7 +102,7 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>mobmode</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>number</code></td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>number?</code></td>
               <td style={customTdStyle}>Mobile responsive layout toggle (1 for mobile layout, other values for desktop)</td>
             </tr>
             <tr>
@@ -123,7 +123,7 @@ export default function ProfileSection() {
             <tr>
               <td style={customTdPropStyle}>onVerifyPassword</td>
               <td style={customTdStyle}><code style={styles.codeStyle}>(pw){`=>`}Promise{`<DataResult<{verificationRecordId, verificationTimestamp}>`}</code></td>
-              <td style={customTdStyle}>Verifies password and returns verification ID plus server timestamp</td>
+              <td style={customTdStyle}>Verifies password and returns a verification record ID plus a timestamp. The timestamp is for CLIENT UX ONLY (timer display) and is NOT trusted server-side; the server-sealed HMAC cookie (verification-cookie.ts) is the authority</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onSendEmailVerification</td>
@@ -142,23 +142,23 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdateEmail</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentVid, identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Binds the verified email using both verification IDs and timestamp</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentifierVerificationRecordId, identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified email using both the new identifier verification ID and the identity verification ID</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdatePhone</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(phone, newIdentVid, identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Binds the verified phone using both verification IDs and timestamp</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(phone, newIdentifierVerificationRecordId, identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Binds the verified phone using both the new identifier verification ID and the identity verification ID</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRemoveEmail</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Removes the current primary email with identity verification and timestamp</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary email with identity verification</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRemovePhone</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVid, verificationTimestamp){`=>`}Promise{`<ActionResult>`}</code></td>
-              <td style={customTdStyle}>Removes the current primary phone with identity verification and timestamp</td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}>Removes the current primary phone with identity verification</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onSuccess</td>
@@ -241,7 +241,7 @@ const { upload, isUploading, error, clearError } = useAvatarUpload({
           <span style={styles.strongNoteStyle}>1. Safe Envelope Transport:</span> The hook receives a raw File object and packs it in a FormData object using the key {"'file'"}. It calls the uploadAvatar Server Action. Next.js enforces same-origin validation automatically. No access tokens or S3 keys are transmitted from the browser.
         </div>
         <div style={styles.noteStyle}>
-          <span style={styles.strongNoteStyle}>2. Authorization and Rate Limiting:</span> The Server Action extracts and validates the session cookie to identify the user ID. It enforces a strict rate limit of up to 5 uploads per user per minute. Stale rate-limiting timestamps in memory are cleaned up every 5 minutes.
+          <span style={styles.strongNoteStyle}>2. Authorization and Rate Limiting:</span> The Server Action extracts and validates the session cookie to identify the user ID. It enforces a strict rate limit of up to 5 uploads per 60-second rolling window (no background garbage collection).
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>3. Verification and File Checks:</span> The server validates that the file size does not exceed 2 MB. It checks that the declared MIME type resides on the allowlist (jpeg, png, webp, gif). Additionally, it inspects the physical magic-bytes signature of the file buffer to prevent MIME type spoofing.
@@ -407,15 +407,14 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>2. Password verification:</span>
-          <code style={styles.codeSmStyle}>onVerifyPassword(pw)</code> returns <code style={styles.codeSmStyle}>verificationRecordId</code> and <code style={styles.codeSmStyle}>verificationTimestamp</code>.
-          The timestamp is required in later update and remove requests.
+          <code style={styles.codeSmStyle}>onVerifyPassword(pw)</code> returns <code style={styles.codeSmStyle}>verificationRecordId</code> (and a <code style={styles.codeSmStyle}>verificationTimestamp</code> for CLIENT UX ONLY). The server seals <code style={styles.codeSmStyle}>&#123; recordId, expiresAt &#125;</code> into an httpOnly, HMAC-signed cookie (<code style={styles.codeSmStyle}>verification-cookie.ts</code>). Subsequent destructive calls pass ONLY <code style={styles.codeSmStyle}>verificationRecordId</code>; the server reads the cookie via <code style={styles.codeSmStyle}>requireVerifiedIdentity()</code> to bind the sealed record ID to the supplied ID and run the staleness check. The timestamp is NOT trusted server-side.
         </div>
         <div style={styles.noteStyle}>
           <span style={styles.strongNoteStyle}>3. Code dispatch:</span>
           In edit mode, after password verification:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
             <li><code style={styles.codeSmStyle}>onSendVerification(target)</code> sends a 6-digit code and returns <code style={styles.codeSmStyle}>verificationId</code>.</li>
-            <li>The modal moves to the <code style={styles.codeSmStyle}>code</code> step with destination, verification IDs, and timestamp.</li>
+            <li>The modal moves to the <code style={styles.codeSmStyle}>code</code> step with destination and verification IDs.</li>
           </ul>
         </div>
         <div style={styles.noteStyle}>
@@ -423,7 +422,7 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           <code style={styles.codeSmStyle}>onVerifyCodeAndUpdate</code> runs this sequence:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
             <li>Verify code with <code style={styles.codeSmStyle}>onVerifyCode(type, value, verificationId, code)</code>.</li>
-            <li>Call <code style={styles.codeSmStyle}>onUpdateEmail</code> or <code style={styles.codeSmStyle}>onUpdatePhone</code> with new identifier verification ID, identity verification ID, and <code style={styles.codeSmStyle}>verificationTimestamp</code>.</li>
+            <li>Call <code style={styles.codeSmStyle}>onUpdateEmail</code> or <code style={styles.codeSmStyle}>onUpdatePhone</code> with the new identifier verification ID and the identity verification ID.</li>
             <li>Refresh UI data and close the modal.</li>
           </ul>
         </div>
@@ -431,8 +430,8 @@ const blob = await cropperRef.current?.cropToBlob(); // Returns PNG Blob`} />
           <span style={styles.strongNoteStyle}>5. Contact Removal Flow:</span>
           Removal skips code dispatch but still requires password verification:
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            <li>Get <code style={styles.codeSmStyle}>identityVerificationId</code> and <code style={styles.codeSmStyle}>verificationTimestamp</code> from <code style={styles.codeSmStyle}>onVerifyPassword</code>.</li>
-            <li>Call <code style={styles.codeSmStyle}>onRemove(identityVerificationId, verificationTimestamp)</code>.</li>
+            <li>Get <code style={styles.codeSmStyle}>identityVerificationId</code> from <code style={styles.codeSmStyle}>onVerifyPassword</code>.</li>
+            <li>Call <code style={styles.codeSmStyle}>onRemove(identityVerificationId)</code>.</li>
             <li>Refresh UI data and close the modal.</li>
           </ul>
         </div>

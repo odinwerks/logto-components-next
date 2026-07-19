@@ -76,6 +76,11 @@ export default function BackendSelection() {
 
       <CodeBlock title="Backend Selection" code={`# Values: blacktop | upstream\n# Server default is upstream when not set\nBACKEND_TYPE=upstream`} />
 
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>⚠️ Client/server default discrepancy:</strong>{' '}
+        If <code style={styles.codeSmStyle}>BACKEND_TYPE</code> is completely unset, the server defaults to <code style={styles.codeSmStyle}>upstream</code> (disabling heartbeats and forcing S3 for avatars), but the sessions tab client component defaults to <code style={styles.codeSmStyle}>blacktop</code> for <code style={styles.codeSmStyle}>showLastActive</code> — meaning it would show stale <code style={styles.codeSmStyle}>lastActiveAt</code> values. Pass <code style={styles.codeSmStyle}>BACKEND_TYPE</code> as both a runtime env var and <code style={styles.codeSmStyle}>NEXT_PUBLIC_BACKEND_TYPE</code> build arg to keep server and client in sync.
+      </div>
+
       <h3 id={slugify("Feature Comparison Matrix")} style={h3Style}>Feature Comparison Matrix</h3>
 
       <p style={styles.textStyle}>Backend mode changes runtime behavior:</p>

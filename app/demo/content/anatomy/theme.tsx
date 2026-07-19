@@ -100,31 +100,31 @@ const elementStyle: React.CSSProperties = {
         <tbody>
           <tr>
             <td style={customTdPropStyle}>bgPage</td>
-            <td style={customTdStyle}><code>#050505</code></td>
+            <td style={customTdStyle}><code>#030404</code></td>
             <td style={customTdStyle}><code>#f9fafb</code></td>
             <td style={customTdStyle}>Overall application viewport background.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>bgPrimary</td>
-            <td style={customTdStyle}><code>#0a0a0a</code></td>
+            <td style={customTdStyle}><code>#111620</code></td>
             <td style={customTdStyle}><code>#ffffff</code></td>
             <td style={customTdStyle}>Primary content surfaces and card backgrounds.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>bgSecondary</td>
-            <td style={customTdStyle}><code>#111111</code></td>
+            <td style={customTdStyle}><code>#08090a</code></td>
             <td style={customTdStyle}><code>#f3f4f6</code></td>
             <td style={customTdStyle}>Secondary layout areas, panels, and code block headers.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>bgTertiary</td>
-            <td style={customTdStyle}><code>#1a1a1a</code></td>
+            <td style={customTdStyle}><code>#171c2a</code></td>
             <td style={customTdStyle}><code>#e5e7eb</code></td>
             <td style={customTdStyle}>Tertiary panels, divider lines, and hover surfaces.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>textPrimary</td>
-            <td style={customTdStyle}><code>#e5e7eb</code></td>
+            <td style={customTdStyle}><code>#f3f4f6</code></td>
             <td style={customTdStyle}><code>#111827</code></td>
             <td style={customTdStyle}>Standard readability level for primary text.</td>
           </tr>
@@ -136,55 +136,55 @@ const elementStyle: React.CSSProperties = {
           </tr>
           <tr>
             <td style={customTdPropStyle}>textTertiary</td>
-            <td style={customTdStyle}><code>#6b7280</code></td>
+            <td style={customTdStyle}><code>#90959e</code></td>
             <td style={customTdStyle}><code>#6b7280</code></td>
             <td style={customTdStyle}>Highly muted placeholder or help text.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>borderColor</td>
-            <td style={customTdStyle}><code>#1f2937</code></td>
+            <td style={customTdStyle}><code>#2a2d32</code></td>
             <td style={customTdStyle}><code>#d1d5db</code></td>
             <td style={customTdStyle}>Component boundaries, dividing lines, and outlines.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>accentGreen</td>
-            <td style={customTdStyle}><code>#10b981</code></td>
+            <td style={customTdStyle}><code>#059669</code></td>
             <td style={customTdStyle}><code>#059669</code></td>
             <td style={customTdStyle}>Positive indicators, checked states, and active items.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>accentRed</td>
-            <td style={customTdStyle}><code>#ef4444</code></td>
+            <td style={customTdStyle}><code>#dc2626</code></td>
             <td style={customTdStyle}><code>#dc2626</code></td>
             <td style={customTdStyle}>Negative actions, deletion triggers, and error messages.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>accentYellow</td>
-            <td style={customTdStyle}><code>#f59e0b</code></td>
+            <td style={customTdStyle}><code>#d97706</code></td>
             <td style={customTdStyle}><code>#d97706</code></td>
             <td style={customTdStyle}>Warnings, pending setups, and configuration alerts.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>accentBlue</td>
-            <td style={customTdStyle}><code>#3b82f6</code></td>
+            <td style={customTdStyle}><code>#2563eb</code></td>
             <td style={customTdStyle}><code>#2563eb</code></td>
             <td style={customTdStyle}>Primary interaction actions, links, and selections.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>successBg</td>
-            <td style={customTdStyle}><code>#064e3b</code></td>
+            <td style={customTdStyle}><code>#021a11</code></td>
             <td style={customTdStyle}><code>#d1fae5</code></td>
             <td style={customTdStyle}>Background highlights indicating success.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>errorBg</td>
-            <td style={customTdStyle}><code>#450a0a</code></td>
+            <td style={customTdStyle}><code>#1a0505</code></td>
             <td style={customTdStyle}><code>#fee2e2</code></td>
             <td style={customTdStyle}>Background highlights indicating failures.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>warningBg</td>
-            <td style={customTdStyle}><code>#451a03</code></td>
+            <td style={customTdStyle}><code>#1a0a02</code></td>
             <td style={customTdStyle}><code>#fef3c7</code></td>
             <td style={customTdStyle}>Background highlights indicating attention requirements.</td>
           </tr>
@@ -207,7 +207,7 @@ const elementStyle: React.CSSProperties = {
         Theme Resolution Priority and Overrides
       </h2>
       <p style={styles.textStyle}>
-        Theme state is determined on the client through a multi-step resolution pipeline inside the <code>useThemeMode</code> hook. The system checks data sources sequentially to resolve the active configuration:
+        Theme state is determined on the client through the <code>useThemeMode</code> hook. Resolution follows a two-tier fallback chain:
       </p>
 
       <table style={customTableStyle}>
@@ -230,25 +230,15 @@ const elementStyle: React.CSSProperties = {
             <td style={customTdPropStyle}>2. Configured Prop</td>
             <td style={customTdStyle}><code>initialTheme</code> prop</td>
             <td style={customTdStyle}>
-              Uses the value supplied to <code>LogtoProvider</code> from server configuration or server-side parameters.
-            </td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>3. Environment Setup</td>
-            <td style={customTdStyle}><code>DEFAULT_THEME_MODE</code></td>
-            <td style={customTdStyle}>
-              Reads the build-time or run-time environment variable default parameter.
-            </td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>4. Client Native</td>
-            <td style={customTdStyle}>System Media Query</td>
-            <td style={customTdStyle}>
-              Evaluates browser system media preference queries (<code>prefers-color-scheme</code>). Falls back to <code>dark</code> if undefined.
+              Uses the value supplied to <code>LogtoProvider</code>. On the server, the root <code>app/layout.tsx</code> calls <code>getDefaultThemeMode()</code> to compute this from the <code>DEFAULT_THEME_MODE</code> env variable and user preferences from <code>fetchDashboardDataCached</code>. The hardcoded fallback is <code>&apos;dark&apos;</code> (<code>useState(initialTheme ?? &apos;dark&apos;)</code>).
             </td>
           </tr>
         </tbody>
       </table>
+
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Note:</strong> <code>DEFAULT_THEME_MODE</code> feeds <code>initialTheme</code> on the server, NOT as a separate hook tier. The <code>prefers-color-scheme</code> media query is a reactive CHANGE listener only: it fires on OS theme changes when no explicit user preference is set, but it is NOT an initial-resolution source. The <code>&apos;dark&apos;</code> fallback in step 2 above is the final authority when no <code>initialTheme</code> value is supplied.
+      </div>
 
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Component-Level Coordination:</strong> When <code>setMode()</code> is executed, the new state is stored in <code>sessionStorage</code> and a custom <code>theme-changed</code> DOM event is dispatched to the window object. This signals other client components in the same window/tab to re-read from storage and update their interfaces in parallel. (Note: Because sessionStorage and custom window events are isolated per tab, instant cross-tab propagation does not occur natively via window events).

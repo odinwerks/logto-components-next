@@ -204,6 +204,13 @@ export function pickPreferences(input: unknown): PreferencesShape {
   const out: PreferencesShape = {};
   const src = input as Record<string, unknown>;
 
+  const BLOCKED_PREF_KEYS = new Set(['geoConsent', 'geo_consent', '__proto__', 'constructor']);
+  for (const key of Object.keys(src)) {
+    if (BLOCKED_PREF_KEYS.has(key)) {
+      throw new ValidationError('BLOCKED_PREFERENCE_KEY', \`Preferences.\${key}\`);
+    }
+  }
+
   for (const key of PREFERENCES_ALLOWED_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(src, key)) continue;
     const value = src[key];
@@ -223,7 +230,8 @@ export function pickPreferences(input: unknown): PreferencesShape {
         throw new ValidationError('INVALID_THEME_MODE', 'Preferences.theme');
       }
     } else if (key === 'lang') {
-      if (typeof value === 'string' && /^[A-Za-z0-9_-]{1,16}$/.test(value)) {
+      const allowed = getLangAllowlist();
+      if (typeof value === 'string' && allowed.has(value)) {
         out.lang = value;
       } else {
         throw new ValidationError('INVALID_LANGUAGE', 'Preferences.lang');
@@ -251,7 +259,7 @@ export function pickPreferences(input: unknown): PreferencesShape {
             <strong>OAuth callback endpoints:</strong> Sign-in and callback endpoints are exempt from origin guards because the standard OIDC <code style={styles.codeStyle}>state</code> parameter natively provides full CSRF protection, and local development environments often trigger spurious origin mismatches during OAuth redirect round-trips. Sign-out uses a Server Action (<code style={styles.codeStyle}>signOutUser()</code>), which has built-in origin validation — no API route or origin guard is needed.
           </li>
           <li>
-            <strong>Standard <code style={styles.codeStyle}>GET</code> requests to <code style={styles.codeStyle}>/api/wipe</code>:</strong> Plain cookie-clearing via GET is exempt from origin guards to support standard browser navigations and redirects. However, destructive force-signout requests via <code style={styles.codeStyle}>GET /api/wipe?force=true</code> or any <code style={styles.codeStyle}>POST</code> requests to <code style={styles.codeStyle}>/api/wipe</code> strictly enforce <code style={styles.codeStyle}>checkSameOrigin</code>.
+            <strong>Standard <code style={styles.codeStyle}>GET</code> requests to <code style={styles.codeStyle}>/api/wipe</code> (without <code style={styles.codeStyle}>?force=true</code>):</strong> Protected by a nonce-based CSRF system: the middleware issues a <code style={styles.codeStyle}>logto-wipe-nonce</code> cookie, and the GET handler compares a <code style={styles.codeStyle}>?nonce=</code> query param against the cookie via SHA-256 + <code style={styles.codeStyle}>crypto.timingSafeEqual</code>. This is stronger than origin-based CSRF protection and supports standard browser navigations. Destructive force-signout requests via <code style={styles.codeStyle}>GET /api/wipe?force=true</code> and any <code style={styles.codeStyle}>POST</code> requests to <code style={styles.codeStyle}>/api/wipe</code> strictly enforce <code style={styles.codeStyle}>checkSameOrigin</code>.
           </li>
         </ul>
       </div>

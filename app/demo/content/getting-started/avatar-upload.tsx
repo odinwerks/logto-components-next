@@ -110,7 +110,7 @@ PFP_BACKEND=logto`} />
         <strong style={styles.strongNoteStyle}>CSRF Protection:</strong> Enforces same-origin validation natively at the Next.js framework level to protect against CSRF.
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
-        <strong style={styles.strongNoteStyle}>Rate Limiting:</strong> Implements an automated in-memory rate limiter (5 uploads per minute, with background garbage-collection sweeping stale entries every 5 minutes to prevent memory leaks).
+        <strong style={styles.strongNoteStyle}>Rate Limiting:</strong> Implements a centralized count+reset rate limiter (5 uploads per 60-second window per user) via <code style={styles.codeSmStyle}>createRateLimiter</code> from <code style={styles.codeSmStyle}>app/lib/distributed-state.ts</code> (Redis-backed when <code style={styles.codeSmStyle}>REDIS_URL</code> is set). No background GC sweep is needed.
       </div>
     </div>
   );

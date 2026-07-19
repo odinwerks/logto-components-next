@@ -13,8 +13,8 @@ vi.mock('../config', () => ({
   getLogtoConfig: () => ({}),
 }));
 
-// Mock OrgSwitcher
-vi.mock('./OrgSwitcher', () => ({
+// Mock OrgSwitcher (moved to ../logic/OrgSwitcher)
+vi.mock('../logic/OrgSwitcher', () => ({
   OrgSwitcher: vi.fn(({ organizations }) => (
     <div data-testid="org-switcher">
       Switcher with {organizations.length} orgs

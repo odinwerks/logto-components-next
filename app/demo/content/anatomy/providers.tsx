@@ -138,7 +138,7 @@ export default function AnatomyProvidersDoc() {
             <td style={customTdPropStyle}>useLogto()</td>
             <td style={customTdStyle}>Unified / Multiple</td>
             <td style={customTdStyle}>
-              Exposes overall user data, active theme, language, organization ID, and modal controller functions (openDashboard, closeDashboard). Throws an error if used outside a LogtoProvider.
+              Exposes authentication status, active theme, language, organization ID, and modal controller functions (openDashboard, closeDashboard). Throws an error if used outside a LogtoProvider. Does NOT expose user data — use <code>useUserDataContext()</code> for that.
             </td>
           </tr>
           <tr>
@@ -169,15 +169,16 @@ export default function AnatomyProvidersDoc() {
         title="Component Hook Usage"
         code={`'use client';
 
-import { useLogto, useThemeMode } from './logto-kit';
+import { useLogto, useUserDataContext, useThemeMode } from './logto-kit';
 
 function UserPreferenceManager() {
-  const { userData, openDashboard } = useLogto();
+  const { isAuthenticated, openDashboard } = useLogto();
+  const userData = useUserDataContext();
   const { mode, toggleMode, colors } = useThemeMode();
 
   return (
     <div style={{ background: colors.bgPrimary, color: colors.textPrimary, padding: '1rem' }}>
-      <p>Logged in as: {userData.name}</p>
+      <p>Logged in as: {userData?.name ?? 'Guest'}</p>
       <p>Current theme style: {mode}</p>
       <button onClick={toggleMode} style={{ borderColor: colors.borderColor }}>
         Toggle Color Style

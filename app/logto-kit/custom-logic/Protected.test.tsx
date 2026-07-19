@@ -24,7 +24,7 @@ vi.mock('../server-actions', () => ({
   loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
 }));
 
-import { Protected } from './Protected';
+import { Protected } from '../logic/Protected';
 
 describe('Protected component (Dual-RBAC & strict asOrg)', () => {
   beforeEach(() => {

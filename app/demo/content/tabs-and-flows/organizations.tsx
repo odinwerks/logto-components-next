@@ -135,7 +135,7 @@ export default function OrganizationsSection() {
             <strong>Server Validation:</strong> The client triggers the server action <code style={styles.codeSmStyle}>setActiveOrg(orgId)</code>. This action calls <code style={styles.codeSmStyle}>getLogtoContext(..., &#123; fetchUserInfo: true &#125;)</code>, which fetches the live user memberships from Logto&apos;s OIDC UserInfo endpoint. This direct fetch bypasses cached session tokens to prevent stale memberships if the user was recently added to an organization.
           </li>
           <li style={{ marginBottom: '6px' }}>
-            <strong>Database Persistence:</strong> If the membership is valid, <code style={styles.codeSmStyle}>setActiveOrg</code> writes the selection to the user&apos;s custom data profile in Logto under the key <code style={styles.codeSmStyle}>Preferences.asOrg</code>. If the user selects personal mode (reverts to global context), the action writes <code style={styles.codeSmStyle}>asOrg: null</code>.
+            <strong>Database Persistence:</strong> <code style={styles.codeSmStyle}>setActiveOrg</code> is a read-only membership validator for non-null <code style={styles.codeSmStyle}>orgId</code> (it does NOT write customData; see BUG-015). The single authoritative write of <code style={styles.codeSmStyle}>Preferences.asOrg</code> is performed by the client via <code style={styles.codeSmStyle}>setAsOrg()</code>&apos;s <code style={styles.codeSmStyle}>persistOrg</code> after <code style={styles.codeSmStyle}>setActiveOrg</code> resolves. For personal mode (<code style={styles.codeSmStyle}>orgId === null</code>), <code style={styles.codeSmStyle}>setActiveOrg(null)</code> DOES write <code style={styles.codeSmStyle}>asOrg: null</code> via <code style={styles.codeSmStyle}>updateUserCustomData</code> to clear the server-side preference.
           </li>
           <li style={{ marginBottom: '6px' }}>
             <strong>Client Memory and Session Storage:</strong> Upon successful validation, the client-side hook <code style={styles.codeSmStyle}>useOrgMode()</code> writes the active organization ID to <code style={styles.codeSmStyle}>sessionStorage</code> (key: <code style={styles.codeSmStyle}>&apos;org-mode&apos;</code>) and updates the local React state.
@@ -153,7 +153,7 @@ const { asOrg, setAsOrg } = useOrgMode();
 setAsOrg('org-123'); // persists to sessionStorage and Logto API via onUpdateCustomData
 setAsOrg(null);      // global mode ("be yourself")`} />
 
-        <CodeBlock title="Organization Transition Flow" code={`// 1. Execute server action to validate membership and update custom_data profile
+        <CodeBlock title="Organization Transition Flow" code={`// 1. Execute server action to validate membership (read-only; client-side setAsOrg handles the customData write)
 const isValid = await setActiveOrg(orgId);
 if (!isValid) {
   setErrorMsg('You are not a member of this organization.');
@@ -169,7 +169,7 @@ startTransition(() => {
 
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>setActiveOrg logic:</strong>{' '}
-          Imported from <code style={styles.codeSmStyle}>custom-logic/set-active-org</code>. This function runs on the server. It verifies membership via OIDC UserInfo fetch before writing preferences to Logto custom data profiles.
+          Imported from <code style={styles.codeSmStyle}>custom-logic/set-active-org</code>. This function runs on the server. It verifies membership via OIDC UserInfo fetch. For a non-null orgId the check is read-only (BUG-015); only setActiveOrg(null) writes asOrg: null to clear. The client persists non-null selections via setAsOrg() -&gt; persistOrg.
         </div>
       </div>
 

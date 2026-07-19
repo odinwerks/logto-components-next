@@ -72,8 +72,11 @@ export default function DashboardProviderSync() {
 
       <CodeBlock
         title="Default provider topology"
-        code={`// app/(docs)/layout.tsx
-<LogtoProvider dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}>
+        code={`// app/layout.tsx
+<LogtoProvider
+  userData={userData}
+  dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
+>
   {children}
 </LogtoProvider>
 

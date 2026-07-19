@@ -70,7 +70,7 @@ export default function UserButtonExamples() {
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
       <ExampleCard
         label="Default + sizes"
-        subLabel="default 80px, 56px, and 36px"
+        subLabel="80px, 56px, and 36px"
         code={`<UserButton />            {/* default 6.25rem */}
 <UserButton Size="56px" />
 <UserButton Size="36px" />`}

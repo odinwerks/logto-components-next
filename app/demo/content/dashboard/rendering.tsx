@@ -26,26 +26,28 @@ export default function DashboardRendering() {
         The wiring (page.tsx)
       </h2>
       <p style={styles.textStyle}>
-        The dashboard supports two primary modes: a full-page route or an overlay modal.
+        The dashboard is rendered exclusively as an overlay modal inside <code style={styles.codeStyle}>LogtoProvider</code> via <code style={styles.codeStyle}>DashboardDialog</code> — there is no full-page dashboard route (<code style={styles.codeStyle}>app/page.tsx</code> is a public redirect to the docs).
       </p>
       <p style={styles.textStyle}>
-        In the overlay modal scenario, the dashboard is passed as a Server Component JSX prop to the Client Component <code style={styles.codeStyle}>LogtoProvider</code>. This avoids React 19 Client Component boundary compilation errors when dealing with asynchronous server operations.
+        The dashboard is passed as a Server Component JSX prop to the Client Component <code style={styles.codeStyle}>LogtoProvider</code>. This avoids React 19 Client Component boundary compilation errors when dealing with asynchronous server operations.
       </p>
 
       <CodeBlock
         title="Pre-rendered JSX as a prop"
-        code={`export default async function HomePage() {
-  const result = await fetchDashboardData();
+        code={`export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+  const userData = result.success ? result.userData : null;
 
   return (
     <LogtoProvider
-      userData={result.userData}
-      dashboard={{
-        desktop: <Dashboard />,
-        mobile: <MobileDashboard />,
-      }}
+      userData={userData}
+      dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
     >
-      <DemoApp />
+      {children}
     </LogtoProvider>
   );
 }`}
@@ -65,24 +67,50 @@ export default function DashboardRendering() {
 
       <CodeBlock
         title="Modal lifecycle"
-        code={`const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-const openDashboard = useCallback(() => setIsDashboardOpen(true), []);
+        code={`function DashboardDialog({
+  onClose, desktop, mobile, routeTo, authMode,
+}: {
+  onClose: () => void;
+  desktop: ReactNode;
+  mobile?: ReactNode;
+  routeTo?: string;
+  authMode?: 'optional' | 'mandatory';
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onClose);
+  const { isAuthenticated } = useLogto();
+  const isMobile = useIsPortrait();
 
-// Escape key handler active only when open
-useEffect(() => {
-  if (!isDashboardOpen) return;
-  const handleKey = (e) => e.key === 'Escape' && setIsDashboardOpen(false);
-  document.addEventListener('keydown', handleKey);
-  return () => document.removeEventListener('keydown', handleKey);
-}, [isDashboardOpen]);
-
-// Render overlay modal
-{isDashboardOpen && dashboard && (
-  <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backdropFilter: 'blur(0.5rem)' }}>
-    <button onClick={closeDashboard}>✕</button>
-    {dashboard}
-  </div>
-)}`}
+  return (
+    <motion.div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.07 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 2000,
+        background: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(0.5rem)',
+      }}
+    >
+      {isAuthenticated ? (
+        <>
+          {!isMobile && (
+            <button onClick={onClose} aria-label="Close dashboard">
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          )}
+          <DashboardRouter desktop={desktop} mobile={mobile} />
+        </>
+      ) : (
+        <AuthPromptModal routeTo={routeTo} mode={authMode} />
+      )}
+    </motion.div>
+  );
+}`}
       />
 
       <h2 id={slugify("Trigger interaction and click events")} style={h2Style}>
@@ -93,18 +121,47 @@ useEffect(() => {
       </p>
 
       <CodeBlock
-        title="useUserDisplay hook"
-        code={`function useUserDisplay(opts) {
-  const { openDashboard, userData } = useLogto();
+        title="useUserDisplay hook (condensed)"
+        code={`function useUserDisplay(opts: UseUserDisplayOptions) {
+  const { colors: contextColors } = useThemeMode();
+  const colors = opts.colors ?? contextColors;
+  const { openDashboard, lang, isAuthenticated } = useLogto();
+  const contextUserData = useUserDataContext();
+
+  const [showFallback, setShowFallback] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  const userData = opts.userData ?? contextUserData ?? null;
+  const isExplicitlyUnauthenticated = isAuthenticated === false;
+  const effectiveShowFallback = userData ? false : showFallback;
+  const loading = !userData && !effectiveShowFallback;
+
+  // 1.5s timeout fallback before showing anonymous avatar
+  useEffect(() => {
+    if (userData || isExplicitlyUnauthenticated) return;
+    const timeout = setTimeout(() => setShowFallback(true), 1500);
+    return () => clearTimeout(timeout);
+  }, [userData, isExplicitlyUnauthenticated]);
 
   const handleClick = useCallback(() => {
     if (typeof opts.do === 'function') opts.do();
     else if (openDashboard) openDashboard();
   }, [opts.do, openDashboard]);
 
-  return { userData, handleClick };
+  return {
+    userData, loading,
+    showFallback: effectiveShowFallback,
+    isExplicitlyUnauthenticated,
+    imageFailed, setImageFailed,
+    colors, handleClick,
+  };
 }`}
       />
+
+      <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
+        <strong style={styles.strongNoteStyle}>Source note:</strong>{' '}
+        The real <code style={styles.codeSmStyle}>useUserDisplay</code> hook is 52 lines with additional i18n (<code style={styles.codeSmStyle}>t</code> translations) and mounted-ref management. User data is sourced from <code style={styles.codeSmStyle}>useUserDataContext()</code> (not the raw <code style={styles.codeSmStyle}>useLogto()</code> value), enabling cross-provider consistency.
+      </div>
 
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>UserBadge exception:</strong>{' '}

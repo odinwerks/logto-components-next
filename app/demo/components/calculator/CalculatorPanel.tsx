@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Protected } from '../../../logto-kit/custom-logic';
+import { Protected } from '../../../logto-kit';
 import { useLogto } from '../../../logto-kit/components/providers/logto-provider';
 import { CalculatorClient } from './CalculatorClient';
 

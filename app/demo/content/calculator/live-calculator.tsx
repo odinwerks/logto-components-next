@@ -83,7 +83,7 @@ export default function LiveCalculator() {
         <li>Declarative UI gating via the <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> wrapper with organization-scoped RBAC.</li>
         <li>Server-side validation of active user sessions, organization memberships, and role-scoped permissions.</li>
         <li>AST parsing in the client with sequential API evaluation of expression tree nodes.</li>
-        <li>No local javascript math evaluation fallback (completely secure and tamper-proof).</li>
+        <li>All arithmetic and scientific operations are delegated to the server. Only constant propagation (number nodes) and unary negation are performed locally.</li>
       </ul>
 
       <h2 id={slugify("File Anatomy")} style={h2Style}>File Anatomy</h2>
@@ -100,19 +100,19 @@ export default function LiveCalculator() {
         </thead>
         <tbody>
           <tr>
-            <td style={customTdPropStyle}>demo/components/calculator/CalculatorPanel.tsx</td>
+            <td style={customTdPropStyle}>app/demo/components/calculator/CalculatorPanel.tsx</td>
             <td style={customTdStyle}>
               Thin presentational gate wrapping the interactive client with <code style={styles.codeSmStyle}>&lt;Protected&gt;</code>.
             </td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>demo/components/calculator/CalculatorClient.tsx</td>
+            <td style={customTdPropStyle}>app/demo/components/calculator/CalculatorClient.tsx</td>
             <td style={customTdStyle}>
               Core React component: builds calculator keypads, implements the recursive-descent AST parser, and fires asynchronous API calls.
             </td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>logto-kit/action-registry/calc-actions.ts</td>
+            <td style={customTdPropStyle}>app/logto-kit/action-registry/calc-actions.ts</td>
             <td style={customTdStyle}>
               Secure server-side mathematical handlers (add, subtract, sin, cos, etc.) protected by the Server Action gateway.
             </td>
@@ -127,15 +127,32 @@ export default function LiveCalculator() {
       </p>
       <CodeBlock title="CalculatorPanel.tsx" code={`'use client';
 
-import { Protected } from '../../../logto-kit/custom-logic';
+import { useEffect } from 'react';
+import { Protected } from '../../../logto-kit';
+import { useLogto } from '../../../logto-kit/components/providers/logto-provider';
 import { CalculatorClient } from './CalculatorClient';
 
 export default function CalculatorPanel() {
+  const { isAuthenticated, openDashboard } = useLogto();
+
+  // When unauthenticated, open the main auth modal instead of rendering an
+  // inline fallback. The modal's routeTo will redirect the user back here
+  // after they sign in.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      openDashboard({ routeTo: '/demo/calculator/live-calculator' });
+    }
+  }, [isAuthenticated, openDashboard]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <Protected
-      orgId="5b6sw6p5uzti" // Mathinators Organization ID
-      perm="calc:basic"   // Required Permission
-      fallback={null}     // Redact completely if check fails
+      orgId="5b6sw6p5uzti"
+      perm="calc:basic"
+      fallback={null}
     >
       <CalculatorClient />
     </Protected>
@@ -213,25 +230,32 @@ export default function CalculatorPanel() {
       </p>
       <CodeBlock title="calc-actions.ts" code={`'use server';
 
-export async function getCalcAdd() {
+import type { ActionConfig } from '../logic/types';
+
+// Payload validators (defined in the actual file; shown inline for clarity).
+// getBinaryPayload: asserts { a: number; b: number }
+// getTrigPayload:   asserts { n: number; mode: 'deg' | 'rad' }
+// getUnaryPayload:  asserts { n: number }
+
+export async function getCalcAdd(): Promise<ActionConfig> {
   return {
     requiredOrgId: '5b6sw6p5uzti',          // Hardcoded Organization Context
-    requiredRoleId: 'calc-user-role-id',    // Logto Role UUID
-    requiredPermId: 'calc:basic',           // Permission Scope
+    requiredRoleId: 'gvuq1krilkjypl5hl34sb', // Logto Role UUID (CALC_ROLE_ID)
+    requiredPermId: 'calc:basic',             // Permission Scope
     handler: async ({ payload }) => {
-      const { a, b } = payload as { a: number; b: number };
+      const { a, b } = getBinaryPayload(payload);
       return { answer: a + b };
     },
   };
 }
 
-export async function getCalcSin() {
+export async function getCalcSin(): Promise<ActionConfig> {
   return {
     requiredOrgId: '5b6sw6p5uzti',
-    requiredRoleId: 'calc-user-role-id',
+    requiredRoleId: 'gvuq1krilkjypl5hl34sb',
     requiredPermId: 'calc:scientific',
     handler: async ({ payload }) => {
-      const { n, mode } = payload as { n: number; mode: 'deg' | 'rad' };
+      const { n, mode } = getTrigPayload(payload);
       const radians = mode === 'deg' ? n * (Math.PI / 180) : n;
       return { answer: Math.sin(radians) };
     },

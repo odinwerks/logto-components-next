@@ -63,17 +63,18 @@ export default function DashboardInternals() {
       </h2>
 
       <p style={styles.textStyle}>
-        The <code style={styles.codeStyle}>Dashboard</code> is an asynchronous <strong>Server Component</strong> that fetches user data server-side and renders <code style={styles.codeStyle}>DashboardClient</code> directly with props. The provider tree wrapping (which hydrates the context) is handled at the root layout level (<code style={styles.codeStyle}>app/(docs)/layout.tsx</code>) by the client-side <code style={styles.codeStyle}>LogtoProvider</code>.
+        The <code style={styles.codeStyle}>Dashboard</code> is an asynchronous <strong>Server Component</strong> that fetches user data server-side and renders <code style={styles.codeStyle}>DashboardClient</code> directly with props. The provider tree wrapping (which hydrates the context) is handled in the ROOT <code style={styles.codeStyle}>app/layout.tsx</code> by the client-side <code style={styles.codeStyle}>LogtoProvider</code>. The docs shell <code style={styles.codeStyle}>app/(docs)/layout.tsx</code> performs a secondary auth-tolerant fetch for the error banner.
       </p>
 
       <CodeBlock
         title="Rendering pipeline"
-        code={`// 1. Layout level (app/(docs)/layout.tsx)
-const result = await fetchDashboardData();
+        code={`// 1. Root layout level (app/layout.tsx)
+const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+const userData = result.success ? result.userData : null;
 
 return (
   <LogtoProvider
-    userData={result.userData}
+    userData={userData}
     dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
     ...
   >
@@ -103,6 +104,10 @@ return (
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td style={customTdPropStyle}>useUserDataContext()</td>
+            <td style={customTdStyle}>userData from UserDataProvider; consumed by DashboardClient and MobileClient</td>
+          </tr>
           <tr>
             <td style={customTdPropStyle}>useThemeMode()</td>
             <td style={customTdStyle}>mode, colors, setMode, toggleMode</td>

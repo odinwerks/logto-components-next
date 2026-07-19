@@ -63,7 +63,7 @@ export default function DashboardTabStructure() {
       </h2>
 
       <p style={styles.textStyle}>
-        Tabs are configured via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. This variable accepts a comma-separated list of tab names.
+        Tabs are configured via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. This variable accepts a comma-separated list of tab names. On the client, <code style={styles.codeStyle}>readEnv(&apos;LOAD_TABS&apos;)</code> falls back to <code style={styles.codeStyle}>NEXT_PUBLIC_LOAD_TABS</code> (see <code style={styles.codeSmStyle}>app/logto-kit/logic/env.ts</code>).
       </p>
 
       <CodeBlock title="ENV Configuration" code={`LOAD_TABS=profile,security,organizations`} />
@@ -75,10 +75,19 @@ export default function DashboardTabStructure() {
       <CodeBlock
         title="Resolving tabs"
         code={`const TAB_ALIASES: Record<string, TabId> = {
+  // profile aliases
   profile: 'profile', personal: 'profile', user: 'profile',
+  // preferences aliases
   preferences: 'preferences', prefs: 'preferences', 'custom-data': 'preferences',
-  security: 'security', mfa: 'security', '2fa': 'security',
-  // ...other aliases mapped to TabId
+  custom: 'preferences', customdata: 'preferences',
+  // identities aliases
+  identities: 'identities', identity: 'identities',
+  // organizations aliases
+  organizations: 'organizations', orgs: 'organizations', org: 'organizations',
+  // security aliases
+  security: 'security', mfa: 'security', '2fa': 'security', totp: 'security',
+  // sessions aliases
+  sessions: 'sessions', session: 'sessions', devices: 'sessions', activity: 'sessions',
 };
 
 export function getLoadedTabs(): TabId[] {

@@ -21,7 +21,7 @@ vi.mock('../components/providers/preferences', () => ({
 }));
 
 import type { ThemeColors } from '../themes';
-import { OrgSwitcher } from './OrgSwitcher';
+import { OrgSwitcher } from '../logic/OrgSwitcher';
 
 const defaultColors = {
   bgPage: '#ffffff',

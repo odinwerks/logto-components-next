@@ -172,7 +172,21 @@ function getPinoLogger(): TypedLogger {
 }`}
       />
       <p style={styles.textStyle}>
+        The <code style={styles.codeStyle}>LOG_LEVEL</code> environment variable can override the default log level. It is validated against Pino&apos;s fixed level set (<code style={styles.codeStyle}>trace | debug | info | warn | error | fatal | silent</code>). Falls back to <code style={styles.codeStyle}>debug</code> in development or <code style={styles.codeStyle}>info</code> in production if unset or invalid, with a console warning emitted on invalid values.
+      </p>
+      <p style={styles.textStyle}>
         When writing messages in &quot;both&quot; mode, unstructured calls are routed to console, formatted into structured models, and subsequently fed into Pino, whereas structured <code style={styles.codeStyle}>logEvent</code> calls print formatted prefixes to the console and pass raw objects directly to Pino.
+      </p>
+
+      <h2 id={slugify("Credential Scrubbing Pipeline")} style={h2Style}>Credential Scrubbing Pipeline</h2>
+      <p style={styles.textStyle}>
+        The logging system uses a dual-layer credential redaction strategy to ensure sensitive values never reach log output or webhook destinations, even when developers pass them accidentally in unstructured log arguments.
+      </p>
+      <p style={styles.textStyle}>
+        <strong>Layer 1: Pino Native Redaction</strong> - The Pino logger configuration includes <code style={styles.codeStyle}>redact.paths</code> targeting known sensitive field names (<code style={styles.codeStyle}>token</code>, <code style={styles.codeStyle}>password</code>, <code style={styles.codeStyle}>secret</code>, <code style={styles.codeStyle}>access_token</code>, <code style={styles.codeStyle}>refresh_token</code>, <code style={styles.codeStyle}>id_token</code>, <code style={styles.codeStyle}>client_secret</code>, <code style={styles.codeStyle}>code</code>, and variants) at up to 3 levels of nesting. Matching values are replaced with <code style={styles.codeStyle}>[REDACTED]</code>. A custom <code style={styles.codeStyle}>redactSensitive()</code> function applies the same rules recursively to objects before webhook JSON serialization.
+      </p>
+      <p style={styles.textStyle}>
+        <strong>Layer 2: String-Level Scrubbing</strong> - The <code style={styles.codeStyle}>scrubLogString()</code> function (in <code style={styles.codeStyle}>app/lib/scrub-log-string.ts</code>) provides last-resort string-level redaction for values that bypass path-based redaction, such as <code style={styles.codeStyle}>Error.message</code> and <code style={styles.codeStyle}>Error.stack</code>. It regex-scrubs JWT tokens (<code style={styles.codeStyle}>eyJ...pattern</code>), Bearer tokens in Authorization headers, and other credential-bearing patterns. The <code style={styles.codeStyle}>scrubArgs()</code> helper applies this to console-style variadic arguments. For unstructured logs, <code style={styles.codeStyle}>formatMessage()</code> (in <code style={styles.codeStyle}>app/logto-kit/logic/log.ts</code>) scrubs both the format prefix and detail strings via <code style={styles.codeStyle}>scrubLogString()</code> before forwarding to Pino.
       </p>
 
       <h2 id={slugify("Production Webhook Transport")} style={h2Style}>Production Webhook Transport</h2>
@@ -197,11 +211,17 @@ if (webhookUrl && !isDev) {
 }`}
       />
       <p style={styles.textStyle}>
+        In production, the webhook transport enforces HTTPS: <code style={styles.codeStyle}>createWebhookDestination</code> throws if the webhook URL does not use HTTPS (localhost and 127.0.0.1 are exempt).
+      </p>
+      <p style={styles.textStyle}>
         <strong>Key Characteristics of the Webhook Transport:</strong>
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
         <li style={{ paddingBottom: '8px' }}>
           <strong>Asynchronous Batching:</strong> To prevent blocking request-handling threads, log writes are collected on the next event-loop tick and dispatched asynchronously using the <code style={styles.codeStyle}>setImmediate</code> API.
+        </li>
+        <li style={{ paddingBottom: '8px' }}>
+          <strong>Queue Capping:</strong> The webhook queue is capped at <code style={styles.codeStyle}>MAX_QUEUE_SIZE=5000</code>. When full, the oldest entry is evicted and a warning is written to stdout to prevent unbounded memory growth.
         </li>
         <li style={{ paddingBottom: '8px' }}>
           <strong>JSON Payload Structure:</strong> Logs are posted as a JSON array of structured log entries, retaining all typed metadata, event names, and context details:
@@ -220,7 +240,10 @@ if (webhookUrl && !isDev) {
           />
         </li>
         <li style={{ paddingBottom: '8px' }}>
-          <strong>Fail-Safe Design:</strong> If the remote webhook endpoint is unreachable, timed out (5-second hard limit via <code style={styles.codeStyle}>AbortSignal.timeout</code>), or responds with an error, the logger catches the exception gracefully, prints a warning to <code style={styles.codeStyle}>stdout</code>, and continues execution to avoid crashing the server.
+          <strong>Non-JSON Scrubbing:</strong> Raw non-JSON log lines are replaced with <code style={styles.codeStyle}>{`{ raw: '[non-JSON log line -- content scrubbed]' }`}</code> before webhook forwarding. This prevents un-redacted credentials from leaking through non-structured log entries.
+        </li>
+        <li style={{ paddingBottom: '8px' }}>
+            <strong>Fail-Safe Design:</strong> If the remote webhook endpoint is unreachable, timed out (5-second hard limit via <code style={styles.codeStyle}>AbortSignal.timeout</code>), or responds with an error, the logger catches the exception gracefully and continues execution to avoid crashing the server. The catch block is empty (no stdout warning is emitted on failure).
         </li>
       </ul>
     </div>

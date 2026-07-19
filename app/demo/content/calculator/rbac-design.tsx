@@ -73,7 +73,7 @@ export default function CalculatorRbacDesignDoc() {
           <tr>
             <td style={customTdPropStyle}>calc:basic</td>
             <td style={customTdStyle}>
-              Grants access to basic mathematical operations (add, subtract, multiply, divide). 
+              Grants access to basic mathematical operations (add, subtract, multiply, divide, modulo, power). 
               This scope is also required for the initial rendering of the calculator keypad.
             </td>
           </tr>
@@ -104,7 +104,7 @@ export default function CalculatorRbacDesignDoc() {
           <strong>Frontend Adaptability:</strong> The client detects the change in active organization permissions and restricts or enables calculator buttons dynamically.
         </li>
         <li>
-          <strong>Backend Verification:</strong> The server-side route handles incoming computation payloads and verifies the token claims against the specified organization ID.
+          <strong>Backend Verification:</strong> The server-side route handles incoming computation payloads and verifies org membership via the Management API (<code>customData.Preferences.asOrg</code>) plus token introspection for principal/audience. Org membership is NOT read from token claims.
         </li>
       </ul>
     </div>

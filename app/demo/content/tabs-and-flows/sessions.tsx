@@ -116,21 +116,21 @@ export default function SessionsSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onGetSessionsWithDeviceMeta</td>
-              <td style={customTdStyle}>(verificationId: string, verificationTimestamp: number) =&gt; Promise&lt;DataResult&lt;LogtoSession[]&gt;&gt;</td>
+              <td style={customTdStyle}>(verificationRecordId: string) =&gt; Promise&lt;DataResult&lt;LogtoSession[]&gt;&gt;</td>
               <td style={customTdStyle}>
                 Asynchronously retrieves user sessions with parsed operating system and browser metadata.
               </td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRevokeSession</td>
-              <td style={customTdStyle}>(id: string, verificationId: string, verificationTimestamp: number, target?: &apos;all&apos; | &apos;firstParty&apos;) =&gt; Promise&lt;ActionResult&gt;</td>
+              <td style={customTdStyle}>(sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: &apos;all&apos; | &apos;firstParty&apos;) =&gt; Promise&lt;ActionResult&gt;</td>
               <td style={customTdStyle}>
-                Revokes a specific active session. The target is set to &apos;firstParty&apos; to revoke first-party application grants.
+                Revokes a specific active session. The target defaults to &apos;all&apos; to revoke all OAuth grants (access and refresh tokens) associated with the session; pass &apos;firstParty&apos; to limit revocation to first-party application grants.
               </td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>onRevokeAllOtherSessions</td>
-              <td style={customTdStyle}>(verificationId: string, verificationTimestamp: number) =&gt; Promise&lt;ActionResult&gt;</td>
+              <td style={customTdStyle}>(verificationRecordId: string) =&gt; Promise&lt;ActionResult&gt;</td>
               <td style={customTdStyle}>
                 Terminates all active user sessions except the caller&apos;s current active connection context.
               </td>
@@ -139,7 +139,7 @@ export default function SessionsSection() {
               <td style={customTdPropStyle}>onVerifyPassword</td>
               <td style={customTdStyle}>(password: string) =&gt; Promise&lt;DataResult&lt;&#123; verificationRecordId: string; verificationTimestamp: number &#125;&gt;&gt;</td>
               <td style={customTdStyle}>
-                Verifies user credentials to return a secure verification record ID and timestamp.
+                Verifies user credentials to return a verification record ID and a timestamp. The timestamp is for CLIENT UX ONLY (timer display) and is NOT trusted server-side; the server-sealed HMAC cookie is the authority.
               </td>
             </tr>
             <tr>
@@ -167,12 +167,14 @@ export default function SessionsSection() {
   colors: ThemeColors;
   t: Translations;
   mobmode?: number;
-  onGetSessionsWithDeviceMeta: (verificationRecordId: string, verificationTimestamp: number) => Promise<DataResult<LogtoSession[]>>;
-  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, verificationTimestamp: number, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
-  onRevokeAllOtherSessions: (verificationRecordId: string, verificationTimestamp: number) => Promise<ActionResult>;
+  onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
+  onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
+  onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  isActive?: boolean;
+  onVerificationDismissed?: () => void;
 }`}
         />
       </div>
@@ -306,7 +308,7 @@ const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.pay
           Single Session Termination
         </h4>
         <p style={styles.textStyle}>
-          Revoking a single session triggers <code style={styles.codeSmStyle}>onRevokeSession(sessionId, verificationId, verificationTimestamp, &apos;firstParty&apos;)</code>. The revoke target parameter is configured to <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code> to revoke first-party application grants (such as access tokens and refresh tokens) associated with the device session, while leaving broader scopes unaffected where appropriate.
+          Revoking a single session triggers <code style={styles.codeSmStyle}>onRevokeSession(sessionId, verificationRecordId, &apos;all&apos;)</code>. The revoke target parameter defaults to <code style={styles.codeSmStyle}>&apos;all&apos;</code> to revoke all OAuth grants (access tokens and refresh tokens) associated with the session. Bulk revocation via <code style={styles.codeSmStyle}>onRevokeAllOtherSessions</code> uses <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code> to avoid revoking third-party grants the user did not intend to revoke.
         </p>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
@@ -332,7 +334,7 @@ const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.pay
 const results: PromiseSettledResult<void>[] = [];
 for (const s of othersToRevoke) {
   const result = await Promise.race([
-    revokeUserSession(s.payload.uid, verificationRecordId, verificationTimestamp, 'firstParty')
+    revokeUserSession(s.payload.uid, verificationRecordId, 'firstParty')
       .then(r => { if (!r.ok) throw new Error(r.error); })
       .then<PromiseSettledResult<void>>(() => ({ status: 'fulfilled', value: undefined }))
       .catch<PromiseSettledResult<void>>(reason => ({ status: 'rejected', reason })),

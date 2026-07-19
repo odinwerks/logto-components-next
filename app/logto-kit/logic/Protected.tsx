@@ -64,7 +64,7 @@ import {
   loadPersonalPermissions,
   loadOrganizationUserRoles,
 } from '../server-actions';
-import { debugLog } from '../logic/debug';
+import { debugLog } from './debug';
 
 /**
  * Reducer state for permission/role loading.

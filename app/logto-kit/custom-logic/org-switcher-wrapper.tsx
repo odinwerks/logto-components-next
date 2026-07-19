@@ -1,6 +1,6 @@
 import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../config';
-import { OrgSwitcher } from './OrgSwitcher';
+import { OrgSwitcher } from '../logic/OrgSwitcher';
 import type { OrganizationData } from '../logic/types';
 import type { ThemeColors } from '../themes';
 import type { Translations } from '../locales';

@@ -269,7 +269,7 @@ export default function PreferencesSection() {
             If theme or language API write fails, errors are captured and output to the web console (e.g., <code style={styles.codeSmStyle}>[PreferencesProvider] Failed to persist theme:</code>).
           </li>
           <li style={{ marginBottom: '6px' }}>
-            If organization API write fails, the provider triggers a revert sequence: it restores sessionStorage to the pre-updated organization ID, resets local state to the pre-updated ID, and logs warning details to the console (<code style={styles.codeSmStyle}>[PreferencesProvider] Org persistence failed, reverting</code>). This prevents invalid organization configurations.
+            If organization API write fails, the provider triggers a revert sequence: it restores sessionStorage to the pre-updated organization ID, resets local state to the pre-updated ID, and logs error details to the console via <code style={styles.codeSmStyle}>console.error</code> (<code style={styles.codeSmStyle}>[PreferencesProvider] Failed to persist org:</code>). This prevents invalid organization configurations.
           </li>
         </ul>
       </div>
@@ -293,30 +293,14 @@ export default function PreferencesSection() {
         </ul>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
-          State References and Storage-First Hook Reads
+          State References
         </h4>
         <p style={styles.textStyle}>
           Asynchronous API operations are protected from race conditions and stale closure loops by keeping current state values stored in mutable references (<code style={styles.codeSmStyle}>themeRef</code>, <code style={styles.codeSmStyle}>langRef</code>, <code style={styles.codeSmStyle}>asOrgRef</code>) that synchronize with each state render.
         </p>
         <p style={styles.textStyle}>
-          Furthermore, the custom hooks <code style={styles.codeStyle}>useLangMode()</code> and <code style={styles.codeStyle}>useOrgMode()</code> employ a storage-first read mechanism: on component access, they retrieve active selections directly from sessionStorage (<code style={styles.codeSmStyle}>sessionStorage.getItem(&apos;lang-mode&apos;)</code> and <code style={styles.codeSmStyle}>sessionStorage.getItem(&apos;org-mode&apos;)</code>) instead of relying solely on the React state value. This bypasses asynchronous propagation delays across nested virtual DOM trees.
+          The <code style={styles.codeStyle}>preferences-changed</code> CustomEvent handler (registered in the provider effect) reads the latest values from sessionStorage to synchronize state across provider instances. The hooks themselves (<code style={styles.codeStyle}>useLangMode()</code> and <code style={styles.codeStyle}>useOrgMode()</code>) do NOT perform storage-first reads — they simply return the context values directly.
         </p>
-
-        <CodeBlock
-          title="Hook Implementation Logic"
-          code={`export function useLangMode() {
-  const context = useContext(PreferencesContext);
-  if (context) {
-    const storedLang = getStoredLang();
-    return {
-      ...context.lang,
-      lang: storedLang ?? context.lang.lang,
-    };
-  }
-  // Fallback for unprovided components
-  return { lang: getDefaultLang(), setLang: () => {} };
-}`}
-        />
       </div>
 
       <div>

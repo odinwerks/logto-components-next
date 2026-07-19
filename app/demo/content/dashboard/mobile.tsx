@@ -88,28 +88,34 @@ export default function DashboardMobile() {
 
       <CodeBlock
         title="useIsPortrait implementation"
-        code={`function useIsPortrait(): boolean {
-  const [portrait, setPortrait] = useState(false);
-  const [narrow, setNarrow] = useState(false);
+        code={`const subscribeIsPortrait = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const mqPortrait = window.matchMedia('(orientation: portrait)');
+  const mqNarrow = window.matchMedia('(max-width: 64rem)');
+  mqPortrait.addEventListener('change', callback);
+  mqNarrow.addEventListener('change', callback);
+  return () => {
+    mqPortrait.removeEventListener('change', callback);
+    mqNarrow.removeEventListener('change', callback);
+  };
+};
 
-  useEffect(() => {
-    const orientationMq = window.matchMedia('(orientation: portrait)');
-    const widthMq = window.matchMedia('(max-width: 64rem)');
-    setPortrait(orientationMq.matches);
-    setNarrow(widthMq.matches);
+const getSnapshotIsPortrait = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(orientation: portrait)').matches ||
+    window.matchMedia('(max-width: 64rem)').matches
+  );
+};
 
-    const onOrientation = (e) => setPortrait(e.matches);
-    const onWidth = (e) => setNarrow(e.matches);
+const getServerSnapshotIsPortrait = () => false;
 
-    orientationMq.addEventListener('change', onOrientation);
-    widthMq.addEventListener('change', onWidth);
-    return () => {
-      orientationMq.removeEventListener('change', onOrientation);
-      widthMq.removeEventListener('change', onWidth);
-    };
-  }, []);
-
-  return portrait || narrow;
+export function useIsPortrait(): boolean {
+  return useSyncExternalStore(
+    subscribeIsPortrait,
+    getSnapshotIsPortrait,
+    getServerSnapshotIsPortrait
+  );
 }`}
       />
 
@@ -128,7 +134,7 @@ export default function DashboardMobile() {
 
       <CodeBlock
         title="Router Switch"
-        code={`function DashboardRouter({
+        code={`export function DashboardRouter({
   desktop,
   mobile,
 }: {
@@ -136,7 +142,16 @@ export default function DashboardMobile() {
   mobile: ReactNode;
 }) {
   const isPortrait = useIsPortrait();
-  return <>{isPortrait ? mobile : desktop}</>;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    // Neutral placeholder prevents desktop-tab flash during SSR/hydration gate
+    return <div aria-busy="true" style={{ minHeight: '100dvh' }} />;
+  }
+
+  // Post-hydration: render only the active layout
+  return isPortrait ? <>{mobile}</> : <>{desktop}</>;
 }`}
       />
 
@@ -159,14 +174,6 @@ export default function DashboardMobile() {
           <tr>
             <td style={customTdPropStyle}>Two-view Stack</td>
             <td style={customTdStyle}>Toggles between the <code style={styles.codeSmStyle}>menu</code> list of tabs and the active <code style={styles.codeSmStyle}>tab</code> viewport.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Staggered Entry</td>
-            <td style={customTdStyle}>Employs <code style={styles.codeSmStyle}>mStagger</code> animations applying <code style={styles.codeSmStyle}>index * 0.08s</code> staggered delay values to layout items.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>Touch feedback</td>
-            <td style={customTdStyle}>Monitors <code style={styles.codeSmStyle}>onTouchStart</code> and <code style={styles.codeSmStyle}>onTouchEnd</code> with an intentional 150ms release timer to smooth out list tap states.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>Navigation actions</td>

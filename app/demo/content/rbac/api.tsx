@@ -134,6 +134,11 @@ if (result.error) {
             <td style={customTdStyle}>The action name is missing from the request body.</td>
           </tr>
           <tr>
+            <td style={customTdPropStyle}>PAYLOAD_TOO_LARGE</td>
+            <td style={customTdStyle}>413</td>
+            <td style={customTdStyle}>The request body exceeds the 1 MiB size limit (enforced by reading the actual stream bytes).</td>
+          </tr>
+          <tr>
             <td style={customTdPropStyle}>TOKEN_INVALID</td>
             <td style={customTdStyle}>401 / 400</td>
             <td style={customTdStyle}>The access token is expired, inactive, or the user ID format is invalid.</td>
@@ -147,6 +152,11 @@ if (result.error) {
             <td style={customTdPropStyle}>UNAUTHORIZED</td>
             <td style={customTdStyle}>401</td>
             <td style={customTdStyle}>No authenticated session token was provided.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>RATE_LIMITED</td>
+            <td style={customTdStyle}>429</td>
+            <td style={customTdStyle}>The per-user request rate limit has been exceeded. The response includes a <code style={styles.codeSmStyle}>Retry-After: 60</code> header.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>ACTION_NOT_FOUND</td>
@@ -213,7 +223,7 @@ export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>
 }`}
       />
       <p style={styles.textStyle}>
-        By wrapping execution blocks with <code style={styles.codeStyle}>safeAction</code>, standard exceptions are intercepted and converted into standardized JSON structures before execution enters or returns from the action body.
+        By wrapping execution blocks with <code style={styles.codeStyle}>safeAction</code>, standard exceptions are intercepted and converted into standardized JSON structures before execution enters or returns from the action body. (The debug logging block via <code style={styles.codeStyle}>isDebug</code> / <code style={styles.codeStyle}>warn</code> is omitted above for brevity.)
       </p>
     </div>
   );

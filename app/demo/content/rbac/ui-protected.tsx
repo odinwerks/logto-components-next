@@ -129,25 +129,25 @@ export default function UiProtectedDoc() {
             <td style={customTdPropStyle}>perm</td>
             <td style={customTdTypeStyle}>string | string[]</td>
             <td style={customTdStyle}>-</td>
-            <td style={customTdStyle}>Required permission keys to render children. Bypassed in Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>), but checked alongside roles in Organization Mode. If omitted in organization mode, only organization membership is verified.</td>
+            <td style={customTdStyle}>Required permission keys to render children. Checked against personal permissions in Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>) when provided; checked against organization permissions in Organization Mode. Skipped (in any scope) when <code style={styles.codeStyle}>perm</code> is omitted.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>roleId</td>
             <td style={customTdTypeStyle}>string | string[]</td>
             <td style={customTdStyle}>-</td>
-            <td style={customTdStyle}>Required role IDs to render children. Used in Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>) as the exclusive gating boundary, and in Organization Mode as an additional check alongside permissions.</td>
+            <td style={customTdStyle}>Required role IDs to render children. Checked in BOTH Self Mode (against personal roles) and Organization Mode (against org roles). Not exclusive — <code style={styles.codeStyle}>perm</code> is also checked when provided.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>requireAll</td>
             <td style={customTdTypeStyle}>boolean</td>
             <td style={customTdStyle}>true</td>
-            <td style={customTdStyle}>When multiple permissions are specified, determines whether all keys must be present (AND) or if any single key is sufficient (OR).</td>
+            <td style={customTdStyle}>Applies to BOTH <code style={styles.codeStyle}>roleId</code> and <code style={styles.codeStyle}>perm</code> arrays. When multiple values are specified, determines whether all keys must be present (AND) or if any single key is sufficient (OR).</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>orgId</td>
             <td style={customTdTypeStyle}>string | null</td>
             <td style={customTdStyle}>undefined</td>
-            <td style={customTdStyle}>Targets the scope of RBAC checks. Set to <code style={styles.codeStyle}>&quot;self&quot;</code> for user-level (personal) RBAC, which loads personal roles and gates strictly on <code style={styles.codeStyle}>roleId</code>, completely bypassing permission checks. Set to an organization ID for organization-scoped RBAC, which strictly matches the target ID against <code style={styles.codeStyle}>asOrg</code> (breaking immediately on mismatch) and checks BOTH roles and permissions. If omitted, no organization checks are performed, and any permission check (<code style={styles.codeStyle}>perm</code>) will fail-closed (default-deny).</td>
+            <td style={customTdStyle}>Targets the scope of RBAC checks. Set to <code style={styles.codeStyle}>&quot;self&quot;</code> for user-level (personal) RBAC, which loads BOTH personal roles AND personal permissions, and checks <code style={styles.codeStyle}>roleId</code> AND <code style={styles.codeStyle}>perm</code> (when provided) against them. Set to an organization ID for organization-scoped RBAC, which strictly matches the target ID against <code style={styles.codeStyle}>asOrg</code> (breaking immediately on mismatch) and checks BOTH roles and permissions. If omitted (or <code style={styles.codeStyle}>null</code>), the component operates in personal scope (same as <code style={styles.codeStyle}>&quot;self&quot;</code>), checking perms/roles against the user&apos;s personal RBAC set.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>orgName</td>
@@ -158,7 +158,7 @@ export default function UiProtectedDoc() {
           <tr>
             <td style={customTdPropStyle}>fallback</td>
             <td style={customTdTypeStyle}>ReactNode</td>
-            <td style={customTdStyle}>null</td>
+            <td style={customTdStyle}>undefined</td>
             <td style={customTdStyle}>Optional UI element to render if the user lacks the required organization membership or permissions.</td>
           </tr>
         </tbody>
@@ -172,14 +172,14 @@ export default function UiProtectedDoc() {
       </p>
       <p style={styles.textStyle}>
         1. **Self Mode (<code style={styles.codeStyle}>orgId=&quot;self&quot;</code>)**:
-        Shifts the component to user RBAC (personal/global scope). In this mode, the component fetches personal roles using <code style={styles.codeStyle}>loadPersonalRoles()</code> and gates strictly on required roles (<code style={styles.codeStyle}>roleId</code>), completely bypassing permission checks.
+        Shifts the component to user RBAC (personal/global scope). In this mode, the component fetches BOTH personal permissions AND personal roles via <code style={styles.codeStyle}>Promise.all([loadPersonalPermissions(), loadPersonalRoles()])</code>, and gates on <code style={styles.codeStyle}>roleId</code> AND <code style={styles.codeStyle}>perm</code> (when provided).
       </p>
       <p style={styles.textStyle}>
         2. **Organization Mode**:
         Enforces organization-scoped RBAC. The component strictly matches the target <code style={styles.codeStyle}>orgId</code> against the active organization (<code style={styles.codeStyle}>asOrg</code>) from <code style={styles.codeStyle}>useOrgMode()</code>. If there is a mismatch, the evaluation breaks immediately (fail-closed). If they match, it loads organization permissions and roles to check BOTH required roles (<code style={styles.codeStyle}>roleId</code>) and permissions (<code style={styles.codeStyle}>perm</code>).
       </p>
       <p style={styles.textStyle}>
-        3. **Hook Context Retrieval**: It retrieves active organization and user information using the <code style={styles.codeStyle}>useOrgMode()</code> and <code style={styles.codeStyle}>useLogto()</code> context providers.
+        3. **Hook Context Retrieval**: It retrieves active organization via <code style={styles.codeStyle}>useOrgMode()</code> and user data via <code style={styles.codeStyle}>useUserDataContext()</code> (NOT <code style={styles.codeStyle}>useLogto()</code>).
       </p>
       <p style={styles.textStyle}>
         4. **Organization Matching**: If <code style={styles.codeStyle}>orgName</code> is provided, it resolves the corresponding ID from the user organization list. It verifies that the active organization (asOrg) matches the target organization.

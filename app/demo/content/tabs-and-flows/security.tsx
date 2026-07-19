@@ -103,7 +103,7 @@ export default function SecuritySection() {
             <tr>
               <td style={customTdPropStyle}>Identity Verification</td>
               <td style={customTdStyle}>
-                <code>onVerifyPassword</code>: Verifies current credentials and returns a verification record ID and validation timestamp.
+                <code>onVerifyPassword</code>: Verifies current credentials and returns a verification record ID and a timestamp (CLIENT UX ONLY, not trusted server-side).
               </td>
             </tr>
             <tr>
@@ -159,7 +159,7 @@ export default function SecuritySection() {
             <strong>value:</strong> Used by contact edit flows to collect the new email or phone value before identity checks.
           </li>
           <li>
-            <strong>password:</strong> User enters password to get <code>verificationRecordId</code> and <code>verificationTimestamp</code>.
+            <strong>password:</strong> User enters password to get <code>verificationRecordId</code> and a <code>verificationTimestamp</code> (CLIENT UX ONLY, not trusted server-side).
           </li>
           <li>
             <strong>loading:</strong> Not a step — a <code>loading: boolean</code> prop renders white BouncingDots inside the triggering button while requests run.
@@ -219,8 +219,8 @@ export default function SecuritySection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>Phone</td>
-              <td style={customTdStyle}><code>{"/^\\+[1-9]\\d{1,14}$/"}</code> (spaces and hyphens stripped)</td>
-              <td style={customTdStyle}>Validates phone numbers against standard ITU-T E.164 recommendations.</td>
+              <td style={customTdStyle}>Digit-only normalization via <code>cleanPhoneNumber</code> / <code>validateE164</code>: strips ALL non-digit characters (including the <code>+</code> prefix) before testing against <code>/^[1-9]\d{'{}'}1,14{'}'}$/</code> (E.164: 2-15 digits, first digit 1-9). Server-side rejects empty or &gt;20 digits.</td>
+              <td style={customTdStyle}>Ensures digit-only format reaches Logto&apos;s Account API; the <code>+</code> prefix is NOT required and is stripped before validation and submission.</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>OTP Code</td>
@@ -341,10 +341,10 @@ try {
 
         <ol style={{ ...styles.textStyle, paddingLeft: '20px', margin: '0 0 16px 0' }}>
           <li>
-            <strong>Password Verification:</strong> The user completes the password challenge. The backend returns a <code>verificationRecordId</code> alongside a <code>verificationTimestamp</code>.
+            <strong>Password Verification:</strong> The user completes the password challenge. The backend returns a <code>verificationRecordId</code> alongside a <code>verificationTimestamp</code> (CLIENT UX ONLY, not trusted server-side; the server-sealed HMAC cookie is the authority).
           </li>
           <li>
-            <strong>Expiration Guards:</strong> The server action <code>onDeleteAccount</code> verifies that the verification token is still valid. It checks the current time against the <code>verificationTimestamp</code> (mapping to Logto&apos;s internal <code>expiresAt</code> threshold) to confirm that the operation is executed within a secure, short-lived window.
+            <strong>Expiration Guards:</strong> The server action <code>onDeleteAccount</code> verifies that the verification token is still valid. The server reads a sealed <code>&#123; recordId, expiresAt &#125;</code> tuple from an httpOnly, HMAC-signed cookie (sealed right after <code>verifyPasswordForIdentity</code> succeeded), verifies the HMAC, binds the sealed <code>recordId</code> to the client-supplied <code>verificationRecordId</code>, and runs <code>assertVerificationNotExpired(sealed.expiresAt)</code>. The expiry is server-authoritative and tamper-evident; a malicious client cannot substitute its own timestamp.
           </li>
           <li>
             <strong>customData Whitelisting and Merging:</strong>
@@ -352,12 +352,12 @@ try {
             <ul style={{ margin: '8px 0 0 16px', paddingLeft: '10px' }}>
               <li><code>asOrg</code>: Whitelists active organization selections, validating values against a safe OIDC identifier regex.</li>
               <li><code>theme</code>: Validates that values are strictly equal to &quot;light&quot; or &quot;dark&quot;.</li>
-              <li><code>lang</code>: Restricts language strings to standard format tags matching <code>{"/^[A-Za-z0-9_-]{1,16}$/"}</code>.</li>
+              <li><code>lang</code>: Checked against <code>getLangAllowlist()</code> (a Set-based membership check in <code>lang-allowlist.ts</code> that reads the <code>LANG_AVAILABLE</code> env var) — not a regex.</li>
             </ul>
-             During updates, the system uses <code>updateUserCustomData</code> with a locking mechanism (<code>customDataUpdateLocks</code> capped at 1000 records to prevent memory leaks) to perform a shallow merge under the <code>Preferences</code> key. This preserves other applications&apos; top-level customData keys on the same Logto tenant.
+             During updates, the system uses <code>updateUserCustomData</code> with a locking mechanism (<code>customDataLockManager</code> from <code>distributed-state.ts</code>, namespaced per-user) to perform a shallow merge under the <code>Preferences</code> key. This preserves other applications&apos; top-level customData keys on the same Logto tenant.
           </li>
           <li>
-            <strong>Session Redirection:</strong> After successfully deleting the account, the dashboard avoids Next.js router loops or stale state bugs by executing a full-page redirection via <code>window.location.href = &apos;/&apos;</code> (instead of <code>router.push</code>) after a configurable cooldown period (read from the <code>DELETE_REDIRECT_DELAY</code> environment variable, falling back to 3000ms). This cleanly purges browser memory and terminates active sessions.
+            <strong>Session Redirection:</strong> After successfully deleting the account, the dashboard avoids Next.js router loops or stale state bugs by executing a full-page redirection via <code>window.location.href = &apos;/api/auth/sign-in&apos;</code> (instead of <code>router.push</code>) using the <code>FarewellOverlay</code> component. The delay is hardcoded at <strong>3000ms</strong> in the security tab call site (<code>delayMs={'{3000}'}</code>). The overlay&apos;s own <code>delayMs</code> undefined fallback reads the <code>DELETE_REDIRECT_DELAY</code> env var, but the security tab explicitly passes 3000ms, bypassing the env var. This cleanly purges browser memory and terminates active sessions.
           </li>
         </ol>
 
@@ -368,10 +368,7 @@ if (!identityResult.ok) {
   return;
 }
 
-const deleteResult = await onDeleteAccount(
-  identityResult.data.verificationRecordId,
-  identityResult.data.verificationTimestamp
-);
+const deleteResult = await onDeleteAccount(identityResult.data.verificationRecordId);
 if (!deleteResult.ok) {
   onError(deleteResult.error);
   return;
@@ -381,8 +378,8 @@ onSuccess(t.security.accountDeleted);
 
 // Force full client reload to prevent AuthWatcher race loops
 setTimeout(() => {
-  window.location.href = '/';
-}, DELETE_REDIRECT_DELAY);`} />
+  window.location.href = '/api/auth/sign-in';
+}, 3000);`} />
       </div>
 
       <div>
@@ -395,22 +392,21 @@ setTimeout(() => {
 // 0. Value step in modal
 setStep({ kind: 'value' });
 // 1. Password verification
-const identity = await onVerifyPassword(pw); // returns recordId + verificationTimestamp
+const identity = await onVerifyPassword(pw); // returns recordId + verificationTimestamp (UX-only; server-sealed cookie is authoritative)
 // 2. Send code to new email
 const { verificationId } = await onSendEmailVerification(newEmail);
 // 3. User enters code
 const codeVer = await onVerifyCode('email', newEmail, verificationId, code);
-// 4. Update email with verification IDs and timestamp
+// 4. Update email with both verification IDs (no timestamp)
 await onUpdateEmail(
   newEmail,
   codeVer.verificationRecordId,
-  identity.verificationRecordId,
-  identity.verificationTimestamp
+  identity.verificationRecordId
 );`} />
         <CodeBlock title="Remove email flow" code={`// 1. Password verification
 const identity = await onVerifyPassword(pw);
 // 2. Remove email
-await onRemoveEmail(identity.verificationRecordId, identity.verificationTimestamp);`} />
+await onRemoveEmail(identity.verificationRecordId);`} />
       </div>
 
       <div>
