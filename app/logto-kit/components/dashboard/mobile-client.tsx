@@ -7,11 +7,11 @@ import type { Translations } from '../../locales';
 import { FONT_MONO, type ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
+import { RbacPromisesProvider } from '../providers/rbac-stream-context';
 import { useLogto } from '../providers/logto-provider';
-import { ToastContainer } from './shared/Toast';
 import { SignOutModal } from './shared/SignOutModal';
 import { TabErrorBoundary } from './shared/TabErrorBoundary';
-import { useDashboardToasts } from './shared/use-dashboard-toasts';
+import { useToast } from '../providers/toast-provider';
 import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
@@ -19,7 +19,7 @@ import { SecurityTab } from './tabs/security';
 import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
-import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession } from '../../logic/types';
+import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession, PersonalRbacResult, OrgRbacResult } from '../../logic/types';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft, Monitor } from 'lucide-react';
 import { getTabLabel, UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon, LogoutIcon } from './tab-utils';
@@ -28,6 +28,15 @@ import { getTabLabel, UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon
 
 interface MobileClientProps {
   initialData: { userData: UserData };
+  /**
+   * Streamed personal RBAC promise (roles + permissions). See
+   * `DashboardClientProps.personalRbacPromise` for the full contract.
+   */
+  personalRbacPromise?: Promise<PersonalRbacResult>;
+  /**
+   * Streamed org RBAC promise. `null` when no org is active.
+   */
+  orgRbacPromise?: Promise<OrgRbacResult> | null;
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
   nameType?: string;
@@ -78,6 +87,8 @@ const serverNarrow = () => false;
 
 export function MobileClient({
   initialData,
+  personalRbacPromise,
+  orgRbacPromise,
   countryFilter,
   currentOrgId,
   nameType,
@@ -145,7 +156,7 @@ export function MobileClient({
   }, []);
   const isCompact = mounted ? isNarrowViewport : false;
 
-  const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
+  const { showToast, mapErrorToast, setSuppressAll } = useToast();
 
   const router = useRouter();
   const refreshData = useCallback(() => {
@@ -332,6 +343,7 @@ export function MobileClient({
             }}
           >
             {activeTab !== null ? (
+              <RbacPromisesProvider personalRbacPromise={personalRbacPromise} orgRbacPromise={orgRbacPromise}>
               <CrossFade
                 activeKey={activeTab}
               className="dashboard-tabpanel-content"
@@ -456,9 +468,10 @@ export function MobileClient({
                   {tabId === 'organizations' && (
                     <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
                   )}
-                </>
-              )}
+             </>
+            )}
             </CrossFade>
+              </RbacPromisesProvider>
             ) : null}
 
           </div>
@@ -503,9 +516,8 @@ export function MobileClient({
 
       {/* ── Shared overlays ──────────────────────────────────────────────── */}
       <AnimatePresence>
-      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
       </AnimatePresence>
-      <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </>
   );
 }

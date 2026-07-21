@@ -1,79 +1,50 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import type { UserRole } from '../logic/types';
 import { loadOrganizationUserRoles } from '../server-actions';
-import { captureMessage } from '../logic/capture-message';
+import { useAsyncList } from './use-async-list';
 
 export interface UseOrgRolesOptions {
   orgId: string | null | undefined;
   autoLoad?: boolean;
+  /**
+   * Optional pre-fetched org roles (from the streamed `orgRbacPromise`).
+   * When provided, the hook seeds its state and skips the mount-effect
+   * fetch; `refresh()` and `sourceKey` changes (org-switch) still fetch
+   * via the existing server-action path.
+   */
+  initialData?: UserRole[];
 }
 
 export interface UseOrgRolesReturn {
-  roles: Record<string, { id: string; description?: string }>;
-  isLoading: boolean;
+  /** Authoritative M2M role list with real UUIDs + descriptions. NO name-keyed join. */
+  roles: UserRole[];
+  loading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: () => void;
 }
 
-export function useOrgRoles({ orgId, autoLoad = true }: UseOrgRolesOptions): UseOrgRolesReturn {
-  const [roles, setRoles] = useState<Record<string, { id: string; description?: string }>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchGenerationRef = useRef(0);
-
-  const fetchRoles = useCallback(async (targetOrgId: string): Promise<void> => {
-    const generation = ++fetchGenerationRef.current;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await loadOrganizationUserRoles(targetOrgId);
-      if (generation !== fetchGenerationRef.current) return;
-      if (!result.ok) {
-        setError(result.error);
-        setIsLoading(false);
-        return;
-      }
-      const map: Record<string, { id: string; description?: string }> = {};
-      for (const role of result.data) {
-        map[role.name] = { id: role.id, description: role.description };
-      }
-      setRoles(map);
-    } catch (err) {
-      if (generation !== fetchGenerationRef.current) return;
-      setError(captureMessage(err));
-    } finally {
-      if (generation === fetchGenerationRef.current) {
-        setIsLoading(false);
-      }
+export function useOrgRoles({ orgId, autoLoad = true, initialData }: UseOrgRolesOptions): UseOrgRolesReturn {
+  const stableLoader = useCallback(async () => {
+    if (!orgId) {
+      return { ok: false as const, error: 'NO_ORG_ID' };
     }
-  }, []);
+    return loadOrganizationUserRoles(orgId);
+  }, [orgId]);
 
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
-  useEffect(() => {
-    if (!autoLoad || !orgId) {
-      fetchGenerationRef.current++;
-      // Defer state resets to avoid synchronous setState inside effect body
-      const t = setTimeout(() => { setRoles({}); setIsLoading(false); }, 0);
-      return () => clearTimeout(t);
-    }
-    fetchRoles(orgId);
-    return () => {
-      fetchGenerationRef.current++;
-      setRoles({});
-    };
-  }, [orgId, autoLoad, fetchRoles]);
-  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  const { items, loading, error, refresh } = useAsyncList<UserRole[]>({
+    loader: stableLoader,
+    sourceKey: orgId,
+    strategy: 'refetch',
+    enabled: autoLoad && !!orgId,
+    initialData,
+  });
 
-  const orgIdRef = useRef(orgId);
-  useEffect(() => { orgIdRef.current = orgId; }, [orgId]);
-
-  const refresh = useCallback(async (): Promise<void> => {
-    const id = orgIdRef.current;
-    if (!id || isLoading) return;
-    await fetchRoles(id);
-  }, [isLoading, fetchRoles]);
-
-  return { roles, isLoading, error, refresh };
+  return {
+    roles: items,
+    loading,
+    error,
+    refresh,
+  };
 }

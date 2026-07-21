@@ -3,11 +3,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
-import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors } from './types';
+import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors, PersonalRbacResult, OrgRbacResult } from './types';
 import type { Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
-import { ToastContainer } from './shared/Toast';
+import { RbacPromisesProvider } from '../providers/rbac-stream-context';
 import { SignOutModal } from './shared/SignOutModal';
 import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { ProfileTab } from './tabs/profile';
@@ -18,7 +18,7 @@ import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
-import { useDashboardToasts } from './shared/use-dashboard-toasts';
+import { useToast } from '../providers/toast-provider';
 import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
 
 // Import MfaVerification type
@@ -41,6 +41,19 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 interface DashboardClientProps {
   initialData: DashboardData;
+  /**
+   * Streamed personal RBAC promise (roles + permissions). Kicked off in the
+   * `Dashboard` RSC and consumed via `use()` inside `<Suspense>` by the
+   * profile tab's stream consumers (Phase 3). `null`-safe: always provided
+   * for authenticated users.
+   */
+  personalRbacPromise?: Promise<PersonalRbacResult>;
+  /**
+   * Streamed org RBAC promise (roles + permission descriptions). `null`
+   * when no org is active. Consumed via `use()` by the organizations tab
+   * (Phase 3).
+   */
+  orgRbacPromise?: Promise<OrgRbacResult> | null;
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   currentOrgId?: string;
   userShape?: 'circle' | 'sq' | 'rsq';
@@ -83,6 +96,8 @@ interface DashboardClientProps {
 
 export function DashboardClient({
   initialData,
+  personalRbacPromise,
+  orgRbacPromise,
   countryFilter,
   currentOrgId,
   userShape = 'circle',
@@ -150,7 +165,7 @@ export function DashboardClient({
   }, [activeTab]);
 
   // ── Toast ──────────────────────────────────────────────────────────────────
-  const { toasts, showToast, dismissToast, mapErrorToast, setSuppressAll } = useDashboardToasts(t);
+  const { showToast, mapErrorToast, setSuppressAll } = useToast();
 
   // tabRefs retained for roving-tabindex focus management (keyboard nav).
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
@@ -388,6 +403,7 @@ export function DashboardClient({
             ...(fillHeight ? { display: 'flex', flexDirection: 'column' } : {}),
           }}
         >
+          <RbacPromisesProvider personalRbacPromise={personalRbacPromise} orgRbacPromise={orgRbacPromise}>
           <CrossFade
             activeKey={activeTab}
             className="dashboard-tabpanel-content"
@@ -505,14 +521,14 @@ export function DashboardClient({
               </>
             )}
           </CrossFade>
+          </RbacPromisesProvider>
         </div>
       </div>
 
       {/* Toasts */}
       <AnimatePresence>
-      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} showToast={showToast} />
+      <SignOutModal key="signout-modal" isOpen={isSigningOut} onAbort={abortSignOut} mode={mode} colors={colors} t={t} />
       </AnimatePresence>
-      <ToastContainer messages={toasts} onDismiss={dismissToast} mode={mode} colors={colors} />
     </div>
   );
 }

@@ -31,7 +31,7 @@ describe('usePersonalPermissions', () => {
     const { result } = renderHook(() => usePersonalPermissions());
     expect(result.current.loading).toBe(true);
     expect(result.current.permissions).toEqual([]);
-    expect(result.current.error).toBe(false);
+    expect(result.current.error).toBeNull();
     expect(result.current.visible).toBe(true);
   });
 
@@ -44,32 +44,29 @@ describe('usePersonalPermissions', () => {
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(1);
     expect(result.current.permissions).toEqual(mockPerms);
     expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
   it('sets error state on ok: false response', async () => {
     vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: false, error: 'Forbidden' });
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = renderHook(() => usePersonalPermissions());
 
     await act(async () => { await Promise.resolve(); });
 
-    expect(result.current.error).toBe(true);
+    expect(result.current.error).toBe('Forbidden');
     expect(result.current.loading).toBe(false);
-    consoleSpy.mockRestore();
   });
 
   it('sets error state on rejected promise', async () => {
     vi.mocked(loadPersonalPermissions).mockRejectedValue(new Error('Network error'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = renderHook(() => usePersonalPermissions());
 
     await act(async () => { await Promise.resolve(); });
 
-    expect(result.current.error).toBe(true);
-    consoleSpy.mockRestore();
+    expect(result.current.error).toBe('Network error');
   });
 
-  it('triggerRefresh unmounts and remounts causing re-fetch', async () => {
+  it('refresh unmounts and remounts causing re-fetch', async () => {
     vi.useFakeTimers();
     vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
     const { result } = renderHook(() => usePersonalPermissions());
@@ -77,7 +74,7 @@ describe('usePersonalPermissions', () => {
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(1);
 
-    act(() => { result.current.triggerRefresh(); });
+    act(() => { result.current.refresh(); });
     expect(result.current.visible).toBe(false);
 
     act(() => { vi.advanceTimersByTime(35); });
@@ -97,7 +94,7 @@ describe('usePersonalPermissions', () => {
     await act(async () => { await Promise.resolve(); });
     const callCount = vi.mocked(loadPersonalPermissions).mock.calls.length;
 
-    act(() => { result.current.triggerRefresh(); });
+    act(() => { result.current.refresh(); });
     // visible is now false - no new fetch should be triggered
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(callCount);
@@ -197,5 +194,53 @@ describe('usePersonalPermissions', () => {
 
     expect(result.current.tooltip.visible).toBe(false);
     expect(result.current.activePermission).toBeNull();
+  });
+
+  // ─── initialData seeding (instant-fetch) ────────────────────────────────────
+
+  it('seeds permissions from initialData and skips the mount fetch', async () => {
+    vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: [] });
+    const { result } = renderHook(() => usePersonalPermissions(mockPerms));
+
+    expect(result.current.permissions).toEqual(mockPerms);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
+
+    await act(async () => { await Promise.resolve(); });
+    expect(loadPersonalPermissions).not.toHaveBeenCalled();
+  });
+
+  it('treats empty array initialData as "user has zero permissions" and skips the fetch', async () => {
+    vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
+    const { result } = renderHook(() => usePersonalPermissions([]));
+
+    expect(result.current.permissions).toEqual([]);
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => { await Promise.resolve(); });
+    expect(loadPersonalPermissions).not.toHaveBeenCalled();
+  });
+
+  it('refresh() still fetches (remount) after initialData seeded the state', async () => {
+    vi.useFakeTimers();
+    vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
+
+    const { result } = renderHook(() => usePersonalPermissions(mockPerms));
+
+    // No fetch on mount.
+    await act(async () => { await Promise.resolve(); });
+    expect(loadPersonalPermissions).not.toHaveBeenCalled();
+
+    // refresh() bypasses the initialData skip via the remount strategy.
+    act(() => { result.current.refresh(); });
+    expect(result.current.visible).toBe(false);
+
+    act(() => { vi.advanceTimersByTime(35); });
+    expect(result.current.visible).toBe(true);
+
+    await act(async () => { await Promise.resolve(); });
+    expect(loadPersonalPermissions).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
   });
 });

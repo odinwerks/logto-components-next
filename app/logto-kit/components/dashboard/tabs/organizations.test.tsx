@@ -48,6 +48,7 @@ vi.mock('../../../server-actions', () => ({
 }));
 
 import { OrganizationsTab } from './organizations';
+import { RbacPromisesProvider } from '../../providers/rbac-stream-context';
 
 const baseUserData: UserData = {
   id: 'user-1',
@@ -84,14 +85,19 @@ function renderOrganizations(options?: { asOrg?: string | null; currentOrgId?: s
   mockOrgMode.asOrg = options?.asOrg ?? null;
   const userData = options?.userData ?? baseUserData;
 
+  // Wrap in RbacPromisesProvider with no promises so the stream consumers
+  // fall back to the no-promise path (the hooks fetch on mount — preserves
+  // the pre-instant-fetch behavior the existing tests assert on).
   render(
-    <OrganizationsTab
-      userData={userData}
-      currentOrgId={options?.currentOrgId}
-      mode="dark"
-      colors={DARK_COLORS}
-      t={enUS}
-    />,
+    <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
+      <OrganizationsTab
+        userData={userData}
+        currentOrgId={options?.currentOrgId}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+      />
+    </RbacPromisesProvider>,
   );
 }
 
@@ -366,8 +372,8 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
     const permElement = await screen.findByText('read:org');
     expect(permElement).toBeInTheDocument();
 
-    // Find the info button next to "read:org"
-    const infoButton = document.getElementById('perm-trigger-read:org');
+    // Find the info button next to "read:org" by its accessible name
+    const infoButton = screen.getByRole('button', { name: 'Permission details for read:org' });
     expect(infoButton).toBeInTheDocument();
 
     // Tooltip is not shown yet
@@ -375,7 +381,7 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
 
     // Focus on the info button
     await act(async () => {
-      fireEvent.focus(infoButton!);
+      fireEvent.focus(infoButton);
     });
 
     // Tooltip should be rendered with description
@@ -385,7 +391,7 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
 
     // Blur the info button
     await act(async () => {
-      fireEvent.blur(infoButton!);
+      fireEvent.blur(infoButton);
     });
 
     // Tooltip should be gone

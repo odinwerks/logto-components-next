@@ -72,6 +72,7 @@ vi.mock('../../UserButton', () => ({
 
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ProfileTab } from './profile';
+import { RbacPromisesProvider } from '../../providers/rbac-stream-context';
 import type { UserData } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 
@@ -120,27 +121,29 @@ function renderProfile(
   const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 
   const result = render(
-    <ProfileTab
-      userData={userData}
-      mode="dark"
-      colors={DARK_COLORS}
-      t={enUS}
-      nameType={nameType}
-      onUpdateBasicInfo={basicInfoFn}
-      onUpdateAvatarUrl={resolvedActionResult}
-      onUpdateProfile={profileFn}
-      onVerifyPassword={resolvedVerifyPassword}
-      onSendEmailVerification={resolvedSendVerification}
-      onSendPhoneVerification={resolvedSendVerification}
-      onVerifyCode={resolvedVerifyCode}
-      onUpdateEmail={resolvedActionResult}
-      onUpdatePhone={resolvedActionResult}
-      onRemoveEmail={resolvedActionResult}
-      onRemovePhone={resolvedActionResult}
-      onSuccess={noop}
-      onError={noop}
-      refreshData={noop}
-    />,
+    <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
+      <ProfileTab
+        userData={userData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        nameType={nameType}
+        onUpdateBasicInfo={basicInfoFn}
+        onUpdateAvatarUrl={resolvedActionResult}
+        onUpdateProfile={profileFn}
+        onVerifyPassword={resolvedVerifyPassword}
+        onSendEmailVerification={resolvedSendVerification}
+        onSendPhoneVerification={resolvedSendVerification}
+        onVerifyCode={resolvedVerifyCode}
+        onUpdateEmail={resolvedActionResult}
+        onUpdatePhone={resolvedActionResult}
+        onRemoveEmail={resolvedActionResult}
+        onRemovePhone={resolvedActionResult}
+        onSuccess={noop}
+        onError={noop}
+        refreshData={noop}
+      />
+    </RbacPromisesProvider>,
   );
 
   return { ...result, basicInfoFn, profileFn };
@@ -408,6 +411,7 @@ describe('ProfileTab - behavioral', () => {
     };
 
     rerender(
+      <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
       <ProfileTab
         userData={updatedUserData}
         mode="dark"
@@ -428,7 +432,8 @@ describe('ProfileTab - behavioral', () => {
         onSuccess={noop}
         onError={noop}
         refreshData={noop}
-      />,
+      />
+      </RbacPromisesProvider>,
     );
 
     expect(givenInput.value).toBe('Bob');
@@ -451,6 +456,7 @@ describe('ProfileTab - behavioral', () => {
     });
 
     render(
+      <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
       <ProfileTab
         userData={defaultUserData}
         mode="dark"
@@ -471,7 +477,8 @@ describe('ProfileTab - behavioral', () => {
         onSuccess={noop}
         onError={onError}
         refreshData={refreshData}
-      />,
+      />
+      </RbacPromisesProvider>,
     );
 
     // Click Edit to enter edit mode, then change first name
@@ -505,6 +512,7 @@ describe('ProfileTab - behavioral', () => {
     });
 
     render(
+      <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
       <ProfileTab
         userData={defaultUserData}
         mode="dark"
@@ -525,7 +533,8 @@ describe('ProfileTab - behavioral', () => {
         onSuccess={noop}
         onError={onError}
         refreshData={refreshData}
-      />,
+      />
+      </RbacPromisesProvider>,
     );
 
     const editBtns = screen.getAllByRole('button', { name: /edit/i });
@@ -584,6 +593,7 @@ describe('ProfileTab - behavioral', () => {
     });
 
     render(
+      <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
       <ProfileTab
         userData={defaultUserData}
         mode="dark"
@@ -604,7 +614,8 @@ describe('ProfileTab - behavioral', () => {
         onSuccess={onSuccess}
         onError={noop}
         refreshData={refreshData}
-      />,
+      />
+      </RbacPromisesProvider>,
     );
 
     const onAvatarUploadSuccess = getLastAvatarUploadOnSuccess();
@@ -862,6 +873,7 @@ describe('ProfileTab - behavioral', () => {
       const onUpdateProfile = vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true });
 
       const result = render(
+        <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
         <ProfileTab
           userData={defaultUserData}
           mode="dark"
@@ -883,7 +895,8 @@ describe('ProfileTab - behavioral', () => {
           onSuccess={noop}
           onError={noop}
           refreshData={noop}
-        />,
+        />
+        </RbacPromisesProvider>,
       );
 
       return { ...result, onUpdateBasicInfo, onUpdateProfile };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useReducer, useId } from 'react';
+import { useState, useCallback, useRef, useEffect, useId, Suspense } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
 import { FONT_MONO } from '../../../themes';
@@ -19,10 +19,10 @@ import { RefreshButton } from '../shared/RefreshButton';
 import { Overlay, PasswordVerifyModal, type PasswordModalStep } from '../shared/FlowModal';
 import { ImageCropper, type ImageCropperRef } from '../shared/ImageCropper';
 import { motion, AnimatePresence, BouncingDots } from '../../shared/motion';
-import { getClampedTooltipPosition } from '../shared/tooltip-position';
-import { useRefreshable } from '../../../hooks/use-refreshable';
-import { loadPersonalRoles, loadPersonalPermissions } from '../../../server-actions';
+import { usePersonalRoles } from '../../../hooks/use-personal-roles';
+import { usePersonalPermissions } from '../../../hooks/use-personal-permissions';
 import { useFocusTrap } from '../shared/focus-trap';
+import { PersonalRolesStream, PersonalPermissionsStream } from '../shared/rbac-streams';
 
 interface AvatarModalWrapperProps {
   children: (ref: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
@@ -53,85 +53,33 @@ const CheckIcon = ({ size = 0.875, color = 'currentColor' }) => (
 
 
 // ─── PersonalPermissionsBlock - refreshable wrapper for personal (global RBAC)
-//     permissions. Uses the same pattern as OrganizationsTab's PermissionsBlock. ───
-
-type PermState = {
-  permissions: PersonalPermission[];
-  loading: boolean;
-  error: boolean;
-};
-type PermAction =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_SUCCESS'; data: PersonalPermission[] }
-  | { type: 'FETCH_ERROR' };
-
-const permReducer = (state: PermState, action: PermAction): PermState => {
-  switch (action.type) {
-    case 'FETCH_START':
-      return { permissions: [], loading: true, error: false };
-    case 'FETCH_SUCCESS':
-      return { permissions: action.data, loading: false, error: false };
-    case 'FETCH_ERROR':
-      return { ...state, loading: false, error: true };
-  }
-};
+//     permissions. Powered by usePersonalPermissions hook. ───
 interface PersonalPermissionsBlockProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
   cardStyle?: React.CSSProperties;
+  /**
+   * Optional pre-fetched permissions streamed from the RSC
+   * (`personalRbacPromise`). When provided, the hook seeds its state and
+   * skips the mount-effect fetch; `refresh()` still works.
+   */
+  initialData?: PersonalPermission[];
 }
 
-const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermissionsBlockProps) => {
+const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle, initialData }: PersonalPermissionsBlockProps) => {
   const c = colors;
-  const { visible, triggerRefresh } = useRefreshable();
-  const [{ permissions, loading, error }, permDispatch] = useReducer(permReducer, {
-    permissions: [], loading: true, error: false,
-  });
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [activePerm, setActivePerm] = useState<PersonalPermission | null>(null);
+  const {
+    permissions,
+    loading,
+    error,
+    refresh,
+    activePermission,
+    tooltip,
+    getTooltipHandlers,
+  } = usePersonalPermissions(initialData);
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    permDispatch({ type: 'FETCH_START' });
-
-    loadPersonalPermissions()
-      .then(r => {
-        if (cancelled) return;
-        if (r.ok) permDispatch({ type: 'FETCH_SUCCESS', data: r.data });
-        else { console.error('[PersonalPermissionsBlock] Failed:', r.error); permDispatch({ type: 'FETCH_ERROR' }); }
-      })
-      .catch(err => {
-        if (cancelled) return;
-        console.error('[PersonalPermissionsBlock] Error:', err);
-        permDispatch({ type: 'FETCH_ERROR' });
-      });
-
-    return () => { cancelled = true; };
-  }, [visible]);
-
-  if (!visible) return null;
-
-  const handlePermMouseEnter = (e: React.MouseEvent, perm: PersonalPermission) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const { left, top } = getClampedTooltipPosition({
-      left: rect.left,
-      top: rect.bottom + 4,
-      width: 288,
-      height: 120,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-    });
-    setTooltipPos({ x: left, y: top });
-    setActivePerm(perm);
-    setShowTooltip(true);
-  };
-
-  const handlePermMouseLeave = () => {
-    setShowTooltip(false);
-  };
+  const showTooltip = tooltip.visible && activePermission !== null;
 
   return (
     <>
@@ -142,7 +90,7 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
               {t.profile.personalPermissionsDesc}
             </p>
             <RefreshButton
-              onClick={triggerRefresh}
+              onClick={refresh}
               loading={loading}
               colors={colors}
               ariaLabel={t.profile.refreshPersonalPermissions}
@@ -162,59 +110,59 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {permissions.map((perm) => (
-                <div
-                  key={`${perm.resourceIndicator}:${perm.scope}`}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    background: c.bgPrimary,
-                    border: `1px solid ${c.borderColor}`,
-                    borderRadius: '0.25rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                  }}
-                >
-                  <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary, fontWeight: 600 }}>
-                    {perm.scope}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
-                      {t.profile.resourceLabel}: {perm.resourceName}
+              {permissions.map((perm) => {
+                const handlers = getTooltipHandlers(perm);
+                return (
+                  <div
+                    key={`${perm.resourceIndicator}:${perm.scope}`}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      background: c.bgPrimary,
+                      border: `1px solid ${c.borderColor}`,
+                      borderRadius: '0.25rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <span style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textPrimary, fontWeight: 600 }}>
+                      {perm.scope}
                     </span>
-                    <button
-                      type="button"
-                      onMouseEnter={(e) => handlePermMouseEnter(e, perm)}
-                      onMouseLeave={handlePermMouseLeave}
-                      onFocus={(e) => handlePermMouseEnter(e as unknown as React.MouseEvent, perm)}
-                      onBlur={handlePermMouseLeave}
-                      aria-label={`Permission details for ${perm.scope}`}
-                      style={{
-                        cursor: 'help',
-                        color: c.textTertiary,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        margin: 0,
-                      }}
-                    >
-                      <Info size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textTertiary, textAlign: 'right' }}>
+                        {t.profile.resourceLabel}: {perm.resourceName}
+                      </span>
+                      <button
+                        type="button"
+                        {...handlers}
+                        aria-label={`Permission details for ${perm.scope}`}
+                        style={{
+                          cursor: 'help',
+                          color: c.textTertiary,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          margin: 0,
+                        }}
+                      >
+                        <Info size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </Card>
-      {showTooltip && activePerm && createPortal(
+      {showTooltip && activePermission && createPortal(
         <div style={{
           position: 'fixed',
-          top: tooltipPos.y,
-          left: tooltipPos.x,
+          top: tooltip.y,
+          left: tooltip.x,
           background: c.bgSecondary,
           border: `1px solid ${c.borderColor}`,
           borderRadius: '0.25rem',
@@ -231,21 +179,21 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
           gap: '0.25rem',
         }}>
           <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
-            <span style={{ color: c.textTertiary }}>{t.profile.roleIdLabel}: </span>
-            {activePerm.scope}
+            <span style={{ color: c.textTertiary }}>Permission: </span>
+            {activePermission.scope}
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
             <span style={{ color: c.textTertiary }}>{t.profile.resourceLabel}: </span>
-            {activePerm.resourceName}
+            {activePermission.resourceName}
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
             <span style={{ color: c.textTertiary }}>Resource Indicator: </span>
-            {activePerm.resourceIndicator}
+            {activePermission.resourceIndicator}
           </div>
-          {activePerm.description && (
+          {activePermission.description && (
             <div style={{ fontFamily: FONT_MONO, fontSize: '0.5625rem', color: c.textSecondary }}>
               <span style={{ color: c.textTertiary }}>Description: </span>
-              {activePerm.description}
+              {activePermission.description}
             </div>
           )}
         </div>,
@@ -255,26 +203,76 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle }: PersonalPermis
   );
 };
 
-type RolesState = {
-  userRoles: UserRole[];
-  loading: boolean;
-  error: boolean;
-};
-type RolesAction =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_SUCCESS'; data: UserRole[] }
-  | { type: 'FETCH_ERROR' };
+// ─── PersonalRolesList — extracted from the inline roles card so it can be
+//     wrapped by `PersonalRolesStream` and seeded with the streamed roles
+//     as `initialData` (instant-fetch). The hook still handles `refresh()`
+//     and the loading/error/empty states. ───
 
-const rolesReducer = (state: RolesState, action: RolesAction): RolesState => {
-  switch (action.type) {
-    case 'FETCH_START':
-      return { userRoles: [], loading: true, error: false };
-    case 'FETCH_SUCCESS':
-      return { userRoles: action.data, loading: false, error: false };
-    case 'FETCH_ERROR':
-      return { ...state, loading: false, error: true };
-  }
+interface PersonalRolesListProps {
+  userId: string;
+  initialRoles?: UserRole[];
+  mode: 'dark' | 'light';
+  colors: ThemeColors;
+  t: Translations;
+  cardStyle?: React.CSSProperties;
+}
+
+const PersonalRolesList = ({ userId, initialRoles, mode, colors, t, cardStyle }: PersonalRolesListProps) => {
+  const c = colors;
+  const {
+    roles: userRoles,
+    loading: rolesLoading,
+    error: rolesError,
+    refresh: refreshRoles,
+  } = usePersonalRoles(userId, initialRoles);
+
+  return (
+    <Card mode={mode} colors={colors} style={cardStyle}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
+            {t.profile.rolesDescription}
+          </p>
+          <RefreshButton
+            onClick={refreshRoles}
+            loading={rolesLoading}
+            colors={colors}
+            ariaLabel={t.profile.refreshRoles}
+          />
+        </div>
+        {rolesLoading ? (
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+            <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loading} /> {t.profile.loading}
+          </div>
+        ) : rolesError ? (
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
+            {t.profile.rolesError}
+          </div>
+        ) : userRoles.length === 0 ? (
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+            {t.profile.noRoles}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {userRoles.map((role) => (
+              <RoleCard
+                key={role.id}
+                name={role.name}
+                roleId={role.id}
+                description={role.description}
+                colors={colors}
+                t={t}
+                mode={mode}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 };
+
+
 
 interface ProfileTabProps {
   userData:          UserData;
@@ -352,31 +350,10 @@ export function ProfileTab({
   const [nameVerifyError, setNameVerifyError] = useState('');
   const [nameVerifyLoading, setNameVerifyLoading] = useState(false);
 
-  const [{ userRoles, loading: rolesLoading, error: rolesError }, rolesDispatch] = useReducer(rolesReducer, {
-    userRoles: [], loading: true, error: false,
-  });
-  const [rolesRefreshKey, setRolesRefreshKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!userData.id) return;
-    rolesDispatch({ type: 'FETCH_START' });
-    loadPersonalRoles()
-      .then(r => {
-        if (cancelled) return;
-        if (r.ok) rolesDispatch({ type: 'FETCH_SUCCESS', data: r.data });
-        else {
-          console.error('[ProfileTab] Failed to load roles:', r.error);
-          rolesDispatch({ type: 'FETCH_ERROR' });
-        }
-      })
-      .catch(err => {
-        if (cancelled) return;
-        console.error('[ProfileTab] Error loading roles:', err);
-        rolesDispatch({ type: 'FETCH_ERROR' });
-      });
-    return () => { cancelled = true; };
-  }, [userData.id, rolesRefreshKey]);
+  // Note: `usePersonalRoles` is NOT called at the top of `ProfileTab` anymore.
+  // It now lives inside `PersonalRolesList` (extracted), which is wrapped by
+  // `<PersonalRolesStream>` so the streamed `personalRbacPromise` seeds the
+  // hook's `initialData` and skips the mount-effect fetch (instant-fetch).
 
   const handleSaveName = useCallback(async (verificationRecordId?: string) => {
     setNameLoading(true);
@@ -1303,50 +1280,66 @@ export function ProfileTab({
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', flex: 1, minHeight: 0, marginBottom: '40px' }}>
-        <Card mode={mode} colors={colors} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
-                {t.profile.rolesDescription}
-              </p>
-              <RefreshButton
-                onClick={() => setRolesRefreshKey(k => k + 1)}
-                loading={rolesLoading}
-                colors={colors}
-                ariaLabel={t.profile.refreshRoles}
-              />
-            </div>
-            {rolesLoading ? (
+        {/* Personal roles — streamed via `personalRbacPromise` (instant-fetch).
+            The <Suspense> boundary shows a BouncingDots fallback while the
+            streamed promise is pending; once resolved, the roles seed
+            `usePersonalRoles`'s `initialData` and the mount-fetch is skipped. */}
+        <Suspense fallback={(
+          <Card mode={mode} colors={colors}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
+                  {t.profile.rolesDescription}
+                </p>
+              </div>
               <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
                 <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loading} /> {t.profile.loading}
               </div>
-            ) : rolesError ? (
-              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
-                {t.profile.rolesError}
-              </div>
-            ) : userRoles.length === 0 ? (
-              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
-                {t.profile.noRoles}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {userRoles.map((role) => (
-                  <RoleCard
-                    key={role.id}
-                    name={role.name}
-                    roleId={role.id}
-                    description={role.description}
-                    colors={colors}
-                    t={t}
-                    mode={mode}
-                  />
-                ))}
-              </div>
+            </div>
+          </Card>
+        )}>
+          <PersonalRolesStream
+            render={(initialRoles) => (
+              <PersonalRolesList
+                userId={userData.id}
+                initialRoles={initialRoles}
+                mode={mode}
+                colors={colors}
+                t={t}
+                cardStyle={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}
+              />
             )}
-          </div>
-        </Card>
+          />
+        </Suspense>
 
-        <PersonalPermissionsBlock mode={mode} colors={colors} t={t} cardStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 0 }} />
+        {/* Personal permissions — same streamed promise (instant-fetch).
+            The hook skips the mount-fetch when `initialData` is provided. */}
+        <Suspense fallback={(
+          <Card mode={mode} colors={colors}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
+                  {t.profile.personalPermissionsDesc}
+                </p>
+              </div>
+              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
+                <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loadingPermissions} /> {t.profile.loadingPermissions}
+              </div>
+            </div>
+          </Card>
+        )}>
+          <PersonalPermissionsStream
+            render={(initialPerms) => (
+              <PersonalPermissionsBlock
+                mode={mode}
+                colors={colors}
+                t={t}
+                initialData={initialPerms}
+                cardStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 0 }}
+              />
+            )}
+          />
+        </Suspense>
       </div>
 
     </div>

@@ -1,20 +1,40 @@
 'use client';
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState, useRef } from 'react';
 import type { OrgRoleScope } from '../logic/types';
 import { loadOrganizationPermissions, loadOrgPermissionDescriptions } from '../server-actions';
 import { useRefreshable } from './use-refreshable';
+import { useTooltipTrigger } from './use-tooltip-trigger';
+import type { TooltipHandlers } from './use-tooltip-trigger';
+import { clientLog } from '../logic/client-logger';
 
 export interface UseOrgPermissionsOptions {
   orgId: string | null | undefined;
+  /**
+   * Optional pre-fetched org permissions + descriptions (from the streamed
+   * `orgRbacPromise`). When provided, the hook seeds its state and skips
+   * BOTH the grant (`loadOrganizationPermissions`) AND the M2M
+   * descriptions fetch (`loadOrgPermissionDescriptions`) on mount. On
+   * `refresh()` (`triggerRefresh`), both run — the grant (refresh-token
+   * rotation, BUG-L01) runs ONLY here, not on every mount — a security
+   * improvement (fewer token rotations).
+   */
+  initialData?: { permissions: string[]; descriptions: Map<string, OrgRoleScope> };
 }
 
 export interface UseOrgPermissionsReturn {
   permissions: string[];
   descriptions: Map<string, OrgRoleScope>;
-  isLoading: boolean;
+  loading: boolean;
   error: string | null;
+  visible: boolean;
   refresh: () => void;
+  /** The currently hovered/focused permission for the tooltip. null when no tooltip is active. */
+  activePermission: string | null;
+  /** Tooltip position and visibility state */
+  tooltip: { visible: boolean; x: number; y: number };
+  /** Returns tooltip event handlers bound to a specific permission string. */
+  getTooltipHandlers: (permission: string) => TooltipHandlers;
 }
 
 type PermsState = {
@@ -50,12 +70,32 @@ function permsReducer(state: PermsState, action: PermsAction): PermsState {
   }
 }
 
-export function useOrgPermissions({ orgId }: UseOrgPermissionsOptions): UseOrgPermissionsReturn {
+export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptions): UseOrgPermissionsReturn {
   const { visible, triggerRefresh } = useRefreshable();
-  const [state, dispatch] = useReducer(permsReducer, initialState);
+  const [state, dispatch] = useReducer(permsReducer, initialData
+    ? {
+        loading: false,
+        permissions: initialData.permissions,
+        descriptions: initialData.descriptions,
+        error: null,
+      }
+    : initialState);
+  const { tooltip, handlers: baseHandlers } = useTooltipTrigger({ width: 288, height: 88 });
+  const [activePermission, setActivePermission] = useState<string | null>(null);
+
+  // When `initialData` seeded the state on first render, skip the first
+  // effect run so we don't immediately re-fetch (and don't rotate the
+  // refresh token) — the streamed data is already in state. The ref is
+  // consumed on the first run; subsequent runs (orgId/visible changes,
+  // including `refresh()` → visible toggle) fetch via the normal path.
+  const hasInitialDataRef = useRef(!!initialData);
 
   useEffect(() => {
     if (!visible || !orgId) return;
+    if (hasInitialDataRef.current) {
+      hasInitialDataRef.current = false;
+      return;
+    }
     let cancelled = false;
     dispatch({ type: 'fetchStart' });
 
@@ -67,7 +107,7 @@ export function useOrgPermissions({ orgId }: UseOrgPermissionsOptions): UseOrgPe
         return r;
       })
       .catch(err => {
-        if (!cancelled) console.error('[useOrgPermissions] permissions failed:', err);
+        if (!cancelled) clientLog.error('useOrgPermissions', 'permissions failed:', err);
         return null;
       });
 
@@ -87,7 +127,7 @@ export function useOrgPermissions({ orgId }: UseOrgPermissionsOptions): UseOrgPe
       })
       .catch(err => {
         if (!cancelled) {
-          console.error('[useOrgPermissions] descriptions failed:', err);
+          clientLog.error('useOrgPermissions', 'descriptions failed:', err);
           dispatch({ type: 'fetchDescriptionsError' });
         }
         return null;
@@ -109,11 +149,34 @@ export function useOrgPermissions({ orgId }: UseOrgPermissionsOptions): UseOrgPe
     return () => { cancelled = true; };
   }, [orgId, visible]);
 
+  const getTooltipHandlers = (permission: string): TooltipHandlers => ({
+    onMouseEnter: (e) => {
+      setActivePermission(permission);
+      baseHandlers.onMouseEnter(e);
+    },
+    onMouseLeave: () => {
+      setActivePermission(null);
+      baseHandlers.onMouseLeave();
+    },
+    onFocus: (e) => {
+      setActivePermission(permission);
+      baseHandlers.onFocus(e);
+    },
+    onBlur: () => {
+      setActivePermission(null);
+      baseHandlers.onBlur();
+    },
+  });
+
   return {
     permissions: state.permissions,
     descriptions: state.descriptions,
-    isLoading: state.loading,
+    loading: state.loading,
     error: state.error,
+    visible,
     refresh: triggerRefresh,
+    activePermission,
+    tooltip,
+    getTooltipHandlers,
   };
 }
