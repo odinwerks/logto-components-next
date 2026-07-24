@@ -8,6 +8,9 @@ import { Button } from '../../shared/Button';
 import { readEnv } from '../../../logic/env';
 import { signOutUser } from '../../../logic/actions/auth';
 import { useFocusTrap } from './focus-trap';
+import { clientLog } from '../../../logic/client-logger';
+import { useToast } from '../../providers/toast-provider';
+import { useScrollLock } from '../../../hooks/use-scroll-lock';
 
 interface SignOutModalProps {
   isOpen: boolean;
@@ -16,7 +19,6 @@ interface SignOutModalProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
-  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 // ── SignOutConfirm (Stage 1: countdown confirmation) ─────────────────────────
@@ -45,9 +47,9 @@ function SignOutConfirm({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onAbort);
+  useScrollLock();
 
-  const bodyText = t.signout.bodyCountdown.replace('{n}', String(countdown));
-  const parts = bodyText.split(String(countdown));
+  const [before, after] = t.signout.bodyCountdown.split('{n}');
 
   return (
     <motion.div
@@ -107,9 +109,11 @@ function SignOutConfirm({
                 margin: 0,
               }}
             >
-              {parts[0]}
-              <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
-              {parts[1] || ''}
+              <span aria-live="polite">
+                {before}
+                <strong style={{ fontSize: '1.125rem', fontWeight: 700 }}>{countdown}</strong>
+                {after}
+              </span>
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
               <Button variant="secondary" onClick={onCancel} mode={mode} colors={colors}>
@@ -138,6 +142,7 @@ function SignOutFarewell({
 }) {
   const farewellRef = useRef<HTMLDivElement>(null);
   useFocusTrap(farewellRef, () => { /* farewell overlay: Escape is a no-op while sign-out is in progress */ });
+  useScrollLock();
 
   return (
     <motion.div
@@ -187,11 +192,20 @@ export function SignOutModal({
   mode,
   colors,
   t,
-  showToast,
 }: SignOutModalProps) {
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [showFarewell, setShowFarewell] = useState(false);
   const prevIsOpenRef = useRef(isOpen);
+  const { showToast } = useToast();
+
+  // Transition to farewell when countdown reaches zero.
+  // Separated from the interval effect to avoid calling setState alongside another
+  // setState updater (BUG-080).
+  useEffect(() => {
+    if (isOpen && !showFarewell && countdown <= 0) {
+      setShowFarewell(true);
+    }
+  }, [countdown, isOpen, showFarewell]);
 
   useEffect(() => {
     // Reset state when transitioning from open to closed (not on initial render)
@@ -211,10 +225,8 @@ export function SignOutModal({
         try {
           await signOutUser();
         } catch (err) {
-          console.error('[SignOutModal] signOutUser failed:', err);
-          if (showToast) {
-            showToast('error', t.dashboard.signOutFailed);
-          }
+          clientLog.error('SignOutModal', 'signOutUser failed:', err);
+          showToast('error', t.dashboard.signOutFailed);
           setShowFarewell(false);
           setCountdown(countdownSeconds);
           onAbort();
@@ -224,11 +236,7 @@ export function SignOutModal({
     }
     if (countdown <= 0) return;
     const timer = setInterval(() => {
-      setCountdown((c) => {
-        const next = c - 1;
-        if (next <= 0) setShowFarewell(true);
-        return next;
-      });
+      setCountdown((c) => c - 1);
     }, 1000);
     return () => clearInterval(timer);
   // countdown intentionally omitted: functional updater form `c => c - 1` captures no

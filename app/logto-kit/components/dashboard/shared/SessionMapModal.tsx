@@ -17,6 +17,7 @@ interface SessionMapModalProps {
 }
 
 import { useFocusTrap } from './focus-trap';
+import { useScrollLock } from '../../../hooks/use-scroll-lock';
 
 export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMapModalProps) {
   const c = colors;
@@ -33,6 +34,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useFocusTrap(dialogRef, onClose);
+  useScrollLock();
 
   // Focus the close button on mount (supplements the focus trap's initial focus)
   useEffect(() => {
@@ -74,7 +76,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
         background: 'rgba(0,0,0,0.65)',
         backdropFilter: 'blur(0.375rem) saturate(0.6)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         padding: '1rem',
         overflowY: 'auto',
@@ -86,9 +88,11 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
         aria-modal="true"
         aria-labelledby={titleId}
         ref={dialogRef}
+        tabIndex={-1}
         style={{
           width: '100%',
           maxWidth: '26rem',
+          margin: 'auto',
           background: c.bgSecondary,
           border: `1px solid ${c.borderColor}`,
           borderRadius: '0',
@@ -123,6 +127,7 @@ export function SessionMapModal({ geo, ip, mode, colors, t, onClose }: SessionMa
             <div style={{ minWidth: 0 }}>
               <p
                 id={titleId}
+                title={locationLabel}
                 style={{
                 fontFamily: "'DM Sans', system-ui, sans-serif",
                 fontWeight: 600,

@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useRef, useId } from 'react';
+import { useCallback, useRef, useId, useState } from 'react';
 import { signInUser } from '@/app/logto-kit/logic/actions/auth';
 import { Button } from '@/app/logto-kit/components/shared/Button';
 import { Overlay } from '@/app/logto-kit/components/dashboard/shared/FlowModal';
+import { BouncingDots } from '@/app/logto-kit/components/shared/motion';
 import { useLogto } from '@/app/logto-kit/components/providers/logto-provider';
 import { useThemeMode, useLangMode } from '@/app/logto-kit/components/providers/preferences';
 import { getTranslations } from '@/app/logto-kit/locales';
 import type { LocaleCode } from '@/app/logto-kit/locales';
+import { AVAILABLE_LOCALES } from '@/app/logto-kit/logic/i18n';
 import { useFocusTrap } from '@/app/logto-kit/components/dashboard/shared/focus-trap';
+import { useScrollLock } from '@/app/logto-kit/hooks/use-scroll-lock';
 import { LogIn } from 'lucide-react';
 
 export interface AuthPromptModalProps {
@@ -21,15 +24,20 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
   const { closeDashboard } = useLogto();
   const { mode: themeMode, colors } = useThemeMode();
   const { lang } = useLangMode();
-  const t = getTranslations((lang in { 'en-US': true, 'ka-GE': true, 'uk-UA': true } ? lang : 'en-US') as LocaleCode);
+  const t = getTranslations((AVAILABLE_LOCALES as readonly string[]).includes(lang) ? (lang as LocaleCode) : 'en-US');
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const [pending, setPending] = useState(false);
 
   useFocusTrap(dialogRef, closeDashboard);
+  useScrollLock();
 
   const handleSignIn = useCallback(() => {
-    void signInUser(routeTo);
+    setPending(true);
+    signInUser(routeTo).catch(() => {
+      setPending(false);
+    });
   }, [routeTo]);
 
   const font = "'DM Sans', system-ui, sans-serif";
@@ -105,10 +113,16 @@ export function AuthPromptModal({ routeTo, mode: authMode }: AuthPromptModalProp
             aria-label={t.auth.ariaSignIn}
             variant="primary"
             onClick={handleSignIn}
+            disabled={pending}
             mode={themeMode}
             colors={colors}
           >
-            {t.auth.signIn} <LogIn size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+            {t.auth.signIn}{' '}
+            {pending ? (
+              <BouncingDots size={5} gap={3} color={colors.contrastText} ariaLabel="" />
+            ) : (
+              <LogIn size={'0.75rem'} color={colors.contrastText} strokeWidth={1.5} />
+            )}
           </Button>
         </div>
       </div>
