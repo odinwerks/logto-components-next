@@ -90,9 +90,10 @@ export function Input({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          pointerEvents: 'none',
         }}
       >
-        {suffix}
+        <div style={{ pointerEvents: 'auto' }}>{suffix}</div>
       </div>
     </div>
   );
