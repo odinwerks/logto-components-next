@@ -12,6 +12,7 @@ import { AnimatePresence, BouncingDots } from '../../shared/motion';
 import { Card, HR, IconBox, SL } from '../shared/ContactRow';
 import { captureMessage } from '../../../logic/capture-message';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
+import { useAsyncGuard } from '../../../hooks/use-async-guard';
 
 interface SecurityTabProps {
   userData: UserData;
@@ -54,10 +55,10 @@ export function SecurityTab({
   const c = colors;
   const isMobile = mobmode === 1;
   const isDark = mode === 'dark';
-  // Cyberpunk red palette for the mobile delete-account icon button (M6).
-  const cyberFill   = isDark ? '#7f1d1d' : '#fecaca';  // darker red fill
-  const cyberBorder = isDark ? '#ef4444' : '#dc2626';  // lighter red outline
-  const cyberIcon   = isDark ? '#fca5a5' : '#dc2626';  // bright red icon
+  // Theme-sourced palette for the mobile delete-account icon button (M6).
+  const cyberFill   = c.errorBg;
+  const cyberBorder = c.accentRed;
+  const cyberIcon   = c.accentRed;
   const T = {
     font: "'DM Sans', system-ui, sans-serif",
     mono: "'IBM Plex Mono', 'Courier New', monospace",
@@ -95,14 +96,18 @@ export function SecurityTab({
   // ── MFA list ──
   const [mfaList, setMfaList] = useState<MfaVerification[]>([]);
   const [mfaLoading, setMfaLoading] = useState(false);
+  // BUG-074: generation counter to ignore stale MFA list fetches
+  const { capture: captureMfaGen, isStale: isMfaStale } = useAsyncGuard();
 
   const loadMfaFn = useCallback(async () => {
+    const gen = captureMfaGen();
     setMfaLoading(true);
     const r = await onGetMfaVerifications();
+    if (isMfaStale(gen)) return;
     if (!r.ok) { onError(r.error); setMfaList([]); setMfaLoading(false); return; }
     setMfaList(r.data);
     setMfaLoading(false);
-  }, [onGetMfaVerifications, onError]);
+  }, [onGetMfaVerifications, onError, captureMfaGen, isMfaStale]);
 
   const loadMfaRef = useRef(loadMfaFn);
   useEffect(() => {
@@ -141,7 +146,7 @@ export function SecurityTab({
     setTotpPwErr('');
     setTotpLoading(true);
     if (totpMode === 'remove') {
-      if (!totpFactor) return;
+      if (!totpFactor) { setTotpLoading(false); return; }
       const identityResult = await onVerifyPassword(pw);
       if (totpGenRef.current !== totpGen) return;
       if (!identityResult.ok) { setTotpPwErr(identityResult.error); setTotpLoading(false); return; }
@@ -943,7 +948,7 @@ export function SecurityTab({
                     <Key size={'0.9375rem'} color={T.blueText} strokeWidth={1.5} />
                   </IconBox>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p title={passkey.name || t.mfa.passkey} style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {passkey.name || t.mfa.passkey}
                     </p>
                     <p style={{ fontFamily: T.mono, fontSize: '0.625rem', color: T.muted }}>
