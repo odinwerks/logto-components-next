@@ -92,6 +92,41 @@ vi.mock('../../config', () => ({
   }),
 }));
 
+// BUG-010: profile.ts now imports requireVerifiedIdentity for the username-
+// change path. Mock the verification cookie module (mirrors webauthn/account/
+// sessions/mfa/password test files) to avoid next/headers runtime in tests.
+vi.mock('./verification-cookie', () => ({
+  requireVerifiedIdentity: vi.fn().mockResolvedValue(undefined),
+  sealVerificationCookie: vi.fn().mockResolvedValue(undefined),
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
+// BUG-063: spy on auditSafe to assert avatar URL updates are audited.
+// profile.ts only imports auditSafe from ./helpers (createLockManager comes
+// from ../../../lib/distributed-state, which stays real so lock tests work).
+vi.mock('./helpers', () => ({
+  auditSafe: vi.fn(),
+  assertVerificationNotExpired: vi.fn(),
+  createLockManager: vi.fn(),
+}));
+
+// BUG-063: spy on logEvent to assert structured events are emitted.
+vi.mock('../log', () => ({
+  warn: vi.fn(),
+  log: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  logEvent: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+    raw: {},
+  },
+}));
+
 // ============================================================================
 // Imports of mocked modules
 // ============================================================================
@@ -101,6 +136,10 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
+import { requireVerifiedIdentity } from './verification-cookie';
+import { auditSafe } from './helpers';
+import { logEvent } from '../log';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 // ============================================================================
 // Helpers
@@ -681,7 +720,7 @@ describe('updateAvatarUrl', () => {
 });
 
 // ============================================================================
-// updateUserProfile — BUG-M-008: empty string filtering
+// updateUserProfile — BUG-H01: empty strings forwarded as "clear" sentinel
 // ============================================================================
 
 describe('updateUserProfile', () => {
@@ -691,21 +730,38 @@ describe('updateUserProfile', () => {
     vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
   });
 
-  it('does not send PATCH when all profile fields are empty strings', async () => {
+  // BUG-H01: empty strings are a valid "clear" sentinel for Logto's Account
+  // API and MUST be forwarded (not stripped). The previous filter dropped `''`,
+  // so clearing both name fields returned { ok: true } without calling Logto.
+  it('forwards empty strings to PATCH so Logto can clear givenName/familyName', async () => {
     const { updateUserProfile } = await import('./profile');
     const { makeRequest } = await import('./request');
+
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve('{}'),
+      statusText: 'OK',
+    } as unknown as Response);
 
     const result = await updateUserProfile({ givenName: '', familyName: '' });
 
     expect(result).toEqual({ ok: true });
-    expect(makeRequest).not.toHaveBeenCalled();
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/profile',
+      expect.objectContaining({ body: { givenName: '', familyName: '' } }),
+    );
   });
 
-  it('filters empty strings from PATCH body', async () => {
+  // BUG-H01: an empty string alongside a non-empty value must BOTH be
+  // forwarded so the server can set one field and clear the other. The
+  // previous filter stripped the empty string, silently dropping the clear.
+  it('forwards an empty string alongside a non-empty value', async () => {
     const { updateUserProfile } = await import('./profile');
     const { makeRequest } = await import('./request');
 
-    // makeRequest is mocked via vi.mock('./request') at top of file
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
       status: 200,
@@ -718,11 +774,11 @@ describe('updateUserProfile', () => {
 
     expect(makeRequest).toHaveBeenCalledWith(
       '/api/my-account/profile',
-      expect.objectContaining({ body: { givenName: 'Alice' } }),
+      expect.objectContaining({ body: { givenName: 'Alice', familyName: '' } }),
     );
-    // familyName: '' must NOT appear in the body
+    // familyName: '' MUST appear in the body (it is a clear, not an omit)
     const callBody = vi.mocked(makeRequest).mock.calls[0][1]?.body as Record<string, unknown>;
-    expect(callBody).not.toHaveProperty('familyName');
+    expect(callBody).toHaveProperty('familyName', '');
   });
 
   it('returns early without PATCH when both fields undefined', async () => {
@@ -753,5 +809,109 @@ describe('updateUserProfile', () => {
       '/api/my-account/profile',
       expect.objectContaining({ body: { givenName: 'Alice', familyName: 'Smith' } }),
     );
+  });
+});
+
+// ============================================================================
+// updateUserBasicInfo — BUG-H01: empty-string forwarding for name/username
+// ============================================================================
+
+describe('updateUserBasicInfo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+    vi.mocked(requireVerifiedIdentity).mockResolvedValue(undefined);
+  });
+
+  it('forwards name: "" to patchMyAccount so Logto can clear the name', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({ name: '' });
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledTimes(1);
+    expect(patchMyAccount).toHaveBeenCalledWith({ name: '' }, 'Basic info update failed', undefined);
+  });
+
+  it('forwards username: "" to patchMyAccount so Logto can clear the username', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    // username changes require the logto-verification-id header
+    const result = await updateUserBasicInfo({ username: '' }, 'verification-record-id');
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledTimes(1);
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { username: '' },
+      'Basic info update failed',
+      { 'logto-verification-id': 'verification-record-id' },
+    );
+  });
+
+  it('forwards both name and username when both are provided', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo(
+      { name: 'Alice', username: 'alice1' },
+      'verification-record-id',
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { name: 'Alice', username: 'alice1' },
+      'Basic info update failed',
+      { 'logto-verification-id': 'verification-record-id' },
+    );
+  });
+
+  it('returns early without PATCH when all fields are undefined', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({});
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).not.toHaveBeenCalled();
+  });
+
+  // BUG-H01: avatar is NOT in the "accepts '' as clear" list — clearing the
+  // avatar uses `null` via the dedicated updateAvatarUrl path. An empty avatar
+  // string must still be stripped to avoid an unintended write.
+  it('strips an empty avatar string (clearing uses null via updateAvatarUrl)', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({ avatar: '' });
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).not.toHaveBeenCalled();
+  });
+
+  it('forwards name: "" alongside a real avatar URL', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({ name: '', avatar: 'https://cdn.example.com/a.png' });
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { name: '', avatar: 'https://cdn.example.com/a.png' },
+      'Basic info update failed',
+      undefined,
+    );
+  });
+
+  it('requires a verification record id when username is changed', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({ username: 'newname' });
+
+    expect(result.ok).toBe(false);
+    expect(patchMyAccount).not.toHaveBeenCalled();
   });
 });

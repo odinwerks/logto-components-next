@@ -13,7 +13,10 @@ import {
 import { safeAction, type ActionResult } from './safe';
 import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
-import { warn } from '../log';
+import { warn, logEvent } from '../log';
+import { auditSafe } from './helpers';
+import { requireVerifiedIdentity } from './verification-cookie';
+import { LOG_EVENTS } from '../../../lib/log-events';
 import { createLockManager } from '../../../lib/distributed-state';
 import { getTokenForServerAction } from './tokens';
 
@@ -33,23 +36,54 @@ export async function updateUserBasicInfo(
     assertUsername(updates.username);
     assertHttpUrl(updates.avatar, 'avatar');
 
-    // MCP-001c: Logto requires the `logto-verification-id` header for username
-    // changes (PATCH /api/my-account with a `username` field). If username is
-    // in the updates but no identityVerificationRecordId is provided, the
-    // change cannot proceed — reject before reaching the API.
+    // MCP-001c / BUG-010: Logto requires the `logto-verification-id` header
+    // for username changes (PATCH /api/my-account with a `username` field).
+    // Mirror the webauthn.ts:72-78 two-step defense: require the record ID,
+    // format-validate it via assertSafeLogtoId, then read the server-sealed
+    // verification cookie (HMAC-bound + staleness-checked) via
+    // requireVerifiedIdentity. profile.ts was the sole outlier skipping this
+    // check — now aligned with all other verification-gated action files
+    // (webauthn, mfa, password, account, sessions).
     const hasUsernameUpdate = updates.username !== undefined;
-    if (hasUsernameUpdate && !identityVerificationRecordId) {
-      throw plainCode('VERIFICATION_REQUIRED');
+    if (hasUsernameUpdate) {
+      if (!identityVerificationRecordId) {
+        throw plainCode('VERIFICATION_REQUIRED');
+      }
+      assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
+      await requireVerifiedIdentity(identityVerificationRecordId);
     }
 
+    // BUG-001: Explicitly pick only the three declared keys before filtering.
+    // The previous value-only filter (`Object.entries(updates).filter(...)`)
+    // let clients inject arbitrary keys (e.g. `customData`) that flowed
+    // straight to PATCH /api/my-account, full-replacing customData and
+    // bypassing pickPreferences(). Picking declared keys closes the hole.
+    //
+    // BUG-H01: `''` is a valid "clear" sentinel for name/username on Logto's
+    // Account API — it MUST flow through to PATCH /api/my-account so that
+    // clearing a name field actually persists. The previous filter also
+    // dropped `''`, so a clear returned { ok: true } without ever calling
+    // Logto. Only `undefined` (field omitted by the caller) is dropped now.
+    // Avatar is the exception: clearing the avatar uses `null` via the
+    // dedicated `updateAvatarUrl` path, so an empty avatar string is still
+    // stripped to avoid an unintended write.
     const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, v]) => v !== undefined && v !== '')
+      Object.entries({
+        name: updates.name,
+        username: updates.username,
+        avatar: updates.avatar,
+      }).filter(([k, v]) => v !== undefined && !(k === 'avatar' && v === ''))
     );
     if (Object.keys(cleanUpdates).length === 0) return;
     const extraHeaders = hasUsernameUpdate && identityVerificationRecordId
       ? { 'logto-verification-id': identityVerificationRecordId }
       : undefined;
     await patchMyAccount(cleanUpdates, 'Basic info update failed', extraHeaders);
+
+    // Audit + structured log (after upstream success).
+    const userId = introspection.sub;
+    auditSafe(userId, 'basic_info.update', undefined, { fields: Object.keys(cleanUpdates) });
+    logEvent.info(LOG_EVENTS.USER_PROFILE_UPDATE, 'Basic info updated', { fields: Object.keys(cleanUpdates) });
   });
 }
 
@@ -68,8 +102,23 @@ export async function updateUserProfile(profile: {
     assertNameField(profile.givenName, 'givenName');
     assertNameField(profile.familyName, 'familyName');
 
+    // BUG-009: Explicitly pick only the two declared keys before filtering.
+    // The previous value-only filter (`Object.entries(profile).filter(...)`)
+    // let clients inject arbitrary keys (e.g. `profilePicture:
+    // 'javascript:alert(1)'`) that flowed straight to
+    // PATCH /api/my-account/profile. Picking declared keys closes the hole.
+    //
+    // BUG-H01: `''` is a valid "clear" sentinel for givenName/familyName on
+    // Logto's Account API — it MUST flow through to PATCH
+    // /api/my-account/profile so that clearing a name field actually
+    // persists. The previous filter also dropped `''`, so a clear returned
+    // { ok: true } without ever calling Logto. Only `undefined` (field
+    // omitted by the caller) is dropped now.
     const cleanProfile = Object.fromEntries(
-      Object.entries(profile).filter(([_, v]) => v !== undefined && v !== '')
+      Object.entries({
+        givenName: profile.givenName,
+        familyName: profile.familyName,
+      }).filter(([, v]) => v !== undefined)
     );
     if (Object.keys(cleanProfile).length === 0) return;
 
@@ -78,6 +127,11 @@ export async function updateUserProfile(profile: {
       body: cleanProfile,
     });
     await throwOnApiError(res, 'UPDATE_FAILED', 'profile-update', true);
+
+    // Audit + structured log (after upstream success).
+    const userId = introspection.sub;
+    auditSafe(userId, 'profile.update', undefined, { fields: Object.keys(cleanProfile) });
+    logEvent.info(LOG_EVENTS.USER_PROFILE_UPDATE, 'Profile updated', { fields: Object.keys(cleanProfile) });
   });
 }
 
@@ -175,6 +229,10 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
         warn(`[updateUserCustomData] Management API PATCH failed ${patchRes.status}: ${errBody.substring(0, 200)}`);
         throw plainCode('UPDATE_FAILED');
       }
+
+      // Audit + structured log (after successful PATCH, before releaseLock).
+      auditSafe(userId, 'custom_data.update', userId, { keys: Object.keys(safePrefs) });
+      logEvent.info(LOG_EVENTS.USER_CUSTOM_DATA_UPDATE, 'Custom data updated', { keys: Object.keys(safePrefs) });
     } finally {
       await releaseLock();
     }
@@ -189,8 +247,16 @@ export async function updateAvatarUrl(avatarUrl: string): Promise<ActionResult> 
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
+    const userId = introspection.sub;
 
     if (avatarUrl) assertHttpUrl(avatarUrl, 'avatar');
     await patchMyAccount({ avatar: avatarUrl || null }, 'Avatar update failed');
+
+    // BUG-063: Audit + structured log after success. This was the only
+    // profile-modifying action that omitted auditSafe()/logEvent, leaving
+    // avatar URL changes unaudited. `userId` is derived from introspection.sub
+    // (IDOR-safe); `cleared` flags a null/empty avatar (removal vs. update).
+    auditSafe(userId, 'avatar.url_update', userId, { cleared: !avatarUrl });
+    logEvent.info(LOG_EVENTS.USER_PROFILE_UPDATE, 'Avatar URL updated', { cleared: !avatarUrl });
   });
 }
