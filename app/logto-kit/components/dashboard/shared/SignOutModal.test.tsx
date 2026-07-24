@@ -28,6 +28,18 @@ vi.mock('./focus-trap', () => ({
 }));
 import { useFocusTrap } from './focus-trap';
 
+// Mock unified toast context
+const mockShowToast = vi.fn();
+vi.mock('../../providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: mockShowToast,
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 // Mock translations object with the new signout section
 const mockT = {
   common: {
@@ -166,8 +178,10 @@ describe('SignOutModal', () => {
     // Verify inline style for countdown number (new spec: 1.125rem, 700)
     expect(strong.getAttribute('style')).toContain('font-size: 1.125rem');
     expect(strong.getAttribute('style')).toContain('font-weight: 700');
-    // Verify parent <p> has bold label text (0.875rem, 600)
-    const parentP = strong.parentElement;
+    // Verify parent <span aria-live> then grandparent <p> has bold label text (0.875rem, 600)
+    const liveSpan = strong.parentElement;
+    expect(liveSpan?.getAttribute('aria-live')).toBe('polite');
+    const parentP = liveSpan?.parentElement;
     expect(parentP?.getAttribute('style')).toContain('font-size: 0.875rem');
     expect(parentP?.getAttribute('style')).toContain('font-weight: 600');
   });
@@ -189,16 +203,57 @@ describe('SignOutModal', () => {
     expect(dialog).toHaveAttribute('aria-labelledby', 'signout-modal-title');
     expect(dialog).toHaveAttribute('aria-describedby', 'signout-modal-desc');
     expect(screen.getByText('Leaving already?')).toHaveAttribute('id', 'signout-modal-title');
-    expect(screen.getByText(/You'll be signed out in/)).toHaveAttribute('id', 'signout-modal-desc');
+    expect(screen.getByText(/You'll be signed out in/).closest('[id="signout-modal-desc"]')).toHaveAttribute('id', 'signout-modal-desc');
+  });
+
+  // BUG-081: countdown body text must handle {n} template interpolation for any locale
+  it('renders countdown body correctly with different locale placeholder positions', () => {
+    // Georgian-style: number at the start, suffix after space
+    const georgianT = {
+      ...mockT,
+      signout: {
+        ...mockT.signout,
+        bodyCountdown: '{n} წამში',
+      },
+    } as unknown as Translations;
+
+    render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={7} mode="dark" colors={mockColors} t={georgianT} />);
+    const strong = screen.getByText('7');
+    expect(strong.tagName).toBe('STRONG');
+    // The suffix text should appear in the paragraph
+    expect(strong.parentElement?.textContent).toContain('წამში');
+  });
+
+  // BUG-080: countdown-to-farewell transition uses separate useEffect, not inline setState
+  it('transitions to farewell via useEffect when countdown reaches zero', async () => {
+    vi.useFakeTimers();
+
+    render(<SignOutModal isOpen={true} onAbort={vi.fn()} countdownSeconds={1} mode="dark" colors={mockColors} t={mockT} />);
+
+    // Advance past the single countdown tick
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // Flush the useEffect that transitions to farewell when countdown <= 0
+    // (requires an extra act to process the effect-triggered setState)
+    await act(async () => {
+      // microtask flush
+    });
+
+    expect(screen.getByText('See you later!')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('calls showToast and onAbort on signOutUser failure', async () => {
     vi.useFakeTimers();
-    const mockShowToast = vi.fn();
     const onAbort = vi.fn();
     
     // Mock failure
     vi.mocked(signOutUser).mockRejectedValueOnce(new Error('Sign out failed'));
+
+    // Reset the mock before this test
+    mockShowToast.mockClear();
 
     render(
       <SignOutModal
@@ -207,7 +262,6 @@ describe('SignOutModal', () => {
         mode="dark"
         colors={mockColors}
         t={mockT}
-        showToast={mockShowToast}
       />
     );
 
