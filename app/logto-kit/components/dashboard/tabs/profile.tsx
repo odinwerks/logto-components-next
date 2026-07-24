@@ -490,6 +490,15 @@ export function ProfileTab({
 
   useEffect(() => { cropPreviewUrlRef.current = cropPreviewUrl; }, [cropPreviewUrl]);
 
+  // BUG-024: Revoke any outstanding object URL when the component unmounts to
+  // prevent leaking the blob URL (and its underlying File/Blob memory).
+  useEffect(() => () => {
+    if (cropPreviewUrlRef.current) {
+      URL.revokeObjectURL(cropPreviewUrlRef.current);
+      cropPreviewUrlRef.current = null;
+    }
+  }, []);
+
   /**
    * Sync server data to local form state.
    *
@@ -532,6 +541,7 @@ export function ProfileTab({
       setAvatarModalOpen(false);
       if (cropPreviewUrlRef.current) {
         URL.revokeObjectURL(cropPreviewUrlRef.current);
+        cropPreviewUrlRef.current = null;
       }
       setCropPreviewUrl(null);
       setSelectedFile(null);
@@ -603,13 +613,16 @@ export function ProfileTab({
   const handleCloseModal = useCallback(() => {
     // BUG-035: prevent closing during upload — otherwise success toast fires after user "cancelled"
     if (isUploading) return;
-    if (cropPreviewUrl) {
-      URL.revokeObjectURL(cropPreviewUrl);
+    // Use the ref (not the state) so a stale closure can't double-revoke an
+    // already-revoked URL. Nulling the ref acts as the "already revoked" flag.
+    if (cropPreviewUrlRef.current) {
+      URL.revokeObjectURL(cropPreviewUrlRef.current);
+      cropPreviewUrlRef.current = null;
     }
     setCropPreviewUrl(null);
     setSelectedFile(null);
     setAvatarModalOpen(false);
-  }, [cropPreviewUrl, isUploading]);
+  }, [isUploading]);
 
   // Focus management: mount focus & focus restoration
   useEffect(() => {
@@ -641,7 +654,7 @@ export function ProfileTab({
       {avatarModalOpen && (
         <AvatarModalWrapper key="avatar-modal" onClose={() => { if (!isUploading) handleCloseModal(); }}>
           {(ref) => (
-            <Overlay onDismiss={handleCloseModal}>
+            <Overlay onDismiss={() => { if (!isUploading) handleCloseModal(); }}>
               <div
                 ref={(el) => {
                   // BUG-098: attach both the AvatarModalWrapper ref (for focus-trap) and modalRef
@@ -729,7 +742,7 @@ export function ProfileTab({
                 )}
               </div>
               <button
-                onClick={handleCloseModal}
+                onClick={() => { if (!isUploading) handleCloseModal(); }}
                 aria-label="Close modal"
                 disabled={isUploading}
                 style={{ background: 'none', border: 'none', cursor: isUploading ? 'not-allowed' : 'pointer', color: c.textTertiary, padding: '0.25rem', display: 'flex', opacity: isUploading ? 0.5 : 1 }}

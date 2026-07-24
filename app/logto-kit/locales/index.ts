@@ -32,6 +32,8 @@ export interface Translations {
     opaqueToken: string;
     defaultUserName: string;
     account: string;
+    closeDashboard: string;
+    backToMenu: string;
   };
   
   // Tabs
@@ -438,6 +440,7 @@ export interface Translations {
     loggedInAs: string;
     openUserDashboard: string;
     yes: string;
+    imageCropperHint: string;
     cancel: string;
     allow: string;
     unexpectedError: string;

@@ -16,6 +16,8 @@ export const enUS: Translations = {
     opaqueToken: 'OPAQUE',
     defaultUserName: 'User',
     account: 'Account',
+    closeDashboard: 'Close dashboard',
+    backToMenu: 'Back to menu',
   },
   
   // Tabs
@@ -420,6 +422,7 @@ export const enUS: Translations = {
     loggedInAs: 'Logged in as',
     openUserDashboard: 'Open user dashboard',
     yes: 'Yes',
+    imageCropperHint: 'Drag to move · Scroll or +/− to zoom · Double-click to reset',
     cancel: 'Cancel',
     allow: 'Allow',
     unexpectedError: 'Unexpected error',

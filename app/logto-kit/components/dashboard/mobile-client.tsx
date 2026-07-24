@@ -308,7 +308,7 @@ export function MobileClient({
         {/* Close dashboard button */}
         <button
           onClick={closeDashboard}
-          aria-label="Close dashboard"
+          aria-label={t.dashboard.closeDashboard}
           style={{
             position: 'fixed',
             bottom: '1rem',
@@ -514,7 +514,7 @@ export function MobileClient({
         {/* Floating back button */}
         <button
           onClick={backToMenu}
-          aria-label="Back to menu"
+          aria-label={t.dashboard.backToMenu}
           style={{
             position: 'fixed',
             bottom: '1rem',

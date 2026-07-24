@@ -44,7 +44,15 @@ function fmtNum(n: number): string {
   if (!isFinite(n)) return isNaN(n) ? 'Error' : n > 0 ? 'Infinity' : '-Infinity';
   if (n === 0) return '0';
   const abs = Math.abs(n);
-  if (abs >= 1e13 || abs < 1e-9) return n.toPrecision(9).replace(/\.?0+$/, '');
+  if (abs >= 1e13 || abs < 1e-9) {
+    // toPrecision may return scientific notation like "1.00000000e+20".
+    // Strip trailing zeros (and a leftover ".") from the mantissa only,
+    // preserving the exponent. Splitting on e/E keeps the exponent intact
+    // (the previous /\.?0+$/ regex corrupted exponents ending in 0).
+    const parts = n.toPrecision(9).split(/[eE]/);
+    const mantissa = parts[0].replace(/\.?0+$/, '');
+    return parts.length > 1 ? `${mantissa}e${parts[1]}` : mantissa;
+  }
   return parseFloat(n.toPrecision(12)).toString();
 }
 
@@ -62,6 +70,19 @@ function tokenize(str: string): (string | number)[] | null {
       let n = '';
       while (i < str.length && ((str[i] >= '0' && str[i] <= '9') || str[i] === '.')) {
         n += str[i++];
+      }
+      // Consume an optional scientific-notation exponent: e/E, optional +/-, then digits.
+      // Without this, scientific notation output from fmtNum (e.g. "1e+13") would be
+      // mis-tokenized — the 'e' would be interpreted as the `exp` function name.
+      if (i < str.length && (str[i] === 'e' || str[i] === 'E')) {
+        const expStart = i;
+        let j = i + 1;
+        if (j < str.length && (str[j] === '+' || str[j] === '-')) j++;
+        if (j < str.length && str[j] >= '0' && str[j] <= '9') {
+          while (j < str.length && str[j] >= '0' && str[j] <= '9') j++;
+          n += str.slice(expStart, j);
+          i = j;
+        }
       }
       toks.push(parseFloat(n));
       continue;
@@ -320,7 +341,7 @@ export function CalculatorClient() {
     };
   }, [userData, asOrg]);
 
-  const isScientificDisabled = hasScientific === false;
+  const isScientificDisabled = hasScientific !== true;
 
   useEffect(() => {
     if (isLoadedRef.current) {

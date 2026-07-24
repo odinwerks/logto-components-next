@@ -155,6 +155,17 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
   const { mode: activeMode, setMode: setTheme } = useThemeMode();
   const { lang, setLang } = useLangMode();
 
+  // BUG-008: If the stored lang is not in supportedLangs (e.g. user previously
+  // stored `fr-FR` but supportedLangs is narrowed to `['en-US']`), the native
+  // <select> would visually default to the first option while the app keeps
+  // rendering the unsupported locale. Coerce to the first supported lang so
+  // the select's displayed value matches the app's actual rendering state.
+  useEffect(() => {
+    if (lang && supportedLangs && supportedLangs.length > 0 && !supportedLangs.includes(lang)) {
+      setLang(supportedLangs[0]);
+    }
+  }, [lang, supportedLangs, setLang]);
+
   const c = colors;
 
   // Roving tabindex: track which button currently has tab focus
