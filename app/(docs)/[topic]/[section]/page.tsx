@@ -1,13 +1,6 @@
 import { notFound } from 'next/navigation';
-import ScrollToSection from './scroll-to-section';
 import { NAV_ITEMS } from '../../../demo/nav-data';
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
+import { slugify } from '../../../lib/slugify';
 
 // Export static params so Next.js statically builds all combinations of topic + section
 export async function generateStaticParams() {
@@ -77,9 +70,6 @@ const CONTENT_REGISTRY: Record<string, Record<string, () => Promise<{ default: R
   },
 };
 
-const DOC_REGISTRY: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-};
-
 interface PageProps {
   params: Promise<{
     topic: string;
@@ -101,18 +91,5 @@ export default async function DocPage({ params }: PageProps) {
     );
   }
 
-  // Fallback to monolithic DOC_REGISTRY
-  const loader = DOC_REGISTRY[topic];
-  if (!loader) {
-    notFound();
-  }
-
-  const DocComponent = (await loader()).default;
-
-  return (
-    <div style={{ padding: '36px 44px 0' }}>
-      <DocComponent />
-      <ScrollToSection section={section} />
-    </div>
-  );
+  notFound();
 }

@@ -59,6 +59,17 @@ export function useFocusTrap(
   // Per-instance unique ID for the module-level trapStack.
   const idRef = useRef(Symbol());
 
+  // BUG-030 fix: Capture the trigger element synchronously during render,
+  // BEFORE React's commit phase fires autoFocus. In a passive useEffect,
+  // autoFocus has already stolen focus, so we'd capture the dialog input
+  // instead of the trigger button. By capturing here (render phase), we
+  // capture the element that was focused before the dialog was committed
+  // to the DOM. Only capture once (on first render of this hook instance).
+  if (typeof document !== 'undefined' && restoreFocusRef.current === null) {
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
@@ -66,9 +77,6 @@ export function useFocusTrap(
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-
-    // Restore focus to the element that had focus before the modal opened
-    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     // Push onto the module-level trap stack so only the topmost dialog
     // responds to Escape.

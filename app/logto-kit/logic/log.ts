@@ -38,6 +38,7 @@
 import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
 import { createLogger, type TypedLogger } from '../../lib/logger';
 import { scrubArgs, scrubLogString } from '../../lib/scrub-log-string';
+import { getRequestBindings } from '../../lib/request-context';
 
 // ============================================================================
 // Backend selection
@@ -178,34 +179,34 @@ export function debug(...args: unknown[]): void {
 export const logEvent: TypedLogger = {
   info(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.log(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
+      try { console.log(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...context }])); } catch { /* best-effort */ }
     }
     if (usePino) {
-      getPinoLogger().info(event, msg, context);
+      getPinoLogger().info(event, msg, { ...getRequestBindings(), ...context });
     }
   },
   warn(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.warn(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
+      try { console.warn(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...context }])); } catch { /* best-effort */ }
     }
     if (usePino) {
-      getPinoLogger().warn(event, msg, context);
+      getPinoLogger().warn(event, msg, { ...getRequestBindings(), ...context });
     }
   },
   error(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.error(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
+      try { console.error(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...context }])); } catch { /* best-effort */ }
     }
     if (usePino) {
-      getPinoLogger().error(event, msg, context);
+      getPinoLogger().error(event, msg, { ...getRequestBindings(), ...context });
     }
   },
   debug(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
     if (useConsole) {
-      try { console.debug(...scrubArgs([`[${event}]`, msg, Object.keys(context).length ? context : ''])); } catch { /* best-effort */ }
+      try { console.debug(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...context }])); } catch { /* best-effort */ }
     }
     if (usePino) {
-      getPinoLogger().debug(event, msg, context);
+      getPinoLogger().debug(event, msg, { ...getRequestBindings(), ...context });
     }
   },
   child(bindings: Record<string, unknown>) {
@@ -214,27 +215,27 @@ export const logEvent: TypedLogger = {
     return {
       info(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.log(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
+          try { console.log(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.info(event, msg, { ...bindings, ...context });
+        if (usePino) pinoChild.info(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       warn(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.warn(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
+          try { console.warn(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.warn(event, msg, { ...bindings, ...context });
+        if (usePino) pinoChild.warn(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       error(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.error(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
+          try { console.error(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.error(event, msg, { ...bindings, ...context });
+        if (usePino) pinoChild.error(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       debug(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
-          try { console.debug(...scrubArgs([`[${event}]`, msg, { ...bindings, ...context }])); } catch { /* best-effort */ }
+          try { console.debug(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.debug(event, msg, { ...bindings, ...context });
+        if (usePino) pinoChild.debug(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       child: (childBindings: Record<string, unknown>) =>
         logEvent.child({ ...bindings, ...childBindings }),

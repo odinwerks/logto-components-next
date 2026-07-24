@@ -9,6 +9,9 @@
 // Safe action wrapper types
 export type { ActionResult, DataResult } from './safe';
 
+// Error code registry types (re-exported for ergonomic imports)
+export type { ErrorCode, ErrorCategory, Verbosity } from '../error-codes';
+
 // Shared Helpers
 export { throwOnApiError, patchMyAccount } from './shared';
 

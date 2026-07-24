@@ -66,40 +66,25 @@ describe('usePersonalPermissions', () => {
     expect(result.current.error).toBe('Network error');
   });
 
-  it('refresh unmounts and remounts causing re-fetch', async () => {
-    vi.useFakeTimers();
+  it('refresh triggers an in-place refetch (rows preserved, no remount)', async () => {
     vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
     const { result } = renderHook(() => usePersonalPermissions());
 
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(1);
 
+    // refresh() now triggers an in-place refetch — visible stays true.
     act(() => { result.current.refresh(); });
-    expect(result.current.visible).toBe(false);
-
-    act(() => { vi.advanceTimersByTime(35); });
     expect(result.current.visible).toBe(true);
 
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(2);
-
-    vi.useRealTimers();
   });
 
-  it('does not fetch when visible is false', async () => {
-    vi.useFakeTimers();
-    vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
+  it('visible is always true (backward compatibility)', () => {
+    vi.mocked(loadPersonalPermissions).mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => usePersonalPermissions());
-
-    await act(async () => { await Promise.resolve(); });
-    const callCount = vi.mocked(loadPersonalPermissions).mock.calls.length;
-
-    act(() => { result.current.refresh(); });
-    // visible is now false - no new fetch should be triggered
-    await act(async () => { await Promise.resolve(); });
-    expect(loadPersonalPermissions).toHaveBeenCalledTimes(callCount);
-
-    vi.useRealTimers();
+    expect(result.current.visible).toBe(true);
   });
 
   // ─── Tooltip ──────────────────────────────────────────────────────────────
@@ -221,8 +206,7 @@ describe('usePersonalPermissions', () => {
     expect(loadPersonalPermissions).not.toHaveBeenCalled();
   });
 
-  it('refresh() still fetches (remount) after initialData seeded the state', async () => {
-    vi.useFakeTimers();
+  it('refresh() still fetches (in-place refetch) after initialData seeded the state', async () => {
     vi.mocked(loadPersonalPermissions).mockResolvedValue({ ok: true, data: mockPerms });
 
     const { result } = renderHook(() => usePersonalPermissions(mockPerms));
@@ -231,16 +215,12 @@ describe('usePersonalPermissions', () => {
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).not.toHaveBeenCalled();
 
-    // refresh() bypasses the initialData skip via the remount strategy.
+    // refresh() bypasses the initialData skip via the in-place refetch.
     act(() => { result.current.refresh(); });
-    expect(result.current.visible).toBe(false);
-
-    act(() => { vi.advanceTimersByTime(35); });
+    // visible stays true (in-place, no remount).
     expect(result.current.visible).toBe(true);
 
     await act(async () => { await Promise.resolve(); });
     expect(loadPersonalPermissions).toHaveBeenCalledTimes(1);
-
-    vi.useRealTimers();
   });
 });

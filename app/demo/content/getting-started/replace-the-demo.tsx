@@ -37,7 +37,7 @@ import DocsLayoutClient from './layout-client';
 import { DocsErrorFallback } from './docs-error-fallback';
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
-  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached(true);
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {

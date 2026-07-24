@@ -162,4 +162,44 @@ describe('audit', () => {
     expect(record).toHaveProperty('metadata.ip', '1.2.3.4');
     expect(record).not.toHaveProperty('_serializeError');
   });
+
+  // ── requestId auto-merge from requestContext ──────────────────────────────
+
+  it('includes requestId in the audit record when called inside requestContext', async () => {
+    const { requestContext } = await import('../../lib/request-context');
+    const testId = 'audit-request-id-test';
+
+    await requestContext.run({ requestId: testId }, async () => {
+      await audit({ actor: 'user-ctx', action: 'test.ctx' });
+    });
+
+    const callArgs = vi.mocked(log).mock.calls.find(
+      (args) => (args[1] as string).includes('"action":"test.ctx"'),
+    );
+    expect(callArgs).toBeDefined();
+    const record = JSON.parse(callArgs![1] as string);
+    expect(record).toHaveProperty('requestId', testId);
+    expect(record).toHaveProperty('actor', 'user-ctx');
+  });
+
+  it('does NOT include requestId when called outside requestContext', async () => {
+    await audit({ actor: 'user-no-ctx', action: 'test.noctx' });
+
+    const callArgs = vi.mocked(log).mock.calls.find(
+      (args) => (args[1] as string).includes('"action":"test.noctx"'),
+    );
+    expect(callArgs).toBeDefined();
+    const record = JSON.parse(callArgs![1] as string);
+    expect(record).not.toHaveProperty('requestId');
+  });
+
+  // ── BUG-068: log() failure must not surface to caller ─────────────────────
+
+  it('does not throw when log() itself throws (BUG-068)', async () => {
+    vi.mocked(log).mockImplementationOnce(() => {
+      throw new Error('transport failure');
+    });
+
+    await expect(audit(entry)).resolves.not.toThrow();
+  });
 });

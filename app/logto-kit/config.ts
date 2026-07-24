@@ -126,6 +126,18 @@ export const logtoConfig = (() => {
       'Set COOKIE_SECRET environment variable before starting the server.'
     );
   }
+  // BUG-003: Prevent M2M credentials from being transmitted to the build
+  // placeholder host (https://placeholder.logto.app) at runtime in production.
+  // When ENDPOINT is unset, config substitutes the placeholder above; without
+  // this guard, getManagementApiToken() would POST Basic auth (M2M appId/secret)
+  // to that live host (Cloudflare IPs), leaking credentials. The HTTPS validator
+  // below intentionally exempts the placeholder, so this guard is the only gate.
+  if (config.endpoint === 'https://placeholder.logto.app' && nodeEnv === 'production' && !IS_NEXT_BUILD) {
+    throw new Error(
+      'FATAL: endpoint is still the build placeholder at runtime in production. ' +
+      'Set ENDPOINT environment variable to your Logto server URL before starting the server.'
+    );
+  }
 
   // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
   if (nodeEnv === 'production' && !IS_NEXT_BUILD) {
@@ -277,14 +289,34 @@ export async function getManagementApiToken(): Promise<string> {
       scope: 'all',
     });
 
-    const res = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
-      },
-      body: body.toString(),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8_000);
+
+    let res: Response;
+    try {
+      res = await fetch(tokenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`,
+        },
+        body: body.toString(),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        warn('[M2M Token] Request timed out after 8000ms');
+        m2mRetryCount += 1;
+        if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
+          m2mCircuitOpenAt = Date.now();
+          warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
+        }
+        throw new Error('Management API token request failed');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!res.ok) {
       const errorText = await res.text();

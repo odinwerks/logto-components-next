@@ -85,7 +85,12 @@ export type RevokeGrantsTarget = (typeof REVOKE_GRANTS_TARGETS)[number];
 export function assertRevokeGrantsTarget(
   value: unknown,
 ): asserts value is RevokeGrantsTarget | undefined {
-  if (value === undefined || value === null) return;
+  // BUG-011: Only `undefined` early-returns so the default param (`= 'all'`)
+  // still works. `null` MUST fall through to the enum validation below and
+  // throw INVALID_ENUM — otherwise a malicious RPC client sending JSON `null`
+  // bypasses the guard AND the default, leaving the query param omitted so
+  // grants may remain active.
+  if (value === undefined) return;
   if (
     typeof value !== 'string' ||
     !(REVOKE_GRANTS_TARGETS as readonly string[]).includes(value)
@@ -301,8 +306,8 @@ const MAX_USERNAME_LEN = 32;
 const MAX_URL_LEN = 2048;
 
 function stripControlChars(s: string): string {
-  // strip ASCII control chars except whitespace-ish
-  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  // strip all ASCII control chars (including TAB, LF, CR)
+  return s.replace(/[\x00-\x1F\x7F]/g, '');
 }
 
 export function assertPasskeyName(value: unknown): asserts value is string {

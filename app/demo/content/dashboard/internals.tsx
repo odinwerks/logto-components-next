@@ -69,7 +69,7 @@ export default function DashboardInternals() {
       <CodeBlock
         title="Rendering pipeline"
         code={`// 1. Root layout level (app/layout.tsx)
-const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+const result = await fetchDashboardDataCached(true);
 const userData = result.success ? result.userData : null;
 
 return (

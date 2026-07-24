@@ -13,6 +13,22 @@ import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types
 import { makeManagementFetch } from './management-request';
 
 /**
+ * In-flight dedup map for concurrent getOrganizationUserPermissions calls.
+ *
+ * Without this, multiple org-scoped Protected components mounting together
+ * fire concurrent refresh_token grants to /oidc/token with the same session
+ * refresh token. Logto rotates refresh tokens one-time-use → the first
+ * grant wins and the loser submits a revoked token → invalid_grant → false
+ * denial of UI content (BUG-020).
+ *
+ * Keyed by orgId. The operation is idempotent (same orgId → same scope list
+ * from the decoded org token), so concurrent callers safely share the promise.
+ * Entries are evicted on settlement (success or failure) so a failed call is
+ * retried on the next invocation.
+ */
+const inFlightPermissions = new Map<string, Promise<DataResult<string[]>>>();
+
+/**
  * Gets organization-scoped permissions for the current user.
  * 
  * Note: The org token is obtained directly from Logto's HTTPS token endpoint
@@ -28,9 +44,19 @@ import { makeManagementFetch } from './management-request';
  * Used only by the loadOrganizationPermissions server action which feeds
  * the Protected UI component (client-side display gate only - not the
  * security boundary). The security boundary uses verifyOrgAccess() below.
+ *
+ * Concurrent callers for the same orgId share the in-flight promise
+ * (BUG-020 dedup) to prevent racing on Logto's one-time-use refresh token
+ * rotation.
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
-  return safeAction(async () => {
+  // BUG-020: Return in-flight promise if a concurrent call for this org is
+  // already running. Without this dedup, multiple Protected components
+  // mounting together would race on the one-time-use refresh token grant.
+  const existing = inFlightPermissions.get(orgId);
+  if (existing) return existing;
+
+  const promise = safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
 
     const config = getLogtoConfig();
@@ -41,7 +67,7 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     const refreshToken = await nodeClient.getRefreshToken();
     if (!refreshToken) {
       warn('[getOrganizationUserPermissions] No refresh token in session');
-      throw new Error('UNAUTHORIZED');
+      throw plainCode('UNAUTHORIZED');
     }
 
     // Direct call to Logto's token endpoint bypasses the SDK's
@@ -83,14 +109,14 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       warn(`[getOrganizationUserPermissions] Token endpoint returned ${res.status}: ${errText.substring(0, 200)}`);
-      throw new Error('UNAUTHORIZED');
+      throw plainCode('UNAUTHORIZED');
     }
 
     const data = await res.json();
     const orgToken = data.access_token as string | undefined;
     if (!orgToken) {
       warn('[getOrganizationUserPermissions] No access_token in response');
-      throw new Error('UNAUTHORIZED');
+      throw plainCode('UNAUTHORIZED');
     }
 
     // BUG-L01: Persist a rotated refresh token back into the SDK's cookie-backed
@@ -130,6 +156,13 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     debugLog(`[getOrganizationUserPermissions] Parsed permissions for ${orgId}:`, permissions);
     return permissions;
   });
+
+  inFlightPermissions.set(orgId, promise);
+  promise.finally(() => {
+    inFlightPermissions.delete(orgId);
+  });
+
+  return promise;
 }
 
 // ============================================================================
@@ -160,10 +193,18 @@ interface ExpectedPrincipal {
  * Returns { roles, permissions } for the route to check against
  * ActionConfig.requiredRole and ActionConfig.requiredPerm.
  *
- * If expectedPrincipal is provided, it is treated only as a consistency
- * assertion against introspection claims. The authoritative user identity must
- * come from successful token introspection. Any token retrieval or
- * introspection failure fails closed as UNAUTHORIZED.
+ * SECURITY CONTRACT (BUG-005): The authoritative user identity ALWAYS comes
+ * from a fresh `introspectToken(...)` call performed inside this function,
+ * derived from the live session token. The `expectedPrincipal` parameter is
+ * treated ONLY as a consistency assertion compared against the introspected
+ * `sub`/`sid` — it is never trusted as the identity itself. There is no
+ * `existingIntrospection` parameter: trusting a caller-supplied introspection
+ * object's `.sub` would be a latent IDOR (a caller could substitute another
+ * user's `sub` and gain access to their organizations/roles).
+ *
+ * Any token retrieval or introspection failure fails closed as UNAUTHORIZED
+ * (BUG-061): the `introspectToken(...)` call is wrapped in try/catch so raw
+ * upstream errors never bubble up unsanitized.
  *
  * Empty roles (member with no roles assigned) → { roles: [], permissions: [] }
  * which downstream permission checks will reject as PERMISSION_DENIED.
@@ -171,66 +212,44 @@ interface ExpectedPrincipal {
 export async function verifyOrgAccess(
   orgId: string,
   expectedPrincipal?: ExpectedPrincipal,
-  existingIntrospection?: OidcIntrospectionResponse
 ): Promise<DataResult<OrgAccessResult>> {
   return safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
 
-    let userId: string;
-
-    if (expectedPrincipal || existingIntrospection) {
-      let introspection: OidcIntrospectionResponse;
-
-      if (existingIntrospection) {
-        introspection = existingIntrospection;
-      } else {
-        try {
-          const sessionToken = await getTokenForServerAction();
-          introspection = await introspectToken(sessionToken);
-        } catch {
-          // Fail closed: expectedPrincipal is never authoritative identity.
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-      }
-
-      if (!introspection.active) {
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-      }
-
-      const actualUserId = introspection.sub;
-      if (!actualUserId) {
-        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-      }
-
-      if (expectedPrincipal) {
-        if (expectedPrincipal.sub !== actualUserId) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-
-        if (
-          expectedPrincipal.sid &&
-          introspection.sid &&
-          expectedPrincipal.sid !== introspection.sid
-        ) {
-          throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
-        }
-      }
-
-      userId = actualUserId;
-    } else {
-      // Existing strict behavior: session is required when no expected principal is supplied.
+    // BUG-005: ALWAYS perform a fresh introspection internally. The user
+    // identity must come from the live session token, never from a
+    // caller-supplied introspection object (latent IDOR).
+    // BUG-061: wrap token retrieval + introspection in try/catch so failures
+    // fail closed as UNAUTHORIZED instead of bubbling raw errors.
+    let introspection: OidcIntrospectionResponse;
+    try {
       const sessionToken = await getTokenForServerAction();
-      const introspection = await introspectToken(sessionToken);
-      if (!introspection.active) {
+      introspection = await introspectToken(sessionToken);
+    } catch {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    if (!introspection.active) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    const userId = introspection.sub;
+    if (!userId) {
+      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    }
+
+    if (expectedPrincipal) {
+      if (expectedPrincipal.sub !== userId) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
 
-      const actualUserId = introspection.sub;
-      if (!actualUserId) {
+      if (
+        expectedPrincipal.sid &&
+        introspection.sid &&
+        expectedPrincipal.sid !== introspection.sid
+      ) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
-
-      userId = actualUserId;
     }
 
     assertSafeUserId(userId);
@@ -248,7 +267,7 @@ export async function verifyOrgAccess(
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyOrgAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
       if (rolesRes.status === 403 || rolesRes.status === 404) {
-        throw new Error('ORG_NOT_MEMBER');
+        throw plainCode('ORG_NOT_MEMBER');
       }
       throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }

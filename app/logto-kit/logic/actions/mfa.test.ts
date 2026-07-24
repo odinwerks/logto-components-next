@@ -66,7 +66,7 @@ vi.mock('../../../lib/distributed-state', () => {
   function createRateLimiter(options: { name: string; windowMs: number; max: number }) {
     const { name, windowMs, max } = options;
     return {
-      check(key: string): boolean {
+      async check(key: string): Promise<boolean> {
         const mapKey = `${name}:${key}`;
         const now = Date.now();
         const entry = rateLimitState.get(mapKey);
@@ -78,7 +78,7 @@ vi.mock('../../../lib/distributed-state', () => {
         entry.count++;
         return true;
       },
-      reset(key: string): void {
+      async reset(key: string): Promise<void> {
         rateLimitState.delete(`${name}:${key}`);
       },
     };
@@ -365,6 +365,271 @@ describe('addMfaVerification', () => {
     if (r.ok) throw new Error('Expected failure');
     expect(r.error).toContain('UNAUTHENTICATED');
   });
+
+  // ── BUG-055: BackupCode codes validation ──────────────────────────────
+  it('accepts a BackupCode payload with valid codes', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: ['A1B2C3D4', 'E5F6G7H8'] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(true);
+
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/mfa-verifications',
+      expect.objectContaining({
+        method: 'POST',
+        body: { type: 'BackupCode', codes: ['A1B2C3D4', 'E5F6G7H8'] },
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+  });
+
+  it('rejects BackupCode payload with codes that are not an array', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: 'not-an-array' as unknown as string[] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects BackupCode payload with empty codes array', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: [] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects BackupCode payload with codes array exceeding max length (>20)', async () => {
+    const tooManyCodes = Array.from({ length: 21 }, (_, i) => `CODE${i}`);
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: tooManyCodes },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects BackupCode payload with a code that is too short (< 4)', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: ['ABC'] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects BackupCode payload with a code that is too long (> 50)', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: ['A'.repeat(51)] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects BackupCode payload with a code containing non-alphanumeric characters', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: ['ABC-DEF'] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('accepts BackupCode payload at boundary: 4-char codes and 50-char codes, 20 entries', async () => {
+    const codes = Array.from({ length: 20 }, (_, i) => `C${String(i).padStart(3, '0')}`); // "C000" through "C019"
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts BackupCode payload at boundary: single 50-char code', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'BackupCode',
+        payload: { codes: ['A'.repeat(50)] },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  // ── BUG-055: WebAuthn credential ID validation ────────────────────────
+  it('accepts a WebAuthn payload with valid id and rawId', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          id: 'AdDdOWljMjk0ZmQ4ZGUzZTU2NmFiMjg4M2QxZDNmNDY',
+          rawId: 'AdDdOWljMjk0ZmQ4ZGUzZTU2NmFiMjg4M2QxZDNmNDY',
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(true);
+
+    const callBody = vi.mocked(makeRequest).mock.calls[0]?.[1]?.body as Record<string, unknown>;
+    expect(callBody).toHaveProperty('id', 'AdDdOWljMjk0ZmQ4ZGUzZTU2NmFiMjg4M2QxZDNmNDY');
+    expect(callBody).toHaveProperty('rawId', 'AdDdOWljMjk0ZmQ4ZGUzZTU2NmFiMjg4M2QxZDNmNDY');
+  });
+
+  it('rejects WebAuthn payload with id containing non-base64url characters', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          id: 'invalid/chars+here==',
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects WebAuthn payload with rawId containing non-base64url characters', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          rawId: 'bad+chars/here',
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects WebAuthn payload with id exceeding 512 characters', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          id: 'A'.repeat(513),
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects WebAuthn payload with rawId exceeding 512 characters', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          rawId: 'A'.repeat(513),
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects WebAuthn payload with empty id', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          id: '',
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects WebAuthn payload with empty rawId', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          rawId: '',
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toContain('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
+
+  it('accepts WebAuthn payload at boundary: 512-char base64url id', async () => {
+    const r = await addMfaVerification(
+      {
+        type: 'WebAuthn',
+        payload: {
+          newIdentifierVerificationRecordId: 'vrec-abc123',
+          id: 'A'.repeat(512),
+        },
+      },
+      validIdentityVrecId,
+    );
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe('generateBackupCodes', () => {
@@ -432,7 +697,11 @@ describe('generateBackupCodes', () => {
     // Make throwOnApiError behave like the real implementation: throw on
     // non-ok responses so the enroll failure actually propagates.
     vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
-      if (!res.ok) throw new Error('BACKUP_CODES_FAILED');
+      if (!res.ok) {
+        const err = new Error('BACKUP_CODES_FAILED');
+        err.name = 'SanitizedError';
+        throw err;
+      }
     });
 
     const failResponse = {
@@ -469,7 +738,7 @@ describe('generateBackupCodes', () => {
     expect(deleteCalled).toBe(false);
   });
 
-  it('deletes old factors and retries enrollment when Logto rejects concurrent BackupCode factors (409)', async () => {
+  it('retries enrollment first, then deletes old factors, when Logto rejects concurrent BackupCode factors (409) (BUG-015)', async () => {
     const conflictResponse = {
       status: 409,
       ok: false,
@@ -488,8 +757,8 @@ describe('generateBackupCodes', () => {
       ]))
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
       .mockResolvedValueOnce(conflictResponse)                  // enroll (1st) → 409
-      .mockResolvedValueOnce(mockOkResponse())                  // delete old
-      .mockResolvedValueOnce(mockOkResponse());                 // enroll (retry) → ok
+      .mockResolvedValueOnce(mockOkResponse())                  // enroll (retry) → ok
+      .mockResolvedValueOnce(mockOkResponse());                 // delete old (after retry)
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
@@ -497,9 +766,11 @@ describe('generateBackupCodes', () => {
     if (!r.ok) throw new Error('Expected success');
     expect(r.data.codes).toEqual(['A1']);
     expect(makeRequest).toHaveBeenCalledTimes(5);
-    // The retry enroll re-sends the same body after deleting the old factor.
+
+    // BUG-015: the retry enroll (4th call) happens BEFORE the old-factor
+    // deletion (5th call), so a retry failure preserves the old factors.
     expect(makeRequest).toHaveBeenNthCalledWith(
-      5,
+      4,
       '/api/my-account/mfa-verifications',
       expect.objectContaining({
         method: 'POST',
@@ -507,6 +778,70 @@ describe('generateBackupCodes', () => {
         extraHeaders: { 'logto-verification-id': validIdentityVrecId },
       }),
     );
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      5,
+      '/api/my-account/mfa-verifications/backup-old-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
+      }),
+    );
+  });
+
+  it('does NOT delete old backup factors when the retry enrollment fails (BUG-015)', async () => {
+    // Make throwOnApiError behave like the real implementation: throw on
+    // non-ok responses so the retry failure actually propagates.
+    vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
+      if (!res.ok) {
+        const err = new Error('BACKUP_CODES_FAILED');
+        err.name = 'SanitizedError';
+        throw err;
+      }
+    });
+
+    const conflictResponse = {
+      status: 409,
+      ok: false,
+      json: vi.fn().mockResolvedValue({ code: 'backup_code.exists' }),
+      text: vi.fn().mockResolvedValue('Conflict'),
+    } as unknown as Response;
+
+    const failResponse = {
+      status: 503,
+      ok: false,
+      json: vi.fn().mockResolvedValue({}),
+      text: vi.fn().mockResolvedValue('Service Unavailable'),
+    } as unknown as Response;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
+      .mockResolvedValueOnce(conflictResponse)                  // enroll (1st) → 409
+      .mockResolvedValueOnce(failResponse);                     // enroll (retry) → 503
+
+    const r = await generateBackupCodes(validIdentityVrecId);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected error');
+    expect(r.error).toBe('BACKUP_CODES_FAILED');
+
+    // BUG-015: only 4 calls (list, generate, enroll-1st, enroll-retry). The old
+    // backup factor was NEVER deleted because the retry failed — preserving the
+    // user's existing backup codes (BUG-L04 invariant: a failed enroll never
+    // leaves the user with zero backup codes).
+    expect(makeRequest).toHaveBeenCalledTimes(4);
+    const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
+    const deleteCalled = calls.some(
+      ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
+    );
+    expect(deleteCalled).toBe(false);
   });
 
   it('still generates and enrolls when no existing backup factors are present', async () => {
@@ -521,6 +856,40 @@ describe('generateBackupCodes', () => {
     if (!r.ok) throw new Error('Expected success');
     expect(r.data.codes).toEqual(['C3']);
     expect(makeRequest).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns newly-bound codes even if old-factor cleanup throws (BUG-056)', async () => {
+    // Simulate: list ok → generate ok → enroll ok → delete old THROWS.
+    // The new codes are bound; cleanup failure must not swallow the return.
+    vi.mocked(throwOnApiError).mockImplementation(async (res: Response, _code, _action) => {
+      if (!res.ok) {
+        const err = new Error('BACKUP_CODES_FAILED');
+        err.name = 'SanitizedError';
+        throw err;
+      }
+    });
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] })) // generate
+      .mockResolvedValueOnce(mockOkResponse())                        // enroll (ok)
+      .mockRejectedValueOnce(new Error('transient delete failure'));  // delete old → throws
+
+    const r = await generateBackupCodes(validIdentityVrecId);
+
+    // Best-effort cleanup: codes are returned despite the delete failure.
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error('Expected success');
+    expect(r.data.codes).toEqual(['A1', 'B2']);
+    // All 4 calls happened (list, generate, enroll, failed-delete).
+    expect(makeRequest).toHaveBeenCalledTimes(4);
   });
 
   it('serializes concurrent backup-code generation for the same user', async () => {

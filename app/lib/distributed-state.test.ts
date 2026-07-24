@@ -204,7 +204,7 @@ describe('createRateLimiter (Redis backend — degraded mode)', () => {
     expect(state!.evalMock).toHaveBeenCalledWith(
       expect.stringContaining('redis.call'),  // Lua script
       1,
-      expect.stringContaining('rl:redis-lua-test:user-x'),
+      expect.stringContaining('rl:redis-lua-test|user-x'),
       '10',
       expect.any(String),
     );
@@ -442,7 +442,7 @@ describe('tokenCache (in-memory backend)', () => {
 
   it('returns null for uncached keys', async () => {
     const { tokenCache } = await import('./distributed-state');
-    expect(tokenCache.get('nonexistent-key')).toBeNull();
+    expect(await tokenCache.get('nonexistent-key')).toBeNull();
   });
 
   it('stores and retrieves a token', async () => {
@@ -450,7 +450,7 @@ describe('tokenCache (in-memory backend)', () => {
     const expiresAt = Date.now() + 3600_000;
 
     tokenCache.set('m2m-token', 'my-token-value', expiresAt);
-    expect(tokenCache.get('m2m-token')).toBe('my-token-value');
+    expect(await tokenCache.get('m2m-token')).toBe('my-token-value');
   });
 
   it('returns null for expired tokens', async () => {
@@ -462,12 +462,12 @@ describe('tokenCache (in-memory backend)', () => {
 
     // Set token that expires in 1 second
     tokenCache.set('expiring-token', 'soon-dead', now + 1000);
-    expect(tokenCache.get('expiring-token')).toBe('soon-dead');
+    expect(await tokenCache.get('expiring-token')).toBe('soon-dead');
 
     // Advance past expiry
     vi.advanceTimersByTime(1001);
 
-    expect(tokenCache.get('expiring-token')).toBeNull();
+    expect(await tokenCache.get('expiring-token')).toBeNull();
 
     vi.useRealTimers();
   });
@@ -477,10 +477,10 @@ describe('tokenCache (in-memory backend)', () => {
     const expiresAt = Date.now() + 3600_000;
 
     tokenCache.set('clearable-token', 'value-to-clear', expiresAt);
-    expect(tokenCache.get('clearable-token')).toBe('value-to-clear');
+    expect(await tokenCache.get('clearable-token')).toBe('value-to-clear');
 
     tokenCache.clear('clearable-token');
-    expect(tokenCache.get('clearable-token')).toBeNull();
+    expect(await tokenCache.get('clearable-token')).toBeNull();
   });
 
   it('set() overwrites an existing token', async () => {
@@ -490,7 +490,7 @@ describe('tokenCache (in-memory backend)', () => {
     tokenCache.set('overwrite-key', 'original-token', expiresAt);
     tokenCache.set('overwrite-key', 'new-token', expiresAt + 100);
 
-    expect(tokenCache.get('overwrite-key')).toBe('new-token');
+    expect(await tokenCache.get('overwrite-key')).toBe('new-token');
   });
 });
 

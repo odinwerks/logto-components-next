@@ -221,7 +221,7 @@ export default function ContentArea({ item }: ContentAreaProps) {
         footDot: '#d1d5db',
       };
 
-  const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: DocContent ? 'auto' as const : 'auto' as const };
+  const themedContentStyle = { ...contentStyle, background: colors.bg, overflowY: 'auto' as const };
   const themedTopbarStyle = { ...topbarStyle, borderBottom: `1px solid ${colors.border}`, background: mounted ? (mode === 'dark' ? 'rgba(11,11,13,0.92)' : 'rgba(255,255,255,0.95)') : 'rgba(11,11,13,0.92)' };
   const themedCrumbStyle = { ...crumbStyle, color: colors.textMuted };
   const themedSepStyle = { ...sepStyle, color: colors.textMuted };

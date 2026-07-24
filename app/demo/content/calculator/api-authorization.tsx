@@ -169,7 +169,7 @@ export default function CalculatorApiAuthorizationDoc() {
 
     if (actionConfig.requiredOrgId === 'self') {
       // Personal scope: verify personal access, then check roles + permissions.
-      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal, introspection);
+      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal);
       if (!personalAccessResult.ok) {
         return apiError('UNAUTHORIZED', 401);
       }
@@ -199,7 +199,7 @@ export default function CalculatorApiAuthorizationDoc() {
         return apiError('ORG_NOT_MEMBER', 403);
       }
 
-      const result = await verifyOrgAccess(orgId, expectedPrincipal, introspection);
+      const result = await verifyOrgAccess(orgId, expectedPrincipal);
       if (!result.ok) {
         if (result.error === 'UNAUTHORIZED') {
           return apiError('UNAUTHORIZED', 401);

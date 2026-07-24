@@ -199,3 +199,36 @@ describe('safeAction - BUG-M03 sanitization logic', () => {
     expect(sanitize).not.toHaveBeenCalled();
   });
 });
+
+// ============================================================================
+// BUG-065: NEXT_REDIRECT must propagate through safeAction
+// ============================================================================
+
+describe('safeAction - NEXT_REDIRECT propagation', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('re-throws NEXT_REDIRECT by message so Next.js router can handle it', async () => {
+    const redirectErr = new Error('NEXT_REDIRECT');
+    await expect(safeAction(async () => { throw redirectErr; })).rejects.toBe(redirectErr);
+  });
+
+  it('re-throws NEXT_REDIRECT by digest property', async () => {
+    const redirectErr = Object.assign(new Error('redirect'), {
+      digest: 'NEXT_REDIRECT;replace;/;304;',
+    });
+    await expect(safeAction(async () => { throw redirectErr; })).rejects.toBe(redirectErr);
+  });
+
+  it('still sanitizes non-redirect errors while re-throwing redirects', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+
+    const redirectErr = Object.assign(new Error('redirect'), {
+      digest: 'NEXT_REDIRECT;replace;/;304;',
+    });
+    await expect(safeAction(async () => { throw redirectErr; })).rejects.toBe(redirectErr);
+    // sanitize() should NOT be called for NEXT_REDIRECT
+    expect(sanitize).not.toHaveBeenCalled();
+  });
+});

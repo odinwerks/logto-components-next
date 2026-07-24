@@ -67,13 +67,33 @@ vi.mock('../../logto-kit/config', () => ({
   }),
 }));
 
-// Mock the logger to suppress noise
-vi.mock('../../logto-kit/logic/log', () => ({
-  error: vi.fn(),
-  warn: vi.fn(),
-  info: vi.fn(),
-  debug: vi.fn(),
-}));
+// Mock the logger to suppress noise — include logEvent (used by withLogger).
+// Defined inside the factory to avoid vi.mock hoisting issues.
+vi.mock('../../logto-kit/logic/log', () => {
+  const childLogger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(),
+    raw: {},
+  };
+  childLogger.child.mockReturnValue(childLogger);
+  return {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    logEvent: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn().mockReturnValue(childLogger),
+      raw: {},
+    },
+  };
+});
 
 // Mock @logto/next/server-actions - the route dynamically imports this,
 // so we use a factory that returns an object whose signOut we can mutate.

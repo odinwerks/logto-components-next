@@ -70,8 +70,8 @@ export {
   getUserScopes,
 } from './actions/index';
 
-export { LogtoApiError } from './errors';
-
+// NOTE: LogtoApiError has been removed (dead code — never instantiated).
+// throwOnApiError throws SanitizedError (the canonical client-safe shape).
 export {
   ValidationError,
   validateE164,

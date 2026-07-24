@@ -15,7 +15,7 @@
   /* Text */
   --ldd-text-primary: #111827;
   --ldd-text-secondary: #374151;
-  --ldd-text-tertiary: #6b7280;
+  --ldd-text-tertiary: #4b5563;
 
   /* Border */
   --ldd-border-color: #d1d5db;
@@ -29,7 +29,7 @@
   --ldd-accent-blue: #2563eb;
 
   /* Button backgrounds */
-  --ldd-btn-primary-bg: #3b82f6;
+  --ldd-btn-primary-bg: #2563eb;
   --ldd-btn-danger-bg: #dc2626;
   --ldd-btn-secondary-bg: #e5e7eb;
 

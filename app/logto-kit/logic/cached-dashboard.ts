@@ -10,5 +10,13 @@ import { fetchDashboardDataCore } from './dashboard-data';
  *
  * Both root layout and docs layout call this with identical arguments,
  * so only one `/oidc/me` request will be made per render.
+ *
+ * NOTE: Accepts a primitive boolean instead of an object literal.
+ * React.cache memoizes primitives by value (Map), but objects by reference
+ * (WeakMap). Every caller passing `{ tolerateAuthErrors: true }` creates
+ * a fresh object literal → cache always misses. A primitive boolean
+ * ensures proper deduplication.
  */
-export const fetchDashboardDataCached = cache(fetchDashboardDataCore);
+export const fetchDashboardDataCached = cache(
+  (tolerateAuthErrors = false) => fetchDashboardDataCore({ tolerateAuthErrors }),
+);

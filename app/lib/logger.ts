@@ -17,6 +17,7 @@
 
 import pino, { type Logger, type LoggerOptions, type LevelWithSilent } from 'pino';
 import { type LogEvent } from './log-events';
+import { redactSensitive } from './scrub-log-string';
 
 // ============================================================================
 // Configuration
@@ -51,33 +52,15 @@ export function getDefaultLevel(): LevelWithSilent {
 // ============================================================================
 
 // IMPORTANT: Sensitive keys (token, password, secret, key, authorization,
-// apiKey, api_key, accessToken, refreshToken, idToken, m2mToken) are automatically
-// redacted via Pino native redact and the custom redactSensitive function. Do NOT log credentials in any form.
-const SENSITIVE_KEYS =
-  /^(token|password|secret|key|authorization|apiKey|api_key|accessToken|refreshToken|idToken|m2mToken)$/i;
-
-/**
- * Recursively redacts sensitive keys in an object before serialization.
- * Returns the object with matching keys replaced by '[REDACTED]'.
- */
-function redactSensitive(obj: unknown): unknown {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) return obj.map(redactSensitive);
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      if (SENSITIVE_KEYS.test(key)) {
-        result[key] = '[REDACTED]';
-      } else if (typeof value === 'object' && value !== null) {
-        result[key] = redactSensitive(value);
-      } else {
-        result[key] = value;
-      }
-    }
-    return result;
-  }
-  return obj;
-}
+// apiKey, api_key, accessToken, refreshToken, idToken, m2mToken, and the
+// snake_case OAuth/OIDC variants access_token, refresh_token, id_token,
+// client_secret, code, state) are automatically redacted via Pino native
+// `redact.paths` below and the shared `redactSensitive` function (imported
+// from './scrub-log-string'). Do NOT log credentials in any form.
+//
+// `redactSensitive` and the `SENSITIVE_KEYS` regex live in scrub-log-string.ts
+// (the scrub leaf module) so they can be shared with `scrubArgs` for the
+// console log path without creating a circular import.
 
 // ============================================================================
 // Webhook Transport
@@ -204,8 +187,8 @@ export function createLogger(config: LoggerConfig = {}): TypedLogger {
         '*.*.stack', '*.*.error',
         // OAuth / OIDC token field names (snake_case variants)
         'access_token', 'refresh_token', 'id_token', 'code', 'state',
-        '*.access_token', '*.refresh_token', '*.id_token', '*.code',
-        '*.*.access_token', '*.*.refresh_token',
+        '*.access_token', '*.refresh_token', '*.id_token', '*.code', '*.state',
+        '*.*.access_token', '*.*.refresh_token', '*.*.id_token', '*.*.code', '*.*.state',
       ],
       censor: '[REDACTED]',
     },

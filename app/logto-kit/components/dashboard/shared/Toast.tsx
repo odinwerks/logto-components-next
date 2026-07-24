@@ -22,7 +22,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(
       () => onDismiss(message.id),
-      message.duration || 3000,
+      message.duration ?? 3000,
     );
     return () => clearTimeout(timer);
   }, [message.id, message.duration, onDismiss]);

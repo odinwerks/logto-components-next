@@ -26,14 +26,15 @@ vi.mock('./request', () => ({
 
 import { recordHeartbeat } from './heartbeat';
 
-describe('recordHeartbeat backend check', () => {
+describe('recordHeartbeat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockConfig.backendType = 'blacktop';
   });
 
-  it('makes request when backendType is blacktop', async () => {
-    await recordHeartbeat();
+  it('makes request and returns { ok: true } when backendType is blacktop', async () => {
+    const result = await recordHeartbeat();
+    expect(result).toEqual({ ok: true });
     expect(mockGetTokenForServerAction).toHaveBeenCalled();
     expect(mockMakeRequest).toHaveBeenCalledWith(
       '/api/my-account/sessions/heartbeat',
@@ -41,10 +42,27 @@ describe('recordHeartbeat backend check', () => {
     );
   });
 
-  it('returns early (does not make request) when backendType is upstream', async () => {
+  it('returns { ok: true } early when backendType is upstream', async () => {
     mockConfig.backendType = 'upstream';
-    await recordHeartbeat();
+    const result = await recordHeartbeat();
+    expect(result).toEqual({ ok: true });
     expect(mockGetTokenForServerAction).not.toHaveBeenCalled();
     expect(mockMakeRequest).not.toHaveBeenCalled();
+  });
+
+  it('returns { ok: true } when token is unavailable', async () => {
+    mockGetTokenForServerAction.mockResolvedValueOnce(null);
+    const result = await recordHeartbeat();
+    expect(result).toEqual({ ok: true });
+    expect(mockMakeRequest).not.toHaveBeenCalled();
+  });
+
+  it('returns { ok: false, error } when makeRequest throws', async () => {
+    mockMakeRequest.mockRejectedValueOnce(new Error('Network error'));
+    const result = await recordHeartbeat();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe('INTERNAL_ERROR');
+    }
   });
 });

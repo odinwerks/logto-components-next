@@ -10,7 +10,6 @@ export type VerifyPasswordFn = (
 
 export type GetSessionsFn = (
   verificationRecordId: string,
-  verificationTimestamp: number,
 ) => Promise<DataResult<LogtoSession[]>>;
 
 export interface UseSessionVerificationOptions {
@@ -32,7 +31,7 @@ export interface UseSessionVerificationResult {
   verificationError: string;
   verifyAndLoad: (password: string) => Promise<void>;
   loadSessions: () => Promise<void>;
-  loadSessionsWith: (recordId: string, expiry: number) => Promise<void>;
+  loadSessionsWith: (recordId: string) => Promise<void>;
   resetVerification: () => void;
 }
 
@@ -123,7 +122,7 @@ export function useSessionVerification({
     setVerificationRecordId(vid);
     setVerificationExpiry(ts); // ts IS the expiresAt (future epoch ms)
 
-    const sessionsResult = await onGetSessionsRef.current(vid, ts);
+    const sessionsResult = await onGetSessionsRef.current(vid);
     if (!sessionsResult.ok) {
       // Bug 2 fix: on sessions fetch failure, reset verification so viewState stays 'unverified'
       onErrorRef.current(sessionsResult.error);
@@ -138,9 +137,9 @@ export function useSessionVerification({
     setLoading(false);
   }, []);
 
-  const loadSessionsWith = useCallback(async (recordId: string, expiry: number): Promise<void> => {
+  const loadSessionsWith = useCallback(async (recordId: string): Promise<void> => {
     setLoading(true);
-    const r = await onGetSessionsRef.current(recordId, expiry);
+    const r = await onGetSessionsRef.current(recordId);
     if (!r.ok) {
       // Bug 3 fix: auth errors reset to unverified; other errors keep viewState 'loaded'
       if (AUTH_ERRORS.has(r.error)) {
@@ -160,7 +159,7 @@ export function useSessionVerification({
   const loadSessions = useCallback(async (): Promise<void> => {
     // No-op if verification is not valid
     if (!verificationRecordId || Date.now() >= verificationExpiry) return;
-    await loadSessionsWith(verificationRecordId, verificationExpiry);
+    await loadSessionsWith(verificationRecordId);
   }, [verificationRecordId, verificationExpiry, loadSessionsWith]);
 
   return {

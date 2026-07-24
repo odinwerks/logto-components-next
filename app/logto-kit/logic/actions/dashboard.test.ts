@@ -65,10 +65,11 @@ describe('isAuthError', () => {
     expect(isAuthError(new Error('The Cookies can only be modified'))).toBe(false);
   });
 
-  it('identifies custom error properties: status 401 or 403, code UNAUTHORIZED', () => {
+  it('identifies custom error properties: status 401 or 403, code UNAUTHORIZED or UNAUTHENTICATED', () => {
     expect(isAuthError({ status: 401 })).toBe(true);
     expect(isAuthError({ status: 403 })).toBe(true);
     expect(isAuthError({ code: 'UNAUTHORIZED' })).toBe(true);
+    expect(isAuthError({ code: 'UNAUTHENTICATED' })).toBe(true);
     expect(isAuthError({ status: 500 })).toBe(false);
     expect(isAuthError({ code: 'OTHER' })).toBe(false);
   });
@@ -147,11 +148,15 @@ describe('fetchDashboardData', () => {
     });
 
     const res = await fetchDashboardData();
-    expect(res.success).toBe(true);
-    if (res.success) {
-      expect(res.userData).toBeDefined();
-      expect(res.userData.id).toBe('user_123');
-      expect(res.activeOrgId).toBe('org_abc');
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const { data } = res;
+      expect(data.success).toBe(true);
+      if (data.success) {
+        expect(data.userData).toBeDefined();
+        expect(data.userData.id).toBe('user_123');
+        expect(data.activeOrgId).toBe('org_abc');
+      }
     }
   });
 
@@ -161,17 +166,20 @@ describe('fetchDashboardData', () => {
     });
 
     const res = await fetchDashboardData();
-    expect(res).toEqual({ success: false, needsAuth: true });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data).toEqual({ success: false, needsAuth: true });
+    }
   });
 
-  it('redirects to sign-in on auth error', async () => {
+  it('re-throws NEXT_REDIRECT on auth error (safeAction re-throws it for router)', async () => {
     mockGetLogtoContext.mockRejectedValueOnce(new Error('needsAuth'));
 
     await expect(fetchDashboardData()).rejects.toThrow('NEXT_REDIRECT');
     expect(mockRedirect).toHaveBeenCalledWith('/api/auth/sign-in');
   });
 
-  it('retries on transient errors and eventually returns FETCH_FAILED if all retries fail', async () => {
+  it('retries on transient errors and eventually returns FETCH_FAILED', async () => {
     vi.useFakeTimers();
     try {
       mockGetLogtoContext.mockRejectedValue(new Error('fetch failed'));
@@ -182,7 +190,10 @@ describe('fetchDashboardData', () => {
       await vi.runAllTimersAsync();
 
       const res = await promise;
-      expect(res).toEqual({ success: false, error: 'FETCH_FAILED' });
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data).toEqual({ success: false, error: 'FETCH_FAILED' });
+      }
       expect(mockGetLogtoContext).toHaveBeenCalledTimes(3);
     } finally {
       vi.useRealTimers();
@@ -193,7 +204,10 @@ describe('fetchDashboardData', () => {
     mockGetLogtoContext.mockRejectedValueOnce(new Error('Some unknown database error'));
 
     const res = await fetchDashboardData();
-    expect(res).toEqual({ success: false, error: 'FETCH_FAILED' });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data).toEqual({ success: false, error: 'FETCH_FAILED' });
+    }
     expect(mockGetLogtoContext).toHaveBeenCalledTimes(1);
     expect(mockRedirect).not.toHaveBeenCalled();
   });
@@ -202,7 +216,10 @@ describe('fetchDashboardData', () => {
     mockGetLogtoContext.mockRejectedValueOnce(new Error('needsAuth'));
 
     const res = await fetchDashboardData({ tolerateAuthErrors: true });
-    expect(res).toEqual({ success: false, needsAuth: true });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data).toEqual({ success: false, needsAuth: true });
+    }
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 });

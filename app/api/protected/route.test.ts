@@ -132,7 +132,9 @@ describe('POST /api/protected - action resolution', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error).toBe('ACTION_NOT_FOUND');
+    // ACTION_NOT_FOUND has exposeToClient:false → client sees the server-category
+    // generic code INTERNAL_ERROR; the precise code is server-log-only.
+    expect(body.error).toBe('INTERNAL_ERROR');
     expect(body.data).toBeNull();
   });
 });
@@ -152,7 +154,8 @@ describe('POST /api/protected - config validation', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe('IMPROPER_SETUP_ERROR');
+    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
+    expect(body.error).toBe('INTERNAL_ERROR');
   });
 
   it('returns 500 IMPROPER_SETUP_ERROR when requiredRoleId is empty', async () => {
@@ -169,7 +172,8 @@ describe('POST /api/protected - config validation', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe('IMPROPER_SETUP_ERROR');
+    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
+    expect(body.error).toBe('INTERNAL_ERROR');
   });
 
   it('returns 500 IMPROPER_SETUP_ERROR when requiredPermId is empty', async () => {
@@ -186,7 +190,8 @@ describe('POST /api/protected - config validation', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe('IMPROPER_SETUP_ERROR');
+    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
+    expect(body.error).toBe('INTERNAL_ERROR');
   });
 });
 
@@ -653,7 +658,9 @@ describe('POST /api/protected - BUG-009 token audience verification', () => {
     const body = await res.json();
 
     expect(res.status).toBe(401);
-    expect(body.error).toBe('TOKEN_INVALID');
+    // TOKEN_INVALID has exposeToClient:false → client sees the auth-category
+    // generic code UNAUTHORIZED; the precise code is server-log-only.
+    expect(body.error).toBe('UNAUTHORIZED');
   });
 
   it('allows request when client_id matches appId', async () => {
@@ -691,7 +698,8 @@ describe('POST /api/protected - BUG-009 token audience verification', () => {
 
     // Absent client_id must now be rejected (fail-closed)
     expect(res.status).toBe(401);
-    expect(body.error).toBe('TOKEN_INVALID');
+    // TOKEN_INVALID has exposeToClient:false → client sees UNAUTHORIZED.
+    expect(body.error).toBe('UNAUTHORIZED');
   });
 });
 
@@ -749,5 +757,59 @@ describe('POST /api/protected - BUG-L-007 Retry-After on 429', () => {
 
     // Clean up
     vi.doUnmock('../../lib/distributed-state');
+  });
+});
+
+// ── Null/non-object body validation (BUG-106) ──────────────────────────────
+describe('POST /api/protected - null body', () => {
+  it('returns 400 when request body is JSON null', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '4',
+      },
+      body: 'null',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('MISSING_FIELDS');
+  });
+
+  it('returns 400 when request body is a JSON string', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '6',
+      },
+      body: '"hello"',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('MISSING_FIELDS');
+  });
+
+  it('returns 400 when request body is a JSON number', async () => {
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        'content-length': '1',
+      },
+      body: '0',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('MISSING_FIELDS');
   });
 });

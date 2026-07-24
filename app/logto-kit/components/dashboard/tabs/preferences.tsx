@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -157,6 +157,24 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
 
   const c = colors;
 
+  // Roving tabindex: track which button currently has tab focus
+  const radioRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // Sync focusKey to activeMode when selection changes externally
+  useEffect(() => {
+    setFocusKey(activeMode);
+  }, [activeMode]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // After render, move DOM focus if focusKey differs from active visual selection
+  useEffect(() => {
+    if (focusKey && focusKey !== activeMode) {
+      radioRefs.current.get(focusKey)?.focus();
+    }
+  }, [focusKey, activeMode]);
+
   // ─── Inlined component styles (replaces cs.*) ───
   const sectionLabelStyle: React.CSSProperties = {
     fontFamily: FONT_SANS,
@@ -175,10 +193,48 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
     marginBottom: '1rem',
   };
 
-  const options = [
-    { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
-    { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
-  ] as const;
+  const options = useMemo(
+    () => [
+      { id: 'light', label: t.common.lightTheme, Icon: SunIcon },
+      { id: 'dark', label: t.common.darkTheme, Icon: MoonIcon },
+    ] as const,
+    [t.common.lightTheme, t.common.darkTheme],
+  );
+
+  const handleRadioKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const currentIndex = options.findIndex(o => o.id === (focusKey ?? activeMode));
+      let nextIndex = currentIndex;
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'ArrowDown':
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          e.preventDefault();
+          // Toggle between the two options (wrap around)
+          nextIndex = (currentIndex + 1) % options.length;
+          break;
+        case 'Home':
+          e.preventDefault();
+          nextIndex = 0;
+          break;
+        case 'End':
+          e.preventDefault();
+          nextIndex = options.length - 1;
+          break;
+        default:
+          return; // Don't handle other keys
+      }
+
+      const nextOption = options[nextIndex];
+      if (nextOption) {
+        setTheme(nextOption.id);
+        setFocusKey(nextOption.id);
+      }
+    },
+    [options, focusKey, activeMode, setTheme],
+  );
 
   return (
     <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
@@ -190,9 +246,11 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
           role="radiogroup"
           aria-label={t.common.appearance}
           style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem' }}
+          onKeyDown={handleRadioKeyDown}
         >
           {options.map(opt => {
             const isSelected = activeMode === opt.id;
+            const isFocused = (focusKey ?? activeMode) === opt.id;
             return (
               <ThemeOption
                 key={opt.id}
@@ -202,8 +260,10 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
                 isSelected={isSelected}
                 mode={mode}
                 colors={c}
-                onSelect={() => setTheme(opt.id)}
+                onSelect={() => { setTheme(opt.id); setFocusKey(opt.id); }}
                 tall={isMobile}
+                tabIndex={isFocused ? 0 : -1}
+                buttonRef={el => { radioRefs.current.set(opt.id, el); }}
               />
             );
           })}
@@ -236,7 +296,7 @@ export function PreferencesTab({ mode, colors, t, supportedLangs, mobmode }: Pre
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ThemeOption({
-  id, label, Icon, isSelected, mode: _mode, colors, onSelect, tall,
+  id, label, Icon, isSelected, mode: _mode, colors, onSelect, tall, tabIndex, buttonRef,
 }: {
   id: string;
   label: string;
@@ -246,6 +306,8 @@ function ThemeOption({
   colors: ThemeColors;
   onSelect: () => void;
   tall?: boolean;
+  tabIndex?: number;
+  buttonRef?: (el: HTMLButtonElement | null) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const c = colors;
@@ -255,6 +317,8 @@ function ThemeOption({
       type="button"
       role="radio"
       aria-checked={isSelected}
+      tabIndex={tabIndex ?? 0}
+      ref={buttonRef}
       onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

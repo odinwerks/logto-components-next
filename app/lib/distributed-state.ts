@@ -36,7 +36,7 @@ interface LockManagerInstance {
 }
 
 interface TokenCacheInstance {
-  get(key: string): string | null;
+  get(key: string): Promise<string | null>;
   set(key: string, token: string, expiresAt: number): void;
   clear(key: string): void;
 }
@@ -64,7 +64,7 @@ interface Backend {
   lockRelease(namespace: string, key: string): void;
 
   // Token cache
-  tokenGet(key: string): string | null;
+  tokenGet(key: string): Promise<string | null>;
   tokenSet(key: string, token: string, expiresAt: number): void;
   tokenClear(key: string): void;
 }
@@ -93,7 +93,11 @@ class InMemoryBackend implements Backend {
   }
 
   async rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): Promise<boolean> {
-    const mapKey = `${namespace}:${key}`;
+    // Use pipe delimiter to avoid colon-collision (BUG-054): namespace and key
+    // components validated via SAFE_ID_REGEX never contain '|', so pipe prevents
+    // ambiguity like ns="user:abc" + key="action:def" colliding with
+    // ns="user:ab" + key="c:action:def".
+    const mapKey = `${namespace}|${key}`;
     const now = Date.now();
     const entry = this.rateLimits.get(mapKey);
     if (!entry || now > entry.resetAt) {
@@ -106,7 +110,7 @@ class InMemoryBackend implements Backend {
   }
 
   async rateLimitReset(namespace: string, key: string): Promise<void> {
-    this.rateLimits.delete(`${namespace}:${key}`);
+    this.rateLimits.delete(`${namespace}|${key}`);
   }
 
   async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
@@ -178,7 +182,7 @@ class InMemoryBackend implements Backend {
     }
   }
 
-  tokenGet(key: string): string | null {
+  async tokenGet(key: string): Promise<string | null> {
     const entry = this.tokens.get(key);
     if (!entry) return null;
     if (Date.now() >= entry.expiresAt) {
@@ -251,7 +255,7 @@ class RedisBackend implements Backend {
   }
 
   async rateLimitCheck(namespace: string, key: string, windowMs: number, max: number): Promise<boolean> {
-    const mapKey = `rl:${namespace}:${key}`;
+    const mapKey = `rl:${namespace}|${key}`;
     const windowSec = Math.ceil(windowMs / 1000);
 
     try {
@@ -299,7 +303,7 @@ class RedisBackend implements Backend {
     windowMs: number,
     max: number,
   ): boolean {
-    const mapKey = `${namespace}:${key}`;
+    const mapKey = `${namespace}|${key}`;
     const now = Date.now();
     const entry = this._fallbackRateLimits.get(mapKey);
 
@@ -320,9 +324,9 @@ class RedisBackend implements Backend {
   }
 
   async rateLimitReset(namespace: string, key: string): Promise<void> {
-    const mapKey = `rl:${namespace}:${key}`;
+    const mapKey = `rl:${namespace}|${key}`;
     void this.client.del(mapKey).catch(() => {});
-    this._fallbackRateLimits.delete(`${namespace}:${key}`);
+    this._fallbackRateLimits.delete(`${namespace}|${key}`);
   }
 
   async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
@@ -389,17 +393,38 @@ class RedisBackend implements Backend {
     // This is a no-op to preserve the Backend interface contract.
   }
 
-  tokenGet(key: string): string | null {
-    // Synchronous read is not possible with Redis; return null and rely on
-    // the async set/get pattern in the tokenCache wrapper.
-    // The token cache uses an in-memory shadow for performance.
+  async tokenGet(key: string): Promise<string | null> {
+    // Fast path: check in-memory shadow
     const entry = this._tokenShadow.get(key);
-    if (!entry) return null;
-    if (Date.now() >= entry.expiresAt) {
-      this._tokenShadow.delete(key);
-      return null;
+    if (entry) {
+      if (Date.now() >= entry.expiresAt) {
+        this._tokenShadow.delete(key);
+        // Fall through to Redis read (don't return null yet)
+      } else {
+        return entry.token;
+      }
     }
-    return entry.token;
+
+    // Shadow miss — try Redis (BUG-026: previously only read shadow, making
+    // the distributed cache non-functional across instances)
+    const redisKey = `token:${key}`;
+    try {
+      const value: string | null = await this.client.get(redisKey);
+      if (typeof value === 'string' && value.length > 0) {
+        // Repopulate shadow with a conservative TTL for fast subsequent reads.
+        // The actual TTL in Redis is authoritative; this shadow TTL merely
+        // limits how long a stale shadow entry persists before re-checking Redis.
+        this._tokenShadow.set(key, { token: value, expiresAt: Date.now() + 60_000 });
+        return value;
+      }
+    } catch (err) {
+      console.warn(
+        `[TokenCache] Redis read failed for key "${key}": ` +
+        `${(err as Error).message}`,
+      );
+    }
+
+    return null;
   }
 
   private readonly _tokenShadow = new Map<string, { token: string; expiresAt: number }>();
@@ -569,7 +594,7 @@ export function createLockManager(name: string): LockManagerInstance {
  * The cache is keyed by an arbitrary string (e.g. 'm2m-token').
  */
 export const tokenCache: TokenCacheInstance = {
-  get(key: string): string | null {
+  async get(key: string): Promise<string | null> {
     return getBackend().tokenGet(key);
   },
   set(key: string, token: string, expiresAt: number): void {

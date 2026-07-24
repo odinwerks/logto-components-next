@@ -1,4 +1,5 @@
-import { fetchDashboardData } from '../../logic/actions';
+import { fetchDashboardDataCached } from '../../logic/cached-dashboard';
+import { fetchPersonalRbacCached, fetchOrgRbacCached } from '../../logic/cached-rbac';
 import { MobileClient } from './mobile-client';
 import {
   updateUserBasicInfo,
@@ -44,7 +45,7 @@ export async function MobileDashboard() {
 
   const errorColors = DARK_COLORS;
 
-  const result = await fetchDashboardData({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached(true);
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
@@ -90,11 +91,21 @@ export async function MobileDashboard() {
   const userPrefs = getPreferencesFromUserData(result.userData);
   const resolvedOrg = userPrefs?.asOrg ?? null;
 
+  // ── Kick off RBAC promises (instant fetch) ─────────────────────────────────
+  // See the parallel comment in dashboard/index.tsx — same pattern.
+  const userId = result.userData.id;
+  const personalRbacPromise = fetchPersonalRbacCached(userId);
+  const orgRbacPromise = resolvedOrg
+    ? fetchOrgRbacCached(userId, resolvedOrg)
+    : null;
+
   return (
       <MobileClient
           initialData={{
             userData: result.userData,
           }}
+          personalRbacPromise={personalRbacPromise}
+          orgRbacPromise={orgRbacPromise}
           currentOrgId={resolvedOrg ?? undefined}
           nameType={process.env.NEXT_PUBLIC_NAME_TYPE}
           translations={translations}

@@ -52,7 +52,7 @@ function getTrigPayload(payload: unknown): { n: number; mode: 'deg' | 'rad' } {
 // ============================================================================
 
 const CALC_ROLE_ID = 'gvuq1krilkjypl5hl34sb';
-const CALC_ORG_ID = '5b6sw6p5uzti';
+const CALC_ORG_ID = '8joxv3kicmlz';
 const CALC_BASIC_PERM = 'calc:basic';
 const CALC_SCI_PERM = 'calc:scientific';
 

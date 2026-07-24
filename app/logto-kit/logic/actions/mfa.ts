@@ -6,13 +6,14 @@ import { makeRequest } from './request';
 import { throwOnApiError, plainCode } from '../errors';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
-import { warn } from '../log';
+import { warn, logEvent } from '../log';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { ValidationError } from '../validation';
 
 import { auditSafe } from './helpers';
 import { requireVerifiedIdentity } from './verification-cookie';
 import { createLockManager, createRateLimiter } from '../../../lib/distributed-state';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 // In-flight lock to prevent concurrent backup codes generation races
 const backupCodesLockManager = createLockManager('mfa-backup-codes');
@@ -72,13 +73,21 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
       throw plainCode('MFA_ENROLL_FAILED');
     }
 
-    const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
-      method: 'POST',
-    });
-    
-    await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-secret');
+    // BUG-057: If the downstream makeRequest/throwOnApiError fails, reset the
+    // rate-limit token so a transient Logto error does not leave the user
+    // rate-limited for 10s with no secret produced.
+    try {
+      const res = await makeRequest('/api/my-account/mfa-verifications/totp-secret/generate', {
+        method: 'POST',
+      });
 
-    return res.json();
+      await throwOnApiError(res, 'MFA_ENROLL_FAILED', 'totp-secret');
+
+      return res.json();
+    } catch (err) {
+      await totpGenerationRateLimiter.reset(userId).catch(() => {});
+      throw err;
+    }
   });
 }
 
@@ -116,18 +125,52 @@ export async function addMfaVerification(
       if (typeof payload.secret !== 'string' || payload.secret.length > 64) {
         throw new ValidationError('INVALID_INPUT', 'verification.secret');
       }
+    } else if (type === 'BackupCode') {
+      // BUG-055: Validate BackupCode codes before sending to Logto API.
+      // Backup codes are alphanumeric strings (4–50 chars). The array must
+      // be non-empty and capped at 20 entries to reject oversized payloads.
+      const bcPayload = payload as Record<string, unknown>;
+      if (bcPayload.codes !== undefined) {
+        if (!Array.isArray(bcPayload.codes) || bcPayload.codes.length === 0 || bcPayload.codes.length > 20) {
+          throw new ValidationError('INVALID_INPUT', 'verification.codes');
+        }
+        for (const code of bcPayload.codes) {
+          if (typeof code !== 'string' || code.length < 4 || code.length > 50 || !/^[A-Za-z0-9]+$/.test(code)) {
+            throw new ValidationError('INVALID_INPUT', 'verification.codes');
+          }
+        }
+      }
     } else {
-      // WebAuthn / BackupCode - both have [key: string]: unknown index signatures
-      const genericPayload = payload as Record<string, unknown>;
-      if (typeof genericPayload.code === 'string' && genericPayload.code.length > 16) {
-        throw new ValidationError('INVALID_INPUT', 'verification.code');
+      // WebAuthn
+      const waPayload = payload as Record<string, unknown>;
+
+      // BUG-055: Validate WebAuthn credential ID format before sending to Logto.
+      // WebAuthn credential IDs are base64url-encoded byte arrays (1–512 chars,
+      // characters limited to A-Z a-z 0-9 - _).
+      if (waPayload.id !== undefined) {
+        if (
+          typeof waPayload.id !== 'string' ||
+          waPayload.id.length === 0 ||
+          waPayload.id.length > 512 ||
+          !/^[A-Za-z0-9_-]+$/.test(waPayload.id)
+        ) {
+          throw new ValidationError('INVALID_INPUT', 'verification.id');
+        }
       }
-      if (typeof genericPayload.secret === 'string' && genericPayload.secret.length > 64) {
-        throw new ValidationError('INVALID_INPUT', 'verification.secret');
+      if (waPayload.rawId !== undefined) {
+        if (
+          typeof waPayload.rawId !== 'string' ||
+          waPayload.rawId.length === 0 ||
+          waPayload.rawId.length > 512 ||
+          !/^[A-Za-z0-9_-]+$/.test(waPayload.rawId)
+        ) {
+          throw new ValidationError('INVALID_INPUT', 'verification.rawId');
+        }
       }
+
       if (
-        typeof genericPayload.newIdentifierVerificationRecordId === 'string' &&
-        genericPayload.newIdentifierVerificationRecordId.length > 128
+        typeof waPayload.newIdentifierVerificationRecordId === 'string' &&
+        waPayload.newIdentifierVerificationRecordId.length > 128
       ) {
         throw new ValidationError('INVALID_INPUT', 'verification.newIdentifierVerificationRecordId');
       }
@@ -167,6 +210,7 @@ export async function addMfaVerification(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, `mfa.${verification.type.toLowerCase()}.enroll`);
+    logEvent.info(LOG_EVENTS.MFA_ENROLL, 'MFA verification enrolled', { type: verification.type });
   });
 }
 
@@ -201,6 +245,7 @@ export async function deleteMfaVerification(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, 'mfa.remove', verificationId);
+    logEvent.info(LOG_EVENTS.MFA_REMOVE, 'MFA verification removed', { verificationId });
   });
 }
 
@@ -280,7 +325,8 @@ export async function generateBackupCodes(
       // deleting the old factors, so a failure here leaves the user's existing
       // backup codes intact (BUG-L04). If Logto does not permit multiple
       // concurrent BackupCode factors, the enroll is rejected with 409/422 —
-      // in that case we delete the old factors and retry the enrollment.
+      // in that case we retry the enrollment first, and only delete the old
+      // factors once the retry succeeds (BUG-015).
       const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
         method: 'POST',
         body: { type: 'BackupCode', codes },
@@ -294,9 +340,12 @@ export async function generateBackupCodes(
       ) {
         warn(
           `[generateBackupCodes] Enrollment rejected with ${enrollRes.status} ` +
-            '(concurrent BackupCode factor not permitted); deleting old factors and retrying.'
+            '(concurrent BackupCode factor not permitted); retrying enrollment, then deleting old factors.'
         );
-        await deleteOldBackupFactors();
+        // BUG-015: Retry enrollment FIRST (with the original codes). Only delete
+        // old factors AFTER the retry succeeds. Previously deletion ran BEFORE
+        // the retry, so a transient 5xx on the retry left the user with zero
+        // backup-code recovery factors (violating BUG-L04).
         const retryRes = await makeRequest('/api/my-account/mfa-verifications', {
           method: 'POST',
           body: { type: 'BackupCode', codes },
@@ -304,17 +353,33 @@ export async function generateBackupCodes(
         });
 
         await throwOnApiError(retryRes, 'BACKUP_CODES_FAILED', 'backup-enroll-retry');
+
+        // Only delete old factors AFTER retry succeeds (best-effort: a cleanup
+        // failure must not prevent returning the newly-bound codes — BUG-056).
+        try {
+          await deleteOldBackupFactors();
+        } catch {
+          // Best-effort cleanup; new codes are bound and will be returned.
+        }
       } else {
         await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
         // Step 4: New codes are now bound — invalidate the old ones so they can
         // no longer be used. This only runs after a successful enrollment, so a
         // failure above never reaches here (old codes stay intact).
-        await deleteOldBackupFactors();
+        // BUG-056: Best-effort cleanup — if deletion throws, the new codes are
+        // still bound; returning them must not be blocked by a cleanup failure
+        // (otherwise the user is left with orphaned bound codes never displayed).
+        try {
+          await deleteOldBackupFactors();
+        } catch {
+          // Best-effort cleanup; new codes are bound and will be returned.
+        }
       }
 
       // Audit (best-effort - failure must not break the main action)
       auditSafe(userId, 'mfa.backup_codes.generate');
+      logEvent.info(LOG_EVENTS.MFA_BACKUP_CODES_GENERATE, 'Backup codes generated', {});
 
       return { codes };
     } finally {
@@ -389,5 +454,6 @@ export async function replaceTotpVerification(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, 'mfa.totp.replace');
+    logEvent.info(LOG_EVENTS.MFA_TOTP_REPLACE, 'TOTP replaced', {});
   });
 }

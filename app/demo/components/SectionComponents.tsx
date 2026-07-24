@@ -1,13 +1,9 @@
 'use client';
 
 import { useDocStyles } from './useDocStyles';
+import { slugify } from '../../lib/slugify';
 
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
+export { slugify };
 
 export function SectionHeader({ label }: { label: string }) {
   const styles = useDocStyles();

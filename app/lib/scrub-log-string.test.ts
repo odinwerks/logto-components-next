@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrubLogString, scrubArgs } from './scrub-log-string';
+import { scrubLogString, scrubArgs, redactSensitive, SENSITIVE_KEYS } from './scrub-log-string';
 
 describe('scrubLogString', () => {
   it('returns unchanged string when no sensitive patterns present', () => {
@@ -145,10 +145,70 @@ describe('scrubArgs', () => {
     expect(scrubArgs([null, undefined])).toEqual([null, undefined]);
   });
 
-  it('passes through plain objects unchanged (Pino handles those)', () => {
-    const obj = { userId: '123', accessToken: 'should-not-be-scrubbed-by-scrubArgs' };
+  it('redacts sensitive keys in plain object args (BUG-008)', () => {
+    const obj = { userId: '123', accessToken: 'should-be-redacted', nested: { token: 'secret' } };
     const result = scrubArgs([obj]);
-    expect(result[0]).toBe(obj); // same reference
+    // Returns a NEW object (not the same reference) so the original is untouched
+    expect(result[0]).not.toBe(obj);
+    expect(result[0]).toEqual({
+      userId: '123',
+      accessToken: '[REDACTED]',
+      nested: { token: '[REDACTED]' },
+    });
+    // Original object must NOT be mutated
+    expect(obj.accessToken).toBe('should-be-redacted');
+    expect(obj.nested.token).toBe('secret');
+  });
+
+  it('redacts snake_case OAuth keys in object args (BUG-007/008)', () => {
+    const obj = {
+      access_token: 'raw-access',
+      refresh_token: 'raw-refresh',
+      id_token: 'raw-id',
+      client_secret: 'raw-secret',
+      code: 'raw-code',
+      state: 'raw-state',
+    };
+    const [result] = scrubArgs([obj]) as [Record<string, string>];
+    expect(result.access_token).toBe('[REDACTED]');
+    expect(result.refresh_token).toBe('[REDACTED]');
+    expect(result.id_token).toBe('[REDACTED]');
+    expect(result.client_secret).toBe('[REDACTED]');
+    expect(result.code).toBe('[REDACTED]');
+    expect(result.state).toBe('[REDACTED]');
+  });
+
+  it('redacts sensitive keys at nested depths in object args', () => {
+    const obj = {
+      oauth: { access_token: 'nested-access', response: { id_token: 'deep-id' } },
+      safe: 'kept',
+    };
+    const [result] = scrubArgs([obj]) as [Record<string, unknown>];
+    expect((result.oauth as Record<string, unknown>).access_token).toBe('[REDACTED]');
+    expect(((result.oauth as Record<string, unknown>).response as Record<string, unknown>).id_token).toBe('[REDACTED]');
+    expect(result.safe).toBe('kept');
+  });
+
+  it('preserves Date objects in object args (does not mangle into {})', () => {
+    const date = new Date('2025-01-02T00:00:00.000Z');
+    const obj = { accessToken: 'leak', expiresAt: date };
+    const [result] = scrubArgs([obj]) as [Record<string, unknown>];
+    expect(result.accessToken).toBe('[REDACTED]');
+    // Date must remain a real Date instance, not collapse to {}
+    expect(result.expiresAt).toBeInstanceOf(Date);
+    expect((result.expiresAt as Date).toISOString()).toBe('2025-01-02T00:00:00.000Z');
+  });
+
+  it('preserves arrays in args (passed through by reference)', () => {
+    const arr = [1, 2, 3];
+    const [result] = scrubArgs([arr]);
+    expect(result).toBe(arr);
+  });
+
+  it('does not redact non-sensitive plain objects', () => {
+    const obj = { userId: '123', statusCode: 200, method: 'POST' };
+    const [result] = scrubArgs([obj]);
+    expect(result).toEqual({ userId: '123', statusCode: 200, method: 'POST' });
   });
 
   it('scrubs string arguments', () => {

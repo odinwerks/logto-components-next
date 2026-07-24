@@ -84,7 +84,6 @@ function AuthErrorBannerInner({
   return (
     <div
       role="alert"
-      aria-live="polite"
       style={{
         display: 'flex',
         alignItems: 'center',

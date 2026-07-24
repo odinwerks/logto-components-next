@@ -54,22 +54,41 @@ export function getSupportedLangs(): string[] {
  * Returns the default/main language code.
  *
  * Source: `LANG_MAIN` (also checks `NEXT_PUBLIC_LANG_MAIN` as fallback)
- * Falls back to first entry in LANG_AVAILABLE, then 'en-US'.
+ * Falls back to first entry in LANG_AVAILABLE, then to AVAILABLE_LOCALES[0].
+ *
+ * Guarantee: the returned code is always a member of `getSupportedLangs()`,
+ * i.e. it respects both AVAILABLE_LOCALES and LANG_AVAILABLE filtering.
  */
 export function getDefaultLang(): string {
   const raw = (readEnv('LANG_MAIN') || '').trim();
-  if (raw && (AVAILABLE_LOCALES as readonly string[]).includes(raw)) {
-    return raw;
-  }
-  // Fall back to first lang in the available list (if LANG_AVAILABLE is set)
   const rawAvail = (readEnv('LANG_AVAILABLE') || '').trim();
-  if (rawAvail) {
-    const first = rawAvail.split(',')[0]?.trim();
+  const availCodes = rawAvail
+    ? rawAvail
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : null;
+
+  // LANG_MAIN must be in AVAILABLE_LOCALES AND (if LANG_AVAILABLE is set) in LANG_AVAILABLE
+  if (raw && (AVAILABLE_LOCALES as readonly string[]).includes(raw)) {
+    if (!availCodes || availCodes.includes(raw)) {
+      return raw;
+    }
+    // LANG_MAIN is valid per AVAILABLE_LOCALES but excluded by LANG_AVAILABLE.
+    // Fall through to the next fallback — don't return a lang that getSupportedLangs()
+    // won't include.
+  }
+
+  // Fall back to first lang in LANG_AVAILABLE (if set and has a recognized entry)
+  if (availCodes && availCodes.length > 0) {
+    const first = availCodes[0];
     if (first && (AVAILABLE_LOCALES as readonly string[]).includes(first)) {
       return first;
     }
   }
-  return 'en-US';
+
+  // Ultimate fallback: first entry in AVAILABLE_LOCALES (always a member of itself)
+  return AVAILABLE_LOCALES[0];
 }
 
 /**

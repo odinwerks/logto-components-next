@@ -240,6 +240,52 @@ export interface Translations {
     clearOrgFailed: string;
     refreshOrgPermissions: string;
     refreshOrgRoles: string;
+    // ── Point 2: organization-context / switcher / listbox / provenance ──
+    accessEyebrow: string;
+    personalAccessLabel: string;
+    personalModeDescription: string;
+    selectedOrgDescription: string;
+    noOrgDescription: string;
+    switchingLabel: string;
+    switchingAnnouncement: string;
+    listboxLabel: string;
+    personalOptionLabel: string;
+    personalOptionDescription: string;
+    orgSectionLabel: string;
+    selectTriggerAriaLabel: string;
+  };
+
+  // ── Point 2: shared RBAC lister copy (provenance, details, copy, empty) ──
+  rbac: {
+    scopeLabel: string;
+    scopeIdLabel: string;
+    resourceIndicatorLabel: string;
+    detailsButtonLabel: string;
+    detailsDialogTitle: string;
+    detailsCopyLabel: string;
+    detailsCopyAnnouncement: string;
+    detailsCopyFailedAnnouncement: string;
+    countLabel: string;
+    loadingLabel: string;
+    emptyRolesTitle: string;
+    emptyPermissionsTitle: string;
+    emptyRolesDetail: string;
+    emptyPermissionsDetail: string;
+    // provenance / degraded state
+    sourceM2mDerived: string;
+    sourceLiveAudit: string;
+    auditStatusAuditing: string;
+    auditStatusLive: string;
+    auditStatusError: string;
+    descriptionsError: string;
+    staleRetryNotice: string;
+    refreshFailedNotice: string;
+    // personal-only labels (no org context)
+    personalRolesTitle: string;
+    personalPermissionsTitle: string;
+    // organization-only labels
+    orgRolesTitle: string;
+    orgPermissionsTitle: string;
   };
   
   // MFA tab
@@ -413,6 +459,94 @@ export interface Translations {
     abort: string;
     confirm: string;
     farewell: string;
+  };
+
+  // Error codes — maps the client-receivable string code to a human-readable message.
+  // Keys are the code values from ERROR_CODES in error-codes.ts (not the registry key names).
+  // For Logto dot-notation codes, `.` → `_` in the key (e.g. `session.invalid_credentials` → `session_invalid_credentials`).
+  errors: {
+    // ── auth ──
+    UNAUTHENTICATED: string;
+    UNAUTHORIZED: string;
+    FORBIDDEN_ORIGIN: string;
+    VERIFICATION_FAILED: string;
+    VERIFICATION_EXPIRED: string;
+    VERIFICATION_REQUIRED: string;
+    MISSING_VERIFICATION: string;
+
+    // ── rbac ──
+    ROLE_DENIED: string;
+    PERMISSION_DENIED: string;
+    ORG_NOT_MEMBER: string;
+
+    // ── validation ──
+    INVALID_INPUT: string;
+    MISSING_FIELDS: string;
+    INVALID_PAYLOAD: string;
+    PAYLOAD_TOO_LARGE: string;
+    PHONE_COUNTRY_NOT_ALLOWED: string;
+
+    // ── server ──
+    INTERNAL_ERROR: string;
+    FETCH_FAILED: string;
+    UPDATE_FAILED: string;
+    DELETE_FAILED: string;
+    SERVICE_UNAVAILABLE: string;
+    MFA_ENROLL_FAILED: string;
+    MFA_REMOVE_FAILED: string;
+    BACKUP_CODES_FAILED: string;
+    PASSWORD_UPDATE_FAILED: string;
+    EMAIL_UPDATE_FAILED: string;
+    PHONE_UPDATE_FAILED: string;
+    SESSION_REVOKE_FAILED: string;
+    GRANT_REVOKE_FAILED: string;
+
+    // ── rate-limit ──
+    RATE_LIMITED: string;
+    UPLOAD_RATE_LIMITED: string;
+
+    // ── upload ──
+    UPLOAD_FAILED: string;
+    UPLOAD_TOO_LARGE: string;
+    UPLOAD_INVALID_TYPE: string;
+
+    // ── oauth (snake_case per RFC 6749) ──
+    access_denied: string;
+    invalid_request: string;
+    unauthorized_client: string;
+    unsupported_response_type: string;
+    invalid_scope: string;
+    server_error: string;
+    temporarily_unavailable: string;
+    interaction_required: string;
+    login_required: string;
+    consent_required: string;
+    unknown_error: string;
+    OAUTH_UNKNOWN_ERROR: string;
+
+    // ── silent / ultimate fallback ──
+    ERROR: string;
+
+    // ── Logto structured API codes (dot-notation → underscore in key) ──
+    session_invalid_credentials: string;
+    session_verification_failed: string;
+    session_identifier_not_found: string;
+    session_identity_conflict: string;
+    session_verification_session_not_found: string;
+    user_user_not_exist: string;
+    guard_invalid_target: string;
+    password_expired: string;
+    password_rejected: string;
+    session_mfa_backup_code_can_not_be_alone: string;
+    session_mfa_mfa_factor_not_enabled: string;
+    session_mfa_pending_info_not_found: string;
+    session_mfa_webauthn_verification_failed: string;
+    session_not_supported_for_forgot_password: string;
+    user_missing_profile: string;
+    user_password_policy_violation: string;
+    user_same_password: string;
+    user_totp_already_in_use: string;
+    user_username_already_in_use: string;
   };
 }
 

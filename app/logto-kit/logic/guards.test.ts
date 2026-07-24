@@ -91,6 +91,27 @@ describe('assertRevokeGrantsTarget', () => {
     expect(() => assertRevokeGrantsTarget('')).toThrow(ValidationError);
     expect(() => assertRevokeGrantsTarget('all; DROP TABLE users')).toThrow(ValidationError);
   });
+
+  // BUG-011: JSON `null` must NOT bypass the guard. Previously the early
+  // return accepted `null`, defeating the default param (`= 'all'` only
+  // applies for `undefined`) and leaving the query param omitted so grants
+  // could remain active. `null` must now fall through to enum validation.
+  it('rejects null with INVALID_ENUM (BUG-011)', () => {
+    expect(() => assertRevokeGrantsTarget(null)).toThrow(ValidationError);
+    try {
+      assertRevokeGrantsTarget(null);
+      expect.fail('Should have thrown ValidationError');
+    } catch (e) {
+      const err = e as ValidationError;
+      expect(err).toBeInstanceOf(ValidationError);
+      expect(err.message).toBe('INVALID_ENUM');
+      expect(err.field).toBe('revokeGrantsTarget');
+    }
+  });
+
+  it('still accepts undefined so the default param works (BUG-011)', () => {
+    expect(() => assertRevokeGrantsTarget(undefined)).not.toThrow();
+  });
 });
 
 // ============================================================================
@@ -305,13 +326,13 @@ describe('pickPreferences lang allowlist (LOW-1)', () => {
   });
 
   it('accepts lang when LANG_AVAILABLE env var includes the value', () => {
-    vi.stubEnv('LANG_AVAILABLE', 'en-US,de-DE,fr-FR');
+    vi.stubEnv('LANG_AVAILABLE', 'en-US,ka-GE,uk-UA');
     vi.resetModules();
     // After module reset, re-import to pick up new env
     // Note: guards.ts imports lang-allowlist at module load but calls getLangAllowlist()
     // at runtime, so the env is read on each call
-    expect(() => pickPreferences({ lang: 'de-DE' })).not.toThrow();
-    expect(() => pickPreferences({ lang: 'fr-FR' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'ka-GE' })).not.toThrow();
+    expect(() => pickPreferences({ lang: 'uk-UA' })).not.toThrow();
   });
 
   it('handles malformed LANG_AVAILABLE (commas only, spaces) by falling back to defaults', () => {
@@ -388,6 +409,9 @@ describe('assertNameField', () => {
   it('rejects control characters', () => {
     expect(() => assertNameField('name\x00inject', 'name')).toThrow(ValidationError);
     expect(() => assertNameField('name\x01inject', 'name')).toThrow(ValidationError);
+    expect(() => assertNameField('name\tinject', 'name')).toThrow(ValidationError);
+    expect(() => assertNameField('name\ninject', 'name')).toThrow(ValidationError);
+    expect(() => assertNameField('name\rinject', 'name')).toThrow(ValidationError);
   });
 });
 
@@ -509,6 +533,9 @@ describe('assertPasskeyName', () => {
     expect(() => assertPasskeyName('name\x00inject')).toThrow(ValidationError);
     expect(() => assertPasskeyName('name\x01inject')).toThrow(ValidationError);
     expect(() => assertPasskeyName('name\x1Finject')).toThrow(ValidationError);
+    expect(() => assertPasskeyName('name\tinject')).toThrow(ValidationError);
+    expect(() => assertPasskeyName('name\ninject')).toThrow(ValidationError);
+    expect(() => assertPasskeyName('name\rinject')).toThrow(ValidationError);
   });
 
   it('throws on non-string input', () => {

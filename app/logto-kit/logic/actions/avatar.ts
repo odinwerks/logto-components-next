@@ -7,9 +7,10 @@ import { assertSafeUserId } from '../guards';
 import { getTokenForServerAction } from './tokens';
 import { plainCode } from '../errors';
 import { safeAction, type DataResult } from './safe';
-import { warn } from '../log';
+import { warn, logEvent } from '../log';
 import { createRateLimiter } from '../../../lib/distributed-state';
 import { auditSafe } from './helpers';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 // ============================================================================
 // Constants
@@ -358,6 +359,7 @@ export async function uploadAvatar(
 
     const data = (await res.json()) as { avatar?: string };
     auditSafe(userId, 'avatar.upload', userId);
+    logEvent.info(LOG_EVENTS.AVATAR_UPLOAD, 'Avatar uploaded (logto backend)', {});
 
     return { url: data.avatar ?? '' };
   }
@@ -384,6 +386,7 @@ export async function uploadAvatar(
   await deleteOldAvatars(bucket, userId, ext);
 
   auditSafe(userId, 'avatar.upload', userId);
+  logEvent.info(LOG_EVENTS.AVATAR_UPLOAD, 'Avatar uploaded (S3 backend)', {});
 
   return { url: `${publicBase}/${key}?v=${Date.now()}` };
   });

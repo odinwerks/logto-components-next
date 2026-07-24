@@ -10,7 +10,9 @@ import { makeRequest } from './request';
 import { throwOnApiError, plainCode } from '../errors';
 import { safeAction, type ActionResult, type DataResult } from './safe';
 import { requireVerifiedIdentity } from './verification-cookie';
-import { warn } from '../log';
+import { warn, logEvent } from '../log';
+import { auditSafe } from './helpers';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 // ============================================================================
 // User Agent Parsing
@@ -43,8 +45,14 @@ function parseSignInContext(ua: string): { browser: string | null; browserVersio
 /**
  * Internal non-wrapped function to get user sessions.
  * Prevents double-wrapping error code swallowing (BUG-014).
+ *
+ * NOT exported (BUG-002): a non-exported async function in a `'use server'`
+ * file is not callable via RPC, so a malicious client cannot invoke it with a
+ * crafted `skipVerificationCheck`/`verificationRecordId`. Same-file callers
+ * (`getUserSessions`, `getSessionsWithDeviceMeta`, `revokeAllOtherSessions`)
+ * invoke it directly. Use the public `getUserSessions` wrapper from outside.
  */
-export async function getUserSessionsInternal(
+async function getUserSessionsInternal(
   verificationRecordId: string,
 ): Promise<LogtoSession[]> {
   assertSafeLogtoId(verificationRecordId, 'verificationRecordId');
@@ -150,8 +158,16 @@ export async function getSessionsWithDeviceMeta(
 /**
  * Internal non-wrapped function to revoke a user session.
  * Supports skipping the verification check to prevent mid-loop timeouts (BUG-004).
+ *
+ * NOT exported (BUG-002): this function accepts a client-controllable
+ * `skipVerificationCheck` param that bypasses `requireVerifiedIdentity` +
+ * `auditSafe`. Exporting it from a `'use server'` file would make it a
+ * client-callable Server Action, letting a malicious RPC client revoke
+ * arbitrary sessions without identity verification. It is a same-file helper
+ * only — external callers must use the public `revokeUserSession` wrapper,
+ * which always enforces verification and writes an audit record.
  */
-export async function revokeUserSessionInternal(
+async function revokeUserSessionInternal(
   sessionId: string,
   identityVerificationRecordId: string,
   revokeGrantsTarget: 'all' | 'firstParty' = 'all',
@@ -219,6 +235,7 @@ export async function revokeUserSession(
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
+    const userId = introspection.sub;
 
     await revokeUserSessionInternal(
       sessionId,
@@ -226,6 +243,10 @@ export async function revokeUserSession(
       revokeGrantsTarget,
       signal,
     );
+
+    // Audit + structured log (after upstream success, mirroring mfa.ts pattern).
+    auditSafe(userId, 'session.revoke', sessionId, { revokeGrantsTarget });
+    logEvent.info(LOG_EVENTS.SESSION_REVOKE, 'Session revoked', { sessionId, revokeGrantsTarget });
   }) as Promise<ActionResult>;
 }
 
@@ -275,6 +296,11 @@ export async function revokeAllOtherSessions(
     const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.payload.uid);
     debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
+    // userId is derived from session introspection (never client-supplied) and
+    // is needed up-front for the per-session audit records written inside the
+    // loop (BUG-016).
+    const userId = introspection.sub;
+
     // Revoke sessions sequentially with a small delay to avoid hitting
     // Logto API rate limits (429) when many sessions are revoked at once.
     const results: PromiseSettledResult<void>[] = [];
@@ -291,6 +317,10 @@ export async function revokeAllOtherSessions(
           true, // skipVerificationCheck (BUG-004)
         );
         results.push({ status: 'fulfilled', value: undefined });
+        // BUG-016: Audit each successful revocation inside the loop so a
+        // partial failure never leaves revoked sessions with zero audit
+        // records. auditSafe is best-effort and never throws.
+        auditSafe(userId, 'session.revoke', s.payload.uid, { revokeGrantsTarget: 'firstParty' });
       } catch (reason) {
         results.push({ status: 'rejected', reason });
       } finally {
@@ -304,14 +334,18 @@ export async function revokeAllOtherSessions(
 
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length > 0) {
-      const count = failures.length;
-      const total = othersToRevoke.length;
-      throw new Error(
-        `Failed to revoke ${count} of ${total} session(s). The remaining sessions may still be active.`
-      );
+      // BUG-016: Throw a sanitized code instead of a raw Error so upstream
+      // detail (count/total) is not leaked to the client. Per-session audit
+      // records for the sessions that DID revoke were already written inside
+      // the loop above, so a partial failure no longer leaves zero records.
+      throw plainCode('SESSION_REVOKE_PARTIAL');
     }
 
     debugLog('[revokeAllOtherSessions] All other sessions revoked');
+
+    // Audit + structured log (after full upstream success).
+    auditSafe(userId, 'session.revoke.all', undefined, { count: othersToRevoke.length });
+    logEvent.info(LOG_EVENTS.SESSION_REVOKE, 'Bulk session revoke', { count: othersToRevoke.length });
   }) as Promise<ActionResult>;
 }
 
@@ -363,6 +397,7 @@ export async function revokeUserGrant(
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
+    const userId = introspection.sub;
 
     assertSafeLogtoId(grantId, 'grantId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
@@ -378,5 +413,9 @@ export async function revokeUserGrant(
       extraHeaders,
     });
     await throwOnApiError(res, 'GRANT_REVOKE_FAILED', 'grant-revoke');
+
+    // Audit + structured log (after upstream success).
+    auditSafe(userId, 'grant.revoke', grantId);
+    logEvent.info(LOG_EVENTS.SESSION_REVOKE, 'Grant revoked', { grantId });
   }) as Promise<ActionResult>;
 }

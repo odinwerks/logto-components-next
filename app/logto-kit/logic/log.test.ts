@@ -104,15 +104,19 @@ describe('log.ts — console path scrubbing', () => {
     expect(callArgs[0]).toBe(safeMsg);
   });
 
-  it('passes non-string arguments (objects, numbers) through unchanged', async () => {
+  it('passes non-sensitive objects through with same content (cloned by scrubArgs for BUG-008)', async () => {
     const { log } = await import('./log');
     const obj = { userId: 'abc', status: 200 };
     log('Event data:', obj, 42);
 
     expect(consoleSpy.log).toHaveBeenCalled();
     const callArgs = consoleSpy.log.mock.calls[0];
-    // The object reference should be the same (not cloned)
-    expect(callArgs[1]).toBe(obj);
+    // scrubArgs clones plain objects (BUG-008 fix) — reference will differ but content is the same
+    expect(callArgs[1]).toStrictEqual(obj);
+    // Non-sensitive keys are preserved
+    expect((callArgs[1] as typeof obj).userId).toBe('abc');
+    expect((callArgs[1] as typeof obj).status).toBe(200);
+    // Numbers pass through by value
     expect(callArgs[2]).toBe(42);
   });
 });
@@ -221,5 +225,98 @@ describe('log.ts — Pino path scrubbing (BUG-M-001)', () => {
       expect((detail as { detail: string }).detail).not.toContain('supersecretaccesstoken');
       expect((detail as { detail: string }).detail).toContain('access_token=[REDACTED]');
     }
+  });
+});
+
+// ============================================================================
+// Smoke tests — real Pino backend, no mocks
+// ============================================================================
+
+describe('logEvent — real Pino backend smoke test', () => {
+  beforeEach(() => {
+    vi.stubEnv('LOG_BACKEND', 'pino');
+    vi.stubEnv('NODE_ENV', 'production');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('logEvent.info(LOG_EVENTS.GENERIC_LOG, ...) does not throw', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    expect(() => {
+      logEvent.info(LOG_EVENTS.GENERIC_LOG, 'smoke test info');
+    }).not.toThrow();
+  });
+
+  it('logEvent.warn(LOG_EVENTS.RBAC_PERMISSION_DENIED, ...) does not throw', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    expect(() => {
+      logEvent.warn(LOG_EVENTS.RBAC_PERMISSION_DENIED, 'smoke test warn', { action: 'test' });
+    }).not.toThrow();
+  });
+
+  it('logEvent.error(LOG_EVENTS.API_ERROR, ...) does not throw', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    expect(() => {
+      logEvent.error(LOG_EVENTS.API_ERROR, 'smoke test error', { statusCode: 500 });
+    }).not.toThrow();
+  });
+
+  it('logEvent.debug(LOG_EVENTS.API_REQUEST, ...) does not throw', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    expect(() => {
+      logEvent.debug(LOG_EVENTS.API_REQUEST, 'smoke test debug');
+    }).not.toThrow();
+  });
+
+  it('logEvent.child() creates a child that does not throw when logging', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    const child = logEvent.child({ requestId: 'smoke-test-req-001' });
+    expect(() => {
+      child.info(LOG_EVENTS.AUTH_SIGN_IN, 'child logger smoke test');
+    }).not.toThrow();
+  });
+
+  it('requestId from requestContext auto-merged into logEvent', async () => {
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+    const { requestContext, getRequestId } = await import('../../lib/request-context');
+
+    // Silence stdout for this test
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await requestContext.run({ requestId: 'ctx-smoke-test-001' }, () => {
+      expect(getRequestId()).toBe('ctx-smoke-test-001');
+      expect(() => {
+        logEvent.info(LOG_EVENTS.GENERIC_LOG, 'context smoke test');
+      }).not.toThrow();
+    });
+
+    writeSpy.mockRestore();
+  });
+
+  it('logEvent in "both" backend mode does not throw', async () => {
+    vi.stubEnv('LOG_BACKEND', 'both');
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const { logEvent } = await import('./log');
+    const { LOG_EVENTS } = await import('../../lib/log-events');
+
+    expect(() => {
+      logEvent.info(LOG_EVENTS.GENERIC_LOG, 'both mode test');
+    }).not.toThrow();
   });
 });

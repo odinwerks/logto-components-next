@@ -5,6 +5,7 @@ import {
   validateUsername,
   validateUrl,
   validateE164,
+  validateJsonObject,
   ValidationError,
 } from './validation';
 
@@ -171,5 +172,95 @@ describe('validateE164', () => {
   it('throws for number starting with 0 (not valid E.164 country code)', () => {
     // Stripped digits: 01234567890 — starts with 0, fails /^[1-9]\d{1,14}$/
     expect(() => validateE164('+01234567890', mockTranslations)).toThrow(ValidationError);
+  });
+});
+
+// BUG-049: validateJsonObject must strip __proto__ and constructor keys
+describe('validateJsonObject - BUG-049 prototype pollution prevention', () => {
+  it('returns valid JSON object with normal keys intact', () => {
+    const result = validateJsonObject('{"name":"test","value":42}', mockTranslations);
+    expect(result).toEqual({ name: 'test', value: 42 });
+  });
+
+  it('strips __proto__ key from parsed object', () => {
+    const result = validateJsonObject('{"__proto__":{"polluted":"yes"},"safe":true}', mockTranslations);
+    expect(result).toEqual({ safe: true });
+    expect(Object.hasOwn(result, '__proto__')).toBe(false);
+  });
+
+  it('strips constructor key from parsed object', () => {
+    const result = validateJsonObject('{"constructor":{"evil":true},"safe":true}', mockTranslations);
+    expect(result).toEqual({ safe: true });
+    expect(Object.hasOwn(result, 'constructor')).toBe(false);
+  });
+
+  it('strips both __proto__ and constructor when both present', () => {
+    const result = validateJsonObject('{"__proto__":{"a":1},"constructor":{"b":2},"ok":"yes"}', mockTranslations);
+    expect(result).toEqual({ ok: 'yes' });
+    expect(Object.hasOwn(result, '__proto__')).toBe(false);
+    expect(Object.hasOwn(result, 'constructor')).toBe(false);
+  });
+
+  it('does not modify prototype of returned object', () => {
+    const result = validateJsonObject('{"__proto__":{"polluted":"yes"}}', mockTranslations);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('throws ValidationError for invalid JSON', () => {
+    expect(() => validateJsonObject('not json', mockTranslations)).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for JSON array', () => {
+    expect(() => validateJsonObject('[1,2,3]', mockTranslations)).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for JSON null', () => {
+    expect(() => validateJsonObject('null', mockTranslations)).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for JSON string primitive', () => {
+    expect(() => validateJsonObject('"hello"', mockTranslations)).toThrow(ValidationError);
+  });
+});
+
+// BUG-050: validateJsonObject must never leak raw error details in ValidationError.message
+describe('validateJsonObject - BUG-050 error message safety', () => {
+  it('throws ValidationError with safe unknownError message for malformed JSON', () => {
+    let error: ValidationError | undefined;
+    try {
+      validateJsonObject('{invalid json!!}', mockTranslations);
+    } catch (e) {
+      error = e as ValidationError;
+    }
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error?.message).toBe(mockTranslations.unknownError);
+    // Must NOT contain raw parse error details
+    expect(error?.message).not.toContain('SyntaxError');
+    expect(error?.message).not.toContain('Unexpected');
+  });
+
+  it('throws ValidationError with safe unknownError message regardless of NODE_ENV', () => {
+    // Even in dev mode, the message should not contain raw error details.
+    // Previously, isDev would append ': ' + e.message.
+    let error: ValidationError | undefined;
+    try {
+      validateJsonObject('<<<bad>>>', mockTranslations);
+    } catch (e) {
+      error = e as ValidationError;
+    }
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error?.message).toBe('Unknown error');
+    expect(error?.message).not.toContain('<<<');
+  });
+
+  it('sets field property on thrown ValidationError for invalid JSON', () => {
+    let error: ValidationError | undefined;
+    try {
+      validateJsonObject('{bad}', mockTranslations, 'customData');
+    } catch (e) {
+      error = e as ValidationError;
+    }
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error?.field).toBe('customData');
   });
 });

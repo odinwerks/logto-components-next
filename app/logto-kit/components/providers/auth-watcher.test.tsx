@@ -134,6 +134,35 @@ describe('AuthWatcher Component (P-BUG-004)', () => {
     delete window.__LDD_DASHBOARD_OPEN__;
   });
 
+  it('BUG-021: re-checks dashboard-open inside setTimeout callback (flag flips between schedule and execution)', async () => {
+    // Dashboard is closed at schedule time
+    window.__LDD_DASHBOARD_OPEN__ = false;
+
+    render(<AuthWatcher debounceMs={100} refreshIntervalMs={0} />);
+
+    const visibilityCb = documentListeners['visibilitychange']?.[0];
+
+    // Trigger — guard at schedule passes (flag is false)
+    visibilityState = 'visible';
+    await act(async () => {
+      visibilityCb?.();
+    });
+
+    // Flip the flag BEFORE the setTimeout(0) fires — simulating dashboard
+    // opening in the tiny window between schedule and execution
+    window.__LDD_DASHBOARD_OPEN__ = true;
+
+    // Run the pending setTimeout(0)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Must NOT call refresh — the re-check inside setTimeout caught the flip
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    delete window.__LDD_DASHBOARD_OPEN__;
+  });
+
   it('allows refresh when window.__LDD_DASHBOARD_OPEN__ is false', async () => {
     window.__LDD_DASHBOARD_OPEN__ = false;
 

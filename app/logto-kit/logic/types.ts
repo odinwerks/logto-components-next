@@ -327,3 +327,51 @@ export interface OrganizationData {
   name: string;
   description?: string;
 }
+
+// ============================================================================
+// Instant Fetch RBAC Result Types
+// ============================================================================
+
+/**
+ * Combined personal RBAC result for instant-fetch.
+ *
+ * Returned by `fetchPersonalRbacCore(userId)` and streamed to the dashboard
+ * client shells as a promise prop (resolved via React 19 `use()`).
+ *
+ * - `roles` comes from one `GET /api/users/{userId}/roles` call.
+ * - `permissions` is the resource-enriched union of `GET /api/roles/{roleId}/scopes`
+ *   across all roles (deduplicated by `${resource.indicator}:${scope.name}`).
+ *
+ * All fields are plain serializable values (no `Map`, no class instances, no
+ * `bigint`) so the result can cross the RSC boundary in the flight payload.
+ *
+ * `userId` is server-derived from `getLogtoContext({ fetchUserInfo: true })`
+ * introspection (NEVER-TOUCH IDOR rule). The core validates it with
+ * `assertSafeLogtoId(userId, 'userId')` before any URL interpolation.
+ */
+export interface PersonalRbacResult {
+  roles: UserRole[];
+  permissions: PersonalPermission[];
+}
+
+/**
+ * Combined org RBAC result for instant-fetch.
+ *
+ * Returned by `fetchOrgRbacCore(userId, orgId)` and streamed to the dashboard
+ * client shells as a promise prop (resolved via React 19 `use()`).
+ *
+ * - `roles` comes from one `GET /api/organizations/{orgId}/users/{userId}/roles` call.
+ * - `permissions` is the union of `GET /api/organization-roles/{roleId}/scopes`
+ *   across all roles (deduplicated by `scope.name`).
+ *
+ * Returns `OrgRoleScope[]` (NOT a `Map`) — Maps are not RSC-serializable.
+ * The client builds the `Map<string, OrgRoleScope>` (as `use-org-permissions.ts`
+ * already does at lines 93-97).
+ *
+ * Does NOT call `getOrganizationUserPermissions` (the refresh-token grant —
+ * BUG-L01). That grant stays lazy and runs only on explicit `refresh()`.
+ */
+export interface OrgRbacResult {
+  roles: UserRole[];
+  permissions: OrgRoleScope[];
+}

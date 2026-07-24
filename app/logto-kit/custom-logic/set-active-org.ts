@@ -4,6 +4,7 @@ import { getLogtoContext } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../config';
 import { assertSafeLogtoId } from '../logic/guards';
 import { updateUserCustomData } from '../logic/actions';
+import { clientLog } from '../logic/client-logger';
 
 export async function setActiveOrg(orgId: string | null): Promise<boolean> {
   // null is valid - user wants to be themselves (no org context). There is no
@@ -12,11 +13,9 @@ export async function setActiveOrg(orgId: string | null): Promise<boolean> {
   // updateUserCustomData so that a failed persist is at least observable.
   if (orgId === null) {
     const r = await updateUserCustomData({ Preferences: { asOrg: null } });
-    // Best-effort warning; the null switch is always "valid" (no membership to
-    // check), so we still return true and let the client reconcile via the
-    // next router.refresh() rather than reverting the user's intent.
     if (!r.ok) {
-      console.warn('[setActiveOrg] null persist failed:', r.error);
+      clientLog.warn('setActiveOrg', 'null persist failed:', r.error);
+      return false;
     }
     return true;
   }

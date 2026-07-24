@@ -77,7 +77,7 @@ describe('useSessionRevocation', () => {
     expect(result.current.revokeModalStep).toBeNull();
     expect(result.current.revokingId).toBeNull();
     expect(result.current.revokeLoading).toBe(false);
-    expect(opts.onRevokeSession).toHaveBeenCalledWith('session-1', 'vid-1', FUTURE_EXPIRY, 'firstParty');
+    expect(opts.onRevokeSession).toHaveBeenCalledWith('session-1', 'vid-1', 'firstParty');
   });
 
   it('4. handleRevokePassword single failure: revokeError set, revokingId null in finally (Bug LOG-003)', async () => {
@@ -196,7 +196,7 @@ describe('useSessionRevocation', () => {
     expect(opts.onSuccess).toHaveBeenCalledWith('Session revoked successfully');
     expect(result.current.revokingAll).toBe(false);
     expect(result.current.revokeModalStep).toBeNull();
-    expect(opts.onRevokeAllOtherSessions).toHaveBeenCalledWith('vid-1', FUTURE_EXPIRY);
+    expect(opts.onRevokeAllOtherSessions).toHaveBeenCalledWith('vid-1');
   });
 
   it('11. gcAllLoading is true while revoking all sessions (BUG-M20)', async () => {

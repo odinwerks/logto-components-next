@@ -28,6 +28,29 @@ describe('sanitize', () => {
     expect(result).toBe(valErr);
     expect(result.message).toBe('Custom validation error message');
   });
+
+  // BUG-023: sanitize() must stamp `.code` so safeAction's preserve branch can
+  // resolve it via resolveClientCode(err.code, ...) and apply
+  // exposeToClient:false / generic-verbosity collapsing. Without `.code`,
+  // resolveClientCode skips the registry lookup and returns the raw fallback at
+  // 'specific' verbosity, leaking protected codes (e.g. INTROSPECTION_ERROR).
+  it('stamps .code on the SanitizedError so safeAction can resolve it (BUG-023)', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { sanitize } = await import('./errors');
+    const err = new Error('upstream introspection failure detail');
+    const result = sanitize(err, { fallback: 'INTROSPECTION_ERROR' });
+    expect(result).toBeInstanceOf(Error);
+    expect(result.name).toBe('SanitizedError');
+    expect(result.message).toBe('INTROSPECTION_ERROR');
+    expect((result as Error & { code?: string }).code).toBe('INTROSPECTION_ERROR');
+  });
+
+  it('stamps .code matching the fallback for any ErrorCode', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { sanitize } = await import('./errors');
+    const result = sanitize(new Error('boom'), { fallback: 'VERIFICATION_FAILED' });
+    expect((result as Error & { code?: string }).code).toBe('VERIFICATION_FAILED');
+  });
 });
 
 describe('throwOnApiError from errors.ts', () => {
@@ -81,7 +104,7 @@ describe('throwOnApiError from errors.ts', () => {
   });
 
   it.each(['production', 'development', 'test'] as const)(
-    'passes upstream message verbatim when exposeMessage=true in %s',
+    'returns the safeCode (not the raw message) when exposeMessage=true in %s — user.invalid_password is not in the registry',
     async nodeEnv => {
       vi.stubEnv('NODE_ENV', nodeEnv);
       const { throwOnApiError } = await import('./errors');
@@ -97,13 +120,63 @@ describe('throwOnApiError from errors.ts', () => {
         },
         err => err as Error,
       );
-      // Upstream `message` field is passed through only when exposeMessage=true
+      // NEW behavior: the client always receives a CODE, not the raw upstream
+      // English message. user.invalid_password is NOT in the registry, so the
+      // safeCode (UPDATE_FAILED) is used. The i18n layer maps the code to a
+      // localized message. exposeMessage is deprecated and no longer passes
+      // the raw message.
       expect(thrown).toMatchObject({
         name: 'SanitizedError',
-        message: upstreamMessage,
+        message: 'UPDATE_FAILED',
       });
+      // The raw upstream message must NOT leak to the client.
+      expect(thrown.message).not.toContain(upstreamMessage);
     },
   );
+
+  it('passes a recognised Logto code through to the client (not the raw message)', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const upstreamMessage = 'Either the user is not found or the provided password is incorrect.';
+    const res = new Response(
+      JSON.stringify({ code: 'session.invalid_credentials', message: upstreamMessage }),
+      { status: 422 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED').then(
+      () => { throw new Error('Expected throwOnApiError to reject'); },
+      err => err as Error,
+    );
+    // session.invalid_credentials IS in the registry → the client receives the
+    // Logto code itself so the i18n layer can map it. The raw English message
+    // is NOT sent to the client.
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'session.invalid_credentials',
+    });
+    expect(thrown.message).not.toContain(upstreamMessage);
+    // .code is stamped for safeAction.
+    expect((thrown as Error & { code?: string }).code).toBe('session.invalid_credentials');
+  });
+
+  it('passes a recognised Logto code through even when exposeMessage=true', async () => {
+    const { throwOnApiError } = await import('./errors');
+    const upstreamMessage = 'The password does not meet the password policy requirements.';
+    const res = new Response(
+      JSON.stringify({ code: 'user.password_policy_violation', message: upstreamMessage }),
+      { status: 422 },
+    );
+
+    const thrown: Error = await throwOnApiError(res, 'UPDATE_FAILED', 'logto-api', true).then(
+      () => { throw new Error('Expected throwOnApiError to reject'); },
+      err => err as Error,
+    );
+    // exposeMessage=true no longer passes the raw message; the code is returned.
+    expect(thrown).toMatchObject({
+      name: 'SanitizedError',
+      message: 'user.password_policy_violation',
+    });
+    expect(thrown.message).not.toContain(upstreamMessage);
+  });
 
   it('never leaks plain-text upstream details', async () => {
     const { throwOnApiError } = await import('./errors');
@@ -176,7 +249,7 @@ describe('throwOnApiError from errors.ts', () => {
     });
   });
 
-  it('exposes upstream message when exposeMessage=true', async () => {
+  it('returns the safeCode (not the raw message) when exposeMessage=true and the upstream code is unrecognised', async () => {
     const { throwOnApiError } = await import('./errors');
     const res = new Response(
       JSON.stringify({ code: 'user.invalid_password', message: 'Password too short' }),
@@ -187,11 +260,14 @@ describe('throwOnApiError from errors.ts', () => {
       () => { throw new Error('Expected throwOnApiError to reject'); },
       err => err as Error,
     );
-    // exposeMessage=true: upstream message IS exposed
+    // NEW behavior: exposeMessage=true no longer passes the raw upstream
+    // message. user.invalid_password is not in the registry, so the safeCode
+    // (UPDATE_FAILED) is returned. The i18n layer maps the code.
     expect(thrown).toMatchObject({
       name: 'SanitizedError',
-      message: 'Password too short',
+      message: 'UPDATE_FAILED',
     });
+    expect(thrown.message).not.toContain('Password too short');
   });
 
   it('exposeMessage=false still maps 401 to UNAUTHORIZED', async () => {
@@ -274,6 +350,7 @@ describe('isAuthError', () => {
     expect(isAuthError({ status: 401 })).toBe(true);
     expect(isAuthError({ status: 403 })).toBe(true);
     expect(isAuthError({ code: 'UNAUTHORIZED' })).toBe(true);
+    expect(isAuthError({ code: 'UNAUTHENTICATED' })).toBe(true);
     expect(isAuthError({ status: 200 })).toBe(false);
   });
 
@@ -283,6 +360,10 @@ describe('isAuthError', () => {
     const sanitizedAuthErr = new Error('UNAUTHORIZED');
     sanitizedAuthErr.name = 'SanitizedError';
     expect(isAuthError(sanitizedAuthErr)).toBe(true);
+
+    const sanitizedUnauthenticatedErr = new Error('UNAUTHENTICATED');
+    sanitizedUnauthenticatedErr.name = 'SanitizedError';
+    expect(isAuthError(sanitizedUnauthenticatedErr)).toBe(true);
 
     const normalErrWithUNAUTHORIZED = new Error('UNAUTHORIZED');
     expect(isAuthError(normalErrWithUNAUTHORIZED)).toBe(false);

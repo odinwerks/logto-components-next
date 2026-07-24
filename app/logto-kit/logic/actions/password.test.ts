@@ -55,6 +55,19 @@ describe('updateUserPassword', () => {
     vi.clearAllMocks();
   });
 
+  it('passes assertAudience: true to introspectToken (BUG-012: audience validation)', async () => {
+    vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-123', active: true });
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as Response);
+
+    await updateUserPassword('new-secure-password', 'vrec-123');
+
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
+  });
+
   it('updates password successfully when token is active', async () => {
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-123', active: true });
     vi.mocked(makeRequest).mockResolvedValueOnce({

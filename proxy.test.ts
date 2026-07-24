@@ -604,7 +604,7 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     logMock.mockReset();
   });
 
-  it('returns X-Auth-Expired for RSC unauthenticated protected route instead of redirecting', async () => {
+  it('passes through for RSC unauthenticated protected route instead of redirecting', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -615,12 +615,14 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     // Must NOT redirect
     expect(res.status).not.toBe(307);
     expect(res.headers.get('location')).toBeNull();
-    // Must signal auth expiry
-    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    // BUG-109: X-Auth-Expired was set but never consumed by any client code;
+    // it has been removed. The pass-through itself is sufficient — server
+    // components re-render with the current (expired) auth state.
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('returns X-Auth-Expired for RSC stale-cookie instead of redirecting to /api/wipe', async () => {
+  it('passes through for RSC stale-cookie instead of redirecting to /api/wipe', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('Cookies can only be modified by middleware'));
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -630,11 +632,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
 
     expect(res.status).not.toBe(307);
     expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('returns X-Auth-Expired for RSC invalid_grant instead of redirecting to /api/wipe', async () => {
+  it('passes through for RSC invalid_grant instead of redirecting to /api/wipe', async () => {
     getLogtoContextMock.mockRejectedValue({
       code: 'oidc.invalid_grant',
       message: 'Grant request is invalid.',
@@ -647,11 +649,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
 
     expect(res.status).not.toBe(307);
     expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
-  it('returns X-Auth-Expired for RSC unexpected error on protected route instead of redirecting', async () => {
+  it('passes through for RSC unexpected error on protected route instead of redirecting', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('Database connection lost'));
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -661,7 +663,24 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
 
     expect(res.status).not.toBe(307);
     expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBe('1');
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+  });
+
+  it('passes through for RSC transient error instead of 503 (BUG-105)', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    });
+    const res = await proxy(req);
+
+    // Must NOT return 503 or redirect
+    expect(res.status).not.toBe(503);
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('location')).toBeNull();
+    // Pass-through so the client sees auth state change on next render cycle
+    expect(res.headers.get('X-Auth-Expired')).toBeNull();
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
@@ -674,5 +693,66 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toContain('/api/auth/sign-in');
     expect(res.headers.get('X-Auth-Expired')).toBeNull();
+  });
+});
+
+describe('proxy matcher excludes public static files (BUG-108)', () => {
+  /**
+   * The config.matcher regex is evaluated by Next.js to decide which requests
+   * hit the middleware. Files in public/ are served at root-level paths
+   * (e.g. public/robots.txt → /robots.txt), so the old `public/` exclusion
+   * never matched any real request. We now exclude by file extension.
+   *
+   * Replicates how Next.js applies the matcher: new RegExp(str).test(pathname).
+   */
+  let matcherRegex: RegExp;
+
+  beforeEach(async () => {
+    const { config } = await import('./proxy');
+    matcherRegex = new RegExp(config.matcher[0]);
+  });
+
+  function isMatchedByMiddleware(path: string): boolean {
+    return matcherRegex.test(path);
+  }
+
+  it('excludes /robots.txt from middleware', () => {
+    expect(isMatchedByMiddleware('/robots.txt')).toBe(false);
+  });
+
+  it('excludes /sitemap.xml from middleware', () => {
+    expect(isMatchedByMiddleware('/sitemap.xml')).toBe(false);
+  });
+
+  it('excludes /manifest.json from middleware', () => {
+    expect(isMatchedByMiddleware('/manifest.json')).toBe(false);
+  });
+
+  it('excludes /os-icons/Tux.jpg from middleware', () => {
+    expect(isMatchedByMiddleware('/os-icons/Tux.jpg')).toBe(false);
+  });
+
+  it('excludes /os-icons/Android.svg from middleware', () => {
+    expect(isMatchedByMiddleware('/os-icons/Android.svg')).toBe(false);
+  });
+
+  it('excludes /favicon.ico from middleware', () => {
+    expect(isMatchedByMiddleware('/favicon.ico')).toBe(false);
+  });
+
+  it('does NOT exclude normal routes like /api/auth/sign-in', () => {
+    expect(isMatchedByMiddleware('/api/auth/sign-in')).toBe(true);
+  });
+
+  it('does NOT exclude docs routes like /getting-started/pre-requisites', () => {
+    expect(isMatchedByMiddleware('/getting-started/pre-requisites')).toBe(true);
+  });
+
+  it('does NOT exclude /demo/intro', () => {
+    expect(isMatchedByMiddleware('/demo/intro')).toBe(true);
+  });
+
+  it('does NOT exclude /my-account', () => {
+    expect(isMatchedByMiddleware('/my-account')).toBe(true);
   });
 });

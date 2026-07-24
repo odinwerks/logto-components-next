@@ -3,13 +3,18 @@ import { getAction } from '../../logto-kit/action-registry';
 import { validateActionConfig } from '../../logto-kit/action-registry/validate-action-config';
 import { introspectToken, getCleanEndpoint } from '../../logto-kit/logic/utils';
 import { assertSafeLogtoId } from '../../logto-kit/logic/guards';
-import { debugLog, debugError } from '../../logto-kit/logic/debug';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { getTokenForServerAction } from '../../logto-kit/logic/actions/tokens';
 import { getManagementApiToken, getLogtoConfig } from '../../logto-kit/config';
 import { verifyPersonalAccess, verifyOrgAccess } from '../../logto-kit/logic/actions';
 import { createRateLimiter } from '../../lib/distributed-state';
 import { makeManagementFetch } from '../../logto-kit/logic/actions/management-request';
+import { logEvent } from '../../logto-kit/logic/log';
+import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
+import { resolveClientCode } from '../../logto-kit/logic/verbosity';
+import type { ErrorCode, ErrorCategory } from '../../logto-kit/logic/error-codes';
+import { ERROR_CODES } from '../../logto-kit/logic/error-codes';
+import { withLogger } from '../../lib/with-logger';
 
 // ── Per-user rate limiting ────────────────────────────────────────────────────
 // Protects Logto API quotas from exhaustion by a single user.
@@ -29,11 +34,11 @@ async function fetchUserAsOrg(userId: string): Promise<string | null> {
     // parameter. The full user object is always returned. The parameter is removed.
     const url = `${endpoint}/api/users/${encodeURIComponent(userId)}`;
 
-    debugLog(`[Protected API] Fetching user ${userId} details from Management API`);
+    logEvent.debug(LOG_EVENTS.API_PROTECTED_ACTION, 'Fetching user details from Management API', { userId });
     const res = await makeManagementFetch(url, { method: 'GET', token: mgmtToken });
 
     if (!res.ok) {
-      debugError(`[Protected API] Failed to fetch user details for ${userId}: status ${res.status}`);
+      logEvent.warn(LOG_EVENTS.API_ERROR, 'fetchUserAsOrg failed', { userId, status: res.status });
       return null;
     }
 
@@ -43,18 +48,51 @@ async function fetchUserAsOrg(userId: string): Promise<string | null> {
 
     return user.customData?.Preferences?.asOrg ?? null;
   } catch (error) {
-    debugError(
-      '[Protected API] Error in fetchUserAsOrg:',
-      error instanceof Error ? error.message : String(error)
-    );
+    logEvent.warn(LOG_EVENTS.API_ERROR, 'fetchUserAsOrg error', { userId });
+    void error;
     return null;
   }
 }
 
-function apiError(error: string, status: number) {
+/**
+ * Maps an error code's category to the LOG_EVENTS event used for the denial log.
+ * See plan §3.5 `pickEventForCode` mapping table.
+ */
+function pickEventForCode(code: ErrorCode): LogEvent {
+  const entry = ERROR_CODES[code];
+  const category: ErrorCategory = entry.category;
+  switch (category) {
+    case 'auth':
+      return LOG_EVENTS.AUTH_TOKEN_ERROR;
+    case 'rbac':
+      return LOG_EVENTS.RBAC_PERMISSION_DENIED;
+    case 'validation':
+      return LOG_EVENTS.API_PROTECTED_ACTION;
+    case 'server':
+      return LOG_EVENTS.API_ERROR;
+    case 'rate-limit':
+      return LOG_EVENTS.API_THROTTLED;
+    case 'upload':
+      return LOG_EVENTS.API_ERROR;
+    case 'oauth':
+      return LOG_EVENTS.AUTH_TOKEN_ERROR;
+    default:
+      return LOG_EVENTS.API_ERROR;
+  }
+}
+
+/**
+ * Logs the precise code via `logEvent` (server-side, with requestId) and
+ * returns a NextResponse with the verbosity-resolved code in the `error` field.
+ * The server ALWAYS logs the precise code; the client sees the resolved code.
+ */
+function apiError(code: ErrorCode, status: number, context: Record<string, unknown> = {}): NextResponse {
+  const event = pickEventForCode(code);
+  const level: 'warn' | 'error' = status >= 500 ? 'error' : 'warn';
+  logEvent[level](event, `Protected API denied: ${code}`, { code, status, ...context });
   return NextResponse.json(
-    { error, data: null },
-    { status }
+    { error: resolveClientCode(code, code), data: null },
+    { status },
   );
 }
 
@@ -108,7 +146,7 @@ async function readBodyWithByteCap(request: NextRequest, maxBytes: number): Prom
   return JSON.parse(text);
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withLogger(async (request: NextRequest) => {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
   if (originError) return originError;
@@ -124,21 +162,23 @@ export async function POST(request: NextRequest) {
     try {
       token = await getTokenForServerAction();
     } catch (error) {
-      debugError('[Protected API] Session token error:', error instanceof Error ? error.message : String(error));
+      logEvent.warn(LOG_EVENTS.AUTH_TOKEN_ERROR, 'Session token error', { code: 'UNAUTHORIZED' });
+      void error;
       return apiError('UNAUTHORIZED', 401);
     }
 
     let introspection;
     try {
-      debugLog('[Protected API] Introspecting token');
+      logEvent.debug(LOG_EVENTS.API_PROTECTED_ACTION, 'Introspecting token');
       introspection = await introspectToken(token);
     } catch (error) {
-      debugError('[Protected API] Introspection error:', error instanceof Error ? error.message : String(error));
+      logEvent.warn(LOG_EVENTS.AUTH_TOKEN_ERROR, 'Introspection error', { code: 'INTROSPECTION_ERROR' });
+      void error;
       return apiError('INTROSPECTION_ERROR', 401);
     }
 
     if (!introspection.active) {
-      debugLog('[Protected API] Token not active');
+      logEvent.debug(LOG_EVENTS.API_PROTECTED_ACTION, 'Token not active');
       return apiError('TOKEN_INVALID', 401);
     }
 
@@ -166,10 +206,10 @@ export async function POST(request: NextRequest) {
 
     // ── Per-user rate limit (BEFORE body parse, keyed on introspection.sub) ──
     if (!(await protectedRouteRateLimiter.check(id))) {
-      debugLog(`[Protected API] Rate limit exceeded for user ${id}`);
+      logEvent.warn(LOG_EVENTS.API_THROTTLED, 'Rate limit exceeded', { userId: id, code: 'RATE_LIMITED' });
       // RFC 7231: 429 SHOULD include Retry-After. We use a fixed window of 60s.
       return NextResponse.json(
-        { error: 'RATE_LIMITED', data: null },
+        { error: resolveClientCode('RATE_LIMITED', 'RATE_LIMITED'), data: null },
         { status: 429, headers: { 'Retry-After': '60' } }
       );
     }
@@ -187,7 +227,14 @@ export async function POST(request: NextRequest) {
       if (err instanceof Error && err.message === 'PAYLOAD_TOO_LARGE') {
         return apiError('PAYLOAD_TOO_LARGE', 413);
       }
-      debugError('[Protected API] Body parse error:', err instanceof Error ? err.message : String(err));
+      logEvent.warn(LOG_EVENTS.API_PROTECTED_ACTION, 'Body parse error', { code: 'MISSING_FIELDS' });
+      return apiError('MISSING_FIELDS', 400);
+    }
+
+    // BUG-106: Reject null or non-object bodies (e.g. JSON `null`) instead
+    // of letting the destructuring below throw an unhandled TypeError 500.
+    if (!body || typeof body !== 'object') {
+      logEvent.warn(LOG_EVENTS.API_PROTECTED_ACTION, 'Body is null or not an object', { code: 'MISSING_FIELDS' });
       return apiError('MISSING_FIELDS', 400);
     }
 
@@ -214,17 +261,24 @@ export async function POST(request: NextRequest) {
     try {
       validateActionConfig(actionConfig, action);
     } catch (validationError) {
-      debugError(`[Protected API] IMPROPER_SETUP_ERROR for action "${action}": ${validationError instanceof Error ? validationError.message : String(validationError)}`);
-      return apiError('IMPROPER_SETUP_ERROR', 500);
+      logEvent.error(LOG_EVENTS.CONFIG_ERROR, `IMPROPER_SETUP_ERROR for action "${action}"`, {
+        action,
+        code: 'IMPROPER_SETUP_ERROR',
+        detail: validationError instanceof Error ? validationError.message : String(validationError),
+      });
+      return apiError('IMPROPER_SETUP_ERROR', 500, { action });
     }
 
     // ── Step 1: RBAC verification ─────────────────────────────────────────────
     // Branch: "self" bypass checks personal roles.
     // Otherwise, check custom data asOrg first, then load org roles/permissions and verify both.
     if (actionConfig.requiredOrgId === 'self') {
-      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal, introspection);
+      const personalAccessResult = await verifyPersonalAccess(expectedPrincipal);
       if (!personalAccessResult.ok) {
-        debugLog('[Protected API] Personal access verification failed:', personalAccessResult.error);
+        logEvent.warn(LOG_EVENTS.RBAC_PERMISSION_DENIED, 'Personal access verification failed', {
+          code: 'UNAUTHORIZED',
+          error: personalAccessResult.error,
+        });
         return apiError('UNAUTHORIZED', 401);
       }
       const roles = personalAccessResult.data.roles;
@@ -237,8 +291,12 @@ export async function POST(request: NextRequest) {
 
       const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
       if (!hasRequiredRole) {
-        debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
-        return apiError('ROLE_DENIED', 403);
+        return apiError('ROLE_DENIED', 403, {
+          userId: id,
+          action,
+          required: requiredRoles,
+          has: roles.map(r => r.id),
+        });
       }
 
       // ── Step 3: Permission check ──────────────────────────────────────────────
@@ -249,25 +307,36 @@ export async function POST(request: NextRequest) {
       const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
 
       if (!hasPermission) {
-        debugLog('[Protected API] Required personal permissions not present. Required:', requiredPerms, 'Has:', permissions);
-        return apiError('PERMISSION_DENIED', 403);
+        return apiError('PERMISSION_DENIED', 403, {
+          userId: id,
+          action,
+          required: requiredPerms,
+          has: permissions,
+        });
       }
     } else {
       const orgId = actionConfig.requiredOrgId;
       const asOrg = await fetchUserAsOrg(id);
 
       if (asOrg !== orgId) {
-        debugLog(`[Protected API] active org (${asOrg}) does not match required org (${orgId})`);
-        return apiError('ORG_NOT_MEMBER', 403);
+        return apiError('ORG_NOT_MEMBER', 403, {
+          userId: id,
+          action,
+          asOrg,
+          required: orgId,
+        });
       }
 
-      const result = await verifyOrgAccess(orgId, expectedPrincipal, introspection);
+      const result = await verifyOrgAccess(orgId, expectedPrincipal);
       if (!result.ok) {
-        debugLog('[Protected API] Org access verification failed:', result.error);
+        logEvent.warn(LOG_EVENTS.RBAC_ORG_VALIDATION, 'Org access failed', {
+          code: result.error,
+          action,
+        });
         if (result.error === 'UNAUTHORIZED') {
           return apiError('UNAUTHORIZED', 401);
         }
-        return apiError('ORG_NOT_MEMBER', 403);
+        return apiError('ORG_NOT_MEMBER', 403, { userId: id, action });
       }
       const roles = result.data.roles;
       const permissions = result.data.permissions;
@@ -279,8 +348,12 @@ export async function POST(request: NextRequest) {
 
       const hasRequiredRole = requiredRoles.every(reqId => roles.some(r => r.id === reqId));
       if (!hasRequiredRole) {
-        debugLog('[Protected API] Required role not present. Required:', requiredRoles, 'Has:', roles.map(r => r.id));
-        return apiError('ROLE_DENIED', 403);
+        return apiError('ROLE_DENIED', 403, {
+          userId: id,
+          action,
+          required: requiredRoles,
+          has: roles.map(r => r.id),
+        });
       }
 
       // ── Step 3: Permission check ──────────────────────────────────────────────
@@ -291,8 +364,12 @@ export async function POST(request: NextRequest) {
       const hasPermission = requiredPerms.every(perm => permissions.includes(perm));
 
       if (!hasPermission) {
-        debugLog('[Protected API] Required permissions not present. Required:', requiredPerms, 'Has:', permissions);
-        return apiError('PERMISSION_DENIED', 403);
+        return apiError('PERMISSION_DENIED', 403, {
+          userId: id,
+          action,
+          required: requiredPerms,
+          has: permissions,
+        });
       }
     }
 
@@ -313,7 +390,10 @@ export async function POST(request: NextRequest) {
       return apiError('INTERNAL_ERROR', 500);
     }
   } catch (error) {
-    debugError('[Protected API] Unexpected error:', error instanceof Error ? error.message : String(error));
+    logEvent.error(LOG_EVENTS.API_ERROR, 'Unexpected error', {
+      code: 'INTERNAL_ERROR',
+      error: error instanceof Error ? error.message : String(error),
+    });
     return apiError('INTERNAL_ERROR', 500);
   }
-}
+});

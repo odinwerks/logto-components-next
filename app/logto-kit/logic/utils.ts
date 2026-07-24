@@ -119,15 +119,11 @@ export async function introspectToken(
     // Audience / client_id check (defense-in-depth for multi-app tenants).
     // When assertAudience is true, verify the token was issued for this app.
     // Fail-closed: tokens without client_id are also rejected (BUG-H02).
+    // BUG-052: reuse the already-validated `clientId` (guarded at line 71)
+    // instead of re-fetching from config with a fail-open catch.
     if (options?.assertAudience) {
-      let appId: string | undefined;
-      try {
-        appId = getLogtoConfig().appId;
-      } catch {
-        // Config unavailable during build/test — skip check
-      }
-      if (appId && (!result.client_id || result.client_id !== appId)) {
-        warn(`[introspectToken] client_id mismatch: expected ${appId}, got ${result.client_id ?? 'absent'}`);
+      if (!result.client_id || result.client_id !== clientId) {
+        warn(`[introspectToken] client_id mismatch: expected ${clientId}, got ${result.client_id ?? 'absent'}`);
         throw sanitize(new Error('Audience mismatch'), { fallback: 'UNAUTHORIZED' });
       }
     }

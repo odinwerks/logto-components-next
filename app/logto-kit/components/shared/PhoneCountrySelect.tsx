@@ -36,9 +36,11 @@ export function PhoneCountrySelect({
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const mountedRef = useRef(false);
   const isKeyboardNavRef = useRef(false);
+  const scrollAncestorsRef = useRef<Element[]>([]);
 
   const triggerId = useId();
   const listboxId = useId();
+  const optionIdPrefix = useId();
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -69,17 +71,41 @@ export function PhoneCountrySelect({
     }
   }, []);
 
+  // Find nearest scrollable ancestors (for scroll-anchor repositioning)
+  const findScrollableAncestors = useCallback((el: HTMLElement): Element[] => {
+    const ancestors: Element[] = [];
+    let current: HTMLElement | null = el.parentElement;
+    while (current) {
+      const style = window.getComputedStyle(current);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        ancestors.push(current);
+      }
+      current = current.parentElement;
+    }
+    return ancestors;
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       updateCoords();
+      const ancestors = triggerRef.current ? findScrollableAncestors(triggerRef.current) : [];
+      scrollAncestorsRef.current = ancestors;
       window.addEventListener('resize', updateCoords);
       window.addEventListener('scroll', updateCoords, { passive: true });
+      ancestors.forEach((el) => {
+        el.addEventListener('scroll', updateCoords, { passive: true });
+      });
     }
     return () => {
       window.removeEventListener('resize', updateCoords);
       window.removeEventListener('scroll', updateCoords);
+      scrollAncestorsRef.current.forEach((el) => {
+        el.removeEventListener('scroll', updateCoords);
+      });
+      scrollAncestorsRef.current = [];
     };
-  }, [isOpen, updateCoords]);
+  }, [isOpen, updateCoords, findScrollableAncestors]);
 
   useEffect(() => {
     if (isOpen) {
@@ -252,7 +278,7 @@ export function PhoneCountrySelect({
 
   const activeOption = filteredCountries[highlightedIndex];
   const activeOptionId = activeOption
-    ? `phone-country-option-${activeOption.iso}-${activeOption.code}`
+    ? `${optionIdPrefix}-${activeOption.iso}-${activeOption.code}`
     : undefined;
 
   const triggerStyle: React.CSSProperties = {
@@ -408,7 +434,7 @@ export function PhoneCountrySelect({
               {filteredCountries.map((country, index) => {
                 const isSelected = selectedCountry?.iso === country.iso;
                 const isHighlighted = index === highlightedIndex;
-                const optionId = `phone-country-option-${country.iso}-${country.code}`;
+                const optionId = `${optionIdPrefix}-${country.iso}-${country.code}`;
 
                 return (
                   <li

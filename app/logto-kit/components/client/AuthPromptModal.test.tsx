@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthPromptModal } from './AuthPromptModal';
 
 vi.mock('@/app/logto-kit/logic/actions/auth', () => ({
-  signInUser: vi.fn(),
+  signInUser: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockCloseDashboard = vi.fn();
@@ -39,6 +39,10 @@ vi.mock('@/app/logto-kit/components/providers/preferences', () => ({
 import { signInUser } from '@/app/logto-kit/logic/actions/auth';
 
 describe('AuthPromptModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders sign-in prompt', () => {
     render(<AuthPromptModal />);
     expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument();
@@ -76,16 +80,55 @@ describe('AuthPromptModal', () => {
   });
 
   it('calls closeDashboard when "Read Only Mode" button is clicked', () => {
-    mockCloseDashboard.mockClear();
     render(<AuthPromptModal mode="mandatory" />);
     fireEvent.click(screen.getByRole('button', { name: /read only mode/i }));
     expect(mockCloseDashboard).toHaveBeenCalledTimes(1);
   });
 
   it('calls closeDashboard when "Cancel" button is clicked', () => {
-    mockCloseDashboard.mockClear();
     render(<AuthPromptModal />);
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(mockCloseDashboard).toHaveBeenCalledTimes(1);
+  });
+
+  // BUG-041: pending state on Sign In button
+  it('disables the Sign In button while signInUser is pending and re-enables on error', async () => {
+    // Use a deferred rejection so pending stays true until the rejection propagates
+    let rejectPromise: (reason: Error) => void;
+    const deferred = new Promise<void>((_, reject) => {
+      rejectPromise = reject;
+    });
+    vi.mocked(signInUser).mockReturnValueOnce(deferred);
+
+    render(<AuthPromptModal />);
+    const signInBtn = screen.getByRole('button', { name: /sign in/i });
+    expect(signInBtn).not.toBeDisabled();
+
+    fireEvent.click(signInBtn);
+    expect(signInUser).toHaveBeenCalledTimes(1);
+    // Button should be disabled immediately after click (synchronous state update)
+    expect(signInBtn).toBeDisabled();
+
+    // Reject the promise to trigger .catch() → setPending(false)
+    await act(async () => {
+      rejectPromise!(new Error('INTERNAL_ERROR'));
+      // Let microtasks flush
+      await Promise.resolve();
+    });
+    expect(signInBtn).not.toBeDisabled();
+  });
+
+  // BUG-041: loading indicator while signInUser is pending
+  it('shows BouncingDots loading indicator while signing in', () => {
+    // Return a non-resolving promise so we stay in pending state
+    vi.mocked(signInUser).mockReturnValueOnce(new Promise(() => {}));
+
+    render(<AuthPromptModal />);
+    // No status element before clicking
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    // BouncingDots renders role="status"
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });

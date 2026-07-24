@@ -36,11 +36,14 @@ export function LanguageSelect({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
+  const [flipped, setFlipped] = useState(false);
   const mountedRef = useRef(false);
   const isKeyboardNavRef = useRef(false);
+  const scrollAncestorsRef = useRef<Element[]>([]);
 
   const triggerId = useId();
   const listboxId = useId();
+  const optionIdPrefix = useId();
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -64,28 +67,67 @@ export function LanguageSelect({
     return activeLangs.find((l) => l.code === value);
   }, [activeLangs, value]);
 
+  const DROPDOWN_ESTIMATED_HEIGHT = 300; // reasonable estimate: maxHeight 15rem (~240px) + search bar
+
   const updateCoords = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-      });
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      if (spaceBelow < DROPDOWN_ESTIMATED_HEIGHT && spaceAbove > DROPDOWN_ESTIMATED_HEIGHT) {
+        // Flip above trigger
+        setFlipped(true);
+        setCoords({
+          top: rect.top + window.scrollY - DROPDOWN_ESTIMATED_HEIGHT - 4,
+          left: rect.left + window.scrollX,
+        });
+      } else {
+        setFlipped(false);
+        setCoords({
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+        });
+      }
       setTriggerWidth(rect.width);
     }
+  }, []);
+
+  // Find nearest scrollable ancestors (for scroll-anchor repositioning)
+  const findScrollableAncestors = useCallback((el: HTMLElement): Element[] => {
+    const ancestors: Element[] = [];
+    let current: HTMLElement | null = el.parentElement;
+    while (current) {
+      const style = window.getComputedStyle(current);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        ancestors.push(current);
+      }
+      current = current.parentElement;
+    }
+    return ancestors;
   }, []);
 
   useEffect(() => {
     if (isOpen) {
       updateCoords();
+      const ancestors = triggerRef.current ? findScrollableAncestors(triggerRef.current) : [];
+      scrollAncestorsRef.current = ancestors;
       window.addEventListener('resize', updateCoords);
       window.addEventListener('scroll', updateCoords, { passive: true });
+      ancestors.forEach((el) => {
+        el.addEventListener('scroll', updateCoords, { passive: true });
+      });
     }
     return () => {
       window.removeEventListener('resize', updateCoords);
       window.removeEventListener('scroll', updateCoords);
+      scrollAncestorsRef.current.forEach((el) => {
+        el.removeEventListener('scroll', updateCoords);
+      });
+      scrollAncestorsRef.current = [];
     };
-  }, [isOpen, updateCoords]);
+  }, [isOpen, updateCoords, findScrollableAncestors]);
 
   useEffect(() => {
     if (isOpen) {
@@ -229,7 +271,16 @@ export function LanguageSelect({
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'Home') {
+      e.preventDefault();
+      const input = e.currentTarget;
+      input.setSelectionRange(0, 0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      const input = e.currentTarget;
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       isKeyboardNavRef.current = true;
       setHighlightedIndex((prev) =>
@@ -258,7 +309,7 @@ export function LanguageSelect({
 
   const activeOption = filteredLangs[highlightedIndex];
   const activeOptionId = activeOption
-    ? `lang-option-${activeOption.code}`
+    ? `${optionIdPrefix}-${activeOption.code}`
     : undefined;
 
   const triggerStyle: React.CSSProperties = {
@@ -411,7 +462,7 @@ export function LanguageSelect({
               {filteredLangs.map((lang, index) => {
                 const isSelected = selectedLang?.code === lang.code;
                 const isHighlighted = index === highlightedIndex;
-                const optionId = `lang-option-${lang.code}`;
+                const optionId = `${optionIdPrefix}-${lang.code}`;
 
                 return (
                   <li

@@ -6,16 +6,14 @@ import type { ActionResult, DataResult } from '../../logic/actions/safe';
 export type RevokeSessionFn = (
   sessionId: string,
   identityVerificationRecordId: string,
-  verificationTimestamp: number,
   revokeGrantsTarget?: 'all' | 'firstParty',
 ) => Promise<ActionResult>;
 
 export type RevokeAllSessionsFn = (
   verificationRecordId: string,
-  verificationTimestamp: number,
 ) => Promise<ActionResult>;
 
-export type ReloadSessionsFn = (recordId: string, expiry: number) => Promise<void>;
+export type ReloadSessionsFn = (recordId: string) => Promise<void>;
 
 export interface UseSessionRevocationOptions {
   verificationRecordId: string | null;
@@ -145,7 +143,7 @@ export function useSessionRevocation({
     if (target.kind === 'all') {
       setRevokingAll(true);
       setGcAllLoading(true);
-      const revokeResult = await onRevokeAllOtherSessionsRef.current(vid, vts);
+      const revokeResult = await onRevokeAllOtherSessionsRef.current(vid);
       if (!revokeResult.ok) {
         setRevokeError(revokeResult.error);
         setRevokeLoading(false);
@@ -157,7 +155,7 @@ export function useSessionRevocation({
       // Single session revocation
       let singleOk = false;
       try {
-        const revokeResult = await onRevokeSessionRef.current(target.id, vid, vts, 'firstParty');
+        const revokeResult = await onRevokeSessionRef.current(target.id, vid, 'firstParty');
         if (!revokeResult.ok) {
           setRevokeError(revokeResult.error);
           setRevokeLoading(false);
@@ -174,7 +172,7 @@ export function useSessionRevocation({
 
     // Success path
     onSuccessRef.current('Session revoked successfully');
-    await onReloadSessionsRef.current(vid, vts);
+    await onReloadSessionsRef.current(vid);
     setRevokeModalStep(null);
     setRevokeLoading(false);
     revokeTargetRef.current = null;

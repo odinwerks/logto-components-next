@@ -12,7 +12,7 @@ import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 import { fetchDashboardDataCached } from './logto-kit/logic/cached-dashboard';
 import { getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
-import { getMainLocale } from './logto-kit/locales';
+import { getMainLocale, getAllTranslations } from './logto-kit/locales';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -53,7 +53,7 @@ export default async function RootLayout({
   // Fetch user data in an auth-tolerant way: no redirect on unauthenticated,
   // errors are handled gracefully. This provides userData to LogtoProvider
   // so isAuthenticated and user preferences work for ALL routes.
-  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached(true);
   const userData = result.success ? result.userData : null;
   const defaultThemeMode = getDefaultThemeMode();
   const defaultLocale = getMainLocale();
@@ -61,6 +61,8 @@ export default async function RootLayout({
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
   const resolvedOrg   = userPrefs?.asOrg ?? null;
+  const allTranslations = getAllTranslations();
+  const fallbackTranslations = allTranslations['en-US'];
   // Defensive normalization for the inline theme-flash script. `resolvedTheme`
   // is always 'dark' | 'light' (getDefaultThemeMode validates; userPrefs.theme is
   // typed 'dark' | 'light'), but we harden here so the value interpolated into
@@ -114,6 +116,8 @@ export default async function RootLayout({
             initialTheme={resolvedTheme}
             initialLang={resolvedLang}
             initialOrgId={resolvedOrg}
+            allTranslations={allTranslations}
+            fallbackTranslations={fallbackTranslations}
           >
             <AuthWatcher />
             <SessionHeartbeat />

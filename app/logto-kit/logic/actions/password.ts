@@ -10,6 +10,8 @@ import { safeAction, type ActionResult } from './safe';
 
 import { auditSafe } from './helpers';
 import { requireVerifiedIdentity } from './verification-cookie';
+import { logEvent } from '../log';
+import { LOG_EVENTS } from '../../../lib/log-events';
 /**
  * Changes the authenticated user's password.
  * Error messages are sanitised in production to prevent enumeration.
@@ -19,8 +21,10 @@ export async function updateUserPassword(
   identityVerificationRecordId: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // BUG-012: assertAudience: true validates the token was issued for this
+    // app before the destructive password-change operation proceeds.
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -45,5 +49,6 @@ export async function updateUserPassword(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, 'password.change');
+    logEvent.info(LOG_EVENTS.PASSWORD_CHANGE, 'Password changed', {});
   });
 }

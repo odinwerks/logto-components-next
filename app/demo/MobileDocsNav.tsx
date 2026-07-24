@@ -1,13 +1,52 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, ArrowLeft } from 'lucide-react';
 import { useThemeMode } from '../logto-kit';
 import { UserButton } from '../logto-kit/components/UserButton';
 import { FadeIn } from '../logto-kit/components/shared/motion';
+import { useFocusTrap } from '../logto-kit/components/dashboard/shared/focus-trap';
 import { NAV_ITEMS } from './nav-data';
 import { slugify } from './components/SectionComponents';
+
+// ── DialogShell — thin wrapper that adds dialog semantics + focus trap ────────
+// Conditionally rendered by MobileDocsNav so useFocusTrap correctly captures
+// the trigger button's focus on mount and restores it on unmount (BUG-046 fix).
+
+interface DialogShellProps {
+  overlayStyle: React.CSSProperties;
+  stage: 'topics' | 'sections' | 'index';
+  /** Called by the focus trap on Escape or when the user requests "back". */
+  onNavigateBack: () => void;
+  children: React.ReactNode;
+}
+
+function DialogShell({ overlayStyle, onNavigateBack, children }: DialogShellProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = useCallback(() => {
+    onNavigateBack();
+  }, [onNavigateBack]);
+
+  // BUG-046: useFocusTrap adds Escape-to-close, Tab focus trap, and
+  // automatic focus return to the previously-focused element on unmount.
+  useFocusTrap(dialogRef, handleClose);
+
+  return (
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Navigation menu"
+      style={overlayStyle}
+    >
+      <FadeIn duration={0.25} style={{ height: '100%' }}>
+        {children}
+      </FadeIn>
+    </div>
+  );
+}
 
 export default function MobileDocsNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,6 +78,17 @@ export default function MobileDocsNav() {
     router.push(`/${topicId}/${slugify(section)}`);
     setIsOpen(false);
   };
+
+  // Called by DialogShell when Escape is pressed — navigate "back" according
+  // to the current stage.
+  const handleNavigateBack = useCallback(() => {
+    if (stage === 'sections') {
+      setStage('topics');
+    } else {
+      // topics stage → navigate to index (which triggers redirect to /)
+      setStage('index');
+    }
+  }, [stage]);
 
   // ─── STYLES ────────────────────────────────────────────────────────────────
   // The central trigger button style used by Hamburger, Close (X), and Back (ArrowLeft)
@@ -178,15 +228,24 @@ export default function MobileDocsNav() {
         </button>
       )}
 
+      {/* BUG-046: DialogShell wraps the overlay with role="dialog", aria-modal,
+          focus trap, Escape-to-close, and focus return. Conditionally rendered
+          so useFocusTrap correctly captures the trigger button. */}
       {isOpen && (
-        <FadeIn duration={0.25} style={fullscreenOverlayStyle}>
-          {stage === 'topics' ? (
+        <DialogShell
+          overlayStyle={fullscreenOverlayStyle}
+          stage={stage}
+          onNavigateBack={handleNavigateBack}
+        >
+          {/* BUG-104: Only render topics or sections content; index stage
+              renders nothing to prevent the empty sections panel flash. */}
+          {stage === 'topics' && (
             <div style={stageContainerStyle}>
               {/* Header */}
               <div style={headerStyle}>
                 <span style={headerTitleStyle}>Documentation</span>
               </div>
-              
+
               {/* Vertically Centered Topics List */}
               <div style={listStyle}>
                 <div style={listInnerStyle}>
@@ -219,18 +278,18 @@ export default function MobileDocsNav() {
               </div>
 
               {/* Back button replacing X Close button */}
-              {stage === 'topics' && (
-                <button
-                  type="button"
-                  onClick={() => setStage('index')}  // Go back to index, not close
-                  style={triggerStyle}
-                  aria-label="Back to homepage"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setStage('index')}  // Go back to index, not close
+                style={triggerStyle}
+                aria-label="Back to homepage"
+              >
+                <ArrowLeft size={18} />
+              </button>
             </div>
-          ) : (
+          )}
+
+          {stage === 'sections' && (
             <div style={stageContainerStyle}>
               {/* Header */}
               <div style={headerStyle}>
@@ -265,8 +324,8 @@ export default function MobileDocsNav() {
             </div>
           )}
 
-          {/* X button intentionally removed (Option B: no close-without-navigate) */}
-        </FadeIn>
+          {/* stage === 'index' renders nothing — avoids BUG-104 flash of empty sections panel */}
+        </DialogShell>
       )}
     </>
   );

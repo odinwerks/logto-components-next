@@ -26,6 +26,13 @@ export interface TooltipHandlers {
 const DEFAULT_TOOLTIP_WIDTH = 288;
 const DEFAULT_TOOLTIP_HEIGHT = 120;
 
+export interface UseTooltipTriggerOptions {
+  /** Estimated tooltip width (px) for viewport clamping. Default 288. */
+  width?: number;
+  /** Estimated tooltip height (px) for viewport clamping. Default 120. */
+  height?: number;
+}
+
 /**
  * Manages tooltip show/hide state and computes a viewport-clamped position
  * based on the trigger element's bounding rect.
@@ -47,7 +54,10 @@ const DEFAULT_TOOLTIP_HEIGHT = 120;
  * );
  * ```
  */
-export function useTooltipTrigger() {
+export function useTooltipTrigger(options?: UseTooltipTriggerOptions) {
+  const tooltipWidth = options?.width ?? DEFAULT_TOOLTIP_WIDTH;
+  const tooltipHeight = options?.height ?? DEFAULT_TOOLTIP_HEIGHT;
+
   const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0 });
 
   const show = useCallback((e: React.MouseEvent | React.FocusEvent) => {
@@ -55,13 +65,13 @@ export function useTooltipTrigger() {
     const { left, top } = getClampedTooltipPosition({
       left: rect.left,
       top: rect.bottom + 6,
-      width: DEFAULT_TOOLTIP_WIDTH,
-      height: DEFAULT_TOOLTIP_HEIGHT,
+      width: tooltipWidth,
+      height: tooltipHeight,
       viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1280,
       viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 800,
     });
     setTooltip({ visible: true, x: left, y: top });
-  }, []);
+  }, [tooltipWidth, tooltipHeight]);
 
   const hide = useCallback(() => {
     setTooltip(t => ({ ...t, visible: false }));

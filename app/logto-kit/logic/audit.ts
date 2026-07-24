@@ -25,6 +25,7 @@
  */
 
 import { log } from './log';
+import { getRequestId } from '../../lib/request-context';
 
 export interface AuditEntry {
   /** User ID of the actor performing the action. */
@@ -56,10 +57,13 @@ export interface AuditEntry {
  * Failure to secure the transport endpoint can expose user activity logs.
  */
 export async function audit(entry: AuditEntry): Promise<void> {
+  // Auto-merge requestId from requestContext (set by withLogger / safeAction).
+  const requestId = getRequestId();
   let record: string;
   try {
     record = JSON.stringify({
       ts: new Date().toISOString(),
+      ...(requestId ? { requestId } : {}),
       ...entry,
     });
   } catch (serializeErr) {
@@ -67,6 +71,7 @@ export async function audit(entry: AuditEntry): Promise<void> {
     // Fall back to a safe partial record without metadata.
     record = JSON.stringify({
       ts: new Date().toISOString(),
+      ...(requestId ? { requestId } : {}),
       actor: entry.actor,
       action: entry.action,
       resource: entry.resource,
@@ -74,5 +79,9 @@ export async function audit(entry: AuditEntry): Promise<void> {
     });
   }
 
-  log('[AUDIT]', record);
+  try {
+    log('[AUDIT]', record);
+  } catch {
+    // Best-effort: logging failures must never surface to the caller.
+  }
 }

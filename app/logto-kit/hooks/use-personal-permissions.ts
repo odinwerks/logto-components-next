@@ -16,7 +16,7 @@ export interface UsePersonalPermissionsReturn {
   error: string | null;
   /** Whether the component should be rendered (useRefreshable visibility) */
   visible: boolean;
-  /** Trigger a refresh (unmount/remount cycle via useRefreshable) */
+  /** Trigger a refresh (in-place refetch — rows are preserved during refresh) */
   refresh: () => void;
   /**
    * The currently hovered/focused permission for the tooltip.
@@ -32,6 +32,15 @@ export interface UsePersonalPermissionsReturn {
   getTooltipHandlers: (perm: PersonalPermission) => TooltipHandlers;
 }
 
+/**
+ * Personal permissions hook.
+ *
+ * Point 2: refresh is now **in-place refetch** (strategy: 'refetch')
+ * rather than a remount cycle. Rows are preserved during refresh (no
+ * empty flash). `visible` is always `true` for backward compatibility
+ * with callers that still gate rendering on it. `initialData` support
+ * is preserved (the streamed seed skips the mount fetch).
+ */
 export function usePersonalPermissions(initialData?: PersonalPermission[]): UsePersonalPermissionsReturn {
   const stableLoader = useCallback(() => {
     return loadPersonalPermissions();
@@ -39,7 +48,7 @@ export function usePersonalPermissions(initialData?: PersonalPermission[]): UseP
 
   const { items, loading, error, visible, refresh } = useAsyncList<PersonalPermission[]>({
     loader: stableLoader,
-    strategy: 'remount',
+    strategy: 'refetch',
     initialData,
   });
 

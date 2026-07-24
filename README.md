@@ -1165,7 +1165,7 @@ A permission-gated calculator demonstrating the Protected Actions API. Located i
 
 #### How It Works
 
-1. `CalculatorPanel` wraps `CalculatorClient` with `<Protected orgId="5b6sw6p5uzti" perm="calc:basic">`
+1. `CalculatorPanel` wraps `CalculatorClient` with `<Protected orgId="8joxv3kicmlz" perm="calc:basic">`
 2. Each operation (+, −, ×, ÷, sin, cos, etc.) is sent to the Protected Actions API as an individual action (`calc/add`, `calc/multiply`, `calc/sin`, etc.)
 3. The API validates the user's personal role and permission, computes server-side, and returns the answer
 4. The calculator parses expressions into an AST and evaluates by calling the API for each node - it cannot calculate without the API

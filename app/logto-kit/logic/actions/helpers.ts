@@ -101,11 +101,6 @@ export function createLockManager(maxEntries = 1000) {
    * @throws If the lock cannot be acquired within the timeout.
    */
   async function acquire(key: string, timeoutMs = DEFAULT_LOCK_TIMEOUT_MS): Promise<() => void> {
-    // Throw error if at capacity
-    if (locks.size >= maxEntries && !locks.has(key)) {
-      throw new Error(`Lock manager at capacity (${maxEntries}). Try again later.`);
-    }
-
     // Wait for existing lock on this key with timeout
     while (true) {
       const existing = locks.get(key);
@@ -130,6 +125,16 @@ export function createLockManager(maxEntries = 1000) {
       } finally {
         if (timerId) clearTimeout(timerId);
       }
+    }
+
+    // BUG-067: Capacity check placed immediately before locks.set — no await
+    // between check and insert, so the check+insert is atomic in the
+    // single-threaded JS runtime. The previous placement before the
+    // while-loop was TOCTOU: a caller could pass the check, then await an
+    // existing lock (yielding the event loop), and another caller could fill
+    // the map in the meantime so that locks.set would exceed the limit.
+    if (locks.size >= maxEntries && !locks.has(key)) {
+      throw new Error(`Lock manager at capacity (${maxEntries}). Try again later.`);
     }
 
     let release!: () => void;

@@ -110,7 +110,7 @@ describe('config resolution', () => {
       expect(getLogtoConfig()).toBeDefined();
     });
 
-    it('allows placeholder ENDPOINT in production', async () => {
+    it('rejects placeholder ENDPOINT in production (BUG-003)', async () => {
       process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
       process.env.APP_ID = 'client-id-123';
       process.env.APP_SECRET = 'super-secret-value';
@@ -118,8 +118,9 @@ describe('config resolution', () => {
       process.env.BASE_URL = 'https://app.example.com';
       process.env.COOKIE_SECRET = 'cookie-secret';
 
-      const { getLogtoConfig } = await import('./config');
-      expect(getLogtoConfig()).toBeDefined();
+      await expect(import('./config')).rejects.toThrow(
+        /endpoint is still the build placeholder at runtime in production/i
+      );
     });
 
     it('rejects HTTP LOGTO_M2M_RESOURCE in production', async () => {

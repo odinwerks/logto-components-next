@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { getAccessToken } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../config';

@@ -1,11 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef, startTransition, useCallback } from 'react';
-import { setActiveOrg } from '../custom-logic/set-active-org';
-import { useOrgMode } from '../components/providers/preferences';
 import type { OrganizationData } from './types';
 import type { ThemeColors } from '../themes';
+import { useOrgSwitcher } from '../hooks/use-org-switcher';
 
 interface OrgSwitcherProps {
   organizations: OrganizationData[];
@@ -15,62 +12,28 @@ interface OrgSwitcherProps {
   t?: {
     organizations?: {
       beYourself?: string;
+      switchingAnnouncement?: string;
+      selectTriggerAriaLabel?: string;
     };
   };
 }
 
 export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitcherProps) {
-  const router = useRouter();
-  const { asOrg, setAsOrg } = useOrgMode();
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
-  // While the single-org auto-switch promise is in flight we keep the whole
-  // component hidden so the user never sees a stale "Be yourself" selection
-  // snap to their org (BUG-025).
-  const [isAutoSwitching, setIsAutoSwitching] = useState(false);
-  const isSwitchingRef = useRef(false);
+  const {
+    activeOrgId,
+    switchingOrgId,
+    hasAutoSwitched,
+    isAutoSwitching,
+    switchToOrg,
+    switchToSelf,
+  } = useOrgSwitcher({
+    currentOrgId,
+    autoSwitchSingleOrg: true,
+    organizations,
+  });
 
   const c = colors;
-
-  const handleChange = useCallback(async (newOrgId: string) => {
-    const orgIdToSet = newOrgId || null;
-
-    setIsLoading(true);
-    try {
-      if (orgIdToSet !== null) {
-        const isValid = await setActiveOrg(orgIdToSet);
-        if (!isValid) return;
-        startTransition(() => {
-          setAsOrg(orgIdToSet);
-          router.refresh();
-        });
-      } else {
-        await setActiveOrg(null);
-        // BUG-L06: setActiveOrg(null) already persists asOrg:null with
-        // best-effort warn (NEVER-TOUCH rule). Skip the redundant client-side
-        // setAsOrg persist to avoid a double-write round trip.
-        startTransition(() => {
-          router.refresh();
-        });
-      }
-    } catch (error) {
-      console.error('[OrgSwitcher] Failed to switch organization:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [setAsOrg, router]);
-
-  useEffect(() => {
-    if (organizations.length === 1 && !asOrg && !currentOrgId && !isSwitchingRef.current && !hasAutoSwitched) {
-      isSwitchingRef.current = true;
-      setHasAutoSwitched(true);
-      setIsAutoSwitching(true);
-      handleChange(organizations[0].id).finally(() => {
-        isSwitchingRef.current = false;
-        setIsAutoSwitching(false);
-      });
-    }
-  }, [organizations, asOrg, currentOrgId, handleChange, hasAutoSwitched]);
+  const isLoading = switchingOrgId !== null;
 
   if (organizations.length === 0) {
     return null;
@@ -79,23 +42,31 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
   // Keep hidden during the in-flight auto-switch (isAutoSwitching) OR before it
   // has even started (pre-effect first render for a single-org user with no
   // active org). This prevents the brief "Be yourself" flash (BUG-025).
-  if (isAutoSwitching || (!hasAutoSwitched && organizations.length === 1 && !asOrg && !currentOrgId)) {
+  if (isAutoSwitching || (!hasAutoSwitched && organizations.length === 1 && !activeOrgId && !currentOrgId)) {
     return null;
   }
 
-  const displaySelected = asOrg ?? currentOrgId ?? '';
+  const displaySelected = activeOrgId ?? '';
+
+  const handleChange = async (value: string) => {
+    if (value === '') {
+      await switchToSelf();
+    } else {
+      await switchToOrg(value);
+    }
+  };
 
   return (
     <div style={{ marginBottom: '0.75rem' }} aria-busy={isLoading}>
       <span className="sr-only" aria-live="polite">
-        {isLoading ? 'Switching organization…' : ''}
+        {isLoading ? (t?.organizations?.switchingAnnouncement || 'Switching organization, please wait.') : ''}
       </span>
       <div style={{ position: 'relative' }}>
         <select
           value={displaySelected}
           onChange={(e) => handleChange(e.target.value)}
           disabled={isLoading}
-          aria-label="Select organization"
+          aria-label={t?.organizations?.selectTriggerAriaLabel || 'Select access context'}
         style={{
           width: '100%',
           padding: '0.5625rem 2.25rem 0.5625rem 0.75rem',

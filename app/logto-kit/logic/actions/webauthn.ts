@@ -10,6 +10,8 @@ import { safeAction, type ActionResult, type DataResult } from './safe';
 
 import { auditSafe } from './helpers';
 import { requireVerifiedIdentity } from './verification-cookie';
+import { logEvent } from '../log';
+import { LOG_EVENTS } from '../../../lib/log-events';
 /**
  * Step 1 of WebAuthn registration: requests registration options from Logto.
  * @returns Registration options (for @simplewebauthn/browser) and a verificationRecordId.
@@ -20,10 +22,15 @@ export async function requestWebAuthnRegistration(): Promise<DataResult<{
 }>> {
   return safeAction(async () => {
     // BUG-M05: Explicit auth check matching verifyAndLinkWebAuthn pattern
+    // BUG-012: assertAudience: true validates the token was issued for this
+    // app (defense-in-depth for multi-app tenants), preventing a token
+    // intended for one resource from being used against another.
     const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
+    const _intro = await introspectToken(_token, { assertAudience: true });
     if (!_intro.active || !_intro.sub) {
-      throw plainCode('UNAUTHORIZED');
+      // BUG-058: token missing/invalid is an authentication failure (401),
+      // not an authorization failure (403). Use UNAUTHENTICATED, not UNAUTHORIZED.
+      throw plainCode('UNAUTHENTICATED');
     }
 
     const res = await makeRequest('/api/verifications/web-authn/registration', {
@@ -60,10 +67,14 @@ export async function verifyAndLinkWebAuthn(
   identityVerificationRecordId: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // BUG-012: assertAudience: true validates the token was issued for this
+    // app before the destructive enrollment operation proceeds.
     const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
+    const _intro = await introspectToken(_token, { assertAudience: true });
     if (!_intro.active || !_intro.sub) {
-      throw plainCode('UNAUTHORIZED');
+      // BUG-058: token missing/invalid is an authentication failure (401),
+      // not an authorization failure (403). Use UNAUTHENTICATED, not UNAUTHORIZED.
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = _intro.sub;
 
@@ -98,6 +109,7 @@ export async function verifyAndLinkWebAuthn(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, 'mfa.webauthn.enroll');
+    logEvent.info(LOG_EVENTS.MFA_ENROLL, 'WebAuthn passkey enrolled', {});
   });
 }
 
@@ -114,11 +126,15 @@ export async function renamePasskey(
   identityVerificationRecordId: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
+    // BUG-012: assertAudience: true validates the token was issued for this
+    // app before the destructive rename operation proceeds.
     const _token = await getTokenForServerAction();
-    const _intro = await introspectToken(_token);
+    const _intro = await introspectToken(_token, { assertAudience: true });
     // BUG-M06: also check _intro.sub to prevent 'unknown' userId in audit
     if (!_intro.active || !_intro.sub) {
-      throw plainCode('UNAUTHORIZED');
+      // BUG-058: token missing/invalid is an authentication failure (401),
+      // not an authorization failure (403). Use UNAUTHENTICATED, not UNAUTHORIZED.
+      throw plainCode('UNAUTHENTICATED');
     }
     const userId = _intro.sub;
 
@@ -144,5 +160,6 @@ export async function renamePasskey(
 
     // Audit (best-effort - failure must not break the main action)
     auditSafe(userId, 'mfa.webauthn.rename', verificationId);
+    logEvent.info(LOG_EVENTS.MFA_WEBAUTHN_RENAME, 'WebAuthn passkey renamed', { verificationId });
   });
 }

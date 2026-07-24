@@ -2,6 +2,12 @@
  * Debug logging utility - only outputs when DEBUG=true.
  * Use instead of console.log/console.warn for development traces
  * that should not appear in production logs.
+ *
+ * NOTE: For any production-relevant event (RBAC denials, auth failures,
+ * upstream API errors, audit-worthy mutations), use `logEvent` from `./log`
+ * instead of these helpers. `debugLog`/`debugWarn`/`debugError` are dev-only
+ * traces gated by `isDev && DEBUG==='true'`; they do NOT reach Pino in
+ * production and are NOT a substitute for structured logging.
  */
 import { isDev } from './dev-mode';
 import { debug as logDebug, warn, error } from './log';

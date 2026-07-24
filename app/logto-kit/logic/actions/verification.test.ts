@@ -268,6 +268,77 @@ describe('updateEmailWithVerification', () => {
       })
     );
   });
+
+  // BUG-060: Email format validation
+  it('rejects invalid email format (missing @)', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const result = await updateEmailWithVerification(
+      'not-an-email',
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid email format (missing domain)', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const result = await updateEmailWithVerification(
+      'user@',
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty email string', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const result = await updateEmailWithVerification(
+      '',
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('rejects email longer than 128 characters', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const longEmail = 'a'.repeat(120) + '@test.com'; // 130 chars total
+    const result = await updateEmailWithVerification(
+      longEmail,
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('accepts null email (for removal)', async () => {
+    const { updateEmailWithVerification } = await import('./verification');
+    const result = await updateEmailWithVerification(
+      null,
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(true);
+    expect(vi.mocked(makeRequest)).toHaveBeenCalledWith(
+      '/api/my-account/primary-email',
+      expect.objectContaining({
+        method: 'POST',
+        body: { email: null, newIdentifierVerificationRecordId: 'vr_identifier' },
+      })
+    );
+  });
 });
 
 // ============================================================================
@@ -332,6 +403,34 @@ describe('updatePhoneWithVerification', () => {
         extraHeaders: { 'logto-verification-id': 'vr_identity' },
       })
     );
+  });
+
+  // BUG-059: Phone length validation after cleaning
+  it('rejects phone that is empty after cleaning (non-digit chars only)', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const result = await updatePhoneWithVerification(
+      'abc',
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+
+  it('rejects phone longer than 20 digits', async () => {
+    const { updatePhoneWithVerification } = await import('./verification');
+    const longPhone = '1'.repeat(21);
+    const result = await updatePhoneWithVerification(
+      longPhone,
+      'vr_identifier',
+      'vr_identity',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
 
   it('rejects non-string phone input (undefined)', async () => {

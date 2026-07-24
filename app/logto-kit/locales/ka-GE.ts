@@ -68,8 +68,8 @@ export const kaGE: Translations = {
     deletingAccount: 'ანგარიში იშლება…',
     passwordChangeFailed: 'პაროლის შეცვლა ვერ მოხერხდა',
     reconfigure: 'თავიდან კონფიგურაცია',
-    searchCountry: 'Search country...',
-    noCountryFound: 'No countries match',
+    searchCountry: 'ქვეყნის ძიება...',
+    noCountryFound: 'მსგავსი ქვეყნები არ მოიძებნა',
   },
   
   // Profile tab
@@ -224,6 +224,49 @@ export const kaGE: Translations = {
     clearOrgFailed: 'პირად რეჟიმზე გადართვა ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
     refreshOrgPermissions: 'ორგანიზაციის ნებართვების განახლება',
     refreshOrgRoles: 'ორგანიზაციის როლების განახლება',
+    // ── Point 2: organization-context / switcher / listbox / provenance ──
+    accessEyebrow: 'ორგანიზაციის წვდომა',
+    personalAccessLabel: 'პირადი წვდომა',
+    personalModeDescription: 'თქვენ ხედავთ თქვენს პირად (გლობალურ) წვდომას. გადადით ორგანიზაციაზე, რომ ნახოთ მისი RBAC წევრობა.',
+    selectedOrgDescription: 'თქვენ ნახულობთ ამ ორგანიზაციის RBAC წევრობას.',
+    noOrgDescription: 'ამ ორგანიზაციის აღწერა არ არის ხელმისაწვდომი.',
+    switchingLabel: 'გადართვა\u2026',
+    switchingAnnouncement: 'ორგანიზაციის გადართვა, გთხოვთ მოიცადოთ.',
+    listboxLabel: 'აირჩიეთ წვდომის კონტექსტი',
+    personalOptionLabel: 'პირადი წვდომა',
+    personalOptionDescription: 'გლობალური როლები და ნებართვები',
+    orgSectionLabel: 'ორგანიზაციები',
+    selectTriggerAriaLabel: 'აირჩიეთ წვდომის კონტექსტი',
+  },
+
+  // ── Point 2: shared RBAC lister copy ──
+  rbac: {
+    scopeLabel: 'ფარგლები',
+    scopeIdLabel: 'ფარგლების ID',
+    resourceIndicatorLabel: 'რესურსის იდენტიფიკატორი',
+    detailsButtonLabel: 'დეტალები',
+    detailsDialogTitle: 'დეტალები',
+    detailsCopyLabel: 'კოპირება',
+    detailsCopyAnnouncement: 'კოპირებულია ბუფერში.',
+    detailsCopyFailedAnnouncement: 'კოპირება ვერ მოხერხდა.',
+    countLabel: 'რაოდენობა',
+    loadingLabel: 'ჩატვირთვა\u2026',
+    emptyRolesTitle: 'როლები არ არის მინიჭებული.',
+    emptyPermissionsTitle: 'ნებართვები არ არის მინიჭებული.',
+    emptyRolesDetail: 'ამ იდენტობაზე მინიჭებული როლები გამოჩნდება აქ.',
+    emptyPermissionsDetail: 'როლების მეშვეობით მინიჭებული ნებართვები გამოჩნდება აქ.',
+    sourceM2mDerived: 'როლებიდან მიღებული მონაცემები',
+    sourceLiveAudit: 'ცოცხალი აუდიტი',
+    auditStatusAuditing: 'ცოცხალი ნებართვების აუდიტი\u2026',
+    auditStatusLive: 'ცოცხალი აუდიტი დასრულდა.',
+    auditStatusError: 'ცოცხალი აუდიტი ვერ შესრულდა.',
+    descriptionsError: 'აღწერები ხელმიუწვდომელია.',
+    staleRetryNotice: 'წინა მონაცემები შენარჩუნებულია. განაახლეთ, რომ კიდევ სცადოთ.',
+    refreshFailedNotice: 'განახლება ვერ მოხერხდა. წინა რიგები შენარჩუნებულია.',
+    personalRolesTitle: 'პირადი როლები',
+    personalPermissionsTitle: 'მინიჭებული ნებართვები',
+    orgRolesTitle: 'ორგანიზაციის როლები',
+    orgPermissionsTitle: 'ორგანიზაციის ნებართვები',
   },
   
   // MFA tab
@@ -374,7 +417,7 @@ export const kaGE: Translations = {
     lightTheme: 'ნათელი',
     darkTheme: 'მუქი',
     systemTheme: 'სისტემური',
-    loggedInAs: 'შესულია якო',
+    loggedInAs: 'შესული ხართ როგორც',
     openUserDashboard: 'მომხმარებლის დაშბორდის გახსნა',
     yes: 'კი',
     cancel: 'გაუქმება',
@@ -398,6 +441,92 @@ export const kaGE: Translations = {
     abort: 'გაუქმება',
     confirm: 'გამიშვი!',
     farewell: 'ნახვამდის!',
+  },
+
+  // Error codes — human-readable messages for every client-receivable error code
+  errors: {
+    // ── auth ──
+    UNAUTHENTICATED: 'თქვენი სესია არასწორია. გთხოვთ, ხელახლა შეხვიდეთ.',
+    UNAUTHORIZED: 'ამისთვის სისტემაში შესვლაა საჭირო.',
+    FORBIDDEN_ORIGIN: 'ეს მოთხოვნა არაღიარებული წყაროდან მოვიდა.',
+    VERIFICATION_FAILED: 'ვერიფიკაცია ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    VERIFICATION_EXPIRED: 'თქვენი ვერიფიკაცია ვადაგასულია. გთხოვთ, ხელახლა გადაამოწმოთ.',
+    VERIFICATION_REQUIRED: 'ამ მოქმედებისთვის საჭიროა ვერიფიკაცია.',
+    MISSING_VERIFICATION: 'ვერიფიკაციის ინფორმაცია აკლია. გთხოვთ, კიდევ სცადოთ.',
+
+    // ── rbac ──
+    ROLE_DENIED: 'თქვენ არ გაქვთ როლი, რომელიც ამ მოქმედების ნებას იძლევა.',
+    PERMISSION_DENIED: 'საჭირო ნებართვა არ არის თქვენს კონტრაქტში.',
+    ORG_NOT_MEMBER: 'როგორც ჩანს, თქვენ ამ ორგანიზაციის წევრი არ ხართ.',
+
+    // ── validation ──
+    INVALID_INPUT: 'მოთხოვნაში რაღაც არასწორი იყო.',
+    MISSING_FIELDS: 'ზოგიერთი აუცილებელი ველი აკლია.',
+    INVALID_PAYLOAD: 'მოთხოვნის მონაცემების დამუშავება ვერ მოხერხდა.',
+    PAYLOAD_TOO_LARGE: 'მოთხოვნის მონაცემები ძალიან დიდია.',
+    PHONE_COUNTRY_NOT_ALLOWED: 'თქვენი ქვეყნის ტელეფონის ნომრები ჯერ არ არის მხარდაჭერილი.',
+
+    // ── server ──
+    INTERNAL_ERROR: 'რაღაც შეცდომა მოხდა ჩვენს მხარეს. გთხოვთ, კიდევ სცადოთ.',
+    FETCH_FAILED: 'სერვერთან დაკავშირება ვერ მოხერხდა. შეამოწმეთ თქვენი კავშირი.',
+    UPDATE_FAILED: 'განახლება ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    DELETE_FAILED: 'წაშლა ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    SERVICE_UNAVAILABLE: 'სერვისი დროებით მიუწვდომელია. გთხოვთ, მოგვიანებით სცადოთ.',
+    MFA_ENROLL_FAILED: 'ორფაქტორიანი ავთენტიფიკაციის დაყენება ვერ მოხერხდა.',
+    MFA_REMOVE_FAILED: 'ორფაქტორიანი ავთენტიფიკაციის წაშლა ვერ მოხერხდა.',
+    BACKUP_CODES_FAILED: 'სარეზერვო კოდების გენერაცია ვერ მოხერხდა.',
+    PASSWORD_UPDATE_FAILED: 'პაროლის განახლება ვერ მოხერხდა.',
+    EMAIL_UPDATE_FAILED: 'ელფოსტის განახლება ვერ მოხერხდა.',
+    PHONE_UPDATE_FAILED: 'ტელეფონის ნომრის განახლება ვერ მოხერხდა.',
+    SESSION_REVOKE_FAILED: 'ამ სესიიდან გამოსვლა ვერ მოხერხდა.',
+    GRANT_REVOKE_FAILED: 'ამ ნებართვის გაუქმება ვერ მოხერხდა.',
+
+    // ── rate-limit ──
+    RATE_LIMITED: 'ნელა — ამას ძალიან სწრაფად აკეთებთ. ცოტა ხანს მოიცადეთ.',
+    UPLOAD_RATE_LIMITED: 'ძალიან სწრაფად ატვირთავთ. ცოტა ხანს მოიცადეთ.',
+
+    // ── upload ──
+    UPLOAD_FAILED: 'ატვირთვა ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    UPLOAD_TOO_LARGE: 'ეს ფაილი ძალიან დიდია.',
+    UPLOAD_INVALID_TYPE: 'ეს ფაილის ტიპი არ არის მხარდაჭერილი.',
+
+    // ── oauth (RFC 6749 snake_case) ──
+    access_denied: 'თქვენ გააუქმეთ შესვლის მოთხოვნა.',
+    invalid_request: 'შესვლის მოთხოვნა არასწორი იყო. გთხოვთ, კიდევ სცადოთ.',
+    unauthorized_client: 'ეს აპლიკაცია არ არის ავტორიზებული შესვლისთვის.',
+    unsupported_response_type: 'შესვლის ეს მეთოდი არ არის მხარდაჭერილი.',
+    invalid_scope: 'მოთხოვნილი ნებართვები არ არის ვალიდური.',
+    server_error: 'შესვლის პროვაიდერმა შეცდომა დააფიქსირა.',
+    temporarily_unavailable: 'შესვლის პროვაიდერი დროებით მიუწვდომელია.',
+    interaction_required: 'შესვლის პროვაიდერს თქვენი ჩართულობა სჭირდება.',
+    login_required: 'ჯერ უნდა შეხვიდეთ.',
+    consent_required: 'შესვლის პროვაიდერს თქვენი თანხმობა სჭირდება.',
+    unknown_error: 'შესვლისას უცნობი შეცდომა მოხდა.',
+    OAUTH_UNKNOWN_ERROR: 'შესვლისას შეცდომა მოხდა.',
+
+    // ── silent / ultimate fallback ──
+    ERROR: 'რაღაც შეცდომა მოხდა.',
+
+    // ── Logto structured API codes (dot-notation → underscore in key) ──
+    session_invalid_credentials: 'არასწორი მონაცემები. გთხოვთ, გადაამოწმოთ შესვლის დეტალები და კიდევ სცადოთ.',
+    session_verification_failed: 'ვერიფიკაცია ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    session_identifier_not_found: 'ამ იდენტიფიკატორით ანგარიშის პოვნა ვერ მოხერხდა.',
+    session_identity_conflict: 'არსებულ იდენტიტეტთან კონფლიქტია.',
+    session_verification_session_not_found: 'თქვენი ვერიფიკაციის სესია ვადაგასულია. გთხოვთ, თავიდან დაიწყოთ.',
+    user_user_not_exist: 'ეს ანგარიში არ არსებობს.',
+    guard_invalid_target: 'სამიზნე რესურსი არ არის ვალიდური.',
+    password_expired: 'თქვენი პაროლი ვადაგასულია. გთხოვთ, დააყენოთ ახალი.',
+    password_rejected: 'თქვენს მიერ შეყვანილი პაროლი უარყოფილია.',
+    session_mfa_backup_code_can_not_be_alone: 'სარეზერვო კოდის გამოყენებამდე სხვა MFA მეთოდია საჭირო.',
+    session_mfa_mfa_factor_not_enabled: 'MFA-ს ეს მეთოდი თქვენს ანგარიშზე არ არის დაყენებული.',
+    session_mfa_pending_info_not_found: 'თქვენი MFA სესია ვადაგასულია. გთხოვთ, თავიდან დაიწყოთ.',
+    session_mfa_webauthn_verification_failed: 'გასაღების ვერიფიკაცია ვერ მოხერხდა. გთხოვთ, კიდევ სცადოთ.',
+    session_not_supported_for_forgot_password: 'ამ ტიპის სესია პაროლის აღდგენას არ უჭერს მხარს.',
+    user_missing_profile: 'პროფილის საჭირო ინფორმაცია აკლია.',
+    user_password_policy_violation: 'პაროლი არ აკმაყოფილებს უსაფრთხოების მოთხოვნებს.',
+    user_same_password: 'ახალი პაროლი უნდა განსხვავდებოდეს თქვენი ამჟამინდელისგან.',
+    user_totp_already_in_use: 'ეს ავთენტიფიკატორი უკვე დაყენებულია სხვა ანგარიშზე.',
+    user_username_already_in_use: 'ეს მომხმარებლის სახელი უკვე დაკავებულია.',
   },
 };
 

@@ -22,7 +22,13 @@ export async function makeRequest(
 ): Promise<Response> {
   // Guard: only allow /api/ paths, no path traversal or query/fragment injection.
   // Query parameters must be passed via options.query, not embedded in path.
-  if (!path.startsWith('/api/') || path.includes('..') || path.includes('?') || path.includes('#') || path.includes('//')) {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(path);
+  } catch {
+    decodedPath = path;
+  }
+  if (!path.startsWith('/api/') || decodedPath.includes('..') || path.includes('?') || path.includes('#') || path.includes('//')) {
     throw new Error(`Invalid API path: ${path}`);
   }
 
@@ -41,9 +47,9 @@ export async function makeRequest(
   }
 
   const headers: Record<string, string> = {
+    ...options.extraHeaders,
     Authorization: `Bearer ${token}`,
     ...(options.body !== undefined && { 'Content-Type': 'application/json' }),
-    ...options.extraHeaders,
   };
 
   return fetch(url.toString(), {

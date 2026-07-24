@@ -159,26 +159,41 @@ describe('requestWebAuthnRegistration', () => {
     expect(throwOnApiError).toHaveBeenCalled();
   });
 
-  it('returns UNAUTHORIZED when token is inactive (BUG-M05: explicit auth check)', async () => {
+  it('passes assertAudience: true to introspectToken (BUG-012: audience validation)', async () => {
+    const { introspectToken } = await import('../utils');
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockOkResponse({
+        registrationOptions: {},
+        verificationRecordId: 'vrec-xyz',
+        expiresAt: '2099-01-01T00:00:00Z',
+      })
+    );
+
+    await requestWebAuthnRegistration();
+
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
+  });
+
+  it('returns UNAUTHENTICATED when token is inactive (BUG-M05: explicit auth check, BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
     const r = await requestWebAuthnRegistration();
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
     // makeRequest must NOT have been called - auth check must be first
     expect(makeRequest).not.toHaveBeenCalled();
   });
 
-  it('returns UNAUTHORIZED when sub is missing (BUG-M05: explicit auth check)', async () => {
+  it('returns UNAUTHENTICATED when sub is missing (BUG-M05: explicit auth check, BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     const r = await requestWebAuthnRegistration();
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
     expect(makeRequest).not.toHaveBeenCalled();
   });
 });
@@ -268,24 +283,32 @@ describe('verifyAndLinkWebAuthn', () => {
     expect(makeRequest).toHaveBeenCalledTimes(1);
   });
 
-  it('returns UNAUTHORIZED when token is inactive', async () => {
+  it('passes assertAudience: true to introspectToken (BUG-012: audience validation)', async () => {
+    const { introspectToken } = await import('../utils');
+
+    await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
+
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
+  });
+
+  it('returns UNAUTHENTICATED when token is inactive (BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
     const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
   });
 
-  it('returns UNAUTHORIZED when sub is missing (BUG-M06: no fallback to unknown)', async () => {
+  it('returns UNAUTHENTICATED when sub is missing (BUG-M06: no fallback to unknown, BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     const r = await verifyAndLinkWebAuthn(validPayload, validVrecId, validIdentityVrecId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
   });
 
   it('fails with VERIFICATION_EXPIRED when the sealed verification is missing', async () => {
@@ -383,24 +406,32 @@ describe('renamePasskey', () => {
     expect(r.error).toContain('MFA_ENROLL_FAILED');
   });
 
-  it('returns UNAUTHORIZED when token is inactive', async () => {
+  it('passes assertAudience: true to introspectToken (BUG-012: audience validation)', async () => {
+    const { introspectToken } = await import('../utils');
+
+    await renamePasskey(validId, validName, validIdentityId);
+
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
+  });
+
+  it('returns UNAUTHENTICATED when token is inactive (BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: 'user-test-123', active: false });
 
     const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
   });
 
-  it('returns UNAUTHORIZED when sub is missing (BUG-M06: no fallback to unknown)', async () => {
+  it('returns UNAUTHENTICATED when sub is missing (BUG-M06: no fallback to unknown, BUG-058: code)', async () => {
     const { introspectToken } = await import('../utils');
     vi.mocked(introspectToken).mockResolvedValueOnce({ sub: undefined, active: true });
 
     const r = await renamePasskey(validId, validName, validIdentityId);
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected failure');
-    expect(r.error).toBe('UNAUTHORIZED');
+    expect(r.error).toBe('UNAUTHENTICATED');
   });
 
   it('fails with VERIFICATION_EXPIRED when the sealed verification is missing', async () => {

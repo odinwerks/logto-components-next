@@ -45,6 +45,45 @@ describe('PreferencesTab theme semantics', () => {
     fireEvent.click(screen.getByRole('radio', { name: enUS.common.darkTheme }));
     expect(mockSetTheme).toHaveBeenCalledWith('dark');
   });
+
+  it('navigates theme options via Arrow keys (BUG-039: roving tabindex)', () => {
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US']}
+      />,
+    );
+
+    const radiogroup = screen.getByRole('radiogroup', { name: enUS.common.appearance });
+    const light = screen.getByRole('radio', { name: enUS.common.lightTheme });
+    const dark = screen.getByRole('radio', { name: enUS.common.darkTheme });
+
+    // Light is selected (activeMode = 'light' from mock), so it gets tabIndex=0
+    expect(light).toHaveAttribute('tabindex', '0');
+    expect(dark).toHaveAttribute('tabindex', '-1');
+
+    // ArrowRight selects dark
+    mockSetTheme.mockClear();
+    fireEvent.keyDown(radiogroup, { key: 'ArrowRight' });
+    expect(mockSetTheme).toHaveBeenCalledWith('dark');
+
+    // ArrowUp on dark wraps back to light
+    mockSetTheme.mockClear();
+    fireEvent.keyDown(radiogroup, { key: 'ArrowUp' });
+    expect(mockSetTheme).toHaveBeenCalledWith('light');
+
+    // Home selects first option (light)
+    mockSetTheme.mockClear();
+    fireEvent.keyDown(radiogroup, { key: 'Home' });
+    expect(mockSetTheme).toHaveBeenCalledWith('light');
+
+    // End selects last option (dark)
+    mockSetTheme.mockClear();
+    fireEvent.keyDown(radiogroup, { key: 'End' });
+    expect(mockSetTheme).toHaveBeenCalledWith('dark');
+  });
 });
 
 describe('PreferencesTab language semantics', () => {

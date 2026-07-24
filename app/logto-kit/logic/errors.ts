@@ -3,12 +3,14 @@
  * Error types and sanitisation helpers
  * ============================================================================
  *
- * Errors returned to the client use Logto's human-readable `message` field
- * when available (safe to expose — Account API responses are user-facing).
- * When no upstream message exists, deterministic error codes are used instead.
+ * Errors returned to the client carry a deterministic error CODE drawn from
+ * the `ERROR_CODES` registry in `./error-codes`. The code is mapped to a
+ * localized message by the i18n layer (`errors.*` namespace). The raw upstream
+ * English `message` from Logto is NEVER sent to the client — it is logged
+ * server-side only (full `code` + `message` via `logEvent`).
  *
- * Raw upstream text outside the `message` field (DB constraint names, upstream
- * service URLs, request IDs) is never exposed to clients.
+ * Raw upstream text outside the `code`/`message` fields (DB constraint names,
+ * upstream service URLs, request IDs) is never exposed to clients.
  *
  * Usage pattern in server actions:
  *
@@ -21,56 +23,15 @@
  */
 
 import { warn } from './log';
+import { logEvent } from './log';
+import { LOG_EVENTS } from '../../lib/log-events';
+import type { ErrorCode } from './error-codes';
+import { lookupErrorCodeKey } from './error-codes';
+import { resolveClientCode } from './verbosity';
+
+export type { ErrorCode };
 
 const AUTH_HTTP_STATUSES = new Set([401, 403]);
-
-// ============================================================================
-// Domain-specific error class for upstream Logto API failures
-// ============================================================================
-
-export class LogtoApiError extends Error {
-  constructor(
-    message: string,
-    public operation: string,
-    public status: number,
-    public response: string,
-    public endpoint?: string,
-  ) {
-    super(message);
-    this.name = 'LogtoApiError';
-  }
-}
-
-// ============================================================================
-// Error codes - fixed strings clients are allowed to see in production
-// ============================================================================
-
-export type ErrorCode =
-  | 'VERIFICATION_FAILED'
-  | 'VERIFICATION_EXPIRED'
-  | 'AUTHORIZATION_FAILED'
-  | 'UPDATE_FAILED'
-  | 'UPLOAD_FAILED'
-  | 'UPLOAD_TOO_LARGE'
-  | 'UPLOAD_INVALID_TYPE'
-  | 'UPLOAD_RATE_LIMITED'
-  | 'DELETE_FAILED'
-  | 'FETCH_FAILED'
-  | 'SESSION_REVOKE_FAILED'
-  | 'GRANT_REVOKE_FAILED'
-  | 'MFA_ENROLL_FAILED'
-  | 'MFA_REMOVE_FAILED'
-  | 'BACKUP_CODES_FAILED'
-  | 'PASSWORD_UPDATE_FAILED'
-  | 'EMAIL_UPDATE_FAILED'
-  | 'PHONE_UPDATE_FAILED'
-  | 'INVALID_INPUT'
-  | 'FORBIDDEN_ORIGIN'
-  | 'UNAUTHENTICATED'
-  | 'UNAUTHORIZED'
-  | 'MISSING_VERIFICATION'
-  | 'VERIFICATION_REQUIRED'
-  | 'INTERNAL_ERROR';
 
 // ============================================================================
 // Primary API: sanitize(err, { fallback })
@@ -79,8 +40,17 @@ export type ErrorCode =
 /**
  * Returns an `Error` safe to throw across the server-action boundary.
  *
- * The `operation`/`status` properties of LogtoApiError are always stripped
- * from the thrown error's message - they live in server logs only.
+ * The thrown error's message is always the fixed `fallback` code (in
+ * production). Upstream operation/status details are never exposed to clients
+ * — they live in server logs only (via `logEvent` in `throwOnApiError`).
+ *
+ * Stamps `.code` on the SanitizedError (mirroring `plainCode()` and
+ * `throwOnApiError()`) so `safeAction`'s preserve branch can resolve it via
+ * `resolveClientCode(err.code, captureMessage(err))`. Without `.code`,
+ * `resolveClientCode` skips the registry lookup and returns the raw fallback
+ * at `specific` verbosity, bypassing `exposeToClient:false` / generic-verbosity
+ * collapsing (BUG-023). Protected codes (e.g. INTROSPECTION_ERROR) used as a
+ * sanitize fallback would otherwise leak to the client.
  *
  * @param err       The caught error.
  * @param fallback  The error code to use in production.
@@ -95,6 +65,10 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
   // Production: fixed error code only. Never leak upstream detail.
   const safe = new Error(fallback);
   safe.name = 'SanitizedError';
+  // Stamp `.code` so safeAction's preserve branch can resolve it via
+  // resolveClientCode(err.code, ...) and apply exposeToClient/verbosity
+  // collapsing. Mirrors plainCode() and throwOnApiError(). (BUG-023)
+  (safe as Error & { code?: string }).code = fallback;
   return safe;
 }
 
@@ -107,18 +81,29 @@ export function sanitize(err: unknown, options: { fallback: ErrorCode }): Error 
  *
  * Behavior:
  * - Parses upstream JSON payload for code + message.
- * - Logs only HTTP status and upstream code to server logs (never the message).
- * - Falls back to the deterministic error code when no upstream message exists.
- * - By default, upstream `message` is NOT exposed (safeCode used instead).
- *   Pass `exposeMessage = true` to opt-in (e.g. for Account API user-facing
- *   error messages that are safe to show to end users).
+ * - Logs the full upstream `code` AND `message` to server logs via `logEvent`
+ *   (they are client-safe words — Logto designs them to be user-facing; the
+ *   full English message is valuable for operators and safe server-side).
+ *   Also logs the legacy `[op] HTTP <status> (code)` line via `warn()`.
+ * - Determines the client-facing CODE:
+ *     • If the upstream Logto `code` is in the registry (by code value, e.g.
+ *       `session.invalid_credentials`), that code is passed to the client so
+ *       the i18n layer can map it to a localized message.
+ *     • Otherwise, falls back to the dashboard `safeCode` (`UNAUTHORIZED` for
+ *       401/403, else the caller-provided `fallback`).
+ * - The raw upstream English `message` is NEVER sent to the client. The
+ *   `exposeMessage` parameter is kept for backward-compat signature stability
+ *   but is deprecated — the client always receives a code, not a message.
+ * - Verbosity resolution (`resolveClientCode`) is applied to the code.
+ * - Stamps `.code` on the thrown Error so `safeAction` can resolve it.
  *
  * @param res            The fetch Response.
- * @param fallback       Error code used for non-auth failures.
+ * @param fallback       Error code used for non-auth failures when the
+ *                       upstream code is not a recognised Logto code.
  * @param operation      Label for server-side logging.
- * @param exposeMessage  If true, pass Logto's human-readable `message` to
- *                       the client verbatim. Default false for safety —
- *                       prevents Management API internals from leaking.
+ * @param exposeMessage  Deprecated. Kept for signature stability; the client
+ *                       always receives a code now (the i18n layer maps it).
+ *                       Default false.
  */
 export async function throwOnApiError(
   res: Response,
@@ -135,7 +120,7 @@ export async function throwOnApiError(
     detail = res.statusText;
   }
 
-  // Parse Logto payload first so we can log only the code (not the message).
+  // Parse Logto payload first so we can log the code + message.
   let upstreamCode: string | undefined;
   let upstreamMessage: string | undefined;
   try {
@@ -150,22 +135,48 @@ export async function throwOnApiError(
     // Non-JSON payloads are expected for some upstream failures.
   }
 
-  // Log only status + code to server logs. Never log the upstream message.
+  // Log status + code via the legacy unstructured line (preserved for parity).
   if (typeof console !== 'undefined') {
     warn(`[${operation}] HTTP ${res.status}${upstreamCode ? ` (${upstreamCode})` : ''}`);
   }
+
+  // NEW: structured log with the full upstream code + message (client-safe
+  // words — Logto designs them to be user-facing). The `requestId` is
+  // auto-merged by logEvent from requestContext. Field name `upstreamCode`
+  // (not `code`) avoids Pino's `code` redact path.
+  logEvent.warn(
+    LOG_EVENTS.API_ERROR,
+    `[${operation}] HTTP ${res.status}${upstreamCode ? ` (${upstreamCode})` : ''}`,
+    {
+      status: res.status,
+      upstreamCode,
+      upstreamMessage,
+      fallback,
+    },
+  );
 
   const safeCode: ErrorCode = AUTH_HTTP_STATUSES.has(res.status)
     ? 'UNAUTHORIZED'
     : fallback;
 
-  // When exposeMessage is true (e.g. Account API), pass Logto's human-readable
-  // message to the client. When false (default), use the safeCode to prevent
-  // Management API internals from leaking.
-  const errorMessage = exposeMessage ? (upstreamMessage ?? safeCode) : safeCode;
+  // Determine the client-facing code. If the upstream Logto code is in the
+  // registry (by code value), pass it through so the i18n layer can map it.
+  // Otherwise, fall back to the dashboard safeCode.
+  const recognisedKey = upstreamCode ? lookupErrorCodeKey(upstreamCode) : undefined;
+  const clientCode: string = recognisedKey && upstreamCode ? upstreamCode : safeCode;
 
-  const safe = new Error(errorMessage);
+  // Apply verbosity resolution. At `specific` (default) this returns the
+  // clientCode itself; at `generic`/`silent` it collapses appropriately.
+  const resolvedCode = resolveClientCode(clientCode, clientCode);
+
+  // `exposeMessage` is deprecated — the client always receives a code now.
+  // Kept in the signature for backward compatibility; intentionally unused.
+  void exposeMessage;
+
+  const safe = new Error(resolvedCode);
   safe.name = 'SanitizedError';
+  // Stamp the precise code for safeAction to resolve non-throwOnApiError paths.
+  (safe as Error & { code?: string }).code = clientCode;
   throw safe;
 }
 
@@ -177,13 +188,15 @@ export async function throwOnApiError(
 /**
  * Creates an Error from a code and an optional underlying detail.
  *
- * Returns a sanitized fixed code error.
+ * Returns a sanitized fixed code error with `.code` stamped so `safeAction`
+ * can resolve it via `resolveClientCode`.
  */
 export function plainCode(code: ErrorCode, cause?: unknown): Error {
   // `cause` is intentionally ignored for client-safe output.
   void cause;
-  const err = new Error(code);
+  const err = new Error(code); // message stays the PRECISE code (unchanged)
   err.name = 'SanitizedError';
+  (err as Error & { code?: string }).code = code; // stamp for safeAction
   return err;
 }
 
@@ -195,13 +208,13 @@ export function isAuthError(error: unknown): boolean {
   // Check custom error properties on any object
   if (typeof error === 'object') {
     const obj = error as Record<string, unknown>;
-    if (obj.status === 401 || obj.status === 403 || obj.code === 'UNAUTHORIZED') {
+    if (obj.status === 401 || obj.status === 403 || obj.code === 'UNAUTHORIZED' || obj.code === 'UNAUTHENTICATED') {
       return true;
     }
   }
 
   if (error instanceof Error) {
-    if (error.name === 'SanitizedError' && error.message === 'UNAUTHORIZED') {
+    if (error.name === 'SanitizedError' && (error.message === 'UNAUTHORIZED' || error.message === 'UNAUTHENTICATED')) {
       return true;
     }
     // Check by error name first (more reliable than message matching)

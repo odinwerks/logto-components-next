@@ -59,6 +59,46 @@ describe('signInUser', () => {
       expect((err as Error).message).toBe('INVALID_ROUTE');
     }
   });
+
+  // ============================================================================
+  // BUG-013: signInUser error sanitization
+  //
+  // signInUser must mirror signOutUser's try/catch: re-throw NEXT_REDIRECT
+  // control-flow pseudo-errors unchanged, but sanitize every other error to a
+  // fixed INTERNAL_ERROR code so SDK internals / malformed-BASE_URL TypeErrors
+  // never leak across the Server Action boundary to the browser.
+  // ============================================================================
+
+  it('re-throws NEXT_REDIRECT errors unchanged (Next.js redirect control-flow)', async () => {
+    const redirectErr = new Error('NEXT_REDIRECT');
+    vi.mocked(signIn).mockRejectedValueOnce(redirectErr);
+    await expect(signInUser()).rejects.toBe(redirectErr);
+  });
+
+  it('re-throws NEXT_REDIRECT by digest property', async () => {
+    const redirectErr = Object.assign(new Error('redirect'), {
+      digest: 'NEXT_REDIRECT;replace;/;304;',
+    });
+    vi.mocked(signIn).mockRejectedValueOnce(redirectErr);
+    await expect(signInUser()).rejects.toBe(redirectErr);
+  });
+
+  it('sanitizes non-redirect errors to INTERNAL_ERROR (BUG-013)', async () => {
+    const internalErr = new Error('SDK internal: sign-in initiation failed with secret details');
+    vi.mocked(signIn).mockRejectedValueOnce(internalErr);
+    await expect(signInUser()).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'INTERNAL_ERROR',
+    });
+  });
+
+  it('sanitizes string-thrown errors to INTERNAL_ERROR', async () => {
+    vi.mocked(signIn).mockRejectedValueOnce('something went wrong');
+    await expect(signInUser()).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'INTERNAL_ERROR',
+    });
+  });
 });
 
 // ============================================================================

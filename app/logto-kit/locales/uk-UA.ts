@@ -68,8 +68,8 @@ export const ukUA: Translations = {
     deletingAccount: 'Видалення облікового запису…',
     passwordChangeFailed: 'Помилка зміни пароля',
     reconfigure: 'Переналаштувати',
-    searchCountry: 'Search country...', // TODO: native translation
-    noCountryFound: 'No countries match', // TODO: native translation
+    searchCountry: 'Пошук країни...',
+    noCountryFound: 'Країн не знайдено',
   },
   
   // Profile tab
@@ -172,7 +172,7 @@ export const ukUA: Translations = {
     usernameInvalidCharacters: "Ім'я користувача може містити лише літери, цифри, підкреслення та дефіси",
     urlInvalidProtocol: 'URL має використовувати протокол http або https',
     urlInvalidFormat: 'Некоректний формат URL',
-    jsonMustBeObject: 'Ма̀ бути об’єктом JSON (не масивом ано null)',
+    jsonMustBeObject: 'Має бути об’єктом JSON (не масивом або null)',
     unknownError: 'Невідома помилка',
     phoneCountryNotAllowed: 'Номер телефону з цієї країни не підтримується',
   },
@@ -224,6 +224,49 @@ export const ukUA: Translations = {
     clearOrgFailed: 'Не вдалося перейти в особистий режим. Спробуйте ще раз.',
     refreshOrgPermissions: 'Оновити дозволи в організаціях',
     refreshOrgRoles: 'Оновити ролі в організаціях',
+    // ── Point 2: organization-context / switcher / listbox / provenance ──
+    accessEyebrow: 'ДОСТУП ДО ОРГАНІЗАЦІЇ',
+    personalAccessLabel: 'Особистий доступ',
+    personalModeDescription: 'Ви переглядаєте свій особистий (глобальний) доступ. Перейдіть до організації, щоб переглянути її RBAC членства.',
+    selectedOrgDescription: 'Ви переглядаєте RBAC членства для цієї організації.',
+    noOrgDescription: 'Опис цієї організації недоступний.',
+    switchingLabel: 'Перемикання\u2026',
+    switchingAnnouncement: 'Перемикання організації, зачекайте.',
+    listboxLabel: 'Оберіть контекст доступу',
+    personalOptionLabel: 'Особистий доступ',
+    personalOptionDescription: 'Глобальні ролі та дозволи',
+    orgSectionLabel: 'Організації',
+    selectTriggerAriaLabel: 'Оберіть контекст доступу',
+  },
+
+  // ── Point 2: shared RBAC lister copy ──
+  rbac: {
+    scopeLabel: 'Область',
+    scopeIdLabel: 'ID області',
+    resourceIndicatorLabel: 'Ідентифікатор ресурсу',
+    detailsButtonLabel: 'Деталі',
+    detailsDialogTitle: 'Деталі',
+    detailsCopyLabel: 'Копіювати',
+    detailsCopyAnnouncement: 'Скопійовано в буфер обміну.',
+    detailsCopyFailedAnnouncement: 'Копіювання не вдалося.',
+    countLabel: 'кількість',
+    loadingLabel: 'Завантаження\u2026',
+    emptyRolesTitle: 'Ролі не призначено.',
+    emptyPermissionsTitle: 'Дозволи не призначено.',
+    emptyRolesDetail: 'Ролі, надані цьому профілю, з\u2019являться тут.',
+    emptyPermissionsDetail: 'Дозволи, надані через ролі, з\u2019являться тут.',
+    sourceM2mDerived: 'Дані, отримані з ролей',
+    sourceLiveAudit: 'Живий аудит',
+    auditStatusAuditing: 'Аудит живих дозволів\u2026',
+    auditStatusLive: 'Живий аудит завершено.',
+    auditStatusError: 'Живий аудит не вдався.',
+    descriptionsError: 'Описи недоступні.',
+    staleRetryNotice: 'Попередні дані збережено. Оновіть, щоб повторити.',
+    refreshFailedNotice: 'Оновлення не вдалося. Попередні рядки збережено.',
+    personalRolesTitle: 'Особисті ролі',
+    personalPermissionsTitle: 'Надані дозволи',
+    orgRolesTitle: 'Ролі в організації',
+    orgPermissionsTitle: 'Дозволи в організації',
   },
   
   // MFA tab
@@ -398,6 +441,92 @@ export const ukUA: Translations = {
     abort: 'Скасувати',
     confirm: 'Відпусти!',
     farewell: 'До зустрічі!',
+  },
+
+  // Error codes — human-readable messages for every client-receivable error code
+  errors: {
+    // ── auth ──
+    UNAUTHENTICATED: 'Ваша сесія недійсна. Спробуйте увійти знову.',
+    UNAUTHORIZED: 'Вам потрібно увійти, щоб виконати цю дію.',
+    FORBIDDEN_ORIGIN: 'Цей запит надійшов з нерозпізнаного джерела.',
+    VERIFICATION_FAILED: 'Підтвердження особи не пройшло. Спробуйте ще раз.',
+    VERIFICATION_EXPIRED: 'Термін підтвердження закінчився. Будь ласка, підтвердьте знову.',
+    VERIFICATION_REQUIRED: 'Ця дія потребує попереднього підтвердження особи.',
+    MISSING_VERIFICATION: 'Бракує інформації для підтвердження. Спробуйте ще раз.',
+
+    // ── rbac ──
+    ROLE_DENIED: 'У вас немає ролі, яка дозволяє цю дію.',
+    PERMISSION_DENIED: 'Необхідний дозвіл відсутній у вашому контракті.',
+    ORG_NOT_MEMBER: 'Схоже, ви не є членом цієї організації.',
+
+    // ── validation ──
+    INVALID_INPUT: 'Щось не так із запитом.',
+    MISSING_FIELDS: 'Деякі обовʼязкові поля відсутні.',
+    INVALID_PAYLOAD: 'Дані запиту не вдалося обробити.',
+    PAYLOAD_TOO_LARGE: 'Дані запиту занадто великі.',
+    PHONE_COUNTRY_NOT_ALLOWED: 'Телефонні номери з вашої країни поки не підтримуються.',
+
+    // ── server ──
+    INTERNAL_ERROR: 'Щось пішло не так з нашого боку. Спробуйте ще раз.',
+    FETCH_FAILED: 'Не вдалося звʼязатися з сервером. Перевірте зʼєднання.',
+    UPDATE_FAILED: 'Оновлення не відбулося. Спробуйте ще раз.',
+    DELETE_FAILED: 'Не вдалося видалити. Спробуйте ще раз.',
+    SERVICE_UNAVAILABLE: 'Сервіс тимчасово недоступний. Спробуйте пізніше.',
+    MFA_ENROLL_FAILED: 'Не вдалося налаштувати двофакторну автентифікацію.',
+    MFA_REMOVE_FAILED: 'Не вдалося видалити двофакторну автентифікацію.',
+    BACKUP_CODES_FAILED: 'Не вдалося згенерувати резервні коди.',
+    PASSWORD_UPDATE_FAILED: 'Не вдалося оновити пароль.',
+    EMAIL_UPDATE_FAILED: 'Не вдалося оновити електронну пошту.',
+    PHONE_UPDATE_FAILED: 'Не вдалося оновити номер телефону.',
+    SESSION_REVOKE_FAILED: 'Не вдалося завершити цю сесію.',
+    GRANT_REVOKE_FAILED: 'Не вдалося відкликати цей дозвіл.',
+
+    // ── rate-limit ──
+    RATE_LIMITED: 'Зачекайте — ви робите це занадто швидко. Зачекайте трохи.',
+    UPLOAD_RATE_LIMITED: 'Ви завантажуєте занадто швидко. Зачекайте трохи.',
+
+    // ── upload ──
+    UPLOAD_FAILED: 'Завантаження не вдалося. Спробуйте ще раз.',
+    UPLOAD_TOO_LARGE: 'Цей файл занадто великий.',
+    UPLOAD_INVALID_TYPE: 'Цей тип файлу не підтримується.',
+
+    // ── oauth (RFC 6749 snake_case) ──
+    access_denied: 'Ви скасували запит на вхід.',
+    invalid_request: 'Запит на вхід був некоректним. Спробуйте ще раз.',
+    unauthorized_client: 'Цей додаток не авторизований для входу.',
+    unsupported_response_type: 'Цей метод входу не підтримується.',
+    invalid_scope: 'Запитані дозволи недійсні.',
+    server_error: 'Постачальник входу зіткнувся з помилкою.',
+    temporarily_unavailable: 'Постачальник входу тимчасово недоступний.',
+    interaction_required: 'Постачальник входу потребує вашої взаємодії.',
+    login_required: 'Спочатку потрібно увійти.',
+    consent_required: 'Постачальник входу потребує вашої згоди.',
+    unknown_error: 'Під час входу виникла невідома помилка.',
+    OAUTH_UNKNOWN_ERROR: 'Під час входу виникла помилка.',
+
+    // ── silent / ultimate fallback ──
+    ERROR: 'Щось пішло не так.',
+
+    // ── Logto structured API codes (dot-notation → underscore in key) ──
+    session_invalid_credentials: 'Невірні облікові дані. Перевірте деталі входу та спробуйте ще раз.',
+    session_verification_failed: 'Підтвердження не вдалося. Спробуйте ще раз.',
+    session_identifier_not_found: 'Не вдалося знайти обліковий запис із цим ідентифікатором.',
+    session_identity_conflict: 'Існує конфлікт із наявною ідентичністю.',
+    session_verification_session_not_found: 'Ваша сесія підтвердження закінчилася. Почніть спочатку.',
+    user_user_not_exist: 'Цей обліковий запис не існує.',
+    guard_invalid_target: 'Цільовий ресурс недійсний.',
+    password_expired: 'Термін дії вашого пароля закінчився. Встановіть новий.',
+    password_rejected: 'Введений пароль було відхилено.',
+    session_mfa_backup_code_can_not_be_alone: 'Для використання резервного коду потрібен інший метод MFA.',
+    session_mfa_mfa_factor_not_enabled: 'Цей метод MFA не налаштовано для вашого облікового запису.',
+    session_mfa_pending_info_not_found: 'Ваша сесія MFA закінчилася. Почніть спочатку.',
+    session_mfa_webauthn_verification_failed: 'Підтвердження ключа доступу не вдалося. Спробуйте ще раз.',
+    session_not_supported_for_forgot_password: 'Цей тип сесії не підтримує скидання пароля.',
+    user_missing_profile: 'Відсутня обовʼязкова інформація профілю.',
+    user_password_policy_violation: 'Пароль не відповідає вимогам безпеки.',
+    user_same_password: 'Новий пароль має відрізнятися від поточного.',
+    user_totp_already_in_use: 'Цей автентифікатор уже налаштовано для іншого облікового запису.',
+    user_username_already_in_use: 'Це імʼя користувача вже зайняте.',
   },
 };
 

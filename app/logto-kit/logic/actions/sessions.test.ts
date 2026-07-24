@@ -32,6 +32,24 @@ vi.mock('../debug', () => ({
 
 vi.mock('../log', () => ({
   warn: vi.fn(),
+  log: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  logEvent: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+    raw: {},
+  },
+}));
+
+vi.mock('./helpers', () => ({
+  auditSafe: vi.fn(),
+  assertVerificationNotExpired: vi.fn(),
+  createLockManager: vi.fn(),
 }));
 
 vi.mock('../guards', () => ({
@@ -55,6 +73,7 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { warn } from '../log';
 import { requireVerifiedIdentity } from './verification-cookie';
+import { auditSafe } from './helpers';
 
 // ============================================================================
 // Test Helpers
@@ -455,6 +474,101 @@ describe('revokeAllOtherSessions', () => {
       dateSpy.mockRestore();
     }
   });
+
+  // BUG-016: each successful revocation inside the bulk loop must produce a
+  // per-session audit record, so a partial failure never leaves revoked
+  // sessions with zero audit trails. The partial-failure throw must also be a
+  // sanitized code, not a raw Error leaking count/total detail.
+  it('audits each successful revocation inside the loop on full success (BUG-016)', async () => {
+    const currentSession = mockSession('current-uid', true);
+    const otherSession1 = mockSession('other-uid-1', false);
+    const otherSession2 = mockSession('other-uid-2', false);
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: [currentSession, otherSession1, otherSession2] });
+      }
+      return mockJsonResponse({}, 204);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    // Each non-current session revocation is audited individually.
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'session.revoke',
+      'other-uid-1',
+      { revokeGrantsTarget: 'firstParty' },
+    );
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'session.revoke',
+      'other-uid-2',
+      { revokeGrantsTarget: 'firstParty' },
+    );
+    // The bulk audit record is also written on full success.
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'session.revoke.all',
+      undefined,
+      { count: 2 },
+    );
+  });
+
+  it('writes per-session audit records for successful revocations and throws SESSION_REVOKE_PARTIAL on partial failure (BUG-016)', async () => {
+    const currentSession = mockSession('current-uid', true);
+    const otherSession1 = mockSession('other-uid-1', false); // will fail
+    const otherSession2 = mockSession('other-uid-2', false); // will succeed
+
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: [currentSession, otherSession1, otherSession2] });
+      }
+      if (opts.method === 'DELETE') {
+        // Fail the first non-current revocation, succeed for the second.
+        if (path.includes('other-uid-1')) {
+          throw new Error('upstream 500');
+        }
+        return mockJsonResponse({}, 204);
+      }
+      return mockJsonResponse({}, 200);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    // Partial failure must surface a sanitized code, not a raw Error.
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error result');
+    expect(result.error).toBe('SESSION_REVOKE_PARTIAL');
+    // No raw upstream detail (count/total) leaked to the client.
+    expect(result.error).not.toContain('Failed to revoke');
+    expect(result.error).not.toMatch(/\d+ of \d+/);
+
+    // The successful revocation (other-uid-2) MUST have a per-session audit
+    // record even though the bulk operation failed.
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'session.revoke',
+      'other-uid-2',
+      { revokeGrantsTarget: 'firstParty' },
+    );
+    // The failed revocation (other-uid-1) must NOT have a per-session audit
+    // record (audit is written only on the fulfilled branch).
+    const revokeCalls = vi.mocked(auditSafe).mock.calls.filter(
+      ([, action]) => action === 'session.revoke',
+    );
+    expect(revokeCalls.some((call) => call[2] === 'other-uid-1')).toBe(false);
+    // The bulk 'session.revoke.all' audit must NOT be written on partial failure.
+    expect(auditSafe).not.toHaveBeenCalledWith(
+      'user-test-123',
+      'session.revoke.all',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
 });
 
 describe('sealed-verification staleness checks', () => {
@@ -631,5 +745,41 @@ describe('revokeUserSession default revokeGrantsTarget (LOW-2)', () => {
     const deleteReq = capturedRequests.find(r => r.opts?.method === 'DELETE');
     // revokeAllOtherSessions intentionally uses 'firstParty' - do NOT change this
     expect(deleteReq?.opts?.query).toEqual({ revokeGrantsTarget: 'firstParty' });
+  });
+});
+
+// ============================================================================
+// BUG-002: internal helpers must NOT be exported as client-callable Server Actions
+// ============================================================================
+
+describe('server action export surface (BUG-002)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+  });
+
+  it('does not export revokeUserSessionInternal (would bypass verification + audit)', async () => {
+    const mod = await import('./sessions');
+    // A non-exported function in a 'use server' file is absent from the
+    // module namespace and therefore NOT callable via RPC.
+    expect((mod as Record<string, unknown>).revokeUserSessionInternal).toBeUndefined();
+  });
+
+  it('does not export getUserSessionsInternal', async () => {
+    const mod = await import('./sessions');
+    expect((mod as Record<string, unknown>).getUserSessionsInternal).toBeUndefined();
+  });
+
+  it('still exports the public wrappers (verification-enforced + audited)', async () => {
+    const mod = await import('./sessions');
+    expect(typeof mod.revokeUserSession).toBe('function');
+    expect(typeof mod.revokeAllOtherSessions).toBe('function');
+    expect(typeof mod.getUserSessions).toBe('function');
+    expect(typeof mod.getSessionsWithDeviceMeta).toBe('function');
+    expect(typeof mod.getUserGrants).toBe('function');
+    expect(typeof mod.revokeUserGrant).toBe('function');
   });
 });

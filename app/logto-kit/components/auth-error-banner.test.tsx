@@ -92,7 +92,8 @@ describe('AuthErrorBanner', () => {
     render(<AuthErrorBanner />);
 
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveAttribute('aria-live', 'polite');
+    // role="alert" implies aria-live="assertive"; no redundant aria-live should be set
+    expect(alert).not.toHaveAttribute('aria-live');
   });
 
   it('renders various OAuth error codes correctly', () => {

@@ -81,7 +81,7 @@ describe('verifyPersonalAccess compatibility fallback', () => {
   });
 });
 
-describe('verifyPersonalAccess - existingIntrospection optimization', () => {
+describe('verifyPersonalAccess - fresh introspection (BUG-005 / BUG-061)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -97,22 +97,23 @@ describe('verifyPersonalAccess - existingIntrospection optimization', () => {
     fetchSpy.mockRestore();
   });
 
-  it('skips introspectToken when existingIntrospection is provided', async () => {
-    const existingIntrospection = { active: true, sub: 'user-test-123' };
-
+  it('ALWAYS performs fresh introspection (BUG-005: no existingIntrospection param)', async () => {
+    // BUG-005: the existingIntrospection parameter has been removed. The
+    // function must always derive the user identity from a live token
+    // introspection it performs itself — never from a caller-supplied object.
     fetchSpy
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
       .mockResolvedValueOnce(mockJsonResponse([{ id: 's1', name: 'read:data' }]));
 
     const { verifyPersonalAccess } = await import('./roles');
-    const result = await verifyPersonalAccess(undefined, existingIntrospection);
+    const result = await verifyPersonalAccess();
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).not.toHaveBeenCalled();
-    expect(getTokenForServerAction).not.toHaveBeenCalled();
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(getTokenForServerAction).toHaveBeenCalled();
   });
 
-  it('calls introspectToken when existingIntrospection is not provided', async () => {
+  it('calls introspectToken when no expected principal is provided', async () => {
     fetchSpy
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
       .mockResolvedValueOnce(mockJsonResponse([{ id: 's1', name: 'read:data' }]));
@@ -124,28 +125,47 @@ describe('verifyPersonalAccess - existingIntrospection optimization', () => {
     expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
   });
 
-  it('validates expectedPrincipal against existingIntrospection', async () => {
-    const existingIntrospection = { active: true, sub: 'user-other-999' };
+  it('validates expectedPrincipal against the freshly-introspected sub (BUG-005)', async () => {
+    // The introspection mock returns sub 'user-test-123'. Supplying an
+    // expectedPrincipal with a different sub must still be rejected, and
+    // introspection MUST have run (not skipped).
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
 
     const { verifyPersonalAccess } = await import('./roles');
-    const result = await verifyPersonalAccess({ sub: 'user-test-123' }, existingIntrospection);
+    const result = await verifyPersonalAccess({ sub: 'user-other-999' });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
-    expect(introspectToken).not.toHaveBeenCalled();
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
   });
 
-  it('rejects inactive existingIntrospection', async () => {
-    const existingIntrospection = { active: false };
+  it('rejects an inactive introspection (fresh, not caller-supplied)', async () => {
+    vi.mocked(introspectToken).mockResolvedValueOnce({ active: false } as never);
 
     const { verifyPersonalAccess } = await import('./roles');
-    const result = await verifyPersonalAccess(undefined, existingIntrospection);
+    const result = await verifyPersonalAccess();
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
-    expect(introspectToken).not.toHaveBeenCalled();
+    expect(introspectToken).toHaveBeenCalled();
+  });
+
+  it('fails closed with UNAUTHORIZED when introspectToken throws (BUG-061)', async () => {
+    // BUG-061: an introspection failure (network, token expired, etc.) must
+    // be caught and sanitized to UNAUTHORIZED, never bubble up raw.
+    vi.mocked(introspectToken).mockRejectedValueOnce(new Error('introspection network failure'));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
+
+    const { verifyPersonalAccess } = await import('./roles');
+    const result = await verifyPersonalAccess();
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails closed when all parallel scope fetches fail', async () => {

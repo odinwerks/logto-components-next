@@ -1,5 +1,6 @@
 'use server';
 
+import { safeAction, type DataResult } from './safe';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
 import { getBackendType } from '../../config';
@@ -14,9 +15,11 @@ import { getBackendType } from '../../config';
  * Called directly from the SessionHeartbeat client component every 30 s.
  * Using a Server Action (instead of an API route) ensures cookies are
  * available in the correct Next.js auth context.
+ *
+ * Wrapped with `safeAction` for consistent error sanitization (BUG-065).
  */
-export async function recordHeartbeat(): Promise<void> {
-  try {
+export async function recordHeartbeat(): Promise<DataResult<void>> {
+  return safeAction(async () => {
     // Platform Compatibility Check: Standard Logto upstream backends (e.g. Logto Cloud/OSS)
     // do not support custom API endpoints like heartbeats (which is a Blacktop-specific feature).
     // Abort early to avoid executing calls and generating unnecessary errors under upstream mode.
@@ -25,7 +28,5 @@ export async function recordHeartbeat(): Promise<void> {
     const token = await getTokenForServerAction().catch(() => null);
     if (!token) return; // Not authenticated - silently skip
     await makeRequest('/api/my-account/sessions/heartbeat', { method: 'POST' });
-  } catch {
-    // Best-effort - silently absorb all errors.
-  }
+  });
 }

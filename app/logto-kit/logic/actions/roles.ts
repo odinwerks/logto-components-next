@@ -116,6 +116,9 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       warn(`[getOrganizationUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      if (res.status === 403 || res.status === 404) {
+        throw plainCode('ORG_NOT_MEMBER');
+      }
       throw new Error(`Management API returned ${res.status}`);
     }
 
@@ -167,6 +170,19 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
  * config sets requiredOrgId to "self", the route calls this instead of
  * verifyOrgAccess.
  *
+ * SECURITY CONTRACT (BUG-005): The authoritative user identity ALWAYS comes
+ * from a fresh `introspectToken(...)` call performed inside this function,
+ * derived from the live session token. The `expectedPrincipal` parameter is
+ * treated ONLY as a consistency assertion compared against the introspected
+ * `sub`/`sid` — it is never trusted as the identity itself. There is no
+ * `existingIntrospection` parameter: trusting a caller-supplied introspection
+ * object's `.sub` would be a latent IDOR (a caller could substitute another
+ * user's `sub` and gain access to their roles/permissions).
+ *
+ * BUG-061: The `introspectToken(...)` call is wrapped in try/catch so a
+ * network/token failure fails closed as UNAUTHORIZED instead of bubbling raw
+ * upstream errors.
+ *
  * Flow:
  *   1. Introspect session → userId
  *   2. GET /api/users/{userId}/roles → personal roles
@@ -175,35 +191,32 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
  */
 export async function verifyPersonalAccess(
   expectedPrincipal?: ExpectedPrincipal,
-  existingIntrospection?: OidcIntrospectionResponse
 ): Promise<DataResult<PersonalAccessResult>> {
   return safeAction(async () => {
-    let sessionToken: string;
+    // BUG-005: ALWAYS perform a fresh introspection internally. The user
+    // identity must come from the live session token, never from a
+    // caller-supplied introspection object (latent IDOR).
+    // BUG-061: wrap token retrieval + introspection in try/catch so failures
+    // fail closed as UNAUTHORIZED instead of bubbling raw errors.
     let introspection: OidcIntrospectionResponse;
-
-    if (existingIntrospection) {
-      introspection = existingIntrospection;
-    } else {
-      try {
-        sessionToken = await getTokenForServerAction();
-      } catch (err) {
-        throw sanitize(err, { fallback: 'UNAUTHORIZED' });
-      }
-
+    try {
+      const sessionToken = await getTokenForServerAction();
       introspection = await introspectToken(sessionToken);
+    } catch (err) {
+      throw sanitize(err, { fallback: 'UNAUTHORIZED' });
     }
 
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
 
-    const actualUserId = introspection.sub;
-    if (!actualUserId) {
+    const userId = introspection.sub;
+    if (!userId) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
 
     if (expectedPrincipal) {
-      if (expectedPrincipal.sub !== actualUserId) {
+      if (expectedPrincipal.sub !== userId) {
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
 
@@ -215,8 +228,6 @@ export async function verifyPersonalAccess(
         throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
       }
     }
-
-    const userId = actualUserId;
 
     assertSafeUserId(userId);
 
@@ -232,7 +243,7 @@ export async function verifyPersonalAccess(
     if (!rolesRes.ok) {
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyPersonalAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
-      throw new Error('UNAUTHORIZED');
+      throw plainCode('UNAUTHORIZED');
     }
 
     const roles = (await rolesRes.json()) as UserRole[];

@@ -39,11 +39,27 @@ vi.mock('./components/SectionComponents', () => ({
   slugify: (value: string) => value.toLowerCase().replace(/\s+/g, '-'),
 }));
 
+// BUG-046: Mock useFocusTrap so we can verify it's called and capture the onClose
+// callback for Escape-key testing without pulling in window event listeners.
+let capturedOnClose: (() => void) | undefined;
+
+vi.mock('../logto-kit/components/dashboard/shared/focus-trap', () => ({
+  useFocusTrap: vi.fn((_dialogRef, onClose: () => void) => {
+    // Capture the onClose callback each time the hook is called so tests can
+    // simulate Escape key presses.
+    capturedOnClose = onClose;
+  }),
+  getFocusableElements: vi.fn(() => []),
+}));
+
 import MobileDocsNav from './MobileDocsNav';
+import { useFocusTrap } from '../logto-kit/components/dashboard/shared/focus-trap';
 
 describe('MobileDocsNav mobile layout regressions', () => {
   beforeEach(() => {
     pushMock.mockReset();
+    capturedOnClose = undefined;
+    vi.mocked(useFocusTrap).mockClear();
   });
 
   it('uses stable viewport sizing for fullscreen overlay', () => {
@@ -52,7 +68,9 @@ describe('MobileDocsNav mobile layout regressions', () => {
     fireEvent.click(screen.getAllByRole('button')[0]);
 
     const title = screen.getByText('Documentation');
-    const overlay = title.parentElement?.parentElement?.parentElement as HTMLElement;
+    // BUG-046: The overlay is now wrapped in DialogShell: role="dialog" div >
+    // FadeIn motion.div > stageContainer > header > title. One extra parentElement.
+    const overlay = title.parentElement?.parentElement?.parentElement?.parentElement as HTMLElement;
 
     expect(overlay).toHaveStyle('height: 100dvh');
     expect(overlay).toHaveStyle('min-height: 100vh');
@@ -177,10 +195,101 @@ describe('MobileDocsNav mobile layout regressions', () => {
 
     // Should be back at topics stage — "Documentation" header is visible
     expect(screen.getByText('Documentation')).toBeInTheDocument();
-    // The sections-stage header would show the topic label — it should NOT appear
-    // as we are back in topics stage (which also shows "Documentation")
 
     // Restore
     (emptyTopic as { sections: string[] }).sections = originalSections;
+  });
+
+  // ── BUG-046: Dialog semantics, focus trap ──────────────────────────────────
+
+  it('renders fullscreen overlay with dialog semantics (BUG-046)', () => {
+    render(<MobileDocsNav />);
+
+    // Open nav
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+
+    // The overlay should be a dialog
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('aria-label', 'Navigation menu');
+  });
+
+  it('calls useFocusTrap when dialog is open and cleans up on close (BUG-046)', () => {
+    render(<MobileDocsNav />);
+
+    // useFocusTrap should NOT be called when dialog is closed
+    expect(useFocusTrap).not.toHaveBeenCalled();
+
+    // Open nav → DialogShell mounts → useFocusTrap called
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(useFocusTrap).toHaveBeenCalledTimes(1);
+
+    // Navigate to a section → closes dialog → DialogShell unmounts
+    fireEvent.click(screen.getByText('Topic A'));
+    fireEvent.click(screen.getByText('Section One'));
+    // After navigation, DialogShell unmounts; on next open, a NEW instance of
+    // useFocusTrap will be called by the fresh DialogShell mount.
+  });
+
+  it('navigates back from topics stage when Escape/onClose fires (BUG-046)', async () => {
+    render(<MobileDocsNav />);
+
+    // Open nav (topics stage)
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+
+    // The useFocusTrap hook should have captured the onClose callback
+    expect(capturedOnClose).toBeDefined();
+
+    // Fire the captured onClose callback (simulates Escape)
+    await act(async () => {
+      capturedOnClose!();
+    });
+
+    // When on topics stage, Escape navigates to index → triggers router.push('/')
+    expect(pushMock).toHaveBeenCalledWith('/');
+  });
+
+  it('navigates back to topics from sections stage when Escape/onClose fires (BUG-046)', async () => {
+    render(<MobileDocsNav />);
+
+    // Open nav (topics stage), then go to sections
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByText('Topic A'));
+
+    // Should be on sections stage now
+    expect(screen.getByText('Section One')).toBeInTheDocument();
+
+    // The onClose callback should now navigate back to topics (not index)
+    expect(capturedOnClose).toBeDefined();
+
+    await act(async () => {
+      capturedOnClose!();
+    });
+
+    // Should be back at topics stage
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+  });
+
+  // ── BUG-104: Index stage flash ─────────────────────────────────────────────
+
+  it('does not render empty sections panel during index stage transition (BUG-104)', () => {
+    render(<MobileDocsNav />);
+
+    // Open nav (topics stage)
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+
+    // Click "Back to homepage" — this sets stage to 'index' which should
+    // NOT render the sections panel (BUG-104 fix)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to homepage' }));
+
+    // Neither the topics header nor sections content should be visible in the
+    // overlay during the index-stage transition frame. The only remaining
+    // button should be the "Open navigation" trigger (dialog closed).
+    expect(screen.queryByText('Documentation')).toBeNull();
+    expect(screen.queryByText('Topic A')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
   });
 });

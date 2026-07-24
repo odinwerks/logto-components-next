@@ -18,12 +18,12 @@ const BASE_DELAY_MS = 500;
 // Helper Functions
 // ============================================================================
 
-async function fetchWithTimeout<T>(fn: () => Promise<T>, timeoutMs = 10_000): Promise<T> {
+async function fetchWithTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, timeoutMs = 10_000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const result = await Promise.race([
-      fn(),
+      fn(controller.signal),
       new Promise<never>((_, reject) => {
         const onAbort = () => {
           controller.signal.removeEventListener('abort', onAbort);
@@ -40,7 +40,7 @@ async function fetchWithTimeout<T>(fn: () => Promise<T>, timeoutMs = 10_000): Pr
   }
 }
 
-async function fetchWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+async function fetchWithRetry<T>(fn: (signal: AbortSignal) => Promise<T>, retries = MAX_RETRIES): Promise<T> {
   let lastError: Error | unknown = new Error('fetchWithRetry: all retries exhausted');
 
   for (let i = 0; i < retries; i++) {
@@ -103,8 +103,10 @@ export async function fetchDashboardDataCore(
 ): Promise<DashboardResult> {
   const tolerateAuthErrors = opts?.tolerateAuthErrors ?? false;
   try {
-    const result = await fetchWithRetry(async (): Promise<DashboardResult> => {
+    const result = await fetchWithRetry(async (_signal): Promise<DashboardResult> => {
       // Removed redundant getTokenForServerAction() - getLogtoContext handles refresh internally
+      // _signal is threaded from fetchWithTimeout's AbortController so that any fetch()
+      // calls inside this callback can be wired to the abort signal if needed.
       const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {
@@ -202,3 +204,12 @@ export async function fetchDashboardDataCore(
     return { success: false, error: 'FETCH_FAILED' };
   }
 }
+
+// ============================================================================
+// Test Exports — expose internal helpers for unit testing
+// ============================================================================
+
+export const _internals = {
+  fetchWithTimeout,
+  fetchWithRetry,
+};

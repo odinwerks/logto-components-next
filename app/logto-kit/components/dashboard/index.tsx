@@ -1,4 +1,5 @@
-import { fetchDashboardData } from '../../logic/actions';
+import { fetchDashboardDataCached } from '../../logic/cached-dashboard';
+import { fetchPersonalRbacCached, fetchOrgRbacCached } from '../../logic/cached-rbac';
 import { DashboardClient } from './client';
 import {
   updateUserBasicInfo,
@@ -49,7 +50,7 @@ export async function Dashboard() {
   const errorColors = DARK_COLORS;
 
   // ── Fetch user data ────────────────────────────────────────────────────────
-  const result = await fetchDashboardData({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached(true);
 
   if (!result.success) {
     if ('needsAuth' in result && result.needsAuth) {
@@ -95,11 +96,34 @@ export async function Dashboard() {
   const userPrefs = getPreferencesFromUserData(result.userData);
   const resolvedOrg = userPrefs?.asOrg ?? null;
 
+  // ── Kick off RBAC promises (instant fetch) ─────────────────────────────────
+  // These are NOT awaited — they start during server render and run in
+  // parallel with the RSC payload streaming. The client shells receive them
+  // as promise props and consume them via React 19 `use()` inside
+  // `<Suspense>` boundaries (Phase 3).
+  //
+  // `userId` is server-derived from `fetchDashboardDataCore`'s `claims.sub`
+  // (IDOR-safe — NEVER-TOUCH). The cores validate it with
+  // `assertSafeLogtoId(userId, 'userId')` before any URL interpolation.
+  //
+  // `fetchPersonalRbacCached` is always kicked off (profile is the default
+  // tab). `fetchOrgRbacCached` is conditional on `resolvedOrg` being set.
+  //
+  // `React.cache` dedupes the desktop + mobile double-RSC render → one
+  // personal RBAC fetch + one org RBAC fetch per page.
+  const userId = result.userData.id;
+  const personalRbacPromise = fetchPersonalRbacCached(userId);
+  const orgRbacPromise = resolvedOrg
+    ? fetchOrgRbacCached(userId, resolvedOrg)
+    : null;
+
   return (
         <DashboardClient
           initialData={{
             userData: result.userData,
           }}
+          personalRbacPromise={personalRbacPromise}
+          orgRbacPromise={orgRbacPromise}
           countryFilter={getCountryFilter()}
           currentOrgId={resolvedOrg ?? undefined}
           userShape={(process.env.NEXT_PUBLIC_USER_SHAPE as 'circle' | 'sq' | 'rsq') ?? 'circle'}

@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
-import { error } from '../../logto-kit/logic/log';
+import { clearLogtoCookiesFromResponse } from '../../logto-kit/logic/cookie-utils';
+import { logEvent } from '../../logto-kit/logic/log';
+import { LOG_EVENTS } from '../../lib/log-events';
+import { withLogger } from '../../lib/with-logger';
 import crypto from 'crypto';
-import { VERIFICATION_COOKIE_NAME } from '../../logto-kit/logic/actions/verification-cookie';
 
-const ACTIVE_ORG_COOKIE = 'logto-active-org';
 const WIPE_NONCE_COOKIE = 'logto-wipe-nonce';
-
-function clearLogtoCookies(request: NextRequest, response: NextResponse): NextResponse {
-  request.cookies.getAll().forEach(cookie => {
-    if (cookie.name.startsWith('logto_') || cookie.name === ACTIVE_ORG_COOKIE || cookie.name === VERIFICATION_COOKIE_NAME) {
-      response.cookies.set(cookie.name, '', { maxAge: 0, path: '/' });
-    }
-  });
-  return response;
-}
 
 function clearWipeNonce(response: NextResponse): NextResponse {
   response.cookies.set(WIPE_NONCE_COOKIE, '', { maxAge: 0, path: '/' });
@@ -28,28 +20,33 @@ function clearWipeNonce(response: NextResponse): NextResponse {
  * Browser-navigable stale-cookie recovery requires a middleware-issued nonce.
  * The ?force=true path triggers a server-side signOut and is same-origin protected.
  */
-export async function GET(request: NextRequest) {
+export const GET = withLogger(async (request: NextRequest) => {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
   // Protect force-signOut via same-origin, and gate non-force GET wipe via nonce.
   if (force) {
     const originError = checkSameOrigin(request);
-    if (originError) return originError;
+    if (originError) {
+      logEvent.warn(LOG_EVENTS.AUTH_COOKIE_WIPE, 'Origin rejected (force wipe)', { force });
+      return originError;
+    }
   } else {
     const nonce = request.nextUrl.searchParams.get('nonce');
     const cookieNonce = request.cookies.get(WIPE_NONCE_COOKIE)?.value;
     if (!nonce || !cookieNonce) {
+      logEvent.warn(LOG_EVENTS.AUTH_COOKIE_WIPE, 'Origin rejected (missing nonce)', { force });
       return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
     }
     const h1 = crypto.createHash('sha256').update(nonce).digest();
     const h2 = crypto.createHash('sha256').update(cookieNonce).digest();
     if (!crypto.timingSafeEqual(h1, h2)) {
+      logEvent.warn(LOG_EVENTS.AUTH_COOKIE_WIPE, 'Origin rejected (nonce mismatch)', { force });
       return NextResponse.json({ error: 'FORBIDDEN_ORIGIN' }, { status: 403 });
     }
   }
 
-  const response = clearWipeNonce(clearLogtoCookies(
+  const response = clearWipeNonce(clearLogtoCookiesFromResponse(
     request,
     NextResponse.redirect(new URL('/', baseUrl)),
   ));
@@ -61,21 +58,26 @@ export async function GET(request: NextRequest) {
       if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
         return response;
       }
-      error('[wipe] GET force signOut failed:', err instanceof Error ? err.message : err);
+      logEvent.error(LOG_EVENTS.AUTH_COOKIE_WIPE, 'GET force signOut failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return response;
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withLogger(async (request: NextRequest) => {
   // Block cross-origin requests (CSRF protection).
   const originError = checkSameOrigin(request);
-  if (originError) return originError;
+  if (originError) {
+    logEvent.warn(LOG_EVENTS.AUTH_COOKIE_WIPE, 'Origin rejected (POST)', {});
+    return originError;
+  }
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
-  const response = clearWipeNonce(clearLogtoCookies(
+  const response = clearWipeNonce(clearLogtoCookiesFromResponse(
     request,
     NextResponse.redirect(new URL('/', baseUrl)),
   ));
@@ -86,11 +88,14 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
         // signOut throws NEXT_REDIRECT on success, but if we re-throw it,
-        // our cookie-cleared response is lost. Return our response instead - // the server-side signOut has already completed.
+        // our cookie-cleared response is lost. Return our response instead -
+        // the server-side signOut has already completed.
         return response;
       }
-      error('[wipe] force signOut failed:', err instanceof Error ? err.message : err);
+      logEvent.error(LOG_EVENTS.AUTH_COOKIE_WIPE, 'POST force signOut failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return response;
-}
+});

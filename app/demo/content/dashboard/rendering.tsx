@@ -39,7 +39,7 @@ export default function DashboardRendering() {
 }: {
   children: React.ReactNode;
 }) {
-  const result = await fetchDashboardDataCached({ tolerateAuthErrors: true });
+  const result = await fetchDashboardDataCached(true);
   const userData = result.success ? result.userData : null;
 
   return (

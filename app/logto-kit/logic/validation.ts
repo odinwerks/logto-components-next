@@ -1,4 +1,3 @@
-import { isDev } from './dev-mode';
 import type { Translations } from '../locales';
 
 export class ValidationError extends Error {
@@ -91,13 +90,22 @@ export function validateJsonObject(value: string, t: Translations['validation'],
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       throw new ValidationError(t.jsonMustBeObject, field);
     }
+    // BUG-049: Strip __proto__ and constructor keys to prevent prototype pollution
+    // when the parsed object is spread or assigned to another object.
+    // Use Object.hasOwn to only strip own properties (not inherited from Object.prototype).
+    if (Object.hasOwn(parsed, '__proto__')) {
+      delete parsed.__proto__;
+    }
+    if (Object.hasOwn(parsed, 'constructor')) {
+      delete parsed.constructor;
+    }
     return parsed;
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    throw new ValidationError(
-      `${t.unknownError}${isDev && e instanceof Error ? ': ' + e.message : ''}`,
-      field
-    );
+    // BUG-050: Never include raw error details in ValidationError.message.
+    // safeAction passes ValidationError messages through to the client
+    // (bypassing sanitize()), so the message must be a safe, fixed string.
+    throw new ValidationError(t.unknownError, field);
   }
 }
 

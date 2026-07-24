@@ -8,8 +8,11 @@ import { makeRequest } from './request';
 import { throwOnApiError, sanitize } from '../errors';
 import { auditSafe } from './helpers';
 import { requireVerifiedIdentity, clearVerificationCookie } from './verification-cookie';
+import { clearLogtoCookiesFromJar } from '../cookie-utils';
 import { getTokenForServerAction } from './tokens';
 import { safeAction, type ActionResult } from './safe';
+import { logEvent } from '../log';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 /**
  * Permanently deletes the currently authenticated user's account.
@@ -112,24 +115,25 @@ export async function deleteUserAccount(
     // bookkeeping failures mask the successful deletion.
     try {
       auditSafe(userId, 'account.delete', userId);
+      logEvent.info(LOG_EVENTS.ACCOUNT_DELETE, 'Account deleted', {});
     } catch {
       // auditSafe already swallows errors; this is defense in depth
     }
 
-    // Clear all local logto_ and logto-active-org cookies on path / (BUG-003),
-    // plus the sealed verification cookie (no longer valid after deletion).
+    // Clear all local Logto cookies on path / (BUG-003), plus the sealed
+    // verification cookie (no longer valid after deletion). The shared
+    // `clearLogtoCookiesFromJar` helper clears everything matched by the
+    // `isLogtoCookie` predicate (logto_*, logto-active-org, and the
+    // verification seal itself).
     try {
       const cookieStore = await cookies();
-      for (const cookie of cookieStore.getAll()) {
-        if (cookie.name.startsWith('logto_') || cookie.name === 'logto-active-org') {
-          cookieStore.set(cookie.name, '', { maxAge: 0, path: '/' });
-        }
-      }
+      await clearLogtoCookiesFromJar(cookieStore);
     } catch {
       // Best-effort cookie cleanup — deletion already succeeded
     }
     // Best-effort: clear the sealed verification cookie regardless of the
-    // loop above (it is not prefixed with logto_).
+    // loop above (it is also cleared by the helper, but the explicit call is
+    // harmless defense-in-depth and matches existing style).
     await clearVerificationCookie();
 
     // Client navigates away after this resolves (window.location.href).

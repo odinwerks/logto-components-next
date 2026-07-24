@@ -56,6 +56,16 @@ describe('makeRequest - path guard', () => {
     await expect(makeRequest('/api/../admin')).rejects.toThrow('Invalid API path');
   });
 
+  // ── BUG-051: percent-encoded path traversal ──────────────────────────────
+
+  it('rejects paths with percent-encoded traversal (%2e%2e)', async () => {
+    await expect(makeRequest('/api/%2e%2e/admin')).rejects.toThrow('Invalid API path');
+  });
+
+  it('rejects mixed-case percent-encoded traversal (%2E%2E)', async () => {
+    await expect(makeRequest('/api/%2E%2E/admin')).rejects.toThrow('Invalid API path');
+  });
+
   it('rejects paths not starting with /api/', async () => {
     await expect(makeRequest('/admin')).rejects.toThrow('Invalid API path');
     await expect(makeRequest('//api/evil')).rejects.toThrow('Invalid API path');
@@ -87,6 +97,44 @@ describe('makeRequest - path guard', () => {
       expect.any(String),
       expect.objectContaining({
         signal: controller.signal,
+      })
+    );
+  });
+
+  // ── BUG-025: extraHeaders must not override protected headers ─────────────
+
+  it('prevents extraHeaders from overriding the Authorization header', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+
+    await makeRequest('/api/my-account', {
+      extraHeaders: { Authorization: 'Bearer evil-token' },
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer mock-token',
+        }),
+      })
+    );
+  });
+
+  it('prevents extraHeaders from overriding the Content-Type header', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+
+    await makeRequest('/api/my-account', {
+      method: 'POST',
+      body: { key: 'value' },
+      extraHeaders: { 'Content-Type': 'text/plain' },
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+        }),
       })
     );
   });

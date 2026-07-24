@@ -208,4 +208,138 @@ describe('UserButton Accessibility and Shape Props', () => {
     // While loading (before 1500ms timeout), should not show Unauthenticated
     expect(screen.queryByText('Unauthenticated')).not.toBeInTheDocument();
   });
+
+  // ─── Bug-fix specific tests ───────────────────────────────────────────────
+
+  describe('BUG-037: imageFailed resets on avatar URL change', () => {
+    it('resets imageFailed when avatar URL changes', () => {
+      mockUseLogto.mockReturnValue({
+        ...defaultUseLogtoValue,
+        openDashboard: vi.fn(),
+      });
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        name: 'John Doe',
+        avatar: 'https://example.com/avatar-v1.png',
+      });
+
+      const { rerender } = render(<UserButton />);
+      const avatarImg = document.querySelector('img');
+      expect(avatarImg).toBeInTheDocument();
+      expect(avatarImg!.getAttribute('src')).toBe('https://example.com/avatar-v1.png');
+
+      // Simulate image load failure
+      fireEvent.error(avatarImg!);
+
+      // Verify initials fallback appeared (imageFailed is now true)
+      expect(document.querySelector('img')).toBeNull();
+      expect(screen.getByText('JD')).toBeInTheDocument();
+
+      // Change avatar URL — this should reset imageFailed
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        name: 'John Doe',
+        avatar: 'https://example.com/avatar-v2.png',
+      });
+
+      rerender(<UserButton />);
+
+      // A new <img> should appear because imageFailed was reset
+      const newImg = document.querySelector('img');
+      expect(newImg).toBeInTheDocument();
+      expect(newImg!.getAttribute('src')).toBe('https://example.com/avatar-v2.png');
+    });
+  });
+
+  describe('BUG-089: getInitials handles consecutive spaces', () => {
+    it('correctly returns initials for names with double spaces', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      // "John  Doe" — double space between first and last name
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        name: 'John  Doe',
+      });
+
+      render(<UserButton />);
+      // Should be "JD", not "JU" (which would come from undefined segments)
+      expect(screen.getByText('JD')).toBeInTheDocument();
+    });
+
+    it('correctly returns initials for names with leading/trailing spaces', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_123',
+        name: '  Jane  Smith  ',
+      });
+
+      render(<UserButton />);
+      expect(screen.getByText('JS')).toBeInTheDocument();
+    });
+  });
+
+  describe('BUG-092: aria-label fallback when userData is null', () => {
+    it('produces a clean aria-label with fallback "user" when userData is null', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      // No user data yet (loading state before timeout)
+      mockUseUserDataContext.mockReturnValue(null);
+
+      render(<UserButton />);
+      const button = screen.getByRole('button');
+      // Should NOT contain "undefined" or dangling space before period
+      const label = button.getAttribute('aria-label') ?? '';
+      expect(label).not.toContain('undefined');
+      expect(label).not.toContain(' .');
+      expect(label).toBe('Logged in as user. Open user dashboard');
+    });
+
+    it('produces clean UserCard aria-label with fallback when userData is null', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      mockUseUserDataContext.mockReturnValue(null);
+
+      render(<UserCard />);
+      const button = screen.getByRole('button');
+      const label = button.getAttribute('aria-label') ?? '';
+      expect(label).not.toContain('undefined');
+      expect(label).not.toContain(' .');
+      expect(label).toBe('Logged in as user. Open user dashboard');
+    });
+  });
+
+  describe('BUG-093: MotionButton has explicit type="button"', () => {
+    it('renders UserButton with type="button" to prevent form submission', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
+
+      render(<UserButton />);
+      const button = screen.getByRole('button');
+      expect(button.getAttribute('type')).toBe('button');
+    });
+
+    it('renders UserCard with type="button" to prevent form submission', () => {
+      mockUseLogto.mockReturnValue({
+        lang: 'en-US',
+        openDashboard: vi.fn(),
+      });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_123', name: 'John Doe' });
+
+      render(<UserCard />);
+      const button = screen.getByRole('button');
+      expect(button.getAttribute('type')).toBe('button');
+    });
+  });
 });

@@ -314,6 +314,73 @@ describe('createLockManager', () => {
     neverRelease();
   });
 
+  // BUG-067: TOCTOU race in capacity check.
+  // The capacity check was previously before the while-loop. A caller could
+  // pass the check, then await an existing lock (yielding the event loop).
+  // Another caller could fill the map in the meantime, so when the first
+  // caller resumes and does locks.set, the limit is exceeded.
+  //
+  // After the fix, the capacity check is just before locks.set with no await
+  // in between, so it should catch the overflow and throw.
+  it('rejects when map fills during await for an existing lock (BUG-067 TOCTOU)', async () => {
+    const manager = createLockManager(2); // max 2 entries
+
+    // Holder A holds a lock on "a" — controlled by a deferred resolve.
+    let resolveHolderA!: () => void;
+    const holderAPromise = new Promise<void>(r => { resolveHolderA = r; });
+
+    // Manually seed the map: { "a": holderAPromise, "b": holderBPromise }
+    let resolveHolderB!: () => void;
+    const holderBPromise = new Promise<void>(r => { resolveHolderB = r; });
+    manager.locks.set('a', holderAPromise);
+    manager.locks.set('b', holderBPromise);
+    expect(manager.locks.size).toBe(2);
+
+    // Caller X starts acquiring "a". The while-loop finds the existing
+    // holderAPromise and awaits it — X yields to the event loop.
+    const acquireX = manager.acquire('a');
+    let xResolved = false;
+    let xThrew: Error | undefined;
+    acquireX.then(
+      () => { xResolved = true; },
+      (err) => { xThrew = err as Error; },
+    );
+
+    // Yield so X enters the await.
+    await new Promise(r => setTimeout(r, 20));
+    expect(xResolved).toBe(false);
+    expect(xThrew).toBeUndefined();
+
+    // While X is awaiting, holder A releases "a" (delete + resolve).
+    manager.locks.delete('a');
+    resolveHolderA();
+
+    // Now Caller Z acquires a brand-new key "c". With "a" deleted, size is 1,
+    // so the capacity check passes and "c" is set. Size is now 2 again.
+    const releaseZ = await manager.acquire('c');
+    expect(manager.locks.size).toBe(2);
+    expect(manager.locks.has('b')).toBe(true);
+    expect(manager.locks.has('c')).toBe(true);
+
+    // Now X's await completes. It loops back, finds no existing lock on "a",
+    // breaks out of the while loop, and hits the capacity check.
+    // BUG-067: with the old (pre-fix) placement, the capacity check was
+    // already done and passed, so X would set "a" — size=3, exceeding limit.
+    // With the fix, the capacity check fires here and X throws.
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(xResolved).toBe(false);
+    expect(xThrew).toBeDefined();
+    expect(xThrew!.message).toMatch(/at capacity/);
+
+    // Map is still at 2 — the limit was enforced.
+    expect(manager.locks.size).toBe(2);
+
+    // Cleanup
+    releaseZ();
+    resolveHolderB();
+  });
+
   // BUG-L05: release must check ownership before deleting the map entry.
   it('does not delete a subsequent waiter lock when a prior holder releases after timeout eviction (BUG-L05)', async () => {
     const manager = createLockManager();

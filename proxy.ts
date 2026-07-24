@@ -217,21 +217,22 @@ export async function proxy(request: NextRequest) {
   // router.refresh() sends an RSC payload request with the `RSC` header set
   // to '1'. A full document navigation does not carry this header. We use
   // this to distinguish soft refreshes from full page loads so the proxy can
-  // return an auth-expired signal instead of a hard redirect when the session
+  // return a pass-through response instead of a hard redirect when the session
   // has lapsed. This keeps the dashboard overlay and other client state
-  // intact.
+  // intact — the server components re-render with the current (expired) auth
+  // state, and the client picks up the change naturally.
   const isRsc = request.headers.get('RSC') === '1';
 
   /**
-   * Helper: returns a pass-through response with the CSP header and the
-   * `X-Auth-Expired` signal header when this is an RSC request. The client
-   * (AuthWatcher / LogtoProvider) reads this header and shows a session-
-   * expired banner instead of the page doing a full hard redirect.
+   * Helper: returns a pass-through response with CSP headers for RSC requests.
+   * Instead of hard-redirecting (which would destroy dashboard client state),
+   * we pass the request through so server components can re-render with the
+   * current auth state. The client naturally picks up the auth state change
+   * on the next render cycle.
    */
-  function rscAuthExpiredResponse() {
+  function rscPassThroughResponse() {
     const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set('Content-Security-Policy', cspHeader);
-    res.headers.set('X-Auth-Expired', '1');
     return res;
   }
 
@@ -241,7 +242,7 @@ export async function proxy(request: NextRequest) {
 
     // If unauthenticated and on a protected route, redirect to sign-in.
     if (!context.isAuthenticated && !isPublicPath(pathname)) {
-      if (isRsc) return rscAuthExpiredResponse();
+      if (isRsc) return rscPassThroughResponse();
       const signInUrl = new URL('/api/auth/sign-in', request.url);
       return NextResponse.redirect(signInUrl);
     }
@@ -263,7 +264,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
-      if (isRsc) return rscAuthExpiredResponse();
+      if (isRsc) return rscPassThroughResponse();
       log('[CookieKiller] 🔧 Stale cookies detected, redirecting to wipe...');
       // /api/wipe clears stale Logto cookies and redirects home.
       // Nonce is required so only this middleware-triggered flow can wipe via GET.
@@ -283,7 +284,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle invalid_grant (server-side grant revocation, e.g. session revoked elsewhere)
     if (isInvalidGrantError(error)) {
-      if (isRsc) return rscAuthExpiredResponse();
+      if (isRsc) return rscPassThroughResponse();
       logWarn('[Proxy] invalid_grant detected, redirecting to wipe:', errorMessage);
       const wipeNonce = crypto.randomUUID();
       const wipeUrl = new URL('/api/wipe', request.url);
@@ -301,6 +302,7 @@ export async function proxy(request: NextRequest) {
 
     if (isTransientError(error)) {
       logWarn('[Proxy] Transient error, returning 503:', errorMessage);
+      if (isRsc) return rscPassThroughResponse();
       return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 });
     }
 
@@ -309,7 +311,7 @@ export async function proxy(request: NextRequest) {
     // Only allow through for public paths (docs, /, /demo).
     logWarn('[Proxy] Non-critical error from Logto client:', errorMessage);
     if (!isPublicPath(pathname)) {
-      if (isRsc) return rscAuthExpiredResponse();
+      if (isRsc) return rscPassThroughResponse();
       return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
     }
     const response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -325,8 +327,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - Common static file extensions served from public/
+     *   Next.js serves public/robots.txt at /robots.txt (no public/ prefix),
+     *   so the old `public/` exclusion was a no-op. We now match by extension.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:txt|xml|json|webmanifest|svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

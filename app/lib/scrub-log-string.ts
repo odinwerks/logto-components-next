@@ -1,14 +1,83 @@
 /**
- * Credential scrubber for log strings.
+ * Credential scrubber for log strings and objects.
  *
- * This is a last-resort string-level scrub for values that bypass Pino's
- * path-based redaction (e.g., Error.message, Error.stack, raw API response
- * bodies passed as strings).
+ * This is a last-resort scrub for values that bypass Pino's path-based
+ * redaction (e.g., Error.message, Error.stack, raw API response bodies passed
+ * as strings, and plain objects emitted via the console log path).
  *
  * It does NOT replace structured Pino redaction — use `redact.paths` as the
- * primary mechanism. This scrubber handles the console path and string-typed
+ * primary mechanism. This module handles the console path and string-typed
  * error fields that Pino cannot redact by path.
+ *
+ * Exports:
+ * - `scrubLogString` — regex-based scrub for credential patterns in strings
+ * - `scrubArgs` — scrubs string/Error args and redacts plain-object args (for
+ *   the console path where Node's util.inspect would otherwise print sensitive
+ *   fields verbatim)
+ * - `redactSensitive` — recursively redacts sensitive keys in plain objects
+ *   (also imported by logger.ts for the webhook transport path)
+ * - `SENSITIVE_KEYS` — regex identifying sensitive key names (camelCase +
+ *   snake_case OAuth/OIDC variants)
  */
+
+// ============================================================================
+// Sensitive Key Redaction (shared with logger.ts)
+// ============================================================================
+
+/**
+ * Regex identifying sensitive object key names. Matches both camelCase and
+ * snake_case OAuth/OIDC variants. Case-insensitive (`/i`).
+ *
+ * Used by `redactSensitive` for object-level redaction. Kept here (the scrub
+ * leaf module) so both `scrubArgs` and `logger.ts` share one definition
+ * without creating a circular import.
+ */
+export const SENSITIVE_KEYS =
+  /^(token|password|secret|key|authorization|apiKey|api_key|accessToken|refreshToken|idToken|m2mToken|access_token|refresh_token|id_token|client_secret|code|state)$/i;
+
+/**
+ * Recursively redacts sensitive keys in an object before serialization.
+ * Returns a new object with matching keys replaced by '[REDACTED]'; the input
+ * is never mutated.
+ *
+ * Only recurses into plain objects (prototype is `Object.prototype` or `null`)
+ * and arrays. Exotic objects (Date, Map, Set, RegExp, class instances, etc.)
+ * are returned as-is so their runtime semantics are preserved — `Object.entries`
+ * would otherwise mangle them (e.g. a Date has no own enumerable props and
+ * would collapse to `{}`).
+ *
+ * @param obj - value to redact (objects, arrays, primitives all accepted)
+ * @returns a redacted copy for plain objects/arrays; primitives and exotic
+ *          objects pass through unchanged
+ */
+export function redactSensitive(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(redactSensitive);
+  if (typeof obj === 'object') {
+    const proto = Object.getPrototypeOf(obj);
+    // Only recurse into plain objects; pass exotic objects through unchanged
+    // to preserve their runtime state (Date, Map, Set, class instances, ...).
+    if (proto !== null && proto !== Object.prototype) {
+      return obj;
+    }
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (SENSITIVE_KEYS.test(key)) {
+        result[key] = '[REDACTED]';
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = redactSensitive(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  return obj;
+}
+
+// ============================================================================
+// String Scrubbing
+// ============================================================================
 
 /**
  * Scrubs known credential patterns from a string value.
@@ -75,12 +144,23 @@ export function scrubLogString(s: string): string {
 }
 
 /**
- * Applies scrubLogString to any argument that is a string or Error.
- * Objects are passed through unchanged (Pino handles object redaction via paths).
- * Numbers, booleans, null, undefined are passed through unchanged.
+ * Scrubs console-style variadic arguments before they reach the console path.
+ *
+ * - `string` args → `scrubLogString` (regex scrub of credential patterns)
+ * - `Error` args → a new Error with scrubbed message/stack (original untouched)
+ * - plain-object args → `redactSensitive` (sensitive keys replaced with
+ *   '[REDACTED]'); returns a NEW object so the original is never mutated and
+ *   Node's `util.inspect` cannot print unredacted credential fields
+ * - arrays, numbers, booleans, null, undefined, and exotic objects (Date, Map,
+ *   Set, class instances, ...) pass through unchanged
+ *
+ * Without the object branch, the console path (active when
+ * `LOG_BACKEND=both`/`console`, which is the default) would emit sensitive
+ * object fields verbatim because `console.log` serializes objects via
+ * `util.inspect`, bypassing Pino's path-based redaction (BUG-008).
  *
  * @param args - Array of unknown arguments (console-style variadic call)
- * @returns A new array with sensitive strings scrubbed
+ * @returns A new array with sensitive strings and objects scrubbed
  */
 export function scrubArgs(args: unknown[]): unknown[] {
   return args.map((arg) => {
@@ -95,6 +175,12 @@ export function scrubArgs(args: unknown[]): unknown[] {
         scrubbed.stack = scrubLogString(arg.stack);
       }
       return scrubbed;
+    }
+    // Plain objects (and objects with null prototype) are redacted recursively.
+    // redactSensitive passes exotic objects (Date, Map, Set, ...) through
+    // unchanged, so they keep their runtime semantics.
+    if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
+      return redactSensitive(arg);
     }
     return arg;
   });

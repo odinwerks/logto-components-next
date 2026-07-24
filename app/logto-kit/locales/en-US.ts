@@ -224,6 +224,49 @@ export const enUS: Translations = {
     clearOrgFailed: 'Failed to clear organization',
     refreshOrgPermissions: 'Refresh organization permissions',
     refreshOrgRoles: 'Refresh organization roles',
+    // ── Point 2: organization-context / switcher / listbox / provenance ──
+    accessEyebrow: 'ORGANIZATION ACCESS',
+    personalAccessLabel: 'Personal access',
+    personalModeDescription: 'You are viewing your personal (global) access. Switch to an organization to inspect its membership RBAC.',
+    selectedOrgDescription: 'You are inspecting membership RBAC for this organization.',
+    noOrgDescription: 'No description available for this organization.',
+    switchingLabel: 'Switching\u2026',
+    switchingAnnouncement: 'Switching organization, please wait.',
+    listboxLabel: 'Select access context',
+    personalOptionLabel: 'Personal access',
+    personalOptionDescription: 'Global roles and permissions',
+    orgSectionLabel: 'Organizations',
+    selectTriggerAriaLabel: 'Select access context',
+  },
+
+  // ── Point 2: shared RBAC lister copy ──
+  rbac: {
+    scopeLabel: 'Scope',
+    scopeIdLabel: 'Scope ID',
+    resourceIndicatorLabel: 'Resource Indicator',
+    detailsButtonLabel: 'Details',
+    detailsDialogTitle: 'Details',
+    detailsCopyLabel: 'Copy',
+    detailsCopyAnnouncement: 'Copied to clipboard.',
+    detailsCopyFailedAnnouncement: 'Copy failed.',
+    countLabel: 'count',
+    loadingLabel: 'Loading\u2026',
+    emptyRolesTitle: 'No roles assigned.',
+    emptyPermissionsTitle: 'No permissions assigned.',
+    emptyRolesDetail: 'Roles granted to this identity appear here.',
+    emptyPermissionsDetail: 'Permissions granted through roles appear here.',
+    sourceM2mDerived: 'Role-derived display data',
+    sourceLiveAudit: 'Live audit',
+    auditStatusAuditing: 'Auditing live permissions\u2026',
+    auditStatusLive: 'Live audit complete.',
+    auditStatusError: 'Live audit failed.',
+    descriptionsError: 'Descriptions unavailable.',
+    staleRetryNotice: 'Previous data retained. Refresh to retry.',
+    refreshFailedNotice: 'Refresh failed. Previous rows retained.',
+    personalRolesTitle: 'Personal roles',
+    personalPermissionsTitle: 'Granted permissions',
+    orgRolesTitle: 'Organization roles',
+    orgPermissionsTitle: 'Organization permissions',
   },
   
   // MFA tab
@@ -398,6 +441,92 @@ export const enUS: Translations = {
     abort: 'Abort',
     confirm: 'Let me go!',
     farewell: 'See you later!',
+  },
+
+  // Error codes — human-readable messages for every client-receivable error code
+  errors: {
+    // ── auth ──
+    UNAUTHENTICATED: "Your session isn't valid. Try signing in again.",
+    UNAUTHORIZED: 'You need to sign in to do that.',
+    FORBIDDEN_ORIGIN: 'That request came from an unrecognized source.',
+    VERIFICATION_FAILED: "Identity verification didn't pass. Try again.",
+    VERIFICATION_EXPIRED: 'Your verification has expired. Please verify again.',
+    VERIFICATION_REQUIRED: 'This action requires identity verification first.',
+    MISSING_VERIFICATION: 'Verification information is missing. Try again.',
+
+    // ── rbac ──
+    ROLE_DENIED: "You don't have a role that allows this action.",
+    PERMISSION_DENIED: 'The permission required is not in your contract.',
+    ORG_NOT_MEMBER: "Looks like you aren't a member of this organization.",
+
+    // ── validation ──
+    INVALID_INPUT: 'Something was wrong with the request.',
+    MISSING_FIELDS: 'Some required fields are missing.',
+    INVALID_PAYLOAD: "The request data couldn't be processed.",
+    PAYLOAD_TOO_LARGE: 'The request data is too large.',
+    PHONE_COUNTRY_NOT_ALLOWED: "Phone numbers from your country aren't supported yet.",
+
+    // ── server ──
+    INTERNAL_ERROR: 'Something went wrong on our end. Please try again.',
+    FETCH_FAILED: "Couldn't reach the server. Check your connection.",
+    UPDATE_FAILED: "The update didn't go through. Try again.",
+    DELETE_FAILED: "Couldn't delete. Try again.",
+    SERVICE_UNAVAILABLE: 'The service is temporarily down. Try again soon.',
+    MFA_ENROLL_FAILED: "Couldn't set up two-factor authentication.",
+    MFA_REMOVE_FAILED: "Couldn't remove two-factor authentication.",
+    BACKUP_CODES_FAILED: "Couldn't generate backup codes.",
+    PASSWORD_UPDATE_FAILED: "Couldn't update your password.",
+    EMAIL_UPDATE_FAILED: "Couldn't update your email.",
+    PHONE_UPDATE_FAILED: "Couldn't update your phone number.",
+    SESSION_REVOKE_FAILED: "Couldn't sign out that session.",
+    GRANT_REVOKE_FAILED: "Couldn't revoke that grant.",
+
+    // ── rate-limit ──
+    RATE_LIMITED: "Slow down — you're doing that too fast. Wait a moment.",
+    UPLOAD_RATE_LIMITED: "You're uploading too fast. Wait a moment.",
+
+    // ── upload ──
+    UPLOAD_FAILED: "Upload didn't work. Try again.",
+    UPLOAD_TOO_LARGE: 'That file is too big.',
+    UPLOAD_INVALID_TYPE: "That file type isn't supported.",
+
+    // ── oauth (RFC 6749 snake_case) ──
+    access_denied: 'You canceled the sign-in request.',
+    invalid_request: 'The sign-in request was malformed. Try again.',
+    unauthorized_client: "This app isn't authorized for sign-in.",
+    unsupported_response_type: "The sign-in method isn't supported.",
+    invalid_scope: "The permissions requested aren't valid.",
+    server_error: 'The sign-in provider ran into an error.',
+    temporarily_unavailable: 'The sign-in provider is temporarily down.',
+    interaction_required: 'The sign-in provider needs your interaction.',
+    login_required: 'You need to sign in first.',
+    consent_required: 'The sign-in provider needs your consent.',
+    unknown_error: 'Sign-in encountered an unknown error.',
+    OAUTH_UNKNOWN_ERROR: 'Sign-in encountered an error.',
+
+    // ── silent / ultimate fallback ──
+    ERROR: 'Something went wrong.',
+
+    // ── Logto structured API codes (dot-notation → underscore in key) ──
+    session_invalid_credentials: 'Invalid credentials. Please check your sign-in details and try again.',
+    session_verification_failed: 'Verification failed. Please try again.',
+    session_identifier_not_found: "Couldn't find an account with that identifier.",
+    session_identity_conflict: 'There is a conflict with an existing identity.',
+    session_verification_session_not_found: 'Your verification session expired. Please start over.',
+    user_user_not_exist: "That account doesn't exist.",
+    guard_invalid_target: 'The target resource is not valid.',
+    password_expired: 'Your password has expired. Please set a new one.',
+    password_rejected: 'The password you entered was rejected.',
+    session_mfa_backup_code_can_not_be_alone: 'You need another MFA method before using a backup code.',
+    session_mfa_mfa_factor_not_enabled: 'That MFA method is not set up on your account.',
+    session_mfa_pending_info_not_found: 'Your MFA session expired. Please start over.',
+    session_mfa_webauthn_verification_failed: 'Passkey verification failed. Please try again.',
+    session_not_supported_for_forgot_password: 'This session type does not support password reset.',
+    user_missing_profile: 'Required profile information is missing.',
+    user_password_policy_violation: 'The password does not meet the security requirements.',
+    user_same_password: 'New password must be different from your current one.',
+    user_totp_already_in_use: 'That authenticator is already set up on another account.',
+    user_username_already_in_use: 'That username is already taken.',
   },
 };
 

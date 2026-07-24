@@ -55,7 +55,10 @@ function isValidIp(ip: string): boolean {
   }
   try {
     const url = new URL(`http://[${ip}]`);
-    return url.hostname === `[${ip.toLowerCase()}]`;
+    // URL constructor canonicalizes IPv6 (strips leading zeros, compresses),
+    // so we accept any result where the hostname is bracketed IPv6 rather
+    // than comparing against the original non-canonical string.
+    return url.hostname.startsWith('[');
   } catch {
     return false;
   }
@@ -82,8 +85,12 @@ const BLOCKED_GEO_IPS = new Set([
  * These must never be forwarded to an external geolocation API.
  */
 function isPrivateOrLoopbackIp(ip: string): boolean {
+  // IPv4 unspecified: 0.0.0.0
+  if (ip === '0.0.0.0') return true;
   // IPv4 loopback
   if (ip === '127.0.0.1' || ip.startsWith('127.')) return true;
+  // IPv6 unspecified: ::
+  if (ip === '::') return true;
   // IPv6 loopback
   if (ip === '::1' || ip === '0:0:0:0:0:0:0:1') return true;
   // RFC-1918: 10.0.0.0/8
@@ -92,10 +99,14 @@ function isPrivateOrLoopbackIp(ip: string): boolean {
   if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
   // RFC-1918: 192.168.0.0/16
   if (ip.startsWith('192.168.')) return true;
+  // CGNAT: 100.64.0.0/10 (RFC 6598)
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip)) return true;
   // Link-local: 169.254.0.0/16 (also includes IMDS 169.254.169.254 already in BLOCKED_GEO_IPS)
   if (ip.startsWith('169.254.')) return true;
   // IPv6 link-local: fe80::/10
   if (/^fe[89ab]/i.test(ip)) return true;
+  // IPv6 ULA: fc00::/7 (covers fc00::/8 and fd00::/8)
+  if (/^f[c-d]/i.test(ip)) return true;
   return false;
 }
 

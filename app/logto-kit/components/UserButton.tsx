@@ -33,7 +33,7 @@ const getInitials = (data: UserData): string => {
     return `${data.profile.givenName.trim()[0]}${data.profile.familyName.trim()[0]}`.toUpperCase();
   }
   if (data.name?.trim()) {
-    const parts = data.name.trim().split(' ');
+    const parts = data.name.trim().split(' ').filter(Boolean);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return parts[0][0]?.toUpperCase() || '?';
   }
@@ -86,6 +86,13 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
   }, []);
+
+  // BUG-037: Reset imageFailed when avatar URL changes so a new avatar
+  // is attempted after a previous load failure.
+  const currentAvatarUrl = opts.userData?.avatar ?? contextUserData?.avatar ?? null;
+  useEffect(() => {
+    setImageFailed(false);
+  }, [currentAvatarUrl]);
 
   // Derive userData and loading during render — no state sync needed
   const userData = opts.userData ?? contextUserData ?? null;
@@ -289,10 +296,11 @@ export function UserButton({
 
   const labelPrefix = mounted ? t.common.loggedInAs : 'Logged in as';
   const labelSuffix = mounted ? t.common.openUserDashboard : 'Open user dashboard';
-  const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : ""}. ${labelSuffix}`;
+  const ariaLabel = `${labelPrefix} ${userData ? getDisplayName(userData) : 'user'}. ${labelSuffix}`;
 
   return (
     <MotionButton
+      type="button"
       style={{
         ...wrapperStyle,
         background: 'none',
@@ -381,7 +389,7 @@ export function UserCard({
 
   const label = mounted ? t.common.loggedInAs : 'Logged in as';
   const labelSuffix = mounted ? t.common.openUserDashboard : 'Open user dashboard';
-  const ariaLabel = `${label} ${userData ? getDisplayName(userData) : ""}. ${labelSuffix}`;
+  const ariaLabel = `${label} ${userData ? getDisplayName(userData) : 'user'}. ${labelSuffix}`;
 
   const renderContent = () => {
     if (loading || !userData) {
@@ -443,6 +451,7 @@ export function UserCard({
 
   return (
     <MotionButton
+      type="button"
       style={{
         ...wrapperStyle,
         opacity: hovered ? 0.85 : 1,

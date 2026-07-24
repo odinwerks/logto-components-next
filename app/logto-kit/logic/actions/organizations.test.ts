@@ -339,22 +339,23 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('skips introspectToken when existingIntrospection is provided', async () => {
-    const existingIntrospection = { active: true, sub: 'user-test-123' };
-
+  it('ALWAYS performs fresh introspection (BUG-005: ignores any caller-supplied introspection)', async () => {
+    // BUG-005: there is no existingIntrospection parameter anymore. The
+    // function must always derive the user identity from a live token
+    // introspection it performs itself — never from a caller-supplied object.
     fetchSpy
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
       .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:data')]));
 
     const { verifyOrgAccess } = await import('./organizations');
-    const result = await verifyOrgAccess('org-123', undefined, existingIntrospection);
+    const result = await verifyOrgAccess('org-123');
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).not.toHaveBeenCalled();
-    expect(getTokenForServerAction).not.toHaveBeenCalled();
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(getTokenForServerAction).toHaveBeenCalled();
   });
 
-  it('calls introspectToken when existingIntrospection is not provided', async () => {
+  it('calls introspectToken when no expected principal is provided', async () => {
     fetchSpy
       .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
       .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:data')]));
@@ -366,28 +367,48 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
   });
 
-  it('validates expectedPrincipal against existingIntrospection', async () => {
-    const existingIntrospection = { active: true, sub: 'user-other-999' };
+  it('validates expectedPrincipal against the freshly-introspected sub (BUG-005)', async () => {
+    // The introspection mock returns sub 'user-test-123'. Supplying an
+    // expectedPrincipal with a different sub must still be rejected, and
+    // introspection MUST have run (not skipped).
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
 
     const { verifyOrgAccess } = await import('./organizations');
-    const result = await verifyOrgAccess('org-123', { sub: 'user-test-123' }, existingIntrospection);
+    const result = await verifyOrgAccess('org-123', { sub: 'user-other-999' });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
-    expect(introspectToken).not.toHaveBeenCalled();
+    // Identity came from a real introspection call, not a skipped path.
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
   });
 
-  it('rejects inactive existingIntrospection', async () => {
-    const existingIntrospection = { active: false };
+  it('rejects an inactive introspection (fresh, not caller-supplied)', async () => {
+    vi.mocked(introspectToken).mockResolvedValueOnce({ active: false } as never);
 
     const { verifyOrgAccess } = await import('./organizations');
-    const result = await verifyOrgAccess('org-123', undefined, existingIntrospection);
+    const result = await verifyOrgAccess('org-123');
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
-    expect(introspectToken).not.toHaveBeenCalled();
+    expect(introspectToken).toHaveBeenCalled();
+  });
+
+  it('fails closed with UNAUTHORIZED when introspectToken throws (BUG-061)', async () => {
+    // BUG-061: an introspection failure (network, token expired, etc.) must
+    // be caught and sanitized to UNAUTHORIZED, never bubble up raw.
+    vi.mocked(introspectToken).mockRejectedValueOnce(new Error('introspection network failure'));
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('UNAUTHORIZED');
+    expect(getManagementApiToken).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails closed with UNAUTHORIZED when expected sid differs and both sides include sid', async () => {
@@ -519,5 +540,84 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  // ── Concurrent call dedup (BUG-020) ──────────────────────────────────────
+
+  it('deduplicates concurrent calls for the same orgId — only one fetch (BUG-020)', async () => {
+    // Deferred fetch so we control exactly when the token endpoint responds.
+    // Both concurrent callers must rendezvous on the same in-flight promise
+    // BEFORE the fetch resolves, proving the dedup map works.
+    let resolveFetch: (r: Response) => void = () => {};
+    const deferredFetch = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    fetchSpy.mockReturnValueOnce(deferredFetch);
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+
+    // Fire two concurrent calls for the same orgId
+    const p1 = getOrganizationUserPermissions('org-123');
+    const p2 = getOrganizationUserPermissions('org-123');
+
+    // Resolve the single fetch — both promises should settle with the same result
+    resolveFetch(mockJsonResponse({ access_token: 'org-jwt', scope: 'read:orders' }));
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    // Both callers share the same result object (same promise)
+    expect(r1).toBe(r2);
+    // Only ONE fetch → only one refresh_token grant
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT deduplicate concurrent calls for different orgIds (BUG-020)', async () => {
+    // Different orgIds need separate org tokens with different scopes.
+    // The dedup map is keyed by orgId, so these should NOT share a promise.
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-1' }))
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-2' }));
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+
+    const [r1, r2] = await Promise.all([
+      getOrganizationUserPermissions('org-123'),
+      getOrganizationUserPermissions('org-456'),
+    ]);
+
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    // Two different orgIds → two independent refresh_token grants
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries after a failed call — stale promise evicted from dedup map (BUG-020)', async () => {
+    // First call fails (e.g. invalid_grant). The dedup map evicts the
+    // settled promise via .finally(), so a subsequent call for the same
+    // orgId creates a fresh promise and retries.
+    fetchSpy
+      .mockResolvedValueOnce({
+        status: 400,
+        ok: false,
+        text: async () => 'invalid_grant',
+      } as Response)
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt' }));
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+
+    // First call fails
+    const r1 = await getOrganizationUserPermissions('org-123');
+    expect(r1.ok).toBe(false);
+    if (r1.ok) throw new Error('Expected error');
+
+    // Second call should NOT return the stale failed promise —
+    // it should issue a fresh fetch and succeed
+    const r2 = await getOrganizationUserPermissions('org-123');
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) throw new Error('Expected success');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

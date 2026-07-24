@@ -54,6 +54,12 @@ export default function AuthWatcher({
 
       // Schedule the refresh on the next tick so rapid-fire events collapse
       timeoutRef.current = setTimeout(() => {
+        // Re-check the dashboard-open flag at execution time (BUG-021).
+        // Between schedule and execution the dashboard overlay may have
+        // opened → router.refresh() would cascade into a proxy redirect
+        // and unmount the dashboard (D12).
+        if (typeof window !== 'undefined' && window.__LDD_DASHBOARD_OPEN__) return;
+
         const now = Date.now();
 
         // Rate-limit: don't fire within debounceMs of the last refresh

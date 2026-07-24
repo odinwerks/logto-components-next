@@ -14,6 +14,9 @@ import { getCountryFilter, getBackendType } from '../../config';
 import { sealVerificationCookie, requireVerifiedIdentity } from './verification-cookie';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
+import { logEvent } from '../log';
+import { auditSafe } from './helpers';
+import { LOG_EVENTS } from '../../../lib/log-events';
 
 /**
  * Normalizes phone numbers by stripping all non-digit characters.
@@ -279,6 +282,14 @@ export async function updateEmailWithVerification(
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
+    // Validate email format when setting (null means remove, which is allowed)
+    if (email !== null) {
+      if (typeof email !== 'string' || email.length === 0 || email.length > 128
+          || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new ValidationError('INVALID_INPUT', 'email');
+      }
+    }
+
     // ── Staleness check (defense in depth) ────────────────────────────────
     // BUG-001 fix: the expiry is read from the server-sealed httpOnly cookie
     // (set by verifyPasswordForIdentity), NOT from a client-supplied timestamp.
@@ -292,6 +303,14 @@ export async function updateEmailWithVerification(
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-update', true);
+
+    // Audit + structured log (after upstream success).
+    // PII rule: no email/phone in auditSafe metadata or logEvent context
+    // (Pino redact does not cover email/phone). The action string alone
+    // identifies what happened; requestId + actor provide correlation.
+    const userId = introspection.sub;
+    auditSafe(userId, 'email.update');
+    logEvent.info(LOG_EVENTS.VERIFICATION_EMAIL, 'Email updated', {});
   });
 }
 
@@ -318,6 +337,10 @@ export async function updatePhoneWithVerification(
     await requireVerifiedIdentity(identityVerificationRecordId);
 
     const cleanedPhone = cleanPhoneNumber(phone);
+    // Validate cleaned phone length (must have digits; E.164 max is 15, allow up to 20 for safety)
+    if (cleanedPhone.length === 0 || cleanedPhone.length > 20) {
+      throw new ValidationError('INVALID_INPUT', 'phone');
+    }
     assertPhoneCountryAllowed(cleanedPhone, countryFilter);
 
     const res = await makeRequest('/api/my-account/primary-phone', {
@@ -326,6 +349,11 @@ export async function updatePhoneWithVerification(
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-update', true);
+
+    // Audit + structured log (after upstream success). No PII in metadata.
+    const userId = introspection.sub;
+    auditSafe(userId, 'phone.update');
+    logEvent.info(LOG_EVENTS.VERIFICATION_PHONE, 'Phone updated', {});
   });
 }
 
@@ -352,6 +380,11 @@ export async function removeUserEmail(
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     await throwOnApiError(res, 'EMAIL_UPDATE_FAILED', 'email-remove', true);
+
+    // Audit + structured log (after upstream success). No PII in metadata.
+    const userId = introspection.sub;
+    auditSafe(userId, 'email.remove');
+    logEvent.info(LOG_EVENTS.VERIFICATION_EMAIL, 'Email removed', {});
   });
 }
 
@@ -378,5 +411,10 @@ export async function removeUserPhone(
       extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
     });
     await throwOnApiError(res, 'PHONE_UPDATE_FAILED', 'phone-remove', true);
+
+    // Audit + structured log (after upstream success). No PII in metadata.
+    const userId = introspection.sub;
+    auditSafe(userId, 'phone.remove');
+    logEvent.info(LOG_EVENTS.VERIFICATION_PHONE, 'Phone removed', {});
   });
 }

@@ -4,16 +4,16 @@ import { createContext, useContext, useState, useCallback, useRef, useMemo, useE
 import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
+import type { Translations } from '../../locales';
 import { updateUserCustomData } from '../../logic/actions';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
 import { DashboardRouter } from '../dashboard/dashboard-router';
 import { useFocusTrap } from '../dashboard/shared/focus-trap';
 import { AuthPromptModal } from '../client/AuthPromptModal';
-import { ToastContainer } from '../dashboard/shared/Toast';
+import { ToastProvider, ToastProviderCapture, type ToastContextValue } from './toast-provider';
 import { AnimatePresence } from '../shared/motion';
 import { motion } from 'framer-motion';
-import type { ToastMessage } from '../dashboard/types';
 import { X } from 'lucide-react';
 
 interface LogtoContextValue {
@@ -52,6 +52,10 @@ export interface LogtoProviderProps {
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
   onLangChange?: () => void;
   initialOrgId?: string | null;
+  /** All locale translations, keyed by locale code. Required by ToastProvider. */
+  allTranslations?: Record<string, Translations>;
+  /** Fallback translations when the current locale isn't found. Defaults to en-US. */
+  fallbackTranslations?: Translations;
 }
 
 /** Normalise the `dashboard` prop to `{ desktop, mobile }` so DashboardDialog always gets the same shape. */
@@ -75,12 +79,18 @@ function LogtoProviderContent({
   userData,
   dashboard,
   children,
-  onPersistErrorRef,
+  allTranslations,
+  fallbackTranslations,
+  toastRef,
 }: {
   userData?: UserData | null;
   dashboard?: ReactNode | { desktop: ReactNode; mobile: ReactNode };
   children: ReactNode;
-  onPersistErrorRef: React.MutableRefObject<((msg: string) => void) | null>;
+  allTranslations?: Record<string, Translations>;
+  fallbackTranslations?: Translations;
+  /** Shared ref — ToastProviderCapture writes the toast context here so
+   *  LogtoProvider can route onPersistError to the unified toast system. */
+  toastRef: React.MutableRefObject<ToastContextValue | null>;
 }) {
   const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string; mode?: 'optional' | 'mandatory' }>({
     isOpen: false,
@@ -89,31 +99,6 @@ function LogtoProviderContent({
   const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
   const { asOrg, setAsOrg } = useOrgMode();
-
-  // ── Preference-error toast state ─────────────────────────────────────────
-  const [prefToasts, setPrefToasts] = useState<ToastMessage[]>([]);
-  const prefToastCounterRef = useRef(0);
-
-  const showPrefErrorToast = useCallback((message: string) => {
-    const toast: ToastMessage = {
-      id: `pref-toast-${Date.now()}-${++prefToastCounterRef.current}`,
-      type: 'error',
-      message,
-      duration: 6000,
-    };
-    setPrefToasts((prev) => [...prev, toast]);
-  }, []);
-
-  const dismissPrefToast = useCallback((id: string) => {
-    setPrefToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // Register this component's showPrefErrorToast into the outer ref so
-  // LogtoProvider can route onPersistError calls here.
-  useEffect(() => {
-    onPersistErrorRef.current = showPrefErrorToast;
-    return () => { onPersistErrorRef.current = null; };
-  }, [onPersistErrorRef, showPrefErrorToast]);
 
   const isAuthenticated = !!userData;
 
@@ -166,27 +151,29 @@ function LogtoProviderContent({
   return (
     <LogtoContext.Provider value={contextValue}>
       <UserDataProvider userData={userData ?? null}>
-        {children}
-        <AnimatePresence>
-          {dashboardState.isOpen && (normalizedDashboard || !isAuthenticated) && (
-            <DashboardDialog
-              key="dashboard-dialog"
-              mode={mode}
-              onClose={closeDashboard}
-              desktop={normalizedDashboard?.desktop}
-              mobile={normalizedDashboard?.mobile}
-              routeTo={dashboardState.routeTo}
-              authMode={dashboardState.mode}
-            />
-          )}
-        </AnimatePresence>
-        {/* Provider-level preference error toasts */}
-        <ToastContainer
-          messages={prefToasts}
-          onDismiss={dismissPrefToast}
+        <ToastProvider
+          allTranslations={allTranslations ?? {}}
+          lang={lang}
+          fallbackTranslations={fallbackTranslations ?? allTranslations?.['en-US'] ?? {} as Translations}
           mode={mode}
           colors={colors}
-        />
+        >
+          <ToastProviderCapture toastRef={toastRef} />
+          {children}
+          <AnimatePresence>
+            {dashboardState.isOpen && (normalizedDashboard || !isAuthenticated) && (
+              <DashboardDialog
+                key="dashboard-dialog"
+                mode={mode}
+                onClose={closeDashboard}
+                desktop={normalizedDashboard?.desktop}
+                mobile={normalizedDashboard?.mobile}
+                routeTo={dashboardState.routeTo}
+                authMode={dashboardState.mode}
+              />
+            )}
+          </AnimatePresence>
+        </ToastProvider>
       </UserDataProvider>
     </LogtoContext.Provider>
   );
@@ -327,12 +314,14 @@ export function LogtoProvider({
   onUpdateCustomData = updateUserCustomData,
   onLangChange,
   initialOrgId,
+  allTranslations,
+  fallbackTranslations,
 }: LogtoProviderProps) {
-  // Stable ref-based callback so PreferencesProvider and LogtoProviderContent
-  // share one identity-stable error handler without re-renders.
-  const onPersistErrorRef = useRef<((msg: string) => void) | null>(null);
+  // Stable ref-based callback so PreferencesProvider routes errors to the unified
+  // toast system via ToastProviderCapture (which writes to this ref).
+  const toastRef = useRef<ToastContextValue | null>(null);
   const onPersistError = useCallback((msg: string) => {
-    onPersistErrorRef.current?.(msg);
+    toastRef.current?.showToast('error', msg);
   }, []);
 
   return (
@@ -347,7 +336,9 @@ export function LogtoProvider({
       <LogtoProviderContent
         userData={userData}
         dashboard={dashboard}
-        onPersistErrorRef={onPersistErrorRef}
+        allTranslations={allTranslations}
+        fallbackTranslations={fallbackTranslations}
+        toastRef={toastRef}
       >
         {children}
       </LogtoProviderContent>

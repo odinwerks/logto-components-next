@@ -141,4 +141,100 @@ describe('fetchGeo', () => {
     expect(fetchMock).toHaveBeenCalled();
     expect(result).not.toBeNull();
   });
+
+  // BUG-014: Additional private/loopback IP block tests
+  it('blocks IPv6 unspecified (::)', async () => {
+    const result = await fetchGeo('::');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks IPv4 unspecified (0.0.0.0)', async () => {
+    const result = await fetchGeo('0.0.0.0');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks IPv6 ULA fd00::1 (fc00::/7)', async () => {
+    const result = await fetchGeo('fd00::1');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks CGNAT 100.64.0.0/10 (100.64.0.1)', async () => {
+    const result = await fetchGeo('100.64.0.1');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks CGNAT 100.127.255.254 (upper bound of 100.64.0.0/10)', async () => {
+    const result = await fetchGeo('100.127.255.254');
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not block public IP 100.63.0.1 (below CGNAT range)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 1.0,
+        longitude: 1.0,
+        city: '',
+        country_name: '',
+        region: '',
+      }),
+    });
+    const result = await fetchGeo('100.63.0.1');
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result).not.toBeNull();
+  });
+
+  it('does not block public IP 100.128.0.1 (above CGNAT range)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 1.0,
+        longitude: 1.0,
+        city: '',
+        country_name: '',
+        region: '',
+      }),
+    });
+    const result = await fetchGeo('100.128.0.1');
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result).not.toBeNull();
+  });
+
+  // BUG-071: Non-canonical IPv6 addresses should be accepted
+  it('accepts valid non-canonical IPv6 with leading zeros (2001:0db8::1)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 51.5074,
+        longitude: -0.1278,
+        city: 'London',
+        country_name: 'United Kingdom',
+        region: 'England',
+      }),
+    });
+    const result = await fetchGeo('2001:0db8::1');
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result).not.toBeNull();
+  });
+
+  it('accepts valid non-canonical IPv6 with multiple leading-zero segments', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        latitude: 35.6895,
+        longitude: 139.6917,
+        city: 'Tokyo',
+        country_name: 'Japan',
+        region: 'Tokyo',
+      }),
+    });
+    const result = await fetchGeo('2001:0db8:85a3:0000:0000:8a2e:0370:7334');
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result).not.toBeNull();
+  });
 });
