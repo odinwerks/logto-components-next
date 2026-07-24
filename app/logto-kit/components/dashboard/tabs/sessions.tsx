@@ -240,13 +240,6 @@ export function SessionsTab({
   const isMobile = mobmode === 1;
   const isDark = mode === 'dark';
 
-  // Cyberpunk green for the mobile current-device button — mirrors the red
-  // cyberpunk delete button in security.tsx (Batch 5 / M6, commit eb2f4f3).
-  // Inline per-theme constants (NOT theme tokens) for symmetry with that precedent.
-  const greenFill   = isDark ? '#064e3b' : '#a7f3d0'; // emerald-900 / emerald-200
-  const greenBorder = isDark ? '#10b981' : '#059669'; // emerald-500 / emerald-600
-  const greenIcon   = isDark ? '#6ee7b7' : '#059669'; // emerald-300 / emerald-600
-
   const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
   const showLastActive = backendType === 'blacktop';
   // ─── Replaced tk(tc) with direct color references ───
@@ -265,6 +258,11 @@ export function SessionsTab({
     greenText: c.accentGreen,
     blueText: c.accentBlue,
   };
+
+  // Theme-sourced palette for the mobile current-device button.
+  const greenFill   = c.successBg;
+  const greenBorder = c.accentGreen;
+  const greenIcon   = c.accentGreen;
 
   const [sessions, setSessions] = useState<LogtoSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -516,7 +514,8 @@ export function SessionsTab({
       // Re-throwing here produces an unhandledrejection that leaves the modal
       // stuck on the loading step. Recover in-place instead: reset all flags,
       // re-open the password step, and surface a generic error toast.
-      revokeTargetRef.current = null;
+      // BUG-077: Do NOT clear revokeTargetRef here — preserving it allows
+      // the user to retry the revocation by re-entering their password.
       setRevokingId(null);
       setRevokingAll(false);
       setGcAllLoading(false);
@@ -577,7 +576,7 @@ export function SessionsTab({
   // ─── M7: Mobile skeleton rewrite ─────────────────────────────────────
   // Renders a mobile loading skeleton whose box model exactly matches
   // the loaded mobile session card so nothing shrinks or jumps on load.
-  if (loading && isMobile) {
+  if (isMobile && (loading || viewState === 'unverified')) {
     return (
       <div>
         <div style={{ marginBottom: '1.625rem' }}>
@@ -1040,7 +1039,7 @@ export function SessionsTab({
                 display: 'flex',
                 alignItems: 'stretch',
                 overflow: 'hidden',
-                height: isMobile ? 'auto' : 'auto',
+                height: 'auto',
                 minHeight: isMobile ? 'auto' : '5.5rem',
               }}>
                 <div style={{
@@ -1057,7 +1056,7 @@ export function SessionsTab({
 
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '0.75rem 0.25rem 0.75rem 0.75rem' : '0.5rem 1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: isMobile ? '0.25rem' : '0.375rem' }}>
-                    <h3 style={{
+                    <h3 title={title || t.sessions.unknown} style={{
                       fontFamily: T.font,
                       fontSize: isMobile ? '0.8125rem' : '0.9375rem',
                       fontWeight: 500,
@@ -1169,7 +1168,7 @@ export function SessionsTab({
                       <button
                         onClick={() => startRevokeVerification(session.payload.uid)}
                         disabled={!!revokingId || revokingAll}
-                        aria-label={t.sessions.revoke}
+                        aria-label={`${t.sessions.revoke} ${title || t.sessions.unknown}`}
                         style={{
                           width: '2rem', height: '2rem',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
