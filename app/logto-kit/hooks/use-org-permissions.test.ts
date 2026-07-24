@@ -95,8 +95,7 @@ describe('useOrgPermissions', () => {
     expect(loadOrgPermissionDescriptions).not.toHaveBeenCalled();
   });
 
-  it('refresh() still runs BOTH the grant + M2M fetches after initialData seeded', async () => {
-    vi.useFakeTimers();
+  it('refresh() still runs BOTH the grant + M2M fetches after initialData seeded (in-place nonce)', async () => {
     vi.mocked(loadOrganizationPermissions).mockResolvedValue({
       ok: true,
       data: ['org:admin'],
@@ -114,11 +113,9 @@ describe('useOrgPermissions', () => {
     await act(async () => { await Promise.resolve(); });
     expect(loadOrganizationPermissions).not.toHaveBeenCalled();
 
-    // refresh() bypasses the initialData skip via the remount strategy.
+    // refresh() bypasses the initialData skip via the in-place nonce.
+    // visible stays true (in-place, no remount).
     act(() => { result.current.refresh(); });
-    expect(result.current.visible).toBe(false);
-
-    act(() => { vi.advanceTimersByTime(35); });
     expect(result.current.visible).toBe(true);
 
     await act(async () => { await Promise.resolve(); });
@@ -127,7 +124,118 @@ describe('useOrgPermissions', () => {
     expect(loadOrganizationPermissions).toHaveBeenCalledTimes(1);
     expect(loadOrgPermissionDescriptions).toHaveBeenCalledTimes(1);
     expect(result.current.permissions).toEqual(['org:admin']);
+    // Successful explicit refresh → source is live-audit, auditStatus is live.
+    expect(result.current.source).toBe('live-audit');
+    expect(result.current.auditStatus).toBe('live');
+  });
 
-    vi.useRealTimers();
+  // ─── Provenance / audit status (Point 2) ────────────────────────────────────
+
+  it('seeded data has source=m2m-derived and auditStatus=idle', async () => {
+    vi.mocked(loadOrganizationPermissions).mockResolvedValue({
+      ok: true,
+      data: mockPermNames,
+    } as DataResult<string[]>);
+    vi.mocked(loadOrgPermissionDescriptions).mockResolvedValue({
+      ok: true,
+      data: mockScopes,
+    } as DataResult<OrgRoleScope[]>);
+
+    const descMap = new Map<string, OrgRoleScope>([
+      ['org:read', mockScopes[0]],
+      ['org:write', mockScopes[1]],
+    ]);
+
+    const { result } = renderHook(() =>
+      useOrgPermissions({ orgId: 'org-1', initialData: { permissions: mockPermNames, descriptions: descMap } }),
+    );
+
+    expect(result.current.source).toBe('m2m-derived');
+    expect(result.current.auditStatus).toBe('idle');
+    expect(result.current.descriptionsError).toBeNull();
+
+    await act(async () => { await Promise.resolve(); });
+    // No mount fetch → provenance stays m2m-derived.
+    expect(result.current.source).toBe('m2m-derived');
+    expect(result.current.auditStatus).toBe('idle');
+  });
+
+  it('mount fetch (no initialData) does NOT set auditStatus to live (not an explicit refresh)', async () => {
+    vi.mocked(loadOrganizationPermissions).mockResolvedValue({
+      ok: true,
+      data: mockPermNames,
+    } as DataResult<string[]>);
+    vi.mocked(loadOrgPermissionDescriptions).mockResolvedValue({
+      ok: true,
+      data: mockScopes,
+    } as DataResult<OrgRoleScope[]>);
+
+    const { result } = renderHook(() => useOrgPermissions({ orgId: 'org-1' }));
+
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.permissions).toEqual(mockPermNames);
+    // Mount fetch is NOT an explicit refresh → auditStatus stays idle.
+    expect(result.current.auditStatus).toBe('idle');
+    expect(result.current.source).toBe('m2m-derived');
+  });
+
+  it('descriptions failure sets descriptionsError but retains permissions', async () => {
+    vi.mocked(loadOrganizationPermissions).mockResolvedValue({
+      ok: true,
+      data: mockPermNames,
+    } as DataResult<string[]>);
+    vi.mocked(loadOrgPermissionDescriptions).mockResolvedValue({
+      ok: false,
+      error: 'DESC_FAIL',
+    } as DataResult<OrgRoleScope[]>);
+
+    const { result } = renderHook(() => useOrgPermissions({ orgId: 'org-1' }));
+
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.permissions).toEqual(mockPermNames);
+    expect(result.current.descriptionsError).toBe('DESCRIPTIONS_FAILED');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('failed explicit refresh sets auditStatus=audit-error and retains prior display rows', async () => {
+    // Seed with initial data, then refresh fails.
+    vi.mocked(loadOrganizationPermissions).mockResolvedValue({
+      ok: true,
+      data: ['org:admin'],
+    } as DataResult<string[]>);
+    vi.mocked(loadOrgPermissionDescriptions).mockResolvedValue({
+      ok: true,
+      data: [{ id: 's3', name: 'org:admin', description: 'Admin', tenantId: 't1' }],
+    } as DataResult<OrgRoleScope[]>);
+
+    const descMap = new Map<string, OrgRoleScope>([['org:read', mockScopes[0]]]);
+    const { result } = renderHook(() =>
+      useOrgPermissions({ orgId: 'org-1', initialData: { permissions: ['org:read'], descriptions: descMap } }),
+    );
+
+    // First refresh succeeds.
+    act(() => { result.current.refresh(); });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.auditStatus).toBe('live');
+    expect(result.current.permissions).toEqual(['org:admin']);
+
+    // Second refresh fails — permissions request returns ok: false.
+    vi.mocked(loadOrganizationPermissions).mockResolvedValueOnce({
+      ok: false,
+      error: 'GRANT_FAILED',
+    } as DataResult<string[]>);
+
+    act(() => { result.current.refresh(); });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+
+    // Prior display rows retained, audit-status is audit-error.
+    expect(result.current.auditStatus).toBe('audit-error');
+    expect(result.current.error).toBe('GRANT_FAILED');
   });
 });
