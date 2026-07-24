@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { ToastMessage } from '../types';
 import type { ThemeColors } from '../../../themes';
 import { AnimatePresence, ToastSlide } from '../../shared/motion';
@@ -18,6 +18,7 @@ interface ToastProps {
 
 export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
   const [copied, setCopied] = useState(false);
+  const dismissRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(
@@ -29,6 +30,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
 
   useEffect(() => {
     if (!copied) return;
+    dismissRef.current?.focus();
     const timer = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(timer);
   }, [copied]);
@@ -121,6 +123,7 @@ export function Toast({ message, onDismiss, mode: _mode, colors }: ToastProps) {
             </button>
           )}
           <button
+            ref={dismissRef}
             onClick={(e) => { e.stopPropagation(); onDismiss(message.id); }}
             aria-label="Dismiss notification"
             style={{
