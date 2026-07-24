@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const mockUseOrgMode = vi.fn().mockReturnValue({ asOrg: '5b6sw6p5uzti' });
+const mockUseOrgMode = vi.fn().mockReturnValue({ asOrg: '8joxv3kicmlz' });
 const mockUseUserDataContext = vi.fn().mockReturnValue({
   id: 'user_123', organizations: [],
 });
@@ -19,12 +19,23 @@ vi.mock('../../../logto-kit/server-actions', () => ({
   loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
 }));
 
+// Mock useToast — CalculatorClient now shows error toasts via the unified toast context.
+vi.mock('../../../logto-kit/components/providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 import { CalculatorClient } from './CalculatorClient';
 
 describe('CalculatorClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockUseOrgMode.mockReturnValue({ asOrg: '5b6sw6p5uzti' });
+    mockUseOrgMode.mockReturnValue({ asOrg: '8joxv3kicmlz' });
     mockUseUserDataContext.mockReturnValue({ id: 'user_123', organizations: [] });
     mockLoadOrganizationPermissions.mockResolvedValue({
       ok: true,
@@ -136,7 +147,7 @@ describe('CalculatorClient', () => {
       lastWasClose: false,
       isCalculating: false,
     };
-    window.sessionStorage.setItem('calc-state', JSON.stringify(savedState));
+    window.sessionStorage.setItem('demo:calc-state', JSON.stringify(savedState));
 
     render(<CalculatorClient />);
 
