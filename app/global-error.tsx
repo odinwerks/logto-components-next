@@ -32,6 +32,24 @@ export default function GlobalError({
   reset: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    // Read stored theme preference (same key as PreferencesProvider)
+    try {
+      const stored = window.sessionStorage.getItem('theme-mode');
+      if (stored === 'dark' || stored === 'light') {
+        setTheme(stored);
+        return;
+      }
+    } catch { /* sessionStorage unavailable */ }
+
+    // Fall back to dark theme default (matches root layout's DEFAULT_THEME_MODE)
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     console.error('[GlobalError] Crash inside root layout:', error);
@@ -58,7 +76,7 @@ export default function GlobalError({
   };
 
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme={theme} suppressHydrationWarning>
       <body className={`${ibmPlexMono.variable} ${instrumentSerif.variable} ${dmSans.variable}`} style={{
         margin: 0,
         padding: 0,
