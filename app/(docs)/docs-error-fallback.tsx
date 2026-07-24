@@ -1,13 +1,21 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FONT_MONO } from '../logto-kit/themes';
-import { useThemeMode } from '../logto-kit/components/providers/preferences';
+import { useThemeMode, useLangMode } from '../logto-kit/components/providers/preferences';
+import { getAllTranslations } from '../logto-kit/locales';
+import type { Translations } from '../logto-kit/locales';
 
 export function DocsErrorFallback({ message }: { message: string }) {
   const router = useRouter();
   const { colors } = useThemeMode();
+  const { lang } = useLangMode();
+
+  const t = useMemo<Translations>(() => {
+    const all = getAllTranslations();
+    return all[lang] ?? all['en-US'];
+  }, [lang]);
 
   const handleRetry = useCallback(() => {
     router.refresh();
@@ -15,6 +23,8 @@ export function DocsErrorFallback({ message }: { message: string }) {
 
   return (
     <div
+      role="alert"
+      aria-live="assertive"
       style={{
         minHeight: '100dvh',
         display: 'flex',
@@ -37,7 +47,7 @@ export function DocsErrorFallback({ message }: { message: string }) {
         }}
       >
         <h1 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: colors.accentRed }}>
-          Error
+          {t.common.error}
         </h1>
         <p style={{ fontSize: '0.75rem', color: colors.textTertiary, marginBottom: '1.25rem' }}>
           {message}
@@ -65,7 +75,7 @@ export function DocsErrorFallback({ message }: { message: string }) {
             e.currentTarget.style.borderColor = colors.borderColor;
           }}
         >
-          Retry
+          {t.common.retry}
         </button>
       </div>
     </div>
