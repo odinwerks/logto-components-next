@@ -56,7 +56,8 @@ type ListState<T> = {
 type ListAction<T> =
   | { type: 'start' }
   | { type: 'success'; data: T }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string }
+  | { type: 'reset'; items: T };
 
 function listReducer<T>(state: ListState<T>, action: ListAction<T>): ListState<T> {
   switch (action.type) {
@@ -67,6 +68,10 @@ function listReducer<T>(state: ListState<T>, action: ListAction<T>): ListState<T
       return { items: action.data, loading: false, error: null };
     case 'error':
       return { ...state, loading: false, error: action.error };
+    case 'reset':
+      // Clear stale items from the previous source on sourceKey change
+      // before the new fetch begins (BUG-M04).
+      return { items: action.items, loading: false, error: null };
   }
 }
 
@@ -102,17 +107,29 @@ export function useAsyncList<T>({
 
   // ── Effect: fetch on sourceKey / refreshKey / visible change ──
   useEffect(() => {
+    // Consume the initial-data skip flag on the very first effect run,
+    // regardless of whether the hook is currently active.  This prevents the
+    // flag from persisting across an enabled:false → enabled:true transition
+    // (BUG-075): without this, the flag would survive the inactive run and
+    // incorrectly skip the first *active* fetch.  When the hook IS active on
+    // the first run, also skip the fetch (the data is already seeded).
+    if (hasInitialDataRef.current) {
+      hasInitialDataRef.current = false;
+      if (active) return;
+    }
+
     if (!active) {
       generationRef.current++;
       return;
     }
 
-    // Skip the first run when `initialData` seeded the state — the data is
-    // already in `items` and `loading` is false. The ref is consumed here
-    // so subsequent runs (sourceKey/refreshKey/visible changes) fetch normally.
-    if (hasInitialDataRef.current) {
-      hasInitialDataRef.current = false;
-      return;
+    // On sourceKey change with initialData, reset items to the seeded data
+    // before the new fetch so stale data from the previous source is never
+    // shown (BUG-M04). When initialData is undefined, preserve the legacy
+    // "keep previous items while loading" behavior via the `start` action.
+    const sourceKeyChanged = prevSourceKeyRef.current !== sourceKey;
+    if (sourceKeyChanged && initialData !== undefined) {
+      dispatch({ type: 'reset', items: initialData });
     }
 
     const generation = ++generationRef.current;
@@ -139,7 +156,14 @@ export function useAsyncList<T>({
       // eslint-disable-next-line react-hooks/exhaustive-deps
       generationRef.current++;
     };
-  }, [sourceKey, refreshKey, visible, active, loader]);
+    // initialData is intentionally omitted from deps — it is a stable
+    // seeding prop that should not trigger re-fetches on identity change.
+    // For 'remount' strategy, sourceKey changes are routed through the
+    // prevSourceKeyRef effect → triggerRefresh() → visible toggle path
+    // (BUG-L09). Including sourceKey here would start a fetch that gets
+    // immediately cancelled by the remount cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategy === 'remount' ? undefined : sourceKey, refreshKey, visible, active, loader]);
 
   // Track sourceKey changes for remount strategy to reset
   useEffect(() => {

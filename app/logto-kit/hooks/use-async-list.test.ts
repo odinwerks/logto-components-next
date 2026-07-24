@@ -301,4 +301,30 @@ describe('useAsyncList', () => {
     await act(async () => { await Promise.resolve(); });
     expect(loader).not.toHaveBeenCalled();
   });
+
+  // ─── BUG-075: initialData + enabled starts false → enabled becomes true ────
+
+  it('fetches when enabled transitions from false to true even with initialData (BUG-075)', async () => {
+    const loader = vi.fn().mockResolvedValue({ ok: true, data: ['fresh'] } as DataResult<string[]>);
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useAsyncList<string[]>({ loader, enabled, initialData: ['seeded'] }),
+      { initialProps: { enabled: false } },
+    );
+
+    // initialData seeds the state; no fetch while disabled.
+    expect(result.current.items).toEqual(['seeded']);
+    expect(result.current.loading).toBe(false);
+    await act(async () => { await Promise.resolve(); });
+    expect(loader).not.toHaveBeenCalled();
+
+    // Enable → should trigger the first fetch, not be blocked by the
+    // hasInitialDataRef flag that was never consumed during the inactive run.
+    rerender({ enabled: true });
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => { await Promise.resolve(); });
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(result.current.items).toEqual(['fresh']);
+    expect(result.current.loading).toBe(false);
+  });
 });
