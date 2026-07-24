@@ -33,11 +33,21 @@ describe('setActiveOrg', () => {
     vi.clearAllMocks();
   });
 
-  it('returns true immediately when orgId is null (clear-org shortcut)', async () => {
+  it('persists asOrg:null via updateUserCustomData and returns true on success', async () => {
+    vi.mocked(updateUserCustomData).mockResolvedValue({ ok: true });
     const { setActiveOrg } = await import('./set-active-org');
     const result = await setActiveOrg(null);
     // Should short-circuit - no Logto call needed
     expect(result).toBe(true);
+    expect(getLogtoContext).not.toHaveBeenCalled();
+    expect(updateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: null } });
+  });
+
+  it('returns false when orgId is null but persist fails (BUG-082)', async () => {
+    vi.mocked(updateUserCustomData).mockResolvedValue({ ok: false, error: 'network error' });
+    const { setActiveOrg } = await import('./set-active-org');
+    const result = await setActiveOrg(null);
+    expect(result).toBe(false);
     expect(getLogtoContext).not.toHaveBeenCalled();
     expect(updateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: null } });
   });
