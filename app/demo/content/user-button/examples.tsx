@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useIsPortrait } from '../../../logto-kit';
 import { UserButton, UserBadge, UserCard } from '../../../logto-kit/components/UserButton';
@@ -64,7 +65,16 @@ function ExampleCard({ label, subLabel, code, note, isMobile, children }: Exampl
 }
 
 export default function UserButtonExamples() {
-  const isMobile = useIsPortrait();
+  const isPortrait = useIsPortrait();
+  // BUG-VL20: Mounted gate prevents 2-col→1-col flash on mobile.
+  // During SSR, render desktop grid (2 cols). After hydration, switch to the
+  // portrait-aware layout.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-once guard for SSR/hydration
+    setMounted(true);
+  }, []);
+  const isMobile = mounted && isPortrait;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>

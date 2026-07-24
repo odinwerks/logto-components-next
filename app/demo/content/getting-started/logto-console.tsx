@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useDocStyles } from '../../components/useDocStyles';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
 import { slugify } from '../../components/SectionComponents';
@@ -10,6 +11,11 @@ export default function LogtoConsole() {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const isPortrait = useIsPortrait();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-once guard for SSR/hydration
+    setMounted(true);
+  }, []);
 
   const h2Style: React.CSSProperties = {
     fontSize: '1.25rem',
@@ -31,6 +37,16 @@ export default function LogtoConsole() {
     paddingBottom: '4px',
   };
 
+  // BUG-VL20: Use mounted gate so the grid renders a neutral placeholder during SSR
+  // and only switches to the portrait-aware layout after hydration, preventing a
+  // 2-column → 1-column flash on mobile.
+  const gridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: mounted ? (isPortrait ? '1fr' : '1fr 1fr') : '1fr 1fr',
+    gap: '24px',
+    marginTop: '16px',
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <h2 id={slugify("Logto Console Application Setup")} style={{ ...h2Style, marginTop: 0 }}>Logto Console Application Setup</h2>
@@ -44,7 +60,7 @@ export default function LogtoConsole() {
         <strong style={styles.strongNoteStyle}>Order (including mobile view):</strong> create and configure the <strong>Traditional Web</strong> application first, then create the <strong>M2M</strong> application. On narrow/mobile layouts this page stacks vertically in the same order.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr', gap: '24px', marginTop: '16px' }}>
+      <div style={gridStyle}>
         <div>
           <h3 id={slugify("1. Traditional Web Application")} style={{ ...h3Style, marginTop: 0 }}>1. Traditional Web Application</h3>
           <p style={styles.textStyle}>
