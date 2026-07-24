@@ -570,6 +570,198 @@ describe('FlowModal - focus management', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.activeElement).toBe(openButton);
   });
+
+  // BUG-030: Focus restoration with steps that previously had autoFocus.
+  // Before the fix, autoFocus fired during React's commit phase (mutation),
+  // stealing focus from the trigger before the passive useEffect could capture
+  // document.activeElement. After removing autoFocus and capturing during render,
+  // these steps must restore focus to the trigger on close.
+  it('BUG-030: restores focus on close for password step (was autoFocus)', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open password</button>
+          {open && (
+            <FlowModal
+              title="Verify"
+              subtitle="Enter password"
+              step={{ kind: 'password' }}
+              onPasswordSubmit={noop}
+              onClose={() => setOpen(false)}
+              t={enUS}
+              mode="dark"
+              colors={DARK_COLORS}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    const openButton = screen.getByRole('button', { name: 'Open password' });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    expect(screen.getByRole('dialog', { name: 'Verify' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Verify' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it('BUG-030: restores focus on close for code step (was autoFocus)', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open code</button>
+          {open && (
+            <FlowModal
+              title="Verify code"
+              subtitle="Enter code"
+              step={{ kind: 'code', destination: 'user@example.com', verificationId: 'v1', identityVerificationId: 'iv1' }}
+              onPasswordSubmit={noop}
+              onClose={() => setOpen(false)}
+              t={enUS}
+              mode="dark"
+              colors={DARK_COLORS}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    const openButton = screen.getByRole('button', { name: 'Open code' });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    expect(screen.getByRole('dialog', { name: 'Verify code' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Verify code' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it('BUG-030: PasswordVerifyModal restores focus on close (was autoFocus)', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open verify</button>
+          {open && (
+            <PasswordVerifyModal
+              title="Verify"
+              subtitle="Enter your password"
+              step={{ kind: 'password' }}
+              onPasswordSubmit={noop}
+              onClose={() => setOpen(false)}
+              t={enUS}
+              mode="dark"
+              colors={DARK_COLORS}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    const openButton = screen.getByRole('button', { name: 'Open verify' });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    expect(screen.getByRole('dialog', { name: 'Verify' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Verify' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(openButton);
+  });
+});
+
+// BUG-031: Overlay must allow scrolling when dialog content is taller than
+// the viewport (e.g. short/landscape viewports with TOTP/MFA modals).
+// Fix: Overlay gets overflowY:'auto' + alignItems:'flex-start';
+// dialog gets maxHeight:'100%'.
+describe('FlowModal - BUG-031 overlay scroll and maxHeight', () => {
+  const noop = () => {};
+
+  it('Overlay has overflowY auto and alignItems flex-start', () => {
+    render(
+      <FlowModal
+        title="Test"
+        subtitle="Test subtitle"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    // The Overlay is the outermost motion.div with position:fixed
+    const overlay = document.querySelector('[style*="position: fixed"]') as HTMLElement;
+    expect(overlay).toBeInTheDocument();
+    expect(overlay.style.overflowY).toBe('auto');
+    expect(overlay.style.alignItems).toBe('flex-start');
+  });
+
+  it('dialog container has maxHeight 100%', () => {
+    render(
+      <FlowModal
+        title="Test"
+        subtitle="Test subtitle"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Test' });
+    expect(dialog.style.maxHeight).toBe('100%');
+  });
+
+  it('BackupCodesModal dialog has maxHeight 100%', () => {
+    render(
+      <BackupCodesModal
+        codes={[{ code: 'ABC123', used: false }]}
+        isNew
+        onDone={noop}
+        onSuccess={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.style.maxHeight).toBe('100%');
+  });
+
+  it('PasswordVerifyModal dialog has maxHeight 100%', () => {
+    render(
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Verify' });
+    expect(dialog.style.maxHeight).toBe('100%');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
