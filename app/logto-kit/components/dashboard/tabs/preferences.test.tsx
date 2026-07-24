@@ -4,14 +4,15 @@ import { PreferencesTab } from './preferences';
 import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
 
-const { mockSetTheme, mockSetLang } = vi.hoisted(() => ({
+const { mockSetTheme, mockSetLang, langState } = vi.hoisted(() => ({
   mockSetTheme: vi.fn(),
   mockSetLang: vi.fn(),
+  langState: { lang: 'en-US' },
 }));
 
 vi.mock('../../providers/preferences', () => ({
   useThemeMode: () => ({ mode: 'light' as const, setMode: mockSetTheme }),
-  useLangMode: () => ({ lang: 'en-US', setLang: mockSetLang }),
+  useLangMode: () => ({ lang: langState.lang, setLang: mockSetLang }),
 }));
 
 describe('PreferencesTab theme semantics', () => {
@@ -149,5 +150,40 @@ describe('PreferencesTab language semantics', () => {
     fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' });
 
     expect(mockSetLang).toHaveBeenCalledWith('ka-GE');
+  });
+
+  it('coerces out-of-set stored lang to the first supported lang (BUG-008)', () => {
+    // Stored lang `fr-FR` is not in the narrowed supportedLangs list `['en-US']`.
+    // Without the fix the <select> visually shows `en-US` while the app renders French.
+    // The component should coerce `lang` to the first supported value.
+    langState.lang = 'fr-FR';
+    mockSetLang.mockClear();
+
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US']}
+      />,
+    );
+
+    expect(mockSetLang).toHaveBeenCalledWith('en-US');
+  });
+
+  it('does not coerce lang when it is already in supportedLangs (BUG-008 regression)', () => {
+    langState.lang = 'en-US';
+    mockSetLang.mockClear();
+
+    render(
+      <PreferencesTab
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        supportedLangs={['en-US', 'uk-UA']}
+      />,
+    );
+
+    expect(mockSetLang).not.toHaveBeenCalled();
   });
 });

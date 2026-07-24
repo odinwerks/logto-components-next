@@ -412,6 +412,74 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     expect(sessionStorage.getItem('org-mode')).toBe('org_user');
   });
 
+  it('BUG-028: subsequent server initialOrgId change overrides a divergent cached org', () => {
+    // On the initial mount the cached user selection wins (one-shot sync). But if the
+    // server later provides a different `initialOrgId` (e.g. switched org in another
+    // tab/session), the cached value should not pin the UI to a stale org.
+    sessionStorage.setItem('org-mode', 'org_user');
+
+    let capturedOrg: string | null | undefined;
+
+    function TestComponent() {
+      const { asOrg } = useOrgMode();
+      capturedOrg = asOrg;
+      return null;
+    }
+
+    const { rerender } = render(
+      <PreferencesProvider initialOrgId="org_server">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    // Initial mount: cached preference wins (BUG-001 invariant preserved).
+    expect(capturedOrg).toBe('org_user');
+    expect(sessionStorage.getItem('org-mode')).toBe('org_user');
+
+    // Server later disagrees with the cached value — should update to server's value.
+    rerender(
+      <PreferencesProvider initialOrgId="org_new">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedOrg).toBe('org_new');
+    expect(sessionStorage.getItem('org-mode')).toBe('org_new');
+  });
+
+  it('BUG-028: server initialOrgId matching cached org triggers no override', () => {
+    // When the cached value and the server prop agree, the divergence guard
+    // short-circuits so no spurious state churn occurs.
+    sessionStorage.setItem('org-mode', 'org_user');
+
+    let capturedOrg: string | null | undefined;
+
+    function TestComponent() {
+      const { asOrg } = useOrgMode();
+      capturedOrg = asOrg;
+      return null;
+    }
+
+    const { rerender } = render(
+      <PreferencesProvider initialOrgId="org_user">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedOrg).toBe('org_user');
+    expect(sessionStorage.getItem('org-mode')).toBe('org_user');
+
+    // Same value again — nothing should change.
+    rerender(
+      <PreferencesProvider initialOrgId="org_user">
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    expect(capturedOrg).toBe('org_user');
+    expect(sessionStorage.getItem('org-mode')).toBe('org_user');
+  });
+
   it('BUG-001: cached theme wins over initialTheme server prop on mount', () => {
     // User switched to 'light'; on remount server provides initialTheme='dark'.
     // The cached 'light' must survive.

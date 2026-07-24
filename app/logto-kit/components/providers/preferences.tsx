@@ -121,9 +121,25 @@ export function PreferencesProvider({
   }, [onLangChange]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (didSyncFromStorage.current) return;
+    // After the initial one-shot sync, watch for divergence between the
+    // server-provided `initialOrgId` and the cached preference. sessionStorage
+    // is per-tab with no cross-tab events, so a stale cached value could pin
+    // the UI to an org that another tab/server has since changed. When the
+    // server disagrees with a *set* cached value, trust the server and reset
+    // the one-shot guard so the next sync round can re-hydrate other prefs.
+    if (didSyncFromStorage.current) {
+      if (initialOrgId !== undefined && initialOrgId !== null) {
+        const storedOrg = getStoredOrg();
+        if (storedOrg !== null && initialOrgId !== storedOrg) {
+          setAsOrgState(initialOrgId);
+          setStoredOrg(initialOrgId);
+          didSyncFromStorage.current = false;
+        }
+      }
+      return;
+    }
     didSyncFromStorage.current = true;
-    
+
     // Fix: cached user preference wins over server-provided initial value.
     // Only fall back to server prop when no user selection is stored.
     const cachedTheme = getStoredTheme();
