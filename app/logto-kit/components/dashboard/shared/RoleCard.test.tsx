@@ -152,4 +152,64 @@ describe('RoleCard', () => {
       expect(screen.getByText('Description 2')).toBeInTheDocument();
     });
   });
+
+  it('ignores stale fetch result when roleId changes mid-flight', async () => {
+    let resolveRole1!: (value: { ok: true; data: { id: string; description: string } }) => void;
+    const role1Promise = new Promise<{ ok: true; data: { id: string; description: string } }>((resolve) => {
+      resolveRole1 = resolve;
+    });
+
+    mockGetRoleDetails.mockImplementation(async (roleId: string) => {
+      if (roleId === 'role-1') return role1Promise;
+      if (roleId === 'role-2') return { ok: true, data: { id: 'role-2', description: 'Description 2' } };
+      return { ok: false };
+    });
+
+    const { rerender } = render(
+      <RoleCard
+        name="Admin"
+        roleId="role-1"
+        colors={DARK_COLORS}
+        t={enUS}
+      />
+    );
+
+    const infoButton = screen.getByRole('button');
+
+    // Start fetch for role-1 (slow, not yet resolved)
+    await act(async () => {
+      fireEvent.mouseEnter(infoButton);
+    });
+
+    // Unhover to hide tooltip
+    await act(async () => {
+      fireEvent.mouseLeave(infoButton);
+    });
+
+    // Change roleId while role-1 fetch is in-flight
+    rerender(
+      <RoleCard
+        name="User"
+        roleId="role-2"
+        colors={DARK_COLORS}
+        t={enUS}
+      />
+    );
+
+    // Now resolve the stale role-1 fetch
+    await act(async () => {
+      resolveRole1({ ok: true, data: { id: 'role-1', description: 'STALE Description 1' } });
+    });
+
+    // Stale data must NOT appear
+    expect(screen.queryByText('STALE Description 1')).toBeNull();
+
+    // Hover again — should fetch fresh role-2 data
+    await act(async () => {
+      fireEvent.mouseEnter(infoButton);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Description 2')).toBeInTheDocument();
+    });
+  });
 });

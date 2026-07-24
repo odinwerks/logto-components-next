@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useId, Suspense } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, useId, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 import type { UserData, UserRole, OrgRoleScope } from '../../../logic/types';
@@ -36,9 +36,11 @@ interface OrgCardProps {
   colors: ThemeColors;
   t: Translations;
   mode: 'dark' | 'light';
+  tabIndex?: number;
+  buttonRef?: (el: HTMLButtonElement | null) => void;
 }
 
-const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }: OrgCardProps) => {
+const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode, tabIndex = 0, buttonRef }: OrgCardProps) => {
   const c = colors;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -67,6 +69,25 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
     });
   }, []);
 
+  // Close tooltip on window scroll/resize so the fixed-position tooltip
+  // doesn't detach from its trigger (BUG-M07).
+  useEffect(() => {
+    if (!showTooltip) return;
+
+    const close = () => {
+      setIsHovered(false);
+      setIsInfoFocused(false);
+    };
+
+    window.addEventListener('scroll', close, { passive: true });
+    window.addEventListener('resize', close, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', close);
+      window.removeEventListener('resize', close);
+    };
+  }, [showTooltip]);
+
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
     openTooltip();
@@ -93,6 +114,8 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
       }}
     >
       <button
+        ref={buttonRef}
+        tabIndex={tabIndex}
         onClick={() => handleOrgClick(org.id)}
         role="radio"
         aria-checked={isSelected}
@@ -153,6 +176,7 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode }
         onBlur={handleInfoBlur}
         onClick={(e) => {
           e.stopPropagation();
+          setIsInfoFocused((prev) => !prev);
         }}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
@@ -428,11 +452,6 @@ const OrgRolesList = ({
         />
       </div>
       <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
-        {!orgId && (
-          <p style={{ ...mutedMonoStyle, marginBottom: '0.75rem' }}>
-            {t.organizations.selectOrgForRoles}
-          </p>
-        )}
 
         {orgRoles.length === 0 ? (
           <div style={emptyStateStyle}>
@@ -519,6 +538,55 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
 
   const organizations = userData.organizations || [];
 
+  // ── Roving tabindex ref map & keyboard handler for org radiogroup ────────
+  const radioRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+
+  // Memoize org tab order so the key-down handler is anchored to this render's
+  // data snapshot (avoids stale closures when switching).
+  const sortedOrgIds = useMemo(() => organizations.map(o => o.id), [organizations]);
+
+  const handleRadioKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const currentIndex = sortedOrgIds.indexOf(activeOrgId ?? '');
+      if (currentIndex < 0) return; // no active org — nothing to rove from
+
+      let nextIndex = currentIndex;
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'ArrowLeft':
+          e.preventDefault();
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : sortedOrgIds.length - 1;
+          break;
+        case 'ArrowDown':
+        case 'ArrowRight':
+          e.preventDefault();
+          nextIndex = (currentIndex + 1) % sortedOrgIds.length;
+          break;
+        case 'Home':
+          e.preventDefault();
+          nextIndex = 0;
+          break;
+        case 'End':
+          e.preventDefault();
+          nextIndex = sortedOrgIds.length - 1;
+          break;
+        default:
+          return; // Don't handle other keys
+      }
+
+      const nextOrgId = sortedOrgIds[nextIndex];
+      if (nextOrgId) {
+        void switchToOrg(nextOrgId);
+        // Focus the newly-selected radio button after the render commits
+        requestAnimationFrame(() => {
+          radioRefs.current.get(nextOrgId)?.focus();
+        });
+      }
+    },
+    [sortedOrgIds, activeOrgId, switchToOrg],
+  );
+
   // ── Styles ──
   const sectionLabel: React.CSSProperties = {
     fontFamily: FONT_SANS,
@@ -582,7 +650,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
               </button>
             )}
             {localError && (
-              <div style={{ padding: '0.375rem 0.75rem', color: c.accentRed, fontSize: '0.6875rem', fontFamily: FONT_MONO }}>
+              <div role="alert" style={{ padding: '0.375rem 0.75rem', color: c.accentRed, fontSize: '0.6875rem', fontFamily: FONT_MONO }}>
                 {localError}
               </div>
             )}
@@ -590,6 +658,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
               role="radiogroup"
               aria-label={t.organizations.orgs}
               style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+              onKeyDown={handleRadioKeyDown}
             >
               {organizations.map(org => (
                 <OrgCard
@@ -601,6 +670,8 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
                   colors={colors}
                   t={t}
                   mode={mode}
+                  tabIndex={org.id === activeOrgId ? 0 : -1}
+                  buttonRef={el => { radioRefs.current.set(org.id, el); }}
                 />
               ))}
             </div>
