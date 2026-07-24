@@ -172,7 +172,7 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle, initialData }: P
           boxShadow: mode === 'dark'
             ? '0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
             : '0 2px 8px rgba(0, 0, 0, 0.15)',
-          zIndex: 10000,
+          zIndex: 4000,
           pointerEvents: 'none',
           display: 'flex',
           flexDirection: 'column',
@@ -504,7 +504,7 @@ export function ProfileTab({
    */
   /* eslint-disable react-hooks/refs -- synchronous prop-change reset (React "adjusting state" pattern) */
   const prevUsernameRef = useRef(userData.username);
-  if (prevUsernameRef.current !== userData.username) {
+  if (nameType !== 'given_family' && prevUsernameRef.current !== userData.username) {
     prevUsernameRef.current = userData.username;
     setUsername(userData.username ?? '');
   }
@@ -601,13 +601,15 @@ export function ProfileTab({
   }, [selectedFile, upload, onError, t.profile.cropFailed]);
 
   const handleCloseModal = useCallback(() => {
+    // BUG-035: prevent closing during upload — otherwise success toast fires after user "cancelled"
+    if (isUploading) return;
     if (cropPreviewUrl) {
       URL.revokeObjectURL(cropPreviewUrl);
     }
     setCropPreviewUrl(null);
     setSelectedFile(null);
     setAvatarModalOpen(false);
-  }, [cropPreviewUrl]);
+  }, [cropPreviewUrl, isUploading]);
 
   // Focus management: mount focus & focus restoration
   useEffect(() => {
@@ -641,7 +643,11 @@ export function ProfileTab({
           {(ref) => (
             <Overlay onDismiss={handleCloseModal}>
               <div
-                ref={ref}
+                ref={(el) => {
+                  // BUG-098: attach both the AvatarModalWrapper ref (for focus-trap) and modalRef
+                  (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                  modalRef.current = el;
+                }}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="avatar-modal-title"
@@ -725,7 +731,8 @@ export function ProfileTab({
               <button
                 onClick={handleCloseModal}
                 aria-label="Close modal"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textTertiary, padding: '0.25rem', display: 'flex' }}
+                disabled={isUploading}
+                style={{ background: 'none', border: 'none', cursor: isUploading ? 'not-allowed' : 'pointer', color: c.textTertiary, padding: '0.25rem', display: 'flex', opacity: isUploading ? 0.5 : 1 }}
               >
                 <X size={18} strokeWidth={1.5} />
               </button>
@@ -931,6 +938,7 @@ export function ProfileTab({
             <button
               onClick={() => setAvatarModalOpen(true)}
               disabled={isUploading}
+              aria-label={t.profile.changePhoto}
               title={t.profile.changePhoto}
               style={{
                 position: 'absolute', bottom: '-0.25rem', right: '-0.25rem',
@@ -1140,6 +1148,7 @@ export function ProfileTab({
                       readOnly={!isEditing}
                       placeholder={t.profile.usernamePlaceholder}
                       mode={mode} colors={colors}
+                      aria-label={t.profile.username}
                       style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                     />
                   )}
@@ -1152,6 +1161,7 @@ export function ProfileTab({
                         readOnly={!isEditing}
                         placeholder={t.profile.firstNamePlaceholder}
                         mode={mode} colors={colors}
+                        aria-label={t.profile.firstName}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                       />
                       <Input
@@ -1161,6 +1171,7 @@ export function ProfileTab({
                         readOnly={!isEditing}
                         placeholder={t.profile.lastNamePlaceholder}
                         mode={mode} colors={colors}
+                        aria-label={t.profile.lastName}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                       />
                     </>

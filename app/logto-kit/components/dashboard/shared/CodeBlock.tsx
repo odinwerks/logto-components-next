@@ -134,10 +134,11 @@ export function CodeBlock({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <pre style={{ ...codePreStyle, maxHeight }}>{text}</pre>
+        <pre style={{ ...codePreStyle, maxHeight }} tabIndex={0} aria-label={title || 'Code block'}>{text}</pre>
 
         <button
           onClick={handleCopy}
+          aria-label={copied ? (t.common.copied ?? 'Copied') : t.common.copy}
           title={t.common.copy}
           style={copyBtnStyle}
         >
@@ -242,6 +243,7 @@ export function TruncatedToken({ token, mode: _mode, colors, t }: TruncatedToken
 
       <button
         onClick={handleCopy}
+        aria-label={copied ? (t.common.copied ?? 'Copied') : t.common.copy}
         title={t.common.copy}
         style={copyBtnStyle}
       >

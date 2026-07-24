@@ -46,6 +46,33 @@ describe('DocsLayoutClient scroll restoration', () => {
     expect(container.scrollTop).toBe(0);
   });
 
+  it('preserves scroll position when navigating with a hash (deep-link)', () => {
+    // Simulate deep-link with hash
+    window.location.hash = '#section-x';
+
+    const { rerender } = render(
+      <DocsLayoutClient>
+        <div style={{ height: '2000px' }}>Long docs content</div>
+      </DocsLayoutClient>
+    );
+
+    const container = document.querySelector('.docs-content-container') as HTMLDivElement;
+    container.scrollTop = 500;
+
+    pathname = '/topic-a/section-two';
+    rerender(
+      <DocsLayoutClient>
+        <div style={{ height: '2000px' }}>Long docs content</div>
+      </DocsLayoutClient>
+    );
+
+    // scroll should NOT be reset when a hash is present
+    expect(container.scrollTop).toBe(500);
+
+    // Clean up hash
+    window.location.hash = '';
+  });
+
   it('renders both sidebar and mobile nav unconditionally in the DOM to avoid layout flash', () => {
     const { queryByTestId } = render(
       <DocsLayoutClient>

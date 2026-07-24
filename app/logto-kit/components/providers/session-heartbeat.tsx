@@ -43,9 +43,7 @@ export default function SessionHeartbeat() {
       if (now - lastPingRef.current < DEBOUNCE_MS) return;
 
       lastPingRef.current = now;
-      recordHeartbeat().catch(() => {
-        // Best-effort - errors are silently swallowed.
-      });
+      void recordHeartbeat().catch(() => {});
     };
 
     // Fire immediately on mount (if tab is visible).

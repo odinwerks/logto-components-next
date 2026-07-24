@@ -32,9 +32,11 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
   const [resolvedDescription, setResolvedDescription] = useState<string | null | undefined>(description);
   const [loadingDesc, setLoadingDesc] = useState(false);
   const fetchedRef = useRef(false);
+  const generationRef = useRef(0);
 
   useEffect(() => {
     fetchedRef.current = false;
+    generationRef.current += 1;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolvedDescription(description);
   }, [roleId, description]);
@@ -53,10 +55,12 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
       return;
     }
 
+    const gen = generationRef.current;
     fetchedRef.current = true;
     setLoadingDesc(true);
     try {
       const result = await getRoleDetails(roleId);
+      if (gen !== generationRef.current) return; // stale — props changed
       if (result.ok) {
         const desc = result.data.description || null;
         descriptionCacheRef.current.set(roleId, desc);
@@ -66,10 +70,11 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
         setResolvedDescription(null);
       }
     } catch {
+      if (gen !== generationRef.current) return; // stale — props changed
       descriptionCacheRef.current.set(roleId, null);
       setResolvedDescription(null);
     } finally {
-      setLoadingDesc(false);
+      if (gen === generationRef.current) setLoadingDesc(false);
     }
   }, [roleId, description]);
 
@@ -92,6 +97,25 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
     });
     fetchDescription();
   }, [fetchDescription]);
+
+  // Close tooltip on window scroll/resize so the fixed-position tooltip
+  // doesn't detach from its trigger (BUG-M07).
+  useEffect(() => {
+    if (!showTooltip) return;
+
+    const close = () => {
+      setIsHovered(false);
+      setIsFocused(false);
+    };
+
+    window.addEventListener('scroll', close, { passive: true });
+    window.addEventListener('resize', close, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', close);
+      window.removeEventListener('resize', close);
+    };
+  }, [showTooltip]);
 
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
@@ -141,6 +165,7 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
         onMouseLeave={handleMouseLeave}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        aria-label="Role details"
         aria-describedby={showTooltip ? tooltipId : undefined}
         style={{
           display: 'flex',
@@ -161,6 +186,7 @@ export function RoleCard({ name, roleId, description, colors, t, mode = 'dark' }
           createPortal(
             <div
               id={tooltipId}
+              role="tooltip"
               style={tooltipStyle}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}

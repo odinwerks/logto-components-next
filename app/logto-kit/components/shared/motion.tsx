@@ -166,15 +166,46 @@ interface CrossFadeProps {
    * When true, the outer wrapper and the currently-visible panel become a
    * flex column that fills its parent's height (flex:1 1 auto; minHeight:0).
    * Used only by the Security tab so its danger zone can pin to the bottom.
+   *
+   * @deprecated Use `fillHeightKeys` instead for correct crossfade behavior.
+   *   When `fillHeight` is a static boolean driven by the *incoming* `activeKey`,
+   *   the outgoing panel loses its flex container context mid-fade. The per-key
+   *   `fillHeightKeys` array derives fill behaviour from `displayedKey` so the
+   *   outgoing panel keeps its layout until the fade completes.
    */
   fillHeight?: boolean;
+  /**
+   * Per-key fillHeight behaviour. When the currently displayed key
+   * (`displayedKey`) matches any entry in this array, the wrapper and that
+   * panel become a flex column during the fade so the layout does not
+   * collapse mid-transition.  Only the *displayed* (visible) panel gets the
+   * fill; kept-but-hidden panels stay collapsed.
+   */
+  fillHeightKeys?: string[];
+  /**
+   * Keys that should ALWAYS be rendered (hidden via `display:none` when not
+   * active), preserving their internal state and hook subscriptions across
+   * tab switches. The shell maintains this set (e.g. visited tabs). Keys
+   * not in this set use the existing unmount-on-switch behavior.
+   *
+   * Use to avoid re-fetching/re-mounting tabs the user has already visited.
+   * Combined with the instant-fetch `initialData` pattern, a visited tab's
+   * `use()` of an already-resolved promise is synchronous (no Suspense flash)
+   * and its hook state survives the round-trip.
+   *
+   * Additive: when omitted, `CrossFade` behaves exactly as today (no kept
+   * panels). Only visited tabs stay mounted — unvisited tabs (e.g. Sessions,
+   * Security on first load) do NOT mount until the user opens them, so their
+   * lazy fetches (MFA, sessions) don't fire on page load.
+   */
+  keepMountedKeys?: string[];
   /** Render function returning the content for a given key. */
   children: (key: string) => ReactNode;
   /** Optional per-item wrapper (e.g. error boundary). */
   wrapItem?: (key: string, isVisible: boolean, children: ReactNode) => ReactNode;
 }
 
-export function CrossFade({ activeKey, className, duration = 0.12, instant = false, fillHeight, children, wrapItem }: CrossFadeProps) {
+export function CrossFade({ activeKey, className, duration = 0.12, instant = false, fillHeight, fillHeightKeys, keepMountedKeys, children, wrapItem }: CrossFadeProps) {
   const [displayedKey, setDisplayedKey] = useState<string>(activeKey);
   const [fading, setFading] = useState(false);
 
@@ -209,14 +240,28 @@ export function CrossFade({ activeKey, className, duration = 0.12, instant = fal
     return () => clearTimeout(timer);
   }, [activeKey, displayedKey, duration, instant]);
 
+  // Derive fillHeight from displayedKey (not activeKey) so the outgoing
+  // panel keeps its flex container context until the fade completes (BUG-L04).
+  const isFillHeight = fillHeight === true || (fillHeightKeys != null && fillHeightKeys.includes(displayedKey));
+
   // When fillHeight is on, the wrapper chain becomes a flex column so a child
   // tab can fill the tabpanel height (used by SecurityTab's sticky footer).
-  const wrapperStyle: CSSProperties | undefined = fillHeight
+  const wrapperStyle: CSSProperties | undefined = isFillHeight
     ? { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }
     : undefined;
 
   // Only render the displayed panel (plus the incoming panel during fade).
-  const renderKeys = fading ? [displayedKey, activeKey] : [displayedKey];
+  // When `keepMountedKeys` is provided, also keep those panels mounted
+  // (hidden via display:none) so their internal state and hook
+  // subscriptions survive tab switches — even DURING a fade (the 50ms
+  // fade-out frame must not unmount kept panels, or their state is lost).
+  const extraKept =
+    keepMountedKeys?.filter((k) => k !== displayedKey && k !== activeKey) ?? [];
+  const renderKeys = fading
+    ? [displayedKey, activeKey, ...extraKept]
+    : keepMountedKeys && keepMountedKeys.length > 0
+      ? [displayedKey, ...keepMountedKeys.filter((k) => k !== displayedKey)]
+      : [displayedKey];
   const uniqueKeys = [...new Set(renderKeys)];
 
   return (
@@ -227,15 +272,23 @@ export function CrossFade({ activeKey, className, duration = 0.12, instant = fal
         const opacity = isDisplayed ? (fading ? 0 : 1) : 0;
         const content = children(key);
 
+        // A kept-mounted-but-not-displayed panel (from `keepMountedKeys`)
+        // gets `display:none` + `aria-hidden`. A displayed panel keeps its
+        // existing display/fillHeight behavior. During a fade, the incoming
+        // panel is hidden via `display:none` until the fade completes.
+        const isKeptMounted = !isDisplayed && !!keepMountedKeys && keepMountedKeys.includes(key);
         const itemStyle: CSSProperties =
-          fillHeight && isDisplayed
+          isFillHeight && isDisplayed
             ? { display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }
-            : { display: isDisplayed ? undefined : 'none' };
+            : isKeptMounted
+              ? { display: 'none' }
+              : { display: isDisplayed ? undefined : 'none' };
 
         return (
           <motion.div
             key={key}
             data-tab={key}
+            data-kept-mounted={isKeptMounted ? 'true' : undefined}
             initial={false}
             animate={{ opacity }}
             transition={{ duration, ease: 'easeOut' }}

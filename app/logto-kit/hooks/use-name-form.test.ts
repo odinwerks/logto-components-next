@@ -119,12 +119,19 @@ describe('useNameForm', () => {
     expect(result.current.username).toBe('jdoe');
   });
 
+  it('setUsername is a no-op in given_family mode', () => {
+    const { result } = renderHook(() => useNameForm(makeOptions()));
+    act(() => { result.current.setUsername('other'); });
+    // username is NOT updated — setUsername is a no-op in given_family mode (BUG-L07)
+    expect(result.current.username).toBe('jdoe');
+  });
+
   it('discard does not revert username in given_family mode', () => {
+    // In given_family mode, setUsername is a no-op, so there's nothing to discard
     const { result } = renderHook(() => useNameForm(makeOptions()));
     act(() => { result.current.setUsername('other'); });
     act(() => { result.current.discard(); });
-    // username should remain 'other' in given_family mode
-    expect(result.current.username).toBe('other');
+    expect(result.current.username).toBe('jdoe');
   });
 
   // ─── Prop-change sync (useRef guard) ──────────────────────────────────────
@@ -141,12 +148,21 @@ describe('useNameForm', () => {
     expect(result.current.givenName).toBe('Jane');
   });
 
-  it('syncs username when userData.username changes', () => {
-    const opts = makeOptions();
+  it('syncs username when userData.username changes (in username mode)', () => {
+    const opts = makeOptions({ nameType: 'username' });
     const { result, rerender } = renderHook((o) => useNameForm(o), { initialProps: opts });
-    const newOpts = makeOptions({ userData: makeUserData({ username: 'newuser' }) });
+    const newOpts = makeOptions({ nameType: 'username', userData: makeUserData({ username: 'newuser' }) });
     rerender(newOpts);
     expect(result.current.username).toBe('newuser');
+  });
+
+  it('does NOT sync username when userData.username changes in given_family mode (BUG-L07)', () => {
+    const opts = makeOptions({ nameType: 'given_family' });
+    const { result, rerender } = renderHook((o) => useNameForm(o), { initialProps: opts });
+    const newOpts = makeOptions({ nameType: 'given_family', userData: makeUserData({ username: 'newuser' }) });
+    rerender(newOpts);
+    // username sync is skipped — setUsername is a no-op in given_family mode
+    expect(result.current.username).toBe('jdoe');
   });
 
   // ─── Save - given_family mode ─────────────────────────────────────────────
@@ -199,8 +215,12 @@ describe('useNameForm', () => {
     expect(rollbackCall[0]).toEqual({ name: 'John Doe' });
   });
 
-  it('rollback in given_family mode skips onUpdateBasicInfo when userData.name is null (no-op guard)', async () => {
-    // userData.name is undefined - cleanUpdates would strip empty string, so rollback must be skipped
+  // BUG-H01: when the original name was null, the rollback must STILL call
+  // onUpdateBasicInfo with { name: '' } so the server clears the name back to
+  // its original (empty) state. The previous null-guard skipped the rollback
+  // call entirely, leaving the cleared name persisted after a failed profile
+  // update.
+  it('rollback in given_family mode restores name: "" when userData.name is null', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
     const onError = vi.fn();
@@ -216,8 +236,10 @@ describe('useNameForm', () => {
     act(() => { result.current.setGivenName('Alice'); });
     await act(async () => { await result.current.save(); });
 
-    // Only 1 call (save) - rollback must NOT call onUpdateBasicInfo with an empty object
-    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    // Two calls: save then rollback. Rollback restores name to '' (original was null).
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2);
+    const rollbackCall = onUpdateBasicInfo.mock.calls[1];
+    expect(rollbackCall[0]).toEqual({ name: '' });
     expect(onError).toHaveBeenCalledWith('Profile failed');
   });
 
@@ -260,6 +282,35 @@ describe('useNameForm', () => {
     // name must be sent (as '') so the server can clear userData.name.
     expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
     expect(onUpdateBasicInfo).toHaveBeenCalledWith({ name: '' });
+    expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
+  });
+
+  // BUG-H01 end-to-end: clearing both name fields where the original name was
+  // null, then the profile update FAILS. The save must send name: '' (so Logto
+  // clears the name), and the rollback must also send name: '' to restore the
+  // original (empty) state. Previously the rollback was skipped when the
+  // original name was null, leaving the cleared name persisted.
+  it('clearing names end-to-end: save sends name: "" and rollback restores name: "" when profile fails', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
+    const opts = makeOptions({
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      userData: makeUserData({ name: undefined, profile: { givenName: 'John', familyName: 'Doe' } }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => {
+      result.current.setGivenName('');
+      result.current.setFamilyName('');
+    });
+    await act(async () => { await result.current.save(); });
+
+    // Save call: name sent as '' so the server can clear it.
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2);
+    expect(onUpdateBasicInfo.mock.calls[0][0]).toEqual({ name: '' });
+    // Rollback call: restores name to '' (original was null) after profile fail.
+    expect(onUpdateBasicInfo.mock.calls[1][0]).toEqual({ name: '' });
     expect(onUpdateProfile).toHaveBeenCalledWith({ givenName: '', familyName: '' });
   });
 
@@ -328,8 +379,12 @@ describe('useNameForm', () => {
     expect(refreshData).toHaveBeenCalled();
   });
 
-  it('rollback in full mode skips fields that are null in userData', async () => {
-    // userData.name=undefined, userData.username='jdoe' - rollback should only include username
+  // BUG-H01: null original values are restored as '' (a "clear" sentinel)
+  // instead of being skipped. Previously null fields were omitted from the
+  // rollback, leaving cleared values persisted after a failed profile update.
+  it('rollback in full mode restores null fields as "" (clear sentinel)', async () => {
+    // userData.name=undefined, userData.username='jdoe' - rollback should
+    // restore name to '' (original was null) and username to 'jdoe'.
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
     const opts = makeOptions({
@@ -344,8 +399,29 @@ describe('useNameForm', () => {
     await act(async () => { await result.current.save(); });
 
     const rollbackCall = onUpdateBasicInfo.mock.calls[1];
-    // name must be absent (null would be stripped by cleanUpdates); username present
-    expect(rollbackCall[0]).toEqual({ username: 'jdoe' });
+    // name restored to '' (original was null); username restored to 'jdoe'
+    expect(rollbackCall[0]).toEqual({ name: '', username: 'jdoe' });
+  });
+
+  // BUG-H01: when BOTH original name and username were null, the rollback
+  // restores both as '' so the server clears them back to their original
+  // (empty) state.
+  it('rollback in full mode restores both name and username as "" when both originals are null', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
+    const opts = makeOptions({
+      nameType: 'full',
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      userData: makeUserData({ name: undefined, username: undefined }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => { result.current.setGivenName('Alice'); });
+    await act(async () => { await result.current.save(); });
+
+    const rollbackCall = onUpdateBasicInfo.mock.calls[1];
+    expect(rollbackCall[0]).toEqual({ name: '', username: '' });
   });
 
   // Regression for BUG-PR-002: clearing both given and family name in full mode

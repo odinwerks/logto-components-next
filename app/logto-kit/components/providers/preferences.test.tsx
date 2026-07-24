@@ -454,6 +454,62 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     expect(capturedLang).toBe('de');
     expect(sessionStorage.getItem('lang-mode')).toBe('de');
   });
+
+  it('BUG-084: setLang does not change identity when onLangChange prop changes', () => {
+    // When onLangChange is an inline callback that changes every render,
+    // setLang must remain stable (ref-backed) to prevent unnecessary re-renders
+    // in child components.
+    let capturedSetLang: ((lang: string) => void) | null = null;
+    let capturedSetLangAfterRerender: ((lang: string) => void) | null = null;
+
+    const onUpdateCustomData = vi.fn(() => Promise.resolve({ ok: true } as ActionResult));
+
+    function TestComponent() {
+      const { setLang } = useLangMode();
+      if (!capturedSetLang) {
+        capturedSetLang = setLang;
+      } else {
+        capturedSetLangAfterRerender = setLang;
+      }
+      return null;
+    }
+
+    const onLangChange = vi.fn();
+
+    const { rerender } = render(
+      <PreferencesProvider
+        initialLang="en"
+        onUpdateCustomData={onUpdateCustomData}
+        onLangChange={onLangChange}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    // Rerender with a new onLangChange callback (simulating inline function)
+    const newOnLangChange = vi.fn();
+    rerender(
+      <PreferencesProvider
+        initialLang="en"
+        onUpdateCustomData={onUpdateCustomData}
+        onLangChange={newOnLangChange}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    // setLang should be the same function reference (stable identity)
+    expect(capturedSetLang).not.toBeNull();
+    expect(capturedSetLang).toBe(capturedSetLangAfterRerender);
+
+    // Calling setLang should invoke the latest onLangChange (from ref)
+    act(() => {
+      capturedSetLang?.('fr');
+    });
+    expect(newOnLangChange).toHaveBeenCalled();
+    // Old callback should NOT be called
+    expect(onLangChange).not.toHaveBeenCalled();
+  });
 });
 
 describe('PreferencesProvider persist error callbacks', () => {

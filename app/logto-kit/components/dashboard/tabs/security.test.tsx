@@ -200,10 +200,10 @@ describe('SecurityTab', () => {
     const deleteButton = await screen.findByRole('button', { name: enUS.security.deleteAccount });
     // Dimensions preserved (existing square regression guard).
     expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
-    // Cyberpunk red (dark mode, which renderSecurity uses): #7f1d1d fill, #ef4444 outline.
+    // Theme-sourced red (dark mode, which renderSecurity uses): errorBg fill, accentRed outline.
     // jsdom normalizes hex → rgb()
-    expect(deleteButton.style.background).toBe('rgb(127, 29, 29)');
-    expect(deleteButton.style.border).toBe('1px solid rgb(239, 68, 68)');
+    expect(deleteButton.style.background).toBe('rgb(26, 5, 5)');
+    expect(deleteButton.style.border).toBe('1px solid rgb(220, 38, 38)');
   });
 
   it('LOW-3: encodes TOTP secret with encodeURIComponent in otpauth URI', async () => {
@@ -269,6 +269,42 @@ describe('SecurityTab', () => {
     expect(encodedSecret).not.toContain('+');
   });
 
+  it('BUG-078: keeps TOTP remove modal open with inline error on wrong password', async () => {
+    const { onVerifyPassword, onError } = renderSecurity({
+      onVerifyPassword: vi.fn().mockResolvedValue({ ok: false, error: 'Wrong password' }),
+    });
+
+    // Open TOTP setup modal (TOTP exists → shows "Reconfigure")
+    await screen.findByText(enUS.mfa.recoveryCodes);
+    fireEvent.click(screen.getByText(enUS.security.reconfigure));
+
+    // Switch to remove mode
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(enUS.profile.deleteHint));
+
+    // Confirm we're in remove mode
+    await waitFor(() => {
+      expect(screen.getByText(enUS.security.removeAuthenticator)).toBeInTheDocument();
+    });
+
+    // Enter password and submit
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'bad' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+
+    // Modal stays open with inline error; loading must NOT be stuck
+    await waitFor(() => {
+      expect(screen.getByText('Wrong password')).toBeInTheDocument();
+      expect(screen.getByText(enUS.security.removeAuthenticator)).toBeInTheDocument();
+    });
+
+    expect(onVerifyPassword).toHaveBeenCalledWith('bad');
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it('shows loading dots inside the verify button (not a separate stage) during delete-account verification', async () => {
     type VerifyResult = DataResult<{ verificationRecordId: string; verificationTimestamp: number }>;
     let resolveVerify!: (val: VerifyResult) => void;
@@ -326,9 +362,9 @@ describe('SecurityTab', () => {
     expect(screen.queryByRole('button', { name: enUS.verification.verifyPassword })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeDisabled();
 
-    // Dots are white
+    // Dots are accentRed for danger modals (FlowModal passes dotsColor={colors.accentRed})
     const dots = screen.getByRole('status').querySelectorAll('span');
-    expect(dots[0]).toHaveStyle({ background: 'rgb(255, 255, 255)' });
+    expect(dots[0]).toHaveStyle({ background: 'rgb(220, 38, 38)' });
 
     // Resolve verification → modal closes on success (no separate success stage)
     await act(async () => {
@@ -338,5 +374,97 @@ describe('SecurityTab', () => {
     await waitFor(() => {
       expect(screen.queryByText(enUS.security.confirmDeleteAccount)).not.toBeInTheDocument();
     });
+  });
+
+  it('BUG-074: discards stale MFA list fetch when a newer fetch completes first', async () => {
+    // Scenario: mount fetch (call 1) is slow; a TOTP-removal-triggered refresh
+    // (call 2) completes first.  The stale call-1 result must be discarded.
+    const freshData: MfaVerification[] = [
+      { id: 'fresh-webauthn', type: 'WebAuthn', name: 'New passkey', createdAt: '2024-06-01T00:00:00Z' },
+    ];
+
+    let resolveCall2!: (val: DataResult<MfaVerification[]>) => void;
+    let callCount = 0;
+
+    const onGetMfaVerifications = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        // Call 1 (mount): resolves immediately with TOTP data
+        return Promise.resolve({ ok: true, data: defaultMfaList } as const);
+      }
+      if (callCount === 2) {
+        // Call 2 (refresh after TOTP removal): slow deferred
+        return new Promise<DataResult<MfaVerification[]>>((r) => { resolveCall2 = r; });
+      }
+      // Call 3+ — should not happen if guard works, but be safe
+      return Promise.resolve({ ok: true, data: freshData } as const);
+    });
+
+    const onSuccess = vi.fn();
+
+    render(
+      <SecurityTab
+        userData={defaultUserData}
+        mode="dark"
+        colors={DARK_COLORS}
+        t={enUS}
+        onVerifyPassword={vi.fn().mockResolvedValue({
+          ok: true,
+          data: { verificationRecordId: 'vid-1', verificationTimestamp: Date.now() + 600_000 },
+        })}
+        onGetMfaVerifications={onGetMfaVerifications}
+        onGenerateTotpSecret={vi.fn().mockResolvedValue({ ok: true, data: { secret: 'secret' } })}
+        onAddMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onReplaceTotpVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onGenerateBackupCodes={vi.fn().mockResolvedValue({ ok: true, data: { codes: ['A1'] } })}
+        onUpdatePassword={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onDeleteAccount={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRequestWebAuthnRegistration={vi.fn().mockResolvedValue({ ok: true, data: { registrationOptions: {}, verificationRecordId: 'wa-1' } })}
+        onVerifyAndLinkWebAuthn={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onRenamePasskey={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+        onSuccess={onSuccess}
+        onError={vi.fn()}
+      />,
+    );
+
+    // Wait for mount load to complete (call 1 resolves immediately)
+    await screen.findByText(enUS.security.reconfigure);
+
+    // Verify TOTP factor is displayed
+    expect(screen.getByText(enUS.mfa.authenticatorActive)).toBeInTheDocument();
+
+    // Trigger TOTP removal → calls refreshMfa → call 2 (deferred)
+    fireEvent.click(screen.getByText(enUS.security.reconfigure));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(enUS.profile.deleteHint));
+    await waitFor(() => {
+      expect(screen.getByText(enUS.security.removeAuthenticator)).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+
+    // Wait for removal to succeed → refreshMfa() is called → call 2 is pending
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith(enUS.mfa.factorRemoved);
+    });
+
+    // Call 2 is the latest fetch. Resolve it with fresh data (no TOTP, just a passkey).
+    await act(async () => {
+      resolveCall2({ ok: true, data: freshData });
+    });
+
+    // The fresh data should be shown: passkey "New passkey", no TOTP
+    await waitFor(() => {
+      expect(screen.getByText('New passkey')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(enUS.mfa.authenticatorActive)).not.toBeInTheDocument();
+
+    // Only 2 calls should have been made (mount + refresh).
+    expect(callCount).toBe(2);
   });
 });

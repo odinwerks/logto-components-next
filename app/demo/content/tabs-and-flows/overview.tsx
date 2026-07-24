@@ -3,13 +3,7 @@
 import CodeBlock from '../../components/SyntaxBlock';
 import { useDocStyles } from '../../components/useDocStyles';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
-
-const slugify = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
+import { slugify } from '../../components/SectionComponents';
 
 export default function OverviewSection() {
   const styles = useDocStyles();

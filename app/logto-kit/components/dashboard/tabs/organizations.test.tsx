@@ -119,7 +119,7 @@ describe('OrganizationsTab - BUG-002 clear-org semantics', () => {
 
     // Explicit null means "be yourself" mode, even if server prop is stale.
     expect(screen.queryByRole('button', { name: /be yourself/i })).toBeNull();
-    expect(screen.getAllByText(enUS.organizations.selectOrgForRoles).length).toBeGreaterThan(0);
+    expect(screen.getByText(enUS.organizations.selectOrgForRoles)).toBeInTheDocument();
     expect(screen.getByText(enUS.organizations.noActiveOrg)).toBeInTheDocument();
     expect(screen.queryByText('stale-role-name')).toBeNull();
   });
@@ -565,5 +565,20 @@ describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () 
     await waitFor(() => {
       expect(infoButton.style.outline).toBeFalsy();
     });
+  });
+});
+
+describe('OrganizationsTab - BUG-034 no duplicate selectOrgForRoles', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue(true);
+  });
+
+  it('renders selectOrgForRoles exactly once when no org is selected', () => {
+    renderOrganizations({ asOrg: null, currentOrgId: undefined });
+
+    const matches = screen.getAllByText(enUS.organizations.selectOrgForRoles);
+    expect(matches).toHaveLength(1);
   });
 });

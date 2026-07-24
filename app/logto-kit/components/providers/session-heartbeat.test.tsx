@@ -6,7 +6,7 @@ import { readEnv } from '../../logic/env';
 
 // Mock dependencies
 vi.mock('../../logic/actions/heartbeat', () => ({
-  recordHeartbeat: vi.fn(() => Promise.resolve()),
+  recordHeartbeat: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 
 vi.mock('../../logic/env', () => ({
@@ -147,12 +147,30 @@ describe('SessionHeartbeat Component (BUG-024)', () => {
     expect(recordHeartbeat).toHaveBeenCalledTimes(1);
   });
 
-  it('silently swallows any errors thrown by recordHeartbeat', async () => {
+  it('silently swallows any errors returned by recordHeartbeat', async () => {
     vi.mocked(readEnv).mockReturnValue('blacktop');
-    vi.mocked(recordHeartbeat).mockRejectedValue(new Error('Action failed'));
+    // With safeAction, recordHeartbeat always resolves (never rejects).
+    // The component calls recordHeartbeat().catch(() => {}) to also handle
+    // transport-level failures (network drops, 502, aborted requests).
+    vi.mocked(recordHeartbeat).mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' });
 
     // Should not throw or crash client rendering when server action fails
     expect(() => render(<SessionHeartbeat />)).not.toThrow();
     expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it('swallows transport-level rejections (BUG-M01) without producing unhandled rejections', async () => {
+    vi.mocked(readEnv).mockReturnValue('blacktop');
+    // Simulate a transport-level failure: the RPC promise rejects before the
+    // server body runs (e.g. network drop, 502, aborted request).
+    vi.mocked(recordHeartbeat).mockRejectedValue(new Error('fetch failed'));
+
+    // Should not throw during render — the rejected promise must be caught
+    expect(() => render(<SessionHeartbeat />)).not.toThrow();
+    expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+
+    // Flush the microtask queue so the .catch() handler runs and the
+    // rejected promise does not bubble as an unhandled rejection.
+    await vi.advanceTimersByTimeAsync(0);
   });
 });

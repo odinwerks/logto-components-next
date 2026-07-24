@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useOrgMode, useUserDataContext } from '../../../logto-kit';
 import { loadOrganizationPermissions } from '../../../logto-kit/server-actions';
+import { clientLog } from '../../../logto-kit/logic/client-logger';
+import { createJsonStorageHelpers } from '../../../logto-kit/logic/client-storage';
+import { useToast } from '../../../logto-kit/components/providers/toast-provider';
 
 interface CalcState {
   expr: string;
@@ -16,7 +19,12 @@ interface CalcState {
   isCalculating: boolean;
 }
 
-const STORAGE_KEY = 'calc-state';
+// Phase 6: namespaced key (`calc-state` → `demo:calc-state`) to avoid
+// collisions with future demo features. Existing users lose their saved
+// calculator state on upgrade — acceptable for a demo feature. The storage
+// helpers are `SecurityError`-safe and SSR-aware via the shared
+// `createJsonStorageHelpers` (no raw `sessionStorage` access here).
+const STORAGE_KEY = 'demo:calc-state';
 
 const DEFAULT_STATE: CalcState = {
   expr: '',
@@ -30,24 +38,7 @@ const DEFAULT_STATE: CalcState = {
   isCalculating: false,
 };
 
-function loadState(): CalcState {
-  if (typeof window === 'undefined') return DEFAULT_STATE;
-  const stored = sessionStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return DEFAULT_STATE;
-    }
-  }
-  return DEFAULT_STATE;
-}
-
-function saveState(state: CalcState) {
-  if (typeof window !== 'undefined') {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
-}
+const calcStorage = createJsonStorageHelpers<CalcState>(STORAGE_KEY, DEFAULT_STATE);
 
 function fmtNum(n: number): string {
   if (!isFinite(n)) return isNaN(n) ? 'Error' : n > 0 ? 'Infinity' : '-Infinity';
@@ -279,9 +270,11 @@ export function CalculatorClient() {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const lastTouchTimeRef = useRef<number>(0);
+  const calculatorWrapperRef = useRef<HTMLDivElement>(null);
+  const { showToast, mapErrorToast } = useToast();
 
   useEffect(() => {
-    const loaded = loadState();
+    const loaded = calcStorage.get();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(loaded);
     isLoadedRef.current = true;
@@ -331,7 +324,7 @@ export function CalculatorClient() {
 
   useEffect(() => {
     if (isLoadedRef.current) {
-      saveState(state);
+      calcStorage.set(state);
     }
   }, [state]);
 
@@ -416,7 +409,9 @@ export function CalculatorClient() {
         lastWasClose: false,
       }));
     } catch (err) {
-      console.error('Calculation failed:', err);
+      clientLog.error('Calculator', 'Calculation failed:', err);
+      const errorCode = err instanceof Error ? err.message : 'ERROR';
+      showToast('error', mapErrorToast(errorCode));
       setState(prev => ({
         ...prev,
         expr: 'Error',
@@ -426,7 +421,7 @@ export function CalculatorClient() {
     } finally {
       isCalculatingRef.current = false;
     }
-  }, [state.expr, state.curToken, state.isRad, state.openParens]);
+  }, [state.expr, state.curToken, state.isRad, state.openParens, showToast, mapErrorToast]);
 
   const act = useCallback((a: string, data: string | null) => {
     setState(prev => {
@@ -584,6 +579,17 @@ export function CalculatorClient() {
         target instanceof HTMLTextAreaElement ||
         target?.isContentEditable
       ) return;
+      // Don't hijack keystrokes when focus is outside the calculator region
+      // (but allow body — enables keyboard shortcuts when nothing specific is focused)
+      const active = document.activeElement;
+      if (
+        active &&
+        active !== document.body &&
+        calculatorWrapperRef.current &&
+        !calculatorWrapperRef.current.contains(active)
+      ) return;
+      // Don't hijack keystrokes when a dialog or overlay is open
+      if (active?.closest('[role="dialog"], [aria-modal="true"]')) return;
       if (isCalculatingRef.current || state.isCalculating) return;
       if (e.key >= '0' && e.key <= '9') { act('digit', e.key); return; }
       if (e.key === '.') { act('dot', null); return; }
@@ -667,7 +673,8 @@ export function CalculatorClient() {
     background: 'var(--ldd-bg-primary)',
     border: '1px solid var(--ldd-border-color)',
     borderRadius: '4px',
-    width: '340px',
+    width: 'min(340px, 100%)',
+    maxWidth: '340px',
     overflow: 'hidden',
     fontFamily: "'IBM Plex Sans', sans-serif",
   };
@@ -804,13 +811,14 @@ export function CalculatorClient() {
   const eqBtnStyle: React.CSSProperties = { ...btnStyle, fontSize: '18px' };
 
   return (
-    <div style={calcWrapperStyle}>
+    <div ref={calculatorWrapperRef} role="region" aria-label="Calculator keypad" style={calcWrapperStyle}>
         <div style={displayStyle}>
           <div style={modeRowStyle}>
           <button
             type="button"
             style={{ ...modeLabelStyle, border: 'none', background: 'transparent' }}
             onClick={() => act('toggleMode', null)}
+            aria-pressed={state.isRad}
           >
             {state.isRad ? 'RAD' : 'DEG'}
           </button>
@@ -818,6 +826,7 @@ export function CalculatorClient() {
             type="button"
             style={{ ...invLabelStyle, border: 'none', background: 'transparent' }}
             onClick={() => act('inv', null)}
+            aria-pressed={state.invOn}
           >
             INV
           </button>
@@ -828,12 +837,14 @@ export function CalculatorClient() {
           type="button"
           style={{ ...fxLabelStyle, border: 'none', background: 'transparent' }}
           onClick={() => setDrawerOpen(!drawerOpen)}
+          aria-expanded={drawerOpen}
+          aria-controls="calc-sci-drawer"
         >
           f(x)
         </button>
         </div>
       <div style={buttonsStyle}>
-        <div style={drawerStyle}>
+        <div style={drawerStyle} id="calc-sci-drawer">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '4px' }}>
             <div style={row5Style}>
               <button style={fnBtnStyle} onClick={() => act('toggleMode', null)}>{state.isRad ? 'RAD' : 'DEG'}</button>
@@ -891,9 +902,16 @@ export function CalculatorClient() {
             <button
               ref={backspaceRef}
               style={btnStyle}
+              aria-label="Backspace (long-press to clear all)"
+              onClick={(e) => { if (e.detail === 0) act('del', null); }}
               onMouseDown={handleBackspaceMouseDown}
               onMouseUp={handleBackspaceMouseUp}
-              onMouseLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
+              onMouseLeave={() => {
+                if (longPressTimerRef.current) {
+                  clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              }}
               onTouchStart={handleBackspaceMouseDown}
               onTouchEnd={handleBackspaceMouseUp}
             >⌫</button>

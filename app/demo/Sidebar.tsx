@@ -172,7 +172,6 @@ const dropdownLinkStyle: React.CSSProperties = {
 const footerStyle: React.CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  borderTop: '1px solid rgba(255,255,255,0.05)',
   padding: '14px 18px',
   display: 'flex',
   justifyContent: 'center',
@@ -235,6 +234,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
   const themedBrandVerStyle = { ...brandVerStyle, color: colors.textSubtle, border: `1px solid ${colors.borderSubtle}` };
   const themedNavGroupLabelStyle = { ...navGroupLabelStyle, color: colors.textSubtle };
   const themedNavBarStyle = { ...navBarStyle, background: colors.navIndicator };
+  const themedFooterStyle = { ...footerStyle, borderTop: `1px solid ${colors.borderLight}` };
 
   return (
     <div style={themedSidebarStyle}>
@@ -246,7 +246,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
         <span style={themedBrandVerStyle}>docs</span>
       </div>
 
-      <div style={navListStyle}>
+      <nav style={navListStyle} aria-label="Documentation">
         <div style={themedNavGroupLabelStyle}>Reference</div>
         {items.map((item) => {
           const isActive = item.id === activeId;
@@ -256,6 +256,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
                 href={`/${item.id}/${slugify(item.sections[0])}`}
                 style={{ textDecoration: 'none', display: 'block' }}
                 onClick={() => onSelect?.(item.id)}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <div
                   style={{
@@ -318,6 +319,7 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
                       <Link
                         key={section}
                         href={`/${item.id}/${sectionId}`}
+                        aria-current={isSectionActive ? 'page' : undefined}
                         style={{
                           ...dropdownLinkStyle,
                           textDecoration: 'none',
@@ -338,9 +340,9 @@ export default function Sidebar({ items, activeId: propActiveId, onSelect }: Sid
             </div>
           );
         })}
-      </div>
+      </nav>
 
-      <div style={footerStyle}>
+      <div style={themedFooterStyle}>
         <UserCard
           Size="42px"
         />

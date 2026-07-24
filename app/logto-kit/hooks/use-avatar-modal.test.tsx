@@ -39,6 +39,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useAvatarModal>[0]> = 
 describe('useAvatarModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(URL.createObjectURL).mockImplementation(() => mockObjectUrl);
   });
 
   // ─── Open / Close ─────────────────────────────────────────────────────────
@@ -136,6 +137,9 @@ describe('useAvatarModal', () => {
   });
 
   it('handleFileSelected revokes previous preview URL before creating new one', () => {
+    let urlCounter = 0;
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:mock-url-${++urlCounter}`);
+
     const { result } = renderHook(() => useAvatarModal(makeOptions()));
     const file1 = new File(['a'], 'a.png', { type: 'image/png' });
     const file2 = new File(['b'], 'b.png', { type: 'image/png' });
@@ -143,7 +147,29 @@ describe('useAvatarModal', () => {
     act(() => { result.current.handleFileSelected(file1); });
     act(() => { result.current.handleFileSelected(file2); });
 
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith(mockObjectUrl);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url-1');
+    expect(result.current.cropPreviewUrl).toBe('blob:mock-url-2');
+  });
+
+  it('handleFileSelected revokes previous blob URL on same-tick double selection', () => {
+    let urlCounter = 0;
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:tick-${++urlCounter}`);
+
+    const { result } = renderHook(() => useAvatarModal(makeOptions()));
+    const file1 = new File(['a'], 'a.png', { type: 'image/png' });
+    const file2 = new File(['b'], 'b.png', { type: 'image/png' });
+
+    // Both calls within the same act() — simulates same-tick selection
+    act(() => {
+      result.current.handleFileSelected(file1);
+      result.current.handleFileSelected(file2);
+    });
+
+    // The first blob URL must have been revoked
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:tick-1');
+    // The second URL is the active preview
+    expect(result.current.cropPreviewUrl).toBe('blob:tick-2');
+    expect(result.current.selectedFile).toBe(file2);
   });
 
   it('handleFileInputChange picks file from event and resets input value', () => {

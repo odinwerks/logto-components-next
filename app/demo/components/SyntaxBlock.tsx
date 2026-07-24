@@ -186,6 +186,7 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const { mode } = useThemeMode();
 
   const isDark = mode === 'dark';
@@ -275,7 +276,10 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
 
         <button
           onClick={handleCopy}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           title={copyFailed ? 'Copy failed' : copied ? 'Copied!' : 'Copy'}
+          aria-label={copied ? 'Copied' : 'Copy'}
           style={{
             position: 'absolute',
             top: '8px',
@@ -290,10 +294,10 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
             borderRadius: '4px',
             cursor: 'pointer',
             color: copyFailed ? '#dc2626' : copied ? '#4ec9b0' : copyBtnColor,
-            opacity: hovered || copied || copyFailed ? 1 : 0,
-            transform: `scale(${hovered || copied || copyFailed ? 1 : 0.9})`,
+            opacity: hovered || focused || copied || copyFailed ? 1 : 0,
+            transform: `scale(${hovered || focused || copied || copyFailed ? 1 : 0.9})`,
             transition: 'opacity 0.15s ease, transform 0.15s ease, color 0.15s ease',
-            pointerEvents: hovered || copied || copyFailed ? 'auto' : 'none',
+            pointerEvents: hovered || focused || copied || copyFailed ? 'auto' : 'none',
           }}
         >
           {copyFailed

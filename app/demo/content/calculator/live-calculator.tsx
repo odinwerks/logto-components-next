@@ -140,7 +140,7 @@ export default function CalculatorPanel() {
   // after they sign in.
   useEffect(() => {
     if (!isAuthenticated) {
-      openDashboard({ routeTo: '/demo/calculator/live-calculator' });
+      openDashboard({ routeTo: '/calculator/live-demo' });
     }
   }, [isAuthenticated, openDashboard]);
 
@@ -150,7 +150,7 @@ export default function CalculatorPanel() {
 
   return (
     <Protected
-      orgId="5b6sw6p5uzti"
+      orgId="8joxv3kicmlz"
       perm="calc:basic"
       fallback={null}
     >
@@ -239,7 +239,7 @@ import type { ActionConfig } from '../logic/types';
 
 export async function getCalcAdd(): Promise<ActionConfig> {
   return {
-    requiredOrgId: '5b6sw6p5uzti',          // Hardcoded Organization Context
+    requiredOrgId: '8joxv3kicmlz',          // Hardcoded Organization Context
     requiredRoleId: 'gvuq1krilkjypl5hl34sb', // Logto Role UUID (CALC_ROLE_ID)
     requiredPermId: 'calc:basic',             // Permission Scope
     handler: async ({ payload }) => {
@@ -251,7 +251,7 @@ export async function getCalcAdd(): Promise<ActionConfig> {
 
 export async function getCalcSin(): Promise<ActionConfig> {
   return {
-    requiredOrgId: '5b6sw6p5uzti',
+    requiredOrgId: '8joxv3kicmlz',
     requiredRoleId: 'gvuq1krilkjypl5hl34sb',
     requiredPermId: 'calc:scientific',
     handler: async ({ payload }) => {

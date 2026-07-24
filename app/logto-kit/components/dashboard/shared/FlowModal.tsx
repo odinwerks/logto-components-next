@@ -10,8 +10,10 @@ import { Input } from '../../shared/Input';
 import { AnimatePresence, BouncingDots } from '../../shared/motion';
 import { motion } from 'framer-motion';
 import { Lbl, HR } from './primitives';
+import { useScrollLock } from '../../../hooks/use-scroll-lock';
 
 export function Overlay({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
+  useScrollLock();
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -22,7 +24,8 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'rgba(0,0,0,0.65)',
         backdropFilter: 'blur(0.375rem) saturate(0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.25rem',
+        overflowY: 'auto',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}
     >
@@ -127,9 +130,10 @@ export function PasswordVerifyModal({
   return (
     <Overlay onDismiss={onClose}>
       <div style={{
-        width: '100%', maxWidth: '27.5rem',
+        width: '100%', maxWidth: '27.5rem', maxHeight: '100%',
         background: T.surface, border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+        display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
       }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
         <div style={{
@@ -168,7 +172,6 @@ export function PasswordVerifyModal({
           if (passwordError) setHidePwErrorWhileTyping(true);
         }}
         placeholder={t.mfa.enterPasswordPlaceholder}
-        autoFocus
         hasError={!!passwordError}
         onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
         mode={mode}
@@ -204,7 +207,7 @@ export function PasswordVerifyModal({
             colors={colors}
             style={{ minWidth: '8rem', position: 'relative' }}
           >
-            <StableButtonContent loading={loading}>
+            <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
               {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
             </StableButtonContent>
           </Button>
@@ -313,9 +316,10 @@ export function FlowModal({
   return (
     <Overlay onDismiss={onClose}>
       <div style={{
-        width: '100%', maxWidth: wide ? '35rem' : '27.5rem',
+        width: '100%', maxWidth: wide ? '35rem' : '27.5rem', maxHeight: '100%',
         background: T.surface, border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+        display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
       }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
         <div style={{
@@ -361,7 +365,7 @@ export function FlowModal({
             colors={colors}
             style={{ minWidth: '6.5rem', position: 'relative' }}
           >
-            <StableButtonContent loading={loading}>
+            <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
               {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
             </StableButtonContent>
           </Button>
@@ -382,7 +386,6 @@ export function FlowModal({
                   if (passwordError) setHidePwErrorWhileTyping(true);
                 }}
                 placeholder={t.mfa.enterPasswordPlaceholder}
-                autoFocus={!extra}
                 hasError={!!passwordError}
                 onKeyDown={(e) => { if (e.key === 'Enter' && pw && !loading) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
                 mode={mode} colors={colors}
@@ -420,7 +423,7 @@ export function FlowModal({
               colors={colors}
               style={{ minWidth: '8rem', position: 'relative' }}
             >
-              <StableButtonContent loading={loading}>
+              <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
                 {t.verification.verifyPassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
               </StableButtonContent>
             </Button>
@@ -443,7 +446,6 @@ export function FlowModal({
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
                 maxLength={6}
-                autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) { void Promise.resolve(onCodeSubmit?.(code)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 disabled={loading}
@@ -520,7 +522,6 @@ onChange={(e) => {
                        }}
                       placeholder="000000"
                       maxLength={6}
-                      autoFocus
                       mode={mode} colors={colors}
                       disabled={loading}
                       style={{ fontFamily: T.mono, letterSpacing: '0.3em', textAlign: 'center', fontSize: isMobile ? '1.5rem' : '1.125rem' }}
@@ -553,7 +554,6 @@ onChange={(e) => {
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
-                autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 disabled={loading}
@@ -578,7 +578,7 @@ onChange={(e) => {
                   <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
             <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }} disabled={!newPw || loading} mode={mode} colors={colors} style={{ minWidth: '7.5rem', position: 'relative' }}>
-              <StableButtonContent loading={loading}>
+              <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
                 {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
               </StableButtonContent>
             </Button>
@@ -594,7 +594,6 @@ onChange={(e) => {
                 type="text"
                 value={renameVal}
                 onChange={(e) => setRenameVal(e.target.value.slice(0, 64))}
-                autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && renameVal.trim()) { void Promise.resolve(onRenamePasskeySubmit?.(renameVal.trim(), step.passkeyId, step.verificationRecordId)).catch(() => {}); } }}
                 mode={mode} colors={colors}
                 disabled={loading}
@@ -685,9 +684,11 @@ export function BackupCodesModal({
   return (
     <Overlay onDismiss={onDone}>
       <div style={{
-        width: '100%', maxWidth: '31.25rem', background: T.surface,
+        width: '100%', maxWidth: '31.25rem', maxHeight: '100%',
+        background: T.surface,
         border: `1px solid ${T.border}`,
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6)',
+        display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
       }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={isNew ? (t.mfa.saveBackupCodes || 'Save your backup codes') : (t.mfa.backupCodesTitle || 'Backup codes')} aria-describedby="backup-codes-desc">
         <div style={{

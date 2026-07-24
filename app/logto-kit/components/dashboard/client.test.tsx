@@ -79,6 +79,17 @@ vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
 vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
 vi.mock('./shared/Toast', () => ({ ToastContainer: () => null }));
 
+// Mock unified toast context (DashboardClient now uses useToast)
+vi.mock('../providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 // Import after mocks
 import { DashboardClient } from './client';
 import { readEnv } from '../../logic/env';
@@ -236,9 +247,13 @@ describe('DashboardClient - userShape prop', () => {
     expect(screen.getByRole('tabpanel').querySelector('.dashboard-tabpanel-content')).not.toBeNull();
   });
 
-  it('does NOT preserve tab form state across tab switches (CrossFade unmounts old panels)', () => {
-    // After the CrossFade simplification, panels unmount on tab switch.
-    // Form drafts are NOT preserved — the profile input resets on re-entry.
+  it('preserves tab form state across tab switches for VISITED tabs (Phase 4: CrossFade keepMountedKeys)', () => {
+    // Phase 4: tabs the user has opened at least once stay mounted (hidden
+    // via display:none) across tab switches, so internal state (form drafts,
+    // hook subscriptions) survives round-trips. Unvisited tabs still unmount.
+    //
+    // The profile tab is the initial active tab → it is in `visitedTabs`
+    // from first paint → it stays mounted when the user switches away.
     vi.useFakeTimers();
 
     render(
@@ -261,8 +276,11 @@ describe('DashboardClient - userShape prop', () => {
       vi.advanceTimersByTime(80);
     });
 
-    // The profile input is unmounted — no longer in the DOM.
-    expect(screen.queryByTestId('profile-draft-input')).toBeNull();
+    // The profile input is kept mounted (hidden via display:none) — it stays
+    // in the DOM with its draft value preserved.
+    const profileInputAfter = screen.queryByTestId('profile-draft-input');
+    expect(profileInputAfter).not.toBeNull();
+    expect(profileInputAfter).toHaveValue('my draft');
 
     // Switch back to Profile tab.
     fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
@@ -271,13 +289,29 @@ describe('DashboardClient - userShape prop', () => {
       vi.advanceTimersByTime(80);
     });
 
-    // The fresh profile input starts blank — state was not preserved.
-    expect(screen.getByTestId('profile-draft-input')).toHaveValue('');
+    // The same profile input is revealed with its draft intact (no re-mount).
+    expect(screen.getByTestId('profile-draft-input')).toHaveValue('my draft');
+  });
+
+  it('does NOT preserve state for UNVISITED tabs (keepMountedKeys only tracks visited tabs)', () => {
+    // Only visited tabs stay mounted. A tab the user has never opened does
+    // NOT mount until first visit (so its lazy fetches don't fire on page
+    // load). Verify the security tab is not in the DOM until the user opens it.
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'security']}
+      />,
+    );
+
+    // Security is not yet visited → not rendered.
+    expect(screen.queryByTestId('security-tab-content')).toBeNull();
   });
 
   it('fades the outgoing tab out then reveals the incoming tab (CrossFade)', () => {
     // After the CrossFade simplification: the outgoing panel fades out then
-    // unmounts. Replaces the legacy ldd-tab-fade-out/in class checks — Framer
+    // is hidden via display:none (Phase 4: visited tabs stay mounted).
+    // Replaces the legacy ldd-tab-fade-out/in class checks — Framer
     // Motion drives the opacity; we assert the display toggling that gates
     // which panel is interactive.
     vi.useFakeTimers();
@@ -310,9 +344,13 @@ describe('DashboardClient - userShape prop', () => {
       vi.advanceTimersByTime(80);
     });
 
-    // After timeout: incoming tab is revealed, outgoing is unmounted.
+    // After timeout: incoming tab is revealed. Profile is a VISITED tab
+    // (the initial active tab) so it stays mounted but hidden via
+    // display:none — its state survives the round-trip (Phase 4).
     expect(securityWrapper).not.toHaveStyle({ display: 'none' });
-    expect(panel.querySelector('[data-tab="profile"]')).toBeNull();
+    const profileAfter = panel.querySelector('[data-tab="profile"]') as HTMLElement;
+    expect(profileAfter).not.toBeNull();
+    expect(profileAfter).toHaveStyle({ display: 'none' });
   });
 
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {
@@ -391,7 +429,7 @@ describe('DashboardClient - userShape prop', () => {
     expect(profileTab).toHaveFocus();
   });
 
-  it('renders dash separators at full width matching nav button highlight block', () => {
+  it('renders dash separators as bottom borders on tab buttons (BUG-100)', () => {
     render(
       <DashboardClient
         {...requiredProps}
@@ -402,23 +440,23 @@ describe('DashboardClient - userShape prop', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs.length).toBe(3);
 
-    // 2 separators between 3 tabs. Target the separator divs directly:
-    // they are <div aria-hidden="true"> elements that are direct children
-    // of the wrapper divs (siblings of the buttons).
+    // BUG-100: Tabs must be direct children of the tablist for proper ARIA
+    // semantics. Separators are now rendered as bottom borders on the tab
+    // buttons (except the last one).
     const nav = screen.getByRole('tablist');
-    const separators = nav.querySelectorAll(':scope > div > div[aria-hidden="true"]');
-    expect(separators.length).toBe(2);
-
-    // Separators should have no horizontal margin so they span full width
-    // (same as the active highlight block which also has no horizontal margin).
-    for (const sep of separators) {
-      const style = window.getComputedStyle(sep);
-      // jsdom may report 0 as "0" or "0px" — both mean no margin.
-      expect(Number.parseFloat(style.marginLeft)).toBe(0);
-      expect(Number.parseFloat(style.marginRight)).toBe(0);
-      // Height should remain 1px for the dashed line.
-      expect(Number.parseFloat(style.height)).toBe(1);
+    // All direct children of the tablist should be tab buttons (no wrapper divs).
+    for (const child of Array.from(nav.children)) {
+      expect(child.getAttribute('role')).toBe('tab');
     }
+
+    // First two tabs should have a dashed bottom border (separator).
+    const firstTab = tabs[0] as HTMLElement;
+    const secondTab = tabs[1] as HTMLElement;
+    const lastTab = tabs[2] as HTMLElement;
+    expect(firstTab.style.borderBottom).toContain('dashed');
+    expect(secondTab.style.borderBottom).toContain('dashed');
+    // Last tab should have no separator border.
+    expect(lastTab.style.borderBottom).not.toContain('dashed');
   });
 
   it('isolates crashing tab content with an in-panel fallback', () => {

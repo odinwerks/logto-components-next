@@ -442,11 +442,16 @@ describe('SessionsTab', () => {
       // Simulate a thrown exception (not a safeAction failure).
       // BUG-003 fix: handlePasswordSubmit must NOT re-throw — it should absorb
       // the error, reset loading flags, and emit a generic error toast via onError.
+      // BUG-077: throws first time, succeeds on retry — verifies target is preserved.
+      let callCount = 0;
       const onRevokeSession = vi.fn().mockImplementation(async () => {
-        throw new Error('Network failure');
+        callCount++;
+        if (callCount === 1) throw new Error('Network failure');
+        return { ok: true };
       });
 
       const onError = vi.fn();
+      const onSuccess = vi.fn();
 
       render(
         <SessionsTab
@@ -459,7 +464,7 @@ describe('SessionsTab', () => {
           onRevokeSession={onRevokeSession}
           onRevokeAllOtherSessions={vi.fn()}
           onVerifyPassword={onVerifyPassword}
-          onSuccess={vi.fn()}
+          onSuccess={onSuccess}
           onError={onError}
         />,
       );
@@ -501,6 +506,27 @@ describe('SessionsTab', () => {
       // The modal must NOT be stuck on the "Processing…" loading step — it should
       // recover back to the password step so the user can try again.
       expect(within(revokeDialog).getByPlaceholderText('Enter password')).toBeInTheDocument();
+
+      // BUG-077: Verify the retry actually invokes onRevokeSession again
+      // with the preserved revoke target (not silently swallowed).
+      const retryPasswordInput = within(revokeDialog).getByPlaceholderText('Enter password');
+      fireEvent.change(retryPasswordInput, { target: { value: 'test-password-retry' } });
+
+      const retrySubmitBtn = within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' });
+      await act(async () => {
+        fireEvent.click(retrySubmitBtn);
+      });
+
+      // The second call should have the correct session ID (ses-2), not null.
+      await waitFor(() => {
+        expect(onRevokeSession).toHaveBeenCalledTimes(2);
+      });
+      expect(onRevokeSession.mock.calls[1][0]).toBe('ses-2');
+
+      // On success, the success toast should fire.
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith(enUS.sessions.revoked);
+      });
     });
   });
 
@@ -792,6 +818,38 @@ describe('SessionsTab', () => {
       });
     });
 
+    // BUG-033: Mobile initial unverified skeleton renders mobile layout, not desktop
+    it('renders mobile skeleton on initial unverified state (BUG-033)', async () => {
+      render(
+        <SessionsTab
+          userData={defaultUserData}
+          mode="dark"
+          colors={DARK_COLORS}
+          t={enUS}
+          mobmode={1} // Mobile Mode
+          isActive={false} // Don't auto-open the password modal
+          onGetSessionsWithDeviceMeta={vi.fn()}
+          onRevokeSession={vi.fn()}
+          onRevokeAllOtherSessions={vi.fn()}
+          onVerifyPassword={vi.fn()}
+          onSuccess={vi.fn()}
+          onError={vi.fn()}
+        />,
+      );
+
+      // On mobile with viewState='unverified' and loading=false,
+      // the mobile skeleton should render. Its distinguishing feature:
+      // the "current device" placeholder is a <button> with aria-label.
+      // The desktop skeleton renders a <span> for the same slot, so it
+      // would NOT be findable by getByRole('button', ...).
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: enUS.sessions.thisDevice })).toBeInTheDocument();
+      });
+
+      // The description text should still be rendered (both skeletons show it)
+      expect(screen.getByText(enUS.sessions.description)).toBeInTheDocument();
+    });
+
     it('opens SessionMapModal directly when clicking the map button', async () => {
       const mockGeo = {
         lat: 41.7151,
@@ -897,8 +955,8 @@ describe('SessionsTab', () => {
       renderSessionsTab({ mobmode: 1 });
       await verifyAndLoadSessions();
 
-      // Find the mobile revoke trash button
-      const revokeBtns = screen.getAllByRole('button', { name: enUS.sessions.revoke });
+      // Find the mobile revoke trash button (aria-label now includes session title)
+      const revokeBtns = screen.getAllByRole('button', { name: /Revoke/ });
       expect(revokeBtns.length).toBeGreaterThan(0);
       const revokeBtn = revokeBtns[0] as HTMLButtonElement;
 
@@ -916,9 +974,9 @@ describe('SessionsTab', () => {
       // Use getByRole('button', {...}) which matches on aria-label.
       const currentBtn = screen.getByRole('button', { name: enUS.sessions.thisDevice });
       expect(currentBtn).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
-      // Dark mode (renderSessionsTab uses DARK_COLORS): greenFill #064e3b, greenBorder #10b981
-      expect(currentBtn.style.background).toBe('rgb(6, 78, 59)');
-      expect(currentBtn.style.border).toBe('1px solid rgb(16, 185, 129)');
+      // Dark mode (renderSessionsTab uses DARK_COLORS): successBg fill, accentGreen border
+      expect(currentBtn.style.background).toBe('rgb(2, 26, 17)');
+      expect(currentBtn.style.border).toBe('1px solid rgb(5, 150, 105)');
     });
 
     it('renders desktop Revoke All button with correct translation text', async () => {

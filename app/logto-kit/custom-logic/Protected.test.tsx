@@ -24,6 +24,17 @@ vi.mock('../server-actions', () => ({
   loadOrganizationPermissions: (orgId: string) => mockLoadOrganizationPermissions(orgId),
 }));
 
+// Mock useToast — Protected now fires denial toasts via the unified toast context.
+vi.mock('../components/providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 import { Protected } from '../logic/Protected';
 
 describe('Protected component (Dual-RBAC & strict asOrg)', () => {

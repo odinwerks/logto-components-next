@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ImageCropperRef } from '../components/dashboard/shared/ImageCropper';
 import type { ActionResult } from '../logic/actions/safe';
+import { captureMessage } from '../logic/capture-message';
 import { useAvatarUpload } from './use-avatar-upload';
 
 export interface UseAvatarModalOptions {
@@ -112,13 +113,14 @@ export function useAvatarModal({
   }, []);
 
   const close = useCallback(() => {
-    if (cropPreviewUrl) {
-      URL.revokeObjectURL(cropPreviewUrl);
+    if (cropPreviewUrlRef.current) {
+      URL.revokeObjectURL(cropPreviewUrlRef.current);
+      cropPreviewUrlRef.current = null;
     }
     setCropPreviewUrl(null);
     setSelectedFile(null);
     setIsOpen(false);
-  }, [cropPreviewUrl]);
+  }, []);
 
   const handleFileSelected = useCallback((file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -129,13 +131,17 @@ export function useAvatarModal({
       onError(t.avatarTooLarge);
       return;
     }
-    setSelectedFile(file);
-    if (cropPreviewUrl) {
-      URL.revokeObjectURL(cropPreviewUrl);
+    // Revoke the previous blob URL via the ref (always up-to-date, even within
+    // the same tick / batched update cycle where state would be stale).
+    if (cropPreviewUrlRef.current) {
+      URL.revokeObjectURL(cropPreviewUrlRef.current);
     }
-    setCropPreviewUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    cropPreviewUrlRef.current = url;
+    setSelectedFile(file);
+    setCropPreviewUrl(url);
     clearError();
-  }, [onError, t, clearError, cropPreviewUrl]);
+  }, [onError, t, clearError]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,6 +157,8 @@ export function useAvatarModal({
       onSuccess(t.avatarRemoved);
       refreshData();
       setIsOpen(false);
+    } catch (err) {
+      onError(captureMessage(err));
     } finally {
       setIsRemoving(false);
     }

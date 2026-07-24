@@ -55,9 +55,10 @@
  * // any user could call it directly via the browser console
  */
 
-import { ReactNode, useReducer, useEffect } from 'react';
+import { ReactNode, useReducer, useEffect, useRef } from 'react';
 import { useOrgMode } from '../components/providers/preferences';
 import { useUserDataContext } from '../components/providers/user-data-context';
+import { useToast } from '../components/providers/toast-provider';
 import {
   loadOrganizationPermissions,
   loadPersonalRoles,
@@ -65,6 +66,7 @@ import {
   loadOrganizationUserRoles,
 } from '../server-actions';
 import { debugLog } from './debug';
+import { clientLog } from './client-logger';
 
 /**
  * Reducer state for permission/role loading.
@@ -280,6 +282,10 @@ export function Protected({
   const [state, dispatch] = useReducer(permReducer, initialPermState);
   const { loadedPerms, loadedRoles, isLoadingPerms, loadError, hasLoadedOnce, lastAuthorized } = state;
 
+  // ── Denial toast: fire on authorized → unauthorized transition ───────────
+  const { showToast, mapErrorToast } = useToast();
+  const wasAuthorizedRef = useRef(false);
+
   /** Resolve orgId from props, preferring explicit id over name lookup. */
   function resolveTargetOrgId(): string | undefined {
     return resolveTargetOrgIdPure(orgId, orgName, userData?.organizations);
@@ -287,54 +293,62 @@ export function Protected({
 
   const targetOrgId = resolveTargetOrgId();
 
-  // Single combined effect for permission loading
+  // ── Effect 1: Personal-scope permission loading ──────────────────────────
+  // Personal permissions are org-independent; asOrg changes (org switches)
+  // must NOT trigger a re-fetch here (BUG-M05). This effect omits asOrg
+  // and targetOrgId from its dep array, only re-fetching when user identity
+  // or personal scope definition (orgId/orgName) changes.
   useEffect(() => {
-    // Guard: need userData to proceed
+    if (!userData?.id) return; // Reset handled by effect 2
+
+    const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
+    if (!isPersonalScope) return;
+
+    let cancelled = false;
+    dispatch({ type: 'loading' });
+
+    Promise.all([
+      loadPersonalPermissions(),
+      loadPersonalRoles(),
+    ])
+      .then(([permsRes, rolesRes]) => {
+        if (!cancelled) {
+          const perms = permsRes.ok
+            ? permsRes.data.map((p) => p.scope)
+            : (clientLog.error('Protected', 'permissions load failed:', permsRes.error), []);
+          const roles = rolesRes.ok
+            ? rolesRes.data.map((r) => r.id)
+            : (clientLog.error('Protected', 'roles load failed:', rolesRes.error), []);
+          const authorized = computeAuthorized({
+            perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
+          });
+          dispatch({ type: 'success', perms, roles, authorized });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          dispatch({ type: 'error' });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData?.id, orgId, orgName]);
+
+  // ── Effect 2: Organization-scope permission loading ──────────────────────
+  // Org permissions depend on the active org (asOrg). This effect includes
+  // targetOrgId and asOrg in its dep array so it re-fetches on org switches.
+  useEffect(() => {
+    // Guard: need userData to proceed; reset if user logged out.
     if (!userData?.id) {
-      // `reset` clears hasLoadedOnce/lastAuthorized atomically (replaces the
-      // previous setHasLoadedOnce(false) + ref writes that violated lint).
       dispatch({ type: 'reset' });
       return;
     }
 
-    // Personal scope (orgId === 'self' or omitted)
     const isPersonalScope = orgId === 'self' || (!orgId && !orgName);
-    if (isPersonalScope) {
-      let cancelled = false;
-      dispatch({ type: 'loading' });
-
-      Promise.all([
-        loadPersonalPermissions(),
-        loadPersonalRoles(),
-      ])
-        .then(([permsRes, rolesRes]) => {
-          if (!cancelled) {
-            const perms = permsRes.ok
-              ? permsRes.data.map((p) => p.scope)
-              : (console.error(permsRes.error), []);
-            const roles = rolesRes.ok
-              ? rolesRes.data.map((r) => r.id)
-              : (console.error(rolesRes.error), []);
-            // Compute the authorization decision with the freshly loaded
-            // perms/roles and store it as lastAuthorized (BUG-014): the
-            // *next* loading render will keep showing children iff this was
-            // true, avoiding the unmount/fallback flash on re-fetches.
-            const authorized = computeAuthorized({
-              perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
-            });
-            dispatch({ type: 'success', perms, roles, authorized });
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            dispatch({ type: 'error' });
-          }
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }
+    if (isPersonalScope) return; // Handled by effect 1
 
     // Organization scope
     if (targetOrgId && targetOrgId !== 'self') {
@@ -361,10 +375,10 @@ export function Protected({
         if (!cancelled) {
           const perms = permsRes.ok
             ? permsRes.data
-            : (console.error(permsRes.error), []);
+            : (clientLog.error('Protected', 'org permissions load failed:', permsRes.error), []);
           const roles = rolesRes.ok
             ? rolesRes.data.map((r) => r.id)
-            : (console.error(rolesRes.error), []);
+            : (clientLog.error('Protected', 'org roles load failed:', rolesRes.error), []);
           const authorized = computeAuthorized({
             perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
           });
@@ -380,14 +394,35 @@ export function Protected({
     return () => {
       cancelled = true;
     };
-    // perm/roleId/requireAll/userData are captured by the closure ONLY to
-    // compute the `lastAuthorized` snapshot at success time (BUG-014); they are
-    // NOT load triggers (the render path recomputes isAuthorized with the
-    // latest props every render). Adding them to the dep array would cause
-    // burst re-fetches for inline-array `perm` props (new array identity each
-    // render), so we intentionally exclude them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userData?.id, orgId, orgName, targetOrgId, asOrg]);
+  }, [userData, orgId, orgName, targetOrgId, asOrg]);
+
+  // Compute isAuthorized once for both the denial toast effect and the render path.
+  const isAuthorized = computeAuthorized({
+    perm,
+    roleId,
+    orgId,
+    orgName,
+    requireAll,
+    asOrg,
+    userData,
+    loadedPerms,
+    loadedRoles,
+  });
+
+  // ── Denial toast: fire on authorized → unauthorized transition ───────────
+  // Only for permission-based checks (not the initial loading state or org switches).
+  useEffect(() => {
+    if (hasLoadedOnce && wasAuthorizedRef.current && !isAuthorized && !isLoadingPerms && !loadError) {
+      // Only fire for perm-based checks; org-switch is expected behavior.
+      if (perm) {
+        showToast('error', mapErrorToast('PERMISSION_DENIED'));
+      }
+    }
+    if (hasLoadedOnce) {
+      wasAuthorizedRef.current = isAuthorized;
+    }
+  }, [isAuthorized, hasLoadedOnce, isLoadingPerms, loadError, perm, showToast, mapErrorToast]);
 
   if (!userData) {
     return <>{fallback ?? null}</>;
@@ -411,23 +446,6 @@ export function Protected({
   if (loadError) {
     return <>{fallback ?? null}</>;
   }
-
-  // When loadedPerms is empty (load failed, not yet triggered, or org mismatch),
-  // we must NOT fall back to userData.organizationPermissions because that array
-  // is unscoped - it may contain permissions from ALL organizations the user belongs
-  // to, not just the active one. Returning an empty set is the fail-safe choice:
-  // gated content is hidden rather than shown with potentially wrong permissions.
-  const isAuthorized = computeAuthorized({
-    perm,
-    roleId,
-    orgId,
-    orgName,
-    requireAll,
-    asOrg,
-    userData,
-    loadedPerms,
-    loadedRoles,
-  });
 
   if (isAuthorized) {
     debugLog('[Protected] Access granted', {

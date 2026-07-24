@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { type ThemeColors, DARK_COLORS, LIGHT_COLORS } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
+import { createStorageHelpers } from '../../logic/client-storage';
 import type { ActionResult } from '../../logic/actions/safe';
 
 export type { ThemeColors, LocaleCode };
@@ -11,31 +12,9 @@ const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
 const ORG_STORAGE_KEY = 'org-mode';
 
-function createStorageHelpers<T>(key: string) {
-  return {
-    get: (): T | null => {
-      if (typeof window === 'undefined') return null;
-      try {
-        return sessionStorage.getItem(key) as T | null;
-      } catch {
-        return null;
-      }
-    },
-    set: (value: T) => {
-      if (typeof window === 'undefined') return;
-      try {
-        if (value === null) {
-          sessionStorage.removeItem(key);
-        } else {
-          sessionStorage.setItem(key, String(value));
-        }
-      } catch {
-        // Safe no-op on SecurityError
-      }
-    },
-  };
-}
-
+// Shared `SecurityError`-safe sessionStorage helpers (Phase 6). Extracted
+// from this file into `client-storage.ts` so every client storage consumer
+// (preferences, LangSync, calculator) converges on one implementation.
 const themeStorage = createStorageHelpers<'dark' | 'light'>(THEME_STORAGE_KEY);
 const langStorage = createStorageHelpers<string>(LANG_STORAGE_KEY);
 const orgStorage = createStorageHelpers<string | null>(ORG_STORAGE_KEY);
@@ -127,6 +106,8 @@ export function PreferencesProvider({
   const onUpdateCustomDataRef = useRef(onUpdateCustomData);
   // Ref to onPersistError so stable persist callbacks can access the latest value
   const onPersistErrorRef = useRef(onPersistError);
+  // Ref to onLangChange so setLang has a stable callback reference (BUG-084)
+  const onLangChangeRef = useRef(onLangChange);
 
   const didSyncFromStorage = useRef(false);
   useEffect(() => {
@@ -135,6 +116,9 @@ export function PreferencesProvider({
   useEffect(() => {
     onPersistErrorRef.current = onPersistError;
   }, [onPersistError]);
+  useEffect(() => {
+    onLangChangeRef.current = onLangChange;
+  }, [onLangChange]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (didSyncFromStorage.current) return;
@@ -339,24 +323,26 @@ export function PreferencesProvider({
     setLangState(newLang);
     persistLang(newLang, prev);
     window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { lang: newLang } }));
-    onLangChange?.();
-  }, [persistLang, onLangChange]);
+    onLangChangeRef.current?.();
+  }, [persistLang]);
 
-  const setAsOrg = useCallback((newOrgId: string | null) => {
+  const setAsOrg = useCallback(async (newOrgId: string | null) => {
     const prev = asOrgRef.current;
     asOrgRef.current = newOrgId;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    persistOrg(newOrgId, prev);
+    await persistOrg(newOrgId, prev);
   }, [persistOrg]);
 
+  const themeValue = useMemo(
+    () => ({ mode: theme, colors, setMode, toggleMode }),
+    [theme, colors, setMode, toggleMode]
+  );
+  const langValue = useMemo(() => ({ lang, setLang }), [lang, setLang]);
+  const orgValue = useMemo(() => ({ asOrg, setAsOrg }), [asOrg, setAsOrg]);
   const value = useMemo(
-    () => ({
-      theme: { mode: theme, colors, setMode, toggleMode },
-      lang: { lang, setLang },
-      org: { asOrg, setAsOrg },
-    }),
-    [theme, colors, setMode, toggleMode, lang, setLang, asOrg, setAsOrg]
+    () => ({ theme: themeValue, lang: langValue, org: orgValue }),
+    [themeValue, langValue, orgValue]
   );
 
   return (

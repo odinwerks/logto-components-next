@@ -13,7 +13,7 @@ export default function CalculatorPanel() {
   // after they sign in.
   useEffect(() => {
     if (!isAuthenticated) {
-      openDashboard({ routeTo: '/demo/calculator/live-calculator' });
+      openDashboard({ routeTo: '/calculator/live-demo' });
     }
   }, [isAuthenticated, openDashboard]);
 
@@ -23,7 +23,7 @@ export default function CalculatorPanel() {
 
   return (
     <Protected
-      orgId="5b6sw6p5uzti"
+      orgId="8joxv3kicmlz"
       perm="calc:basic"
       fallback={null}
     >

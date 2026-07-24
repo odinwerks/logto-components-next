@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { AnimatePresence } from '../../shared/motion';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
@@ -58,6 +58,7 @@ export function ContactRow({
     sub: c.textSecondary,
     muted: c.textTertiary,
   };
+  const contactInputId = useId();
   type Kind = 'edit' | 'remove';
   const [modalKind, setModalKind] = useState<Kind | null>(null);
   const [newValue, setNewValue] = useState('');
@@ -270,20 +271,23 @@ export function ContactRow({
           t={t}
           extra={modalKind === 'edit' && step.kind === 'value' ? (
             <div style={{ marginBottom: '1rem' }}>
-              <Lbl colors={colors}>{currentValue ? (type === 'email' ? t.security.email : t.security.phone) : label}</Lbl>
+              <Lbl colors={colors} htmlFor={contactInputId}>{currentValue ? (type === 'email' ? t.security.email : t.security.phone) : label}</Lbl>
               {type === 'phone' ? (
                 <>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: phoneErr ? '0.375rem' : '1rem' }}>
-                    <PhoneCountrySelect
-                      value={selectedCountry}
-                      onChange={setSelectedCountry}
-                      countryFilter={countryFilter}
-                      mode={mode}
-                      colors={colors}
-                      t={t}
-                      disabled={step.kind !== 'value'}
-                    />
+                    <label style={{ display: 'inline-block' }}>
+                      <PhoneCountrySelect
+                        value={selectedCountry}
+                        onChange={setSelectedCountry}
+                        countryFilter={countryFilter}
+                        mode={mode}
+                        colors={colors}
+                        t={t}
+                        disabled={step.kind !== 'value'}
+                      />
+                    </label>
                     <Input
+                      id={contactInputId}
                       type="tel"
                       value={localPhone}
                       onChange={(e) => setLocalPhone(e.target.value.replace(/\D/g, ''))}
@@ -309,6 +313,7 @@ export function ContactRow({
                 </>
               ) : (
                   <Input
+                    id={contactInputId}
                     type={type === 'email' ? 'email' : 'tel'}
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
@@ -358,7 +363,7 @@ export function ContactRow({
           </IconBox>
           <div style={{ minWidth: 0 }}>
             <p style={{ fontFamily: T.font, fontWeight: 500, fontSize: '0.8125rem', color: T.text, marginBottom: '0.0625rem' }}>{label}</p>
-            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: currentValue ? T.sub : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontFamily: T.mono, fontSize: '0.6875rem', color: currentValue ? T.sub : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={displayValue || t.profile.notSet}>
               {displayValue || t.profile.notSet}
             </p>
           </div>

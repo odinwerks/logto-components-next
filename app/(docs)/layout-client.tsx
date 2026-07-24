@@ -8,7 +8,7 @@ import { NAV_ITEMS } from '../demo/nav-data';
 
 const appStyle: React.CSSProperties = {
   display: 'flex',
-  height: '100vh',
+  height: '100dvh',
   overflow: 'hidden',
 };
 
@@ -19,6 +19,8 @@ export default function DocsLayoutClient({ children }: { children: React.ReactNo
   useEffect(() => {
     const container = contentContainerRef.current;
     if (!container) return;
+    // Preserve browser native scroll-to-hash for cross-page deep-links
+    if (window.location.hash) return;
     container.scrollTop = 0;
   }, [pathname]);
 
