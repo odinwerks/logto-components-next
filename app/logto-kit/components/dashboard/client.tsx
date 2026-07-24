@@ -154,6 +154,35 @@ export function DashboardClient({
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(loadedTabs[0] ?? 'profile');
 
+  // Re-sync activeTab when loadedTabs changes (e.g. RBAC gates a tab away)
+  useEffect(() => {
+    setActiveTab((cur) => (loadedTabs.includes(cur) ? cur : (loadedTabs[0] ?? 'profile')));
+  }, [loadedTabs]);
+
+  // ── Visited-tab tracking (Phase 4: CrossFade keepMountedKeys) ──────────────
+  // Tabs the user has opened at least once stay mounted (hidden via
+  // `display:none`) across tab switches so their internal state (form drafts,
+  // hook subscriptions, scroll positions) survives round-trips — and so
+  // `use()` of an already-resolved streamed promise is synchronous on remount
+  // (no Suspense flash). Unvisited tabs do NOT mount until first open, so
+  // their lazy fetches (MFA, sessions) don't fire on page load.
+  //
+  // Seeded with the initial active tab (it is "visited" by virtue of being
+  // displayed on first paint).
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(
+    () => new Set(loadedTabs[0] ? [loadedTabs[0]] : []),
+  );
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- syncing a derived Set from the active tab; the reducer guard makes this a no-op when the tab is already tracked, so it does not cascade. */
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [activeTab]);
+
   // Last-tab tracking for Sessions verification dismissal (D13).
   // Stores the most recent non-sessions tab so that when the user dismisses
   // the sessions verification modal, the shell can navigate back to it.
@@ -245,8 +274,10 @@ export function DashboardClient({
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Security tab needs its tabpanel to be a flex column so the danger zone can
-  // pin to the bottom (D11). Opt-in keeps every other tab byte-identical.
-  const fillHeight = activeTab === 'security';
+  // pin to the bottom (D11). Per-key fillHeight (BUG-L04) keeps the layout
+  // correct during the crossfade's fade-out frame — the outgoing Security panel
+  // stays flex until the fade completes (displayedKey, not activeKey).
+  const fillHeightKeys = ['security'];
 
   return (
     <div
@@ -325,31 +356,32 @@ export function DashboardClient({
           </div>
 
           {/* Nav */}
-          <nav
-            role="tablist"
-            aria-label={t.dashboard.account}
-            style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}
-          >
+          <div style={{ flex: 1, padding: '0.625rem 0.5rem 0.375rem', overflowY: 'auto' }}>
             <p
+              id="account-section-label"
               style={{
                 fontFamily: 'var(--font-ibm-plex-mono)',
                 fontWeight: 600,
                 fontSize: '0.625rem',
-          color: colors.textTertiary,
-          textTransform: 'uppercase',
+                color: colors.textTertiary,
+                textTransform: 'uppercase',
                 letterSpacing: '0.09em',
                 padding: '0.25rem 0.625rem 0.5rem',
               }}
             >
               {t.dashboard.account}
             </p>
-            {loadedTabs.map((tabId, index) => {
-              const Icon = getTabIcon(tabId);
-              const isActive = activeTab === tabId;
-              const isLast = index === loadedTabs.length - 1;
-              return (
-                <div key={tabId}>
+            <nav
+              role="tablist"
+              aria-labelledby="account-section-label"
+            >
+              {loadedTabs.map((tabId, index) => {
+                const Icon = getTabIcon(tabId);
+                const isActive = activeTab === tabId;
+                const isLast = index === loadedTabs.length - 1;
+                return (
                   <NavButton
+                    key={tabId}
                     tabId={tabId}
                     isActive={isActive}
                     label={getTabLabel(tabId, t)}
@@ -363,20 +395,12 @@ export function DashboardClient({
                       tabRefs.current[tabId] = node;
                     }}
                     onClick={() => setActiveTab(tabId)}
+                    borderBottom={!isLast ? `1px dashed ${colors.borderColor}` : undefined}
                   />
-                  {!isLast && (
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        height: 1,
-                        borderTop: `1px dashed ${colors.borderColor}`,
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+                );
+              })}
+            </nav>
+          </div>
 
           {/* Sign Out */}
           <div style={{ padding: '0.375rem 0.5rem 0.75rem', borderTop: `1px solid ${colors.borderColor}` }}>
@@ -400,7 +424,10 @@ export function DashboardClient({
             overflowY: 'auto',
             height: '100%',
             boxSizing: 'border-box',
-            ...(fillHeight ? { display: 'flex', flexDirection: 'column' } : {}),
+            // Always a flex column so a CrossFade child with fillHeightKeys can
+            // resolve `flex: 1 1 auto`. Non-fill tabs render identically.
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <RbacPromisesProvider personalRbacPromise={personalRbacPromise} orgRbacPromise={orgRbacPromise}>
@@ -408,7 +435,8 @@ export function DashboardClient({
             activeKey={activeTab}
             className="dashboard-tabpanel-content"
             duration={0.05}
-            fillHeight={fillHeight}
+            fillHeightKeys={fillHeightKeys}
+            keepMountedKeys={[...visitedTabs]}
             wrapItem={(tabId, isVisible, content) => (
               <TabErrorBoundary
                 resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
@@ -538,7 +566,7 @@ export function DashboardClient({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function NavButton({
-  tabId, isActive, label, Icon, colors, themeMode, onClick, panelId, tabIndex, onKeyDown, buttonRef,
+  tabId, isActive, label, Icon, colors, themeMode, onClick, panelId, tabIndex, onKeyDown, buttonRef, borderBottom,
 }: {
   tabId: TabId;
   isActive: boolean;
@@ -551,6 +579,7 @@ function NavButton({
   onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
   buttonRef: (node: HTMLButtonElement | null) => void;
   onClick: () => void;
+  borderBottom?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const hoverBg = themeMode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)';
@@ -580,6 +609,7 @@ function NavButton({
         background: activeBg,
         border: 'none',
         borderLeft: isActive ? accentBlueLeft : '0.1875rem solid transparent',
+        borderBottom: borderBottom ?? 'none',
         borderRadius: '0 0.25rem 0.25rem 0',
         color: isActive ? colors.accentBlue : colors.textTertiary,
         fontFamily: 'var(--font-ibm-plex-mono)',

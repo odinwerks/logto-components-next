@@ -78,11 +78,15 @@ interface MobileClientProps {
 // Matching the dashboard-router.tsx pattern: module-level functions avoid
 // re-subscription on every render.
 const subNarrow = (cb: () => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
   const mq = window.matchMedia('(max-width: 26rem)');
   mq.addEventListener('change', cb);
   return () => mq.removeEventListener('change', cb);
 };
-const snapNarrow = () => window.matchMedia('(max-width: 26rem)').matches;
+const snapNarrow = () =>
+  (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(max-width: 26rem)').matches
+    : false;
 const serverNarrow = () => false;
 
 export function MobileClient({
@@ -138,6 +142,34 @@ export function MobileClient({
   const [view, setView] = useState<'menu' | 'tab'>('menu');
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
 
+  // ── Visited-tab tracking (Phase 4: CrossFade keepMountedKeys) ──────────────
+  // Tabs the user has opened at least once stay mounted (hidden via
+  // `display:none`) across tab switches so their internal state (form drafts,
+  // hook subscriptions, scroll positions) survives round-trips — and so
+  // `use()` of an already-resolved streamed promise is synchronous on remount
+  // (no Suspense flash). Unvisited tabs do NOT mount until first open, so
+  // their lazy fetches (MFA, sessions) don't fire on page load.
+  //
+  // The mobile shell already keeps the menu + tab views mounted at the outer
+  // level; this inner `keepMountedKeys` adds the same preservation across
+  // tab↔tab switches (e.g. profile → organizations → profile keeps the
+  // profile's form drafts).
+  //
+  // Not seeded with any tab on mount (mobile starts at the menu, not a tab);
+  // tabs are added as the user opens them.
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set());
+  useEffect(() => {
+    if (activeTab === null) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- syncing a derived Set from the active tab; the reducer guard makes this a no-op when the tab is already tracked, so it does not cascade. */
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [activeTab]);
+
   // Last-tab tracking for Sessions verification dismissal (D13).
   const lastNonSessionsTabRef = useRef<TabId | null>(null);
   useEffect(() => {
@@ -191,7 +223,8 @@ export function MobileClient({
 
   // Security tab pins its danger zone to the bottom (M6/D11). Other tabs keep
   // their existing vertically-centered, min-height-grows-with-content layout.
-  const fillHeight = activeTab === 'security';
+  // Per-key fillHeight (BUG-L04) keeps the layout correct during crossfade.
+  const fillHeightKeys = ['security'];
 
   return (
     <>
@@ -336,8 +369,8 @@ export function MobileClient({
               flexDirection: 'column',
               // When filling, use a DEFINITE height so the inner sticky-footer
               // can scroll; otherwise keep the current min-height + centering.
-              justifyContent: fillHeight ? 'flex-start' : 'center',
-              ...(fillHeight
+              justifyContent: fillHeightKeys.includes(activeTab ?? '') ? 'flex-start' : 'center',
+              ...(fillHeightKeys.includes(activeTab ?? '')
                 ? { height: 'calc(100dvh - 5.5rem)' }
                 : { minHeight: 'calc(100dvh - 5.5rem)' }),
             }}
@@ -349,7 +382,8 @@ export function MobileClient({
               className="dashboard-tabpanel-content"
               duration={0.05}
               instant
-              fillHeight={fillHeight}
+              fillHeightKeys={fillHeightKeys}
+              keepMountedKeys={[...visitedTabs]}
               wrapItem={(tabId, isVisible, content) => (
                 <TabErrorBoundary
                   resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}

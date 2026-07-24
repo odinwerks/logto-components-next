@@ -55,6 +55,17 @@ vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
 vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
 vi.mock('./shared/Toast', () => ({ ToastContainer: () => null }));
 
+// Mock unified toast context (MobileClient now uses useToast)
+vi.mock('../providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 import { MobileClient } from './mobile-client';
 
 const stubUserData: import('../../logic/types').UserData = {

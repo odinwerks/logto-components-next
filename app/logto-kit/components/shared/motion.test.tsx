@@ -309,6 +309,156 @@ describe('CrossFade', () => {
     expect(container.querySelector('[data-tab="b"]')).toBeNull();
     expect(container.querySelector('[data-tab="a"]')).not.toHaveStyle({ display: 'none' });
   });
+
+  // ─── keepMountedKeys ───────────────────────────────────────────────────────
+
+  it('keepMountedKeys: kept keys render with display:none and aria-hidden when not active', () => {
+    const { container } = render(
+      <CrossFade activeKey="a" keepMountedKeys={['a', 'b']}>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>,
+    );
+    // 'a' is active → visible.
+    const a = container.querySelector('[data-tab="a"]') as HTMLElement;
+    expect(a).not.toHaveStyle({ display: 'none' });
+    expect(a.getAttribute('aria-hidden')).toBeNull();
+    // 'b' is kept-mounted → rendered but hidden.
+    const b = container.querySelector('[data-tab="b"]') as HTMLElement;
+    expect(b).not.toBeNull();
+    expect(b).toHaveStyle({ display: 'none' });
+    expect(b.getAttribute('aria-hidden')).toBe('true');
+    expect(b.getAttribute('data-kept-mounted')).toBe('true');
+  });
+
+  it('keepMountedKeys: preserves child component state across key round-trips', () => {
+    // The key behavior: kept-mounted tabs survive switches without
+    // unmounting, so internal state (form drafts, hook subscriptions) is
+    // preserved. This is the inverse of the "does NOT preserve state" test
+    // above — keepMountedKeys opts INTO state preservation.
+    vi.useFakeTimers();
+
+    const Stateful = ({ id }: { id: string }) => {
+      const [v, setV] = useState('');
+      return <input data-testid={`input-${id}`} value={v} onChange={(e) => setV(e.target.value)} />;
+    };
+    const renderTree = (key: string) => (
+      <CrossFade activeKey={key} keepMountedKeys={['a', 'b']}>
+        {(k) => <Stateful id={k} />}
+      </CrossFade>
+    );
+
+    const { rerender } = render(renderTree('a'));
+    fireEvent.change(screen.getByTestId('input-a'), { target: { value: 'draft' } });
+    expect(screen.getByTestId('input-a')).toHaveValue('draft');
+
+    // Switch to 'b' — 'a' should stay mounted (hidden) with its state.
+    rerender(renderTree('b'));
+    // 'a' is hidden but still in the DOM with its draft value.
+    const aInput = screen.getByTestId('input-a') as HTMLInputElement;
+    expect(aInput).toHaveValue('draft');
+    // 'b' is now visible.
+    expect(screen.getByTestId('input-b')).toBeInTheDocument();
+
+    // Switch back to 'a' — state is preserved (no re-mount).
+    rerender(renderTree('a'));
+    expect(screen.getByTestId('input-a')).toHaveValue('draft');
+
+    vi.useRealTimers();
+  });
+
+  it('keepMountedKeys: unvisited keys (not in the set) still unmount on switch', () => {
+    // Only visited tabs stay mounted — unvisited tabs (e.g. Sessions,
+    // Security on first load) do NOT mount until the user opens them.
+    vi.useFakeTimers();
+    const renderTree = (key: string) => (
+      <CrossFade activeKey={key} keepMountedKeys={['a']}>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>
+    );
+
+    const { container, rerender } = render(renderTree('a'));
+    expect(container.querySelector('[data-tab="a"]')).not.toBeNull();
+
+    // Switch to 'b' (not in keepMountedKeys). During the fade, 'a' is the
+    // OUTGOING displayed panel (still visible, opacity animating to 0) and
+    // 'b' is the incoming panel (hidden via display:none until the fade
+    // completes). 'a' is in keepMountedKeys, so it must NOT unmount after
+    // the fade — it transitions to display:none (kept-mounted).
+    rerender(renderTree('b'));
+    // 'a' is the outgoing displayed panel during the fade.
+    expect(container.querySelector('[data-tab="a"]')).not.toBeNull();
+    expect(container.querySelector('[data-tab="b"]')).not.toBeNull();
+
+    // After the fade: 'a' (kept-mounted) transitions to display:none;
+    // 'b' (not in keepMountedKeys but now the displayed key) is visible.
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
+
+    // Switch to 'c' (also not in keepMountedKeys) — 'b' unmounts, 'a' stays.
+    rerender(renderTree('c'));
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(container.querySelector('[data-tab="b"]')).toBeNull();
+    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="c"]')).not.toHaveStyle({ display: 'none' });
+
+    vi.useRealTimers();
+  });
+
+  it('keepMountedKeys: omitted (default) leaves behavior identical to today', () => {
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <CrossFade activeKey="a">
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>,
+    );
+    rerender(
+      <CrossFade activeKey="b">
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>,
+    );
+    act(() => { vi.advanceTimersByTime(150); });
+    // 'a' unmounts (no keepMountedKeys).
+    expect(container.querySelector('[data-tab="a"]')).toBeNull();
+    expect(container.querySelector('[data-tab="b"]')).not.toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('keepMountedKeys: kept panels stay mounted DURING the fade (no flash-unmount)', () => {
+    // The 50ms fade-out frame must NOT unmount kept panels — or their state
+    // is lost during the fade. Kept panels stay in the DOM with display:none
+    // throughout the fade transition.
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <CrossFade activeKey="a" keepMountedKeys={['a', 'b', 'c']} duration={0.12}>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>,
+    );
+
+    // Switch a → b (triggers fade). 'c' is kept-mounted but not active.
+    rerender(
+      <CrossFade activeKey="b" keepMountedKeys={['a', 'b', 'c']} duration={0.12}>
+        {(k) => <div data-testid={`panel-${k}`}>{k}</div>}
+      </CrossFade>,
+    );
+
+    // During the fade: 'a' (outgoing) + 'b' (incoming) + 'c' (kept) all in DOM.
+    expect(container.querySelector('[data-tab="a"]')).not.toBeNull();
+    expect(container.querySelector('[data-tab="b"]')).not.toBeNull();
+    expect(container.querySelector('[data-tab="c"]')).not.toBeNull();
+    // 'c' is hidden (kept-mounted, not active).
+    expect(container.querySelector('[data-tab="c"]')).toHaveStyle({ display: 'none' });
+
+    // After the fade: 'a' (in keepMountedKeys) stays mounted but hidden,
+    // 'b' (now displayed) is visible, 'c' (kept) stays hidden.
+    act(() => { vi.advanceTimersByTime(150); });
+    expect(container.querySelector('[data-tab="a"]')).not.toBeNull();
+    expect(container.querySelector('[data-tab="a"]')).toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="b"]')).not.toHaveStyle({ display: 'none' });
+    expect(container.querySelector('[data-tab="c"]')).toHaveStyle({ display: 'none' });
+
+    vi.useRealTimers();
+  });
 });
 
 describe('StaggerContainer + StaggerItem', () => {
