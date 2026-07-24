@@ -10,6 +10,17 @@ vi.mock('../../../logic/actions/auth', () => ({
   signOutUser: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock unified toast context (required since SignOutModal now uses useToast)
+vi.mock('../../providers/toast-provider', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    dismissAll: vi.fn(),
+    mapErrorToast: vi.fn((code: string) => code),
+    setSuppressAll: vi.fn(),
+  }),
+}));
+
 // Mock translations
 const mockT = {
   signout: {
@@ -36,6 +47,6 @@ describe('SignOutModal - countdown styling', () => {
     const strong = screen.getByText('15');
     expect(strong.tagName).toBe('STRONG');
     // The parent paragraph should contain the styled number
-    expect(strong.parentElement?.tagName).toBe('P');
+    expect(strong.parentElement?.tagName).toBe('SPAN');
   });
 });
