@@ -88,6 +88,8 @@ const stubTranslations = {
     error: 'Error',
     loadFailed: 'Failed to load',
     defaultUserName: 'User',
+    closeDashboard: 'Close dashboard',
+    backToMenu: 'Back to menu',
   },
   common: { signOut: 'Sign out' },
   tabs: {

@@ -16,6 +16,8 @@ export const kaGE: Translations = {
     opaqueToken: 'OPAQUE',
     defaultUserName: 'მომხმარებელი',
     account: 'ანგარიში',
+    closeDashboard: 'დახურე დაშბორდი',
+    backToMenu: 'მენიუში დაბრუნება',
   },
   
   // Tabs
@@ -420,6 +422,7 @@ export const kaGE: Translations = {
     loggedInAs: 'შესული ხართ როგორც',
     openUserDashboard: 'მომხმარებლის დაშბორდის გახსნა',
     yes: 'კი',
+    imageCropperHint: 'გადაიტანეთ გასაადვილებლად · გადახვევა ან +/− ზუმისთვის · ორმაგი დაჭერა ნულიდან დასაბრუნებლად',
     cancel: 'გაუქმება',
     allow: 'დაშვება',
     unexpectedError: 'მოულოდნელი შეცდომა',

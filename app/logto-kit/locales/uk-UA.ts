@@ -16,6 +16,8 @@ export const ukUA: Translations = {
     opaqueToken: 'OPAQUE',
     defaultUserName: 'Користувач',
     account: 'Обліковий запис',
+    closeDashboard: 'Закрити панель',
+    backToMenu: 'Назад до меню',
   },
   
   // Tabs
@@ -420,6 +422,7 @@ export const ukUA: Translations = {
     loggedInAs: 'Ви увійшли як',
     openUserDashboard: 'Відкрити панель користувача',
     yes: 'Так',
+    imageCropperHint: 'Перетягуйте для переміщення · Прокрутіть або +/− для зуму · Подвійне клацання для скидання',
     cancel: 'Скасувати',
     allow: 'Дозволити',
     unexpectedError: 'Неочікувана помилка',

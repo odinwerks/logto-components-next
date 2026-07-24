@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import type { ThemeColors } from '../../../themes';
+import type { Translations } from '../../../locales';
 
 const CANVAS_SIZE = 512;
 const CROP_SIZE = 460;
@@ -209,10 +210,11 @@ interface ImageCropperProps {
   displaySize?: number;
   mode: 'dark' | 'light';
   colors: ThemeColors;
+  t?: Translations;
 }
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
-  ({ imageUrl, shape: shapeProp, userShape, outputSize = 512, displaySize = 180, mode: _mode, colors }, ref) => {
+  ({ imageUrl, shape: shapeProp, userShape, outputSize = 512, displaySize = 180, mode: _mode, colors, t }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [scale, setScale] = useState(1);
@@ -552,7 +554,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         fontFamily: "'DM Sans', system-ui, sans-serif",
         textAlign: 'center',
       }}>
-        Drag to move · Scroll or +/− to zoom · Double-click to reset
+        {t?.common.imageCropperHint || 'Drag to move · Scroll or +/− to zoom · Double-click to reset'}
       </p>
     </div>
   );
