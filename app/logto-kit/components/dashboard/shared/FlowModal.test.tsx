@@ -708,7 +708,7 @@ describe('FlowModal - BUG-031 overlay scroll and maxHeight', () => {
     expect(overlay).toBeInTheDocument();
     expect(overlay.style.overflowY).toBe('auto');
 
-    expect(overlay.style.alignItems).toBe('flex-start');
+    expect(overlay.style.alignItems).toBe('safe center');
   });
 
   it('dialog container has maxHeight 100%', () => {
