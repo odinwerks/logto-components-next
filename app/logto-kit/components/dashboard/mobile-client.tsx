@@ -12,7 +12,7 @@ import { useLogto } from '../providers/logto-provider';
 import { SignOutModal } from './shared/SignOutModal';
 import { TabErrorBoundary } from './shared/TabErrorBoundary';
 import { useToast } from '../providers/toast-provider';
-import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
+import { CrossFade, MotionButton, AnimatePresence, motion } from '../shared/motion';
 import { ProfileTab } from './tabs/profile';
 import { PreferencesTab } from './tabs/preferences';
 import { SecurityTab } from './tabs/security';
@@ -228,325 +228,335 @@ export function MobileClient({
 
   return (
     <>
-      {/* ── Menu view ────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          width: '100%',
-          minHeight: '100dvh',
-          display: view === 'menu' ? 'flex' : 'none',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: colors.bgPage,
-          color: colors.textPrimary,
-          fontFamily: FONT_MONO,
-          position: 'relative',
-          overflowY: 'auto',
-          padding: '2rem 1rem calc(env(safe-area-inset-bottom, 0px) + 12rem)',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Ambient glow at top */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '30%',
-            background: `radial-gradient(ellipse at top, ${
-              mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
-            } 0%, transparent 70%)`,
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Entry box */}
-        <div
-          data-testid="mobile-main-stack"
-          style={{
-            width: '100%',
-            maxWidth: isCompact ? '18.5rem' : '20rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.625rem',
-          }}
-        >
-          {loadedTabs.map((tabId) => (
-            <MobileMenuEntry
-              key={tabId}
-              tabId={tabId}
-              label={getTabLabel(tabId, t)}
-              colors={colors}
-              onClick={() => openTab(tabId)}
-            />
-          ))}
-        </div>
-
-        <div
-          data-testid="mobile-signout-dock"
-          style={{
-            position: 'absolute',
-            left: 'max(1rem, env(safe-area-inset-left, 0px))',
-            right: 'max(1rem, env(safe-area-inset-right, 0px))',
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)',
-            margin: '0 auto',
-            width: '100%',
-            maxWidth: isCompact ? '18.5rem' : '20rem',
-            zIndex: 10,
-          }}
-        >
-          <MobileMenuEntry
-            key="mobile-signout"
-            isSignOut
-            label={t.common.signOut}
-            colors={colors}
-            onClick={handleSignOut}
-          />
-        </div>
-
-        {/* Close dashboard button */}
-        <button
-          onClick={closeDashboard}
-          aria-label={t.dashboard.closeDashboard}
-          style={{
-            position: 'fixed',
-            bottom: '1rem',
-            right: '1rem',
-            width: '2.5rem',
-            height: '2.5rem',
-            borderRadius: '0.625rem',
-            border: `1px solid ${colors.borderColor}`,
-            background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-            backdropFilter: 'blur(0.5rem)',
-            WebkitBackdropFilter: 'blur(0.5rem)',
-            color: colors.textSecondary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            transition: 'background 0.15s ease, color 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.bgSecondary;
-            e.currentTarget.style.color = colors.textPrimary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-            e.currentTarget.style.color = colors.textSecondary;
-          }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-      </div>
-
-      {/* ── Tab view ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          width: '100%',
-          minHeight: '100dvh',
-          display: view === 'tab' ? undefined : 'none',
-          background: colors.bgPage,
-          color: colors.textPrimary,
-          position: 'relative',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            minHeight: '100dvh',
-            padding: isCompact ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
-            boxSizing: 'border-box',
-            overflowY: 'auto',
-          }}
-        >
-          <div
+      <AnimatePresence mode="wait">
+        {view === 'menu' ? (
+          <motion.div
+            key="mobile-menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
             style={{
+              width: '100%',
+              minHeight: '100dvh',
               display: 'flex',
               flexDirection: 'column',
-              // When filling, use a DEFINITE height so the inner sticky-footer
-              // can scroll; otherwise keep the current min-height + centering.
-              justifyContent: fillHeightKeys.includes(activeTab ?? '') ? 'flex-start' : 'center',
-              ...(fillHeightKeys.includes(activeTab ?? '')
-                ? { height: 'calc(100dvh - 5.5rem)' }
-                : { minHeight: 'calc(100dvh - 5.5rem)' }),
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: colors.bgPage,
+              color: colors.textPrimary,
+              fontFamily: FONT_MONO,
+              position: 'relative',
+              overflowY: 'auto',
+              padding: '2rem 1rem calc(env(safe-area-inset-bottom, 0px) + 12rem)',
+              boxSizing: 'border-box',
             }}
           >
-            {activeTab !== null ? (
-              <RbacPromisesProvider personalRbacPromise={personalRbacPromise} orgRbacPromise={orgRbacPromise}>
-              <CrossFade
-                activeKey={activeTab}
-              className="dashboard-tabpanel-content"
-              duration={0.05}
-              instant
-              fillHeightKeys={fillHeightKeys}
-              keepMountedKeys={[...visitedTabs]}
-              wrapItem={(tabId, isVisible, content) => (
-                <TabErrorBoundary
-                  resetKey={`${tabId}-${activeTab}`}
-                  fallback={(
-                    <div
-                      role="alert"
-                      style={{
-                        fontFamily: FONT_MONO,
-                        color: colors.accentRed,
-                        fontSize: '0.8125rem',
-                      }}
+            {/* Ambient glow at top */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '30%',
+                background: `radial-gradient(ellipse at top, ${
+                  mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
+                } 0%, transparent 70%)`,
+                pointerEvents: 'none',
+              }}
+            />
+
+            {/* Entry box */}
+            <div
+              data-testid="mobile-main-stack"
+              style={{
+                width: '100%',
+                maxWidth: isCompact ? '18.5rem' : '20rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.625rem',
+              }}
+            >
+              {loadedTabs.map((tabId) => (
+                <MobileMenuEntry
+                  key={tabId}
+                  tabId={tabId}
+                  label={getTabLabel(tabId, t)}
+                  colors={colors}
+                  onClick={() => openTab(tabId)}
+                />
+              ))}
+            </div>
+
+            <div
+              data-testid="mobile-signout-dock"
+              style={{
+                position: 'absolute',
+                left: 'max(1rem, env(safe-area-inset-left, 0px))',
+                right: 'max(1rem, env(safe-area-inset-right, 0px))',
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)',
+                margin: '0 auto',
+                width: '100%',
+                maxWidth: isCompact ? '18.5rem' : '20rem',
+                zIndex: 10,
+              }}
+            >
+              <MobileMenuEntry
+                key="mobile-signout"
+                isSignOut
+                label={t.common.signOut}
+                colors={colors}
+                onClick={handleSignOut}
+              />
+            </div>
+
+            {/* Close dashboard button */}
+            <button
+              onClick={closeDashboard}
+              aria-label={t.dashboard.closeDashboard}
+              style={{
+                position: 'fixed',
+                bottom: '1rem',
+                right: '1rem',
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '0.625rem',
+                border: `1px solid ${colors.borderColor}`,
+                background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                backdropFilter: 'blur(0.5rem)',
+                WebkitBackdropFilter: 'blur(0.5rem)',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 100,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                transition: 'background 0.15s ease, color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.bgSecondary;
+                e.currentTarget.style.color = colors.textPrimary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.color = colors.textSecondary;
+              }}
+            >
+              <ArrowLeft size={18} />
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="mobile-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            style={{
+              width: '100%',
+              minHeight: '100dvh',
+              background: colors.bgPage,
+              color: colors.textPrimary,
+              position: 'relative',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                minHeight: '100dvh',
+                padding: isCompact ? '1rem 0.875rem 4rem' : '1.5rem 1.25rem 4rem',
+                boxSizing: 'border-box',
+                overflowY: 'auto',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  // When filling, use a DEFINITE height so the inner sticky-footer
+                  // can scroll; otherwise keep the current min-height + centering.
+                  justifyContent: fillHeightKeys.includes(activeTab ?? '') ? 'flex-start' : 'center',
+                  ...(fillHeightKeys.includes(activeTab ?? '')
+                    ? { height: 'calc(100dvh - 5.5rem)' }
+                    : { minHeight: 'calc(100dvh - 5.5rem)' }),
+                }}
+              >
+                {activeTab !== null ? (
+                  <RbacPromisesProvider personalRbacPromise={personalRbacPromise} orgRbacPromise={orgRbacPromise}>
+                  <CrossFade
+                    activeKey={activeTab}
+                  className="dashboard-tabpanel-content"
+                  duration={0.12}
+                  fillHeightKeys={fillHeightKeys}
+                  keepMountedKeys={[...visitedTabs]}
+                  wrapItem={(tabId, isVisible, content) => (
+                    <TabErrorBoundary
+                      resetKey={`${tabId}-${activeTab}`}
+                      fallback={(
+                        <div
+                          role="alert"
+                          style={{
+                            fontFamily: FONT_MONO,
+                            color: colors.accentRed,
+                            fontSize: '0.8125rem',
+                          }}
+                        >
+                          {t.dashboard.error}
+                        </div>
+                      )}
                     >
-                      {t.dashboard.error}
-                    </div>
+                      {content}
+                    </TabErrorBoundary>
                   )}
                 >
-                  {content}
-                </TabErrorBoundary>
-              )}
+                  {(tabId) => (
+                    <>
+                      {tabId === 'profile' && (
+                        <ProfileTab
+                          userData={userData}
+                          mode={mode}
+                          colors={colors}
+                          t={t}
+                          mobmode={1}
+                          countryFilter={countryFilter}
+                          nameType={nameType}
+                          onUpdateBasicInfo={onUpdateBasicInfo}
+                          onUpdateAvatarUrl={onUpdateAvatarUrl}
+                          onUpdateProfile={onUpdateProfile}
+                          onVerifyPassword={onVerifyPassword}
+                          onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
+                          onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
+                          onVerifyCode={onVerifyCode}
+                          onUpdateEmail={onUpdateEmail}
+                          onUpdatePhone={onUpdatePhone}
+                          onRemoveEmail={onRemoveEmail}
+                          onRemovePhone={onRemovePhone}
+                          onSuccess={(msg) => showToast('success', msg)}
+                          onError={(msg) => showToast('error', mapErrorToast(msg))}
+                          refreshData={refreshData}
+                        />
+                      )}
+
+                      {tabId === 'preferences' && (
+                        <PreferencesTab
+                          mode={mode}
+                          colors={colors}
+                          t={t}
+                          supportedLangs={supportedLangs}
+                          mobmode={1}
+                        />
+                      )}
+
+                      {tabId === 'security' && (
+                        <SecurityTab
+                          userData={userData}
+                          mode={mode}
+                          colors={colors}
+                          t={t}
+                          mobmode={1}
+                          onVerifyPassword={onVerifyPassword}
+                          onGetMfaVerifications={onGetMfaVerifications}
+                          onGenerateTotpSecret={onGenerateTotpSecret}
+                          onAddMfaVerification={onAddMfaVerification}
+                          onDeleteMfaVerification={onDeleteMfaVerification}
+                          onReplaceTotpVerification={onReplaceTotpVerification}
+                          onGenerateBackupCodes={onGenerateBackupCodes}
+                          onUpdatePassword={onUpdatePassword}
+                          onDeleteAccount={onDeleteAccount}
+                          onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
+                          onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
+                          onRenamePasskey={onRenamePasskey}
+                          onSuccess={(msg) => showToast('success', msg)}
+                          onError={(msg) => showToast('error', mapErrorToast(msg))}
+                        />
+                      )}
+
+                      {tabId === 'sessions' && (
+                        <SessionsTab
+                          userData={userData}
+                          mode={mode}
+                          colors={colors}
+                          t={t}
+                          mobmode={1}
+                          onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
+                          onRevokeSession={onRevokeSession}
+                          onRevokeAllOtherSessions={onRevokeAllOtherSessions}
+                          onVerifyPassword={onVerifyPassword}
+                          onSuccess={(msg) => showToast('success', msg)}
+                          onError={(msg) => showToast('error', mapErrorToast(msg))}
+                          isActive={view === 'tab' && activeTab === 'sessions'}
+                          onVerificationDismissed={() => {
+                            const fallbackTab = lastNonSessionsTabRef.current
+                              ?? loadedTabs.find((id) => id !== 'sessions')
+                              ?? loadedTabs[0]
+                              ?? 'profile';
+                            if (fallbackTab === activeTab) {
+                              // Sessions is the only tab — go back to menu
+                              backToMenu();
+                            } else {
+                              setActiveTab(fallbackTab);
+                            }
+                          }}
+                        />
+                      )}
+
+                      {tabId === 'identities' && (
+                        <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
+                      )}
+
+                      {tabId === 'organizations' && (
+                        <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
+                      )}
+                 </>
+                )}
+                </CrossFade>
+                  </RbacPromisesProvider>
+                ) : null}
+
+              </div>
+            </div>
+
+            {/* Floating back button */}
+            <button
+              onClick={backToMenu}
+              aria-label={t.dashboard.backToMenu}
+              style={{
+                position: 'fixed',
+                bottom: '1rem',
+                right: '1rem',
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '0.625rem',
+                border: `1px solid ${colors.borderColor}`,
+                background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                backdropFilter: 'blur(0.5rem)',
+                WebkitBackdropFilter: 'blur(0.5rem)',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 100,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                transition: 'background 0.15s ease, color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.bgSecondary;
+                e.currentTarget.style.color = colors.textPrimary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.color = colors.textSecondary;
+              }}
             >
-              {(tabId) => (
-                <>
-                  {tabId === 'profile' && (
-                    <ProfileTab
-                      userData={userData}
-                      mode={mode}
-                      colors={colors}
-                      t={t}
-                      mobmode={1}
-                      countryFilter={countryFilter}
-                      nameType={nameType}
-                      onUpdateBasicInfo={onUpdateBasicInfo}
-                      onUpdateAvatarUrl={onUpdateAvatarUrl}
-                      onUpdateProfile={onUpdateProfile}
-                      onVerifyPassword={onVerifyPassword}
-                      onSendEmailVerification={(value) => onSendEmailVerification(value, lang)}
-                      onSendPhoneVerification={(value) => onSendPhoneVerification(value, lang)}
-                      onVerifyCode={onVerifyCode}
-                      onUpdateEmail={onUpdateEmail}
-                      onUpdatePhone={onUpdatePhone}
-                      onRemoveEmail={onRemoveEmail}
-                      onRemovePhone={onRemovePhone}
-                      onSuccess={(msg) => showToast('success', msg)}
-                      onError={(msg) => showToast('error', mapErrorToast(msg))}
-                      refreshData={refreshData}
-                    />
-                  )}
-
-                  {tabId === 'preferences' && (
-                    <PreferencesTab
-                      mode={mode}
-                      colors={colors}
-                      t={t}
-                      supportedLangs={supportedLangs}
-                      mobmode={1}
-                    />
-                  )}
-
-                  {tabId === 'security' && (
-                    <SecurityTab
-                      userData={userData}
-                      mode={mode}
-                      colors={colors}
-                      t={t}
-                      mobmode={1}
-                      onVerifyPassword={onVerifyPassword}
-                      onGetMfaVerifications={onGetMfaVerifications}
-                      onGenerateTotpSecret={onGenerateTotpSecret}
-                      onAddMfaVerification={onAddMfaVerification}
-                      onDeleteMfaVerification={onDeleteMfaVerification}
-                      onReplaceTotpVerification={onReplaceTotpVerification}
-                      onGenerateBackupCodes={onGenerateBackupCodes}
-                      onUpdatePassword={onUpdatePassword}
-                      onDeleteAccount={onDeleteAccount}
-                      onRequestWebAuthnRegistration={onRequestWebAuthnRegistration}
-                      onVerifyAndLinkWebAuthn={onVerifyAndLinkWebAuthn}
-                      onRenamePasskey={onRenamePasskey}
-                      onSuccess={(msg) => showToast('success', msg)}
-                      onError={(msg) => showToast('error', mapErrorToast(msg))}
-                    />
-                  )}
-
-                  {tabId === 'sessions' && (
-                    <SessionsTab
-                      userData={userData}
-                      mode={mode}
-                      colors={colors}
-                      t={t}
-                      mobmode={1}
-                      onGetSessionsWithDeviceMeta={onGetSessionsWithDeviceMeta}
-                      onRevokeSession={onRevokeSession}
-                      onRevokeAllOtherSessions={onRevokeAllOtherSessions}
-                      onVerifyPassword={onVerifyPassword}
-                      onSuccess={(msg) => showToast('success', msg)}
-                      onError={(msg) => showToast('error', mapErrorToast(msg))}
-                      isActive={view === 'tab' && activeTab === 'sessions'}
-                      onVerificationDismissed={() => {
-                        const fallbackTab = lastNonSessionsTabRef.current
-                          ?? loadedTabs.find((id) => id !== 'sessions')
-                          ?? loadedTabs[0]
-                          ?? 'profile';
-                        if (fallbackTab === activeTab) {
-                          // Sessions is the only tab — go back to menu
-                          backToMenu();
-                        } else {
-                          setActiveTab(fallbackTab);
-                        }
-                      }}
-                    />
-                  )}
-
-                  {tabId === 'identities' && (
-                    <IdentitiesTab userData={userData} mode={mode} colors={colors} t={t} mobmode={1} />
-                  )}
-
-                  {tabId === 'organizations' && (
-                    <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
-                  )}
-             </>
-            )}
-            </CrossFade>
-              </RbacPromisesProvider>
-            ) : null}
-
-          </div>
-        </div>
-
-        {/* Floating back button */}
-        <button
-          onClick={backToMenu}
-          aria-label={t.dashboard.backToMenu}
-          style={{
-            position: 'fixed',
-            bottom: '1rem',
-            right: '1rem',
-            width: '2.5rem',
-            height: '2.5rem',
-            borderRadius: '0.625rem',
-            border: `1px solid ${colors.borderColor}`,
-            background: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-            backdropFilter: 'blur(0.5rem)',
-            WebkitBackdropFilter: 'blur(0.5rem)',
-            color: colors.textSecondary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            transition: 'background 0.15s ease, color 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.bgSecondary;
-            e.currentTarget.style.color = colors.textPrimary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-            e.currentTarget.style.color = colors.textSecondary;
-          }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-      </div>
+              <ArrowLeft size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Shared overlays ──────────────────────────────────────────────── */}
       <AnimatePresence>
