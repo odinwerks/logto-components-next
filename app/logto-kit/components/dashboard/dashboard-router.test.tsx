@@ -32,12 +32,12 @@ describe('DashboardRouter', () => {
     }
 
     const { rerender } = render(<TestComponent />);
-    expect(addEventListenerMock).toHaveBeenCalledTimes(2); // one for portrait, one for narrow
+    expect(addEventListenerMock).toHaveBeenCalledTimes(1); // one for portrait only
     expect(removeEventListenerMock).not.toHaveBeenCalled();
 
     rerender(<TestComponent />);
     // With a stable subscribe function, re-render should not trigger unsubscribe & re-subscribe
-    expect(addEventListenerMock).toHaveBeenCalledTimes(2);
+    expect(addEventListenerMock).toHaveBeenCalledTimes(1);
     expect(removeEventListenerMock).not.toHaveBeenCalled();
   });
 
@@ -66,7 +66,7 @@ describe('DashboardRouter', () => {
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
   });
 
-  it('uses narrow width media-query match on first client render', () => {
+  it('does NOT use narrow width media-query alone to trigger mobile layout', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -88,7 +88,8 @@ describe('DashboardRouter', () => {
       />,
     );
 
-    expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
+    // Narrow width alone should NOT trigger mobile — only orientation does.
+    expect(screen.getByText('desktop-dashboard')).toBeInTheDocument();
   });
 
   it('renders only the active branch after hydration (BUG-009)', () => {
@@ -191,7 +192,7 @@ describe('DashboardRouter', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
-        matches: query === '(orientation: portrait)' || query === '(max-width: 64rem)',
+        matches: query === '(orientation: portrait)',
         media: query,
         onchange: null,
         addEventListener: vi.fn(),

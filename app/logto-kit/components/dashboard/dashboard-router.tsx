@@ -5,30 +5,24 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 const subscribeIsPortrait = (callback: () => void) => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
   const mqPortrait = window.matchMedia('(orientation: portrait)');
-  const mqNarrow = window.matchMedia('(max-width: 64rem)');
 
   mqPortrait.addEventListener('change', callback);
-  mqNarrow.addEventListener('change', callback);
 
   return () => {
     mqPortrait.removeEventListener('change', callback);
-    mqNarrow.removeEventListener('change', callback);
   };
 };
 
 const getSnapshotIsPortrait = () => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return (
-    window.matchMedia('(orientation: portrait)').matches ||
-    window.matchMedia('(max-width: 64rem)').matches
-  );
+  return window.matchMedia('(orientation: portrait)').matches;
 };
 
 const getServerSnapshotIsPortrait = () => false;
 
 /**
- * Single-subscription hook that checks both portrait orientation AND narrow width.
- * Combines two MediaQueries into one useSyncExternalStore to avoid double subscriptions (BUG-026).
+ * Single-subscription hook that checks portrait orientation.
+ * Uses a single MediaQuery in useSyncExternalStore.
  */
 export function useIsPortrait(): boolean {
   return useSyncExternalStore(

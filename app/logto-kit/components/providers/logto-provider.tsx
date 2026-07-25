@@ -179,17 +179,14 @@ function LogtoProviderContent({
   );
 }
 
-/** Returns true when the viewport is portrait-oriented or narrower than 64rem (mobile). */
+/** Returns true when the viewport is portrait-oriented (mobile). */
 function useIsPortrait(): boolean {
   const subscribe = useCallback((callback: () => void) => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
     const mq1 = window.matchMedia('(orientation: portrait)');
-    const mq2 = window.matchMedia('(max-width: 64rem)');
     mq1.addEventListener('change', callback);
-    mq2.addEventListener('change', callback);
     return () => {
       mq1.removeEventListener('change', callback);
-      mq2.removeEventListener('change', callback);
     };
   }, []);
 
@@ -197,10 +194,7 @@ function useIsPortrait(): boolean {
     subscribe,
     () => {
       if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-      return (
-        window.matchMedia('(orientation: portrait)').matches ||
-        window.matchMedia('(max-width: 64rem)').matches
-      );
+      return window.matchMedia('(orientation: portrait)').matches;
     },
     () => false,  // server snapshot
   );
