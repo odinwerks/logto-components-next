@@ -35,10 +35,15 @@ function copyRecursive(src, dest) {
 
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
+  const SAFE_DIRENT = /^[a-zA-Z0-9._-]+$/;
+
   for (const entry of entries) {
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
+    // Reject directory entries with suspicious characters to prevent path traversal
+    if (!SAFE_DIRENT.test(entry.name)) {
+      console.warn(`[copy-standalone-assets] Skipping unsafe filename: ${entry.name}`);
+      continue;
+    }
     const srcPath = path.join(src, entry.name);
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
@@ -50,11 +55,12 @@ function copyRecursive(src, dest) {
 }
 
 function countFiles(dir) {
+  const SAFE_DIRENT = /^[a-zA-Z0-9._-]+$/;
   let count = 0;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
+    if (!SAFE_DIRENT.test(entry.name)) continue;
     if (entry.isDirectory()) {
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
       count += countFiles(path.join(dir, entry.name));
     } else {
       count++;

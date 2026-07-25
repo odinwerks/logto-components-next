@@ -93,8 +93,10 @@ export function scrubLogString(s: string): string {
   let result = s;
 
   // JWT tokens: eyJ...header.eyJ...payload.signature
+  // Bounded quantifiers {1,200} prevent polynomial backtracking — a single
+  // JWT base64url segment is at most ~200 chars (JWT max 4KB per RFC 7519).
   result = result.replace(
-    /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?/g,
+    /eyJ[A-Za-z0-9_-]{1,200}\.eyJ[A-Za-z0-9_-]{1,200}(?:\.[A-Za-z0-9_-]{1,200})?/g,
     '[JWT_REDACTED]',
   );
 

@@ -240,8 +240,12 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       </PreferencesProvider>
     );
 
-    // codeql[js/incomplete-multi-character-sanitization]: The regex runs on test-rendered DOM, not untrusted input.
-    const cleanHtml = html.replace(/<!--[\s\S]*?-->/g, '');
+    // Repeated replacement until no more matches — the CodeQL-preferred pattern
+    // for stripping nested/multi-character HTML comments.
+    let cleanHtml = html;
+    while (/<!--[\s\S]*?-->/g.test(cleanHtml)) {
+      cleanHtml = cleanHtml.replace(/<!--[\s\S]*?-->/g, '');
+    }
 
     // Initial render / SSR should strictly match the props/defaults first
     expect(cleanHtml).toContain('Theme: dark');
