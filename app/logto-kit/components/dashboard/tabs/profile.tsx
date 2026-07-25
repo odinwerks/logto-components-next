@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useId, Suspense } from 'react';
 import type { UserData, UserRole, PersonalPermission } from '../../../logic/types';
 import type { ThemeColors } from '../../../themes';
-import { FONT_MONO } from '../../../themes';
+import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { Pencil, X, Mail, Phone, Check, Camera, Trash2, Image as ImageIcon, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -58,7 +58,6 @@ interface PersonalPermissionsBlockProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
-  cardStyle?: React.CSSProperties;
   /**
    * Optional pre-fetched permissions streamed from the RSC
    * (`personalRbacPromise`). When provided, the hook seeds its state and
@@ -67,7 +66,7 @@ interface PersonalPermissionsBlockProps {
   initialData?: PersonalPermission[];
 }
 
-const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle, initialData }: PersonalPermissionsBlockProps) => {
+const PersonalPermissionsBlock = ({ mode, colors, t, initialData }: PersonalPermissionsBlockProps) => {
   const c = colors;
   const {
     permissions,
@@ -81,21 +80,39 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle, initialData }: P
 
   const showTooltip = tooltip.visible && activePermission !== null;
 
+  const sectionLabel: React.CSSProperties = {
+    fontFamily: FONT_SANS,
+    fontWeight: 500,
+    fontSize: '0.6875rem',
+    color: c.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+    marginBottom: 0,
+  };
+
+  const wellStyle: React.CSSProperties = {
+    background: c.bgSecondary,
+    border: `1px solid ${c.borderColor}`,
+    padding: '1rem 1.25rem',
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    marginBottom: 0,
+  };
+
   return (
     <>
-      <Card mode={mode} colors={colors} style={cardStyle}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
-              {t.profile.personalPermissionsDesc}
-            </p>
-            <RefreshButton
-              onClick={refresh}
-              loading={loading}
-              colors={colors}
-              ariaLabel={t.profile.refreshPersonalPermissions}
-            />
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <p style={sectionLabel}>{t.profile.personalPermissionsDesc}</p>
+          <RefreshButton
+            onClick={refresh}
+            loading={loading}
+            colors={colors}
+            ariaLabel={t.profile.refreshPersonalPermissions}
+          />
+        </div>
+        <div style={wellStyle}>
           {loading ? (
             <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
               <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loadingPermissions} /> {t.profile.loadingPermissions}
@@ -157,7 +174,7 @@ const PersonalPermissionsBlock = ({ mode, colors, t, cardStyle, initialData }: P
             </div>
           )}
         </div>
-      </Card>
+      </div>
       {showTooltip && activePermission && createPortal(
         <div style={{
           position: 'fixed',
@@ -214,10 +231,9 @@ interface PersonalRolesListProps {
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
-  cardStyle?: React.CSSProperties;
 }
 
-const PersonalRolesList = ({ userId, initialRoles, mode, colors, t, cardStyle }: PersonalRolesListProps) => {
+const PersonalRolesList = ({ userId, initialRoles, mode, colors, t }: PersonalRolesListProps) => {
   const c = colors;
   const {
     roles: userRoles,
@@ -226,30 +242,48 @@ const PersonalRolesList = ({ userId, initialRoles, mode, colors, t, cardStyle }:
     refresh: refreshRoles,
   } = usePersonalRoles(userId, initialRoles);
 
+  const sectionLabel: React.CSSProperties = {
+    fontFamily: FONT_SANS,
+    fontWeight: 500,
+    fontSize: '0.6875rem',
+    color: c.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+    marginBottom: 0,
+  };
+
+  const wellStyle: React.CSSProperties = {
+    background: c.bgSecondary,
+    border: `1px solid ${c.borderColor}`,
+    padding: '1rem 1.25rem',
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    marginBottom: 0,
+  };
+
   return (
-    <Card mode={mode} colors={colors} style={cardStyle}>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
-            {t.profile.rolesDescription}
-          </p>
-          <RefreshButton
-            onClick={refreshRoles}
-            loading={rolesLoading}
-            colors={colors}
-            ariaLabel={t.profile.refreshRoles}
-          />
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+        <p style={sectionLabel}>{t.profile.rolesDescription}</p>
+        <RefreshButton
+          onClick={refreshRoles}
+          loading={rolesLoading}
+          colors={colors}
+          ariaLabel={t.profile.refreshRoles}
+        />
+      </div>
+      <div style={wellStyle}>
         {rolesLoading ? (
-          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
             <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loading} /> {t.profile.loading}
           </div>
         ) : rolesError ? (
-          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.accentRed }}>
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.accentRed }}>
             {t.profile.rolesError}
           </div>
         ) : userRoles.length === 0 ? (
-          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+          <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
             {t.profile.noRoles}
           </div>
         ) : (
@@ -268,7 +302,7 @@ const PersonalRolesList = ({ userId, initialRoles, mode, colors, t, cardStyle }:
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 };
 
@@ -1309,18 +1343,18 @@ export function ProfileTab({
             streamed promise is pending; once resolved, the roles seed
             `usePersonalRoles`'s `initialData` and the mount-fetch is skipped. */}
         <Suspense fallback={(
-          <Card mode={mode} colors={colors}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <p style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
-                  {t.profile.rolesDescription}
-                </p>
-              </div>
-              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.6875rem', color: c.textTertiary }}>
+          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <p style={{ fontFamily: FONT_SANS, fontWeight: 500, fontSize: '0.6875rem', color: c.textTertiary, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 0 }}>
+                {t.profile.rolesDescription}
+              </p>
+            </div>
+            <div style={{ background: c.bgSecondary, border: `1px solid ${c.borderColor}`, padding: '1rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
+              <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
                 <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loading} /> {t.profile.loading}
               </div>
             </div>
-          </Card>
+          </div>
         )}>
           <PersonalRolesStream
             render={(initialRoles) => (
@@ -1330,7 +1364,6 @@ export function ProfileTab({
                 mode={mode}
                 colors={colors}
                 t={t}
-                cardStyle={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}
               />
             )}
           />
@@ -1339,18 +1372,18 @@ export function ProfileTab({
         {/* Personal permissions — same streamed promise (instant-fetch).
             The hook skips the mount-fetch when `initialData` is provided. */}
         <Suspense fallback={(
-          <Card mode={mode} colors={colors}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <p style={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary, margin: 0 }}>
-                  {t.profile.personalPermissionsDesc}
-                </p>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <p style={{ fontFamily: FONT_SANS, fontWeight: 500, fontSize: '0.6875rem', color: c.textTertiary, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 0 }}>
+                {t.profile.personalPermissionsDesc}
+              </p>
+            </div>
+            <div style={{ background: c.bgSecondary, border: `1px solid ${c.borderColor}`, padding: '1rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
               <div style={{ padding: '2rem 0', textAlign: 'center', fontFamily: FONT_MONO, fontSize: '0.6875rem', color: c.textTertiary }}>
                 <BouncingDots size={6} gap={3} color={c.textTertiary} ariaLabel={t.profile.loadingPermissions} /> {t.profile.loadingPermissions}
               </div>
             </div>
-          </Card>
+          </div>
         )}>
           <PersonalPermissionsStream
             render={(initialPerms) => (
@@ -1359,7 +1392,6 @@ export function ProfileTab({
                 colors={colors}
                 t={t}
                 initialData={initialPerms}
-                cardStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 0 }}
               />
             )}
           />
