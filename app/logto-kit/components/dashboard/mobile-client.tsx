@@ -391,12 +391,11 @@ export function MobileClient({
                     activeKey={activeTab}
                   className="dashboard-tabpanel-content"
                   duration={0.05}
-                  instant
                   fillHeightKeys={fillHeightKeys}
                   keepMountedKeys={[...visitedTabs]}
                   wrapItem={(tabId, isVisible, content) => (
                     <TabErrorBoundary
-                      resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
+                      resetKey={`${tabId}-${activeTab}`}
                       fallback={(
                         <div
                           role="alert"

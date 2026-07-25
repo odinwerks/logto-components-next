@@ -684,12 +684,12 @@ describe('FlowModal - focus management', () => {
 
 // BUG-031: Overlay must allow scrolling when dialog content is taller than
 // the viewport (e.g. short/landscape viewports with TOTP/MFA modals).
-// Fix: Overlay gets overflowY:'auto' + alignItems:'flex-start';
+// Fix: Overlay gets overflowY:'auto' + alignItems:'center';
 // dialog gets maxHeight:'100%'.
 describe('FlowModal - BUG-031 overlay scroll and maxHeight', () => {
   const noop = () => {};
 
-  it('Overlay has overflowY auto and alignItems flex-start', () => {
+  it('Overlay has overflowY auto and alignItems center', () => {
     render(
       <FlowModal
         title="Test"
@@ -708,7 +708,7 @@ describe('FlowModal - BUG-031 overlay scroll and maxHeight', () => {
     expect(overlay).toBeInTheDocument();
     expect(overlay.style.overflowY).toBe('auto');
 
-    expect(overlay.style.alignItems).toBe('flex-start');
+    expect(overlay.style.alignItems).toBe('center');
   });
 
   it('dialog container has maxHeight 100%', () => {

@@ -109,21 +109,23 @@ export function LanguageSelect({
   }, []);
 
   useEffect(() => {
+    const handleScrollOrResize = () => setIsOpen(false);
+
     if (isOpen) {
       updateCoords();
       const ancestors = triggerRef.current ? findScrollableAncestors(triggerRef.current) : [];
       scrollAncestorsRef.current = ancestors;
-      window.addEventListener('resize', updateCoords);
-      window.addEventListener('scroll', updateCoords, { passive: true });
+      window.addEventListener('resize', handleScrollOrResize);
+      window.addEventListener('scroll', handleScrollOrResize, { passive: true });
       ancestors.forEach((el) => {
-        el.addEventListener('scroll', updateCoords, { passive: true });
+        el.addEventListener('scroll', handleScrollOrResize, { passive: true });
       });
     }
     return () => {
-      window.removeEventListener('resize', updateCoords);
-      window.removeEventListener('scroll', updateCoords);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize);
       scrollAncestorsRef.current.forEach((el) => {
-        el.removeEventListener('scroll', updateCoords);
+        el.removeEventListener('scroll', handleScrollOrResize);
       });
       scrollAncestorsRef.current = [];
     };
