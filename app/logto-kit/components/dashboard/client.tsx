@@ -439,7 +439,7 @@ export function DashboardClient({
             keepMountedKeys={[...visitedTabs]}
             wrapItem={(tabId, isVisible, content) => (
               <TabErrorBoundary
-                resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
+                resetKey={`${tabId}-${activeTab}`}
                 fallback={(
                   <div
                     role="alert"
