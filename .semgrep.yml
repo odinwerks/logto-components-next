@@ -1,0 +1,5 @@
+paths:
+  ignore:
+    - "scripts/copy-standalone-assets.js"
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
