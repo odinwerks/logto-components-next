@@ -25,7 +25,7 @@ export function Overlay({ onDismiss, children }: { onDismiss: () => void; childr
         background: 'rgba(0,0,0,0.65)',
         backdropFilter: 'blur(0.375rem) saturate(0.6)',
 
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.25rem',
         overflowY: 'auto',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}
