@@ -71,7 +71,7 @@ export default function CalculatorOverviewDoc() {
           <strong>Basic Tier:</strong> Grants access to fundamental operations (addition, subtraction, multiplication, division, modulo, and power).
         </li>
         <li>
-          <strong>Scientific Tier:</strong> Grants access to advanced operations (trigonometric calculations, logarithms, square roots, and factorials).
+          <strong>Scientific Tier:</strong> Grants access to advanced operations (sin, cos, tan, asin, acos, atan, log, ln, log2, sqrt, abs, inv, exp10, exp, factorials).
         </li>
       </ul>
 
@@ -90,9 +90,15 @@ export default function CalculatorOverviewDoc() {
         </thead>
         <tbody>
           <tr>
-            <td style={customTdPropStyle}>app/demo/content/calculator/live-calculator.tsx</td>
+            <td style={customTdPropStyle}>app/components/calculator/CalculatorPanel.tsx</td>
             <td style={customTdStyle}>
-              Documentation page that renders the live <code style={styles.codeSmStyle}>&lt;CalculatorPanel /&gt;</code> component and explains the architecture. The actual expression parsing and evaluation logic lives in <code>CalculatorClient.tsx</code>.
+              Protected route guard that wraps calculator access. Verifies the user session and enforces organization-scoped RBAC before rendering the calculator UI.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>app/components/calculator/CalculatorClient.tsx</td>
+            <td style={customTdStyle}>
+              Client-side AST parser, expression evaluator, and calculator keypad UI. Handles all expression tokenization, operator precedence, and rendering of the interactive keypad.
             </td>
           </tr>
           <tr>

@@ -25,7 +25,7 @@ Before running the app locally you need:
 
 | Requirement | Notes |
 |-------------|-------|
-| **Node.js 18+** | Required by Next.js 16 |
+| **Node.js 20+** | Required by Next.js 16 |
 | **A Logto instance** | OSS (self-hosted) or Logto Cloud; you need an App ID/Secret and an M2M App ID/Secret |
 | **Redis 7+** *(optional)* | Needed for distributed rate limiting and per-user in-process locks across multiple instances. Not required for a single-instance dev setup. |
 | **Docker + Docker Compose** *(optional)* | Only if you want to run Redis via `docker compose` or deploy the full stack |
@@ -100,9 +100,6 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 ├── .env.example
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   └── feature_request.md
-│   ├── PULL_REQUEST_TEMPLATE.md
 │   └── workflows/
 ├── .gitignore
 ├── .kilo/
@@ -205,10 +202,14 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── lib/
+│   │   ├── distributed-state.ts
 │   │   ├── log-events.test.ts
 │   │   ├── log-events.ts
 │   │   ├── logger.test.ts
 │   │   ├── logger.ts
+│   │   ├── request-context.ts
+│   │   ├── scrub-log-string.ts
+│   │   ├── slugify.ts
 │   │   ├── with-logger.test.ts
 │   │   └── with-logger.ts
 │   ├── logto-kit/
@@ -217,6 +218,8 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   ├── calc-actions.ts            # Calculator action handlers (basic + scientific)
 │   │   │   └── index.ts                   # Registry types and getAction() loader
 │   │   ├── components/
+│   │   │   ├── auth-error-banner.tsx      # Auth error display banner
+│   │   │   ├── LangSync.tsx               # Language synchronization component
 │   │   │   ├── dashboard/
 │   │   │   │   ├── client.test.tsx
 │   │   │   │   ├── client.tsx             # Desktop dashboard UI
@@ -253,11 +256,16 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   ├── logto-provider.tsx     # Root provider composing theme + lang + org + dashboard
 │   │   │   │   ├── preferences.test.tsx
 │   │   │   │   ├── preferences.tsx        # Theme / lang / org context + useThemeMode etc.
+│   │   │   │   ├── rbac-stream-context.tsx # RBAC streaming context
 │   │   │   │   ├── session-heartbeat.tsx  # Zero-UI component: pings heartbeat every 30s
+│   │   │   │   ├── toast-provider.tsx     # Toast notification provider
 │   │   │   │   └── user-data-context.tsx  # UserData context + useUserDataContext hook
 │   │   │   ├── shared/
 │   │   │   │   ├── Button.tsx             # Themed button (5 variants)
-│   │   │   │   └── Input.tsx              # Themed text input
+│   │   │   │   ├── Input.tsx              # Themed text input
+│   │   │   │   ├── LanguageSelect.tsx     # Language selection dropdown
+│   │   │   │   ├── motion.tsx             # Animation utilities
+│   │   │   │   └── PhoneCountrySelect.tsx # Phone country code selector
 │   │   │   └── UserButton.tsx             # UserButton, UserBadge, UserCard components
 │   │   ├── custom-logic/                  # App-level feature implementations
 │   │   │   ├── index.ts
@@ -265,14 +273,21 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   ├── set-active-org.test.ts
 │   │   │   └── set-active-org.ts          # Server action: validates org membership
 │   │   ├── hooks/                         # React hooks
+│   │   │   ├── sessions/                  # Session-related hooks
+│   │   │   │   ├── index.ts               # Barrel export
+│   │   │   │   ├── use-session-geo-locate.ts # Session IP geolocation
+│   │   │   │   ├── use-session-revocation.ts # Session revocation hook
+│   │   │   │   └── use-session-verification.ts # Session verification hook
 │   │   │   ├── use-avatar-upload.ts       # Hook wrapping the uploadAvatar server action
 │   │   │   └── use-refreshable.ts         # Hook for unmount/remount refresh cycles
 │   │   ├── index.ts                       # Public barrel
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
 │   │   │   ├── index.ts
-│   │   │   └── ka-GE.ts
+│   │   │   ├── ka-GE.ts
+│   │   │   └── uk-UA.ts
 │   │   ├── logic/
+│   │   │   ├── assert-safe-route.ts       # Safe route path validator
 │   │   │   ├── actions/                   # Internal server actions
 │   │   │   │   ├── account.test.ts
 │   │   │   │   ├── account.ts
@@ -304,10 +319,14 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   ├── audit.test.ts
 │   │   │   ├── audit.ts
 │   │   │   ├── capture-message.ts
+│   │   │   ├── client-storage.ts          # Client-side storage utilities
+│   │   │   ├── constants.ts               # Shared constants
+│   │   │   ├── country-list-filter.ts     # Phone country code filtering
 │   │   │   ├── debug.ts
 │   │   │   ├── dev-mode.test.ts
 │   │   │   ├── dev-mode.ts
 │   │   │   ├── env.ts
+│   │   │   ├── error-codes.ts             # Error code definitions
 │   │   │   ├── errors.test.ts
 │   │   │   ├── errors.ts
 │   │   │   ├── formatting.ts              # formatPhone (E.164 display)
@@ -316,7 +335,9 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   ├── guards.ts                  # Assert-style input guards for trust boundaries
 │   │   │   ├── i18n.ts
 │   │   │   ├── index.ts
+│   │   │   ├── lang-allowlist.ts          # Language allowlist filtering
 │   │   │   ├── log.ts
+│   │   │   ├── map-error-toast.ts         # Maps error codes to toast messages
 │   │   │   ├── origin-guard.test.ts
 │   │   │   ├── origin-guard.ts            # CSRF origin check for plain route handlers
 │   │   │   ├── OrgSwitcher.tsx            # Org selector dropdown (client, moved from custom-logic)
@@ -327,7 +348,8 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   ├── utils.test.ts
 │   │   │   ├── utils.ts
 │   │   │   ├── validation.test.ts
-│   │   │   └── validation.ts
+│   │   │   ├── validation.ts
+│   │   │   └── verbosity.ts               # Error verbosity control
 │   │   ├── server-actions/                # Public server action adapters (client-callable)
 │   │   │   ├── load-org-permission-descriptions.ts
 │   │   │   ├── load-org-permissions.ts
@@ -365,6 +387,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   └── Tux.jpg
 │   └── robots.txt
 ├── scripts/
+│   ├── copy-standalone-assets.js
 │   └── inject-next-public.js
 ├── global.d.ts
 ├── tree.py
@@ -600,6 +623,47 @@ LANG_AVAILABLE=en-US,ka-GE,uk-UA
 # Set to true to enable verbose server-side debug logging
 # (token introspection, API request flow, permission checks)
 # DEBUG=true
+```
+
+### Logging Configuration
+
+```env
+# Logging output destination (default: console)
+# Options: console, pino, both
+# LOG_BACKEND=console
+
+# Minimum log severity level (default: info)
+# Options: trace, debug, info, warn, error, fatal, silent
+# LOG_LEVEL=info
+
+# Slack or Discord webhook URL for error telemetry
+# Errors are posted as structured JSON payloads to this webhook
+# LOGGING_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
+```
+
+### Error Verbosity
+
+```env
+# Controls the level of detail in error responses (default: standard)
+# Options: minimal, standard, verbose
+# ERROR_VERBOSITY=standard
+# NEXT_PUBLIC_ERROR_VERBOSITY=standard
+```
+
+### CSP Image Origin
+
+```env
+# CSP img-src directive origin for allowed image sources
+# Used in Content-Security-Policy header construction
+# IMG_ORIGIN=https://your-cdn.example.com
+```
+
+### Animation Control
+
+```env
+# Force CSS animations on or off, overriding prefers-reduced-motion
+# Options: true, false, or unset (respects system preference)
+# NEXT_PUBLIC_FORCE_ANIMATIONS=true
 ```
 
 ### Backend Type Configuration
@@ -1032,7 +1096,7 @@ import { Dashboard } from './logto-kit/components/dashboard';
 import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 
 function MyComponent() {
-  const { userData, openDashboard } = useLogto();
+  const { isAuthenticated, openDashboard } = useLogto();
   // ...
 }
 
@@ -1064,7 +1128,7 @@ The `useLogto()` hook provides access to user data, authentication, and all pref
 import { useLogto } from './logto-kit';
 
 function MyComponent() {
-  const { userData, openDashboard, mode, colors, lang, setLang, asOrg, setAsOrg } = useLogto();
+  const { isAuthenticated, openDashboard, mode, colors, lang, setLang, asOrg, setAsOrg } = useLogto();
   // ...
 }
 ```
@@ -1073,7 +1137,7 @@ Returns:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `userData` | `UserData` | Current user data |
+| `isAuthenticated` | `boolean` | Whether the user is authenticated |
 | `mode` | `'dark' \| 'light'` | Current theme mode |
 | `colors` | `ThemeColors` | Color tokens for inline React styles |
 | `setMode` | `(mode: 'dark' \| 'light') => void` | Set theme mode |
@@ -2318,7 +2382,7 @@ npm run test:run
 npm test
 ```
 
-**Test coverage** (110 test files):
+**Test coverage** (120+ test files):
 - Security: `origin-guard.test.ts`, `guards.test.ts`, `dev-mode.test.ts`
 - Logic: `validation.test.ts`, `errors.test.ts`
 - Actions: `sessions.test.ts`, `webauthn.test.ts`

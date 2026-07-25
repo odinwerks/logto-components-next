@@ -119,7 +119,7 @@ export default function SessionsSection() {
               <td style={customTdPropStyle}>onRevokeSession</td>
               <td style={customTdStyle}>(sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: &apos;all&apos; | &apos;firstParty&apos;) =&gt; Promise&lt;ActionResult&gt;</td>
               <td style={customTdStyle}>
-                Revokes a specific active session. The target defaults to &apos;all&apos; to revoke all OAuth grants (access and refresh tokens) associated with the session; pass &apos;firstParty&apos; to limit revocation to first-party application grants.
+                Revokes a specific active session. The target defaults to &apos;firstParty&apos; to revoke first-party application grants; pass &apos;all&apos; to revoke every OAuth grant (access and refresh tokens) associated with the session.
               </td>
             </tr>
             <tr>
@@ -183,7 +183,7 @@ export default function SessionsSection() {
           Verification Records and TTL Policy
         </h4>
         <p style={styles.textStyle}>
-          On successful password challenge, the system generates a secure <code style={styles.codeSmStyle}>verificationRecordId</code>. This token remains valid for exactly 10 minutes (<code style={styles.codeSmStyle}>VERIFICATION_TTL_MS = 600,000ms</code>).
+          On successful password challenge, the system generates a secure <code style={styles.codeSmStyle}>verificationRecordId</code>. This token remains valid for exactly 10 minutes (600,000ms) before the server-sealed cookie expires and the session view resets.
         </p>
         <p style={styles.textStyle}>
           An active client-side <code style={styles.codeSmStyle}>useEffect</code> hook monitors the remaining validity period. When the countdown completes, it automatically purges the token and resets the view state back to <code style={styles.codeSmStyle}>unverified</code>, forcing a re-verification.
@@ -203,7 +203,7 @@ export default function SessionsSection() {
             <strong>Transient Error Handling:</strong> When refreshing session data inside <code style={styles.codeSmStyle}>loadSessions</code>, the layout only resets to <code style={styles.codeSmStyle}>unverified</code> if the failure is auth-related (e.g., <code style={styles.codeSmStyle}>VERIFICATION_FAILED</code> or <code style={styles.codeSmStyle}>UNAUTHORIZED</code>). If a transient issue occurs (such as a <code style={styles.codeSmStyle}>NETWORK_ERROR</code>), the view state remains in <code style={styles.codeSmStyle}>loaded</code> and retains the rendered list, avoiding disrupting the user interface.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Target ID Retention:</strong> The component uses a mutable reference (<code style={styles.codeSmStyle}>revokeTargetRef</code>) to persist the intended revocation target (either a specific session ID or the &apos;all&apos; keyword) across password challenge retries. If the password check fails on the first attempt, subsequent retries target the correct session ID rather than resolving to null.
+            <strong>Target ID Retention:</strong> The component uses a mutable reference (<code style={styles.codeSmStyle}>revokeTargetRef</code>) to persist the intended revocation target (either a specific session ID or the revocation keyword) across password challenge retries. If the password check fails on the first attempt, subsequent retries target the correct session ID rather than resolving to null.
           </li>
         </ul>
 
@@ -248,7 +248,7 @@ useEffect(() => {
           The server action <code style={styles.codeSmStyle}>getSessionsWithDeviceMeta</code> queries user token properties via <code style={styles.codeSmStyle} >introspectToken</code> to identify the subject (<code style={styles.codeSmStyle}>sub</code> claim). 
         </p>
         <p style={styles.textStyle}>
-          If token introspection fails (for example, if the <code style={styles.codeSmStyle}>LOGTO_INTROSPECTION_URL</code> is not configured), the server action falls back gracefully by assigning an empty string to <code style={styles.codeSmStyle}>userId</code>, permitting the Sessions tab to render instead of crashing the component.
+          If token introspection fails (for example, if the <code style={styles.codeSmStyle}>LOGTO_INTROSPECTION_URL</code> is not configured), the server action throws an <code style={styles.codeSmStyle}>UNAUTHENTICATED</code> error and blocks the Sessions tab from rendering.
         </p>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
@@ -302,7 +302,7 @@ const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.pay
           Single Session Termination
         </h4>
         <p style={styles.textStyle}>
-          Revoking a single session triggers <code style={styles.codeSmStyle}>onRevokeSession(sessionId, verificationRecordId, &apos;all&apos;)</code>. The revoke target parameter defaults to <code style={styles.codeSmStyle}>&apos;all&apos;</code> to revoke all OAuth grants (access tokens and refresh tokens) associated with the session. Bulk revocation via <code style={styles.codeSmStyle}>onRevokeAllOtherSessions</code> uses <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code> to avoid revoking third-party grants the user did not intend to revoke.
+          Revoking a single session triggers <code style={styles.codeSmStyle}>onRevokeSession(sessionId, verificationRecordId, &apos;firstParty&apos;)</code>. The revoke target parameter defaults to <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code> to revoke first-party application grants. Pass <code style={styles.codeSmStyle}>&apos;all&apos;</code> to revoke every OAuth grant (access tokens and refresh tokens) associated with the session. Bulk revocation via <code style={styles.codeSmStyle}>onRevokeAllOtherSessions</code> also uses <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code>.
         </p>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
@@ -319,7 +319,7 @@ const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.pay
           To prevent a hanging connection from stalling the entire queue, each sequential revocation call is wrapped in a <code style={styles.codeSmStyle}>Promise.race</code> timeout guard set to 10 seconds (<code style={styles.codeSmStyle}>10_000ms</code>).
         </p>
         <p style={styles.textStyle}>
-          If individual deletion requests fail, errors are aggregated. Rather than failing silently, the backend counts the rejected promises and throws an explanatory error containing the exact count of failed revocations.
+          If individual deletion requests fail, errors are aggregated. The backend counts the rejected promises and logs the exact count server-side for audit; the client receives a sanitized error code without the failure count.
         </p>
 
         <CodeBlock

@@ -186,9 +186,9 @@ export function createLogger(config: LoggerConfig = {}): TypedLogger {
         '*.stack', '*.error',
         '*.*.stack', '*.*.error',
         // OAuth / OIDC token field names (snake_case variants)
-        'access_token', 'refresh_token', 'id_token', 'code', 'state',
-        '*.access_token', '*.refresh_token', '*.id_token', '*.code', '*.state',
-        '*.*.access_token', '*.*.refresh_token', '*.*.id_token', '*.*.code', '*.*.state',
+        'access_token', 'refresh_token', 'id_token', 'client_secret', 'code', 'state',
+        '*.access_token', '*.refresh_token', '*.id_token', '*.client_secret', '*.code', '*.state',
+        '*.*.access_token', '*.*.refresh_token', '*.*.id_token', '*.*.client_secret', '*.*.code', '*.*.state',
       ],
       censor: '[REDACTED]',
     },

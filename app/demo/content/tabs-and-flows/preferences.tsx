@@ -155,13 +155,12 @@ export default function PreferencesSection() {
           <li style={{ marginBottom: '8px' }}>
             <strong>Theme Initialization (preventing hydration mismatch):</strong>
             <br />
-            To avoid mismatches between server-rendered HTML and client-side storage, React state initializes directly with the server-passed <code style={styles.codeSmStyle}>initialTheme</code> (defaulting to &apos;dark&apos;), completely ignoring client-side sessionStorage on the initial render pass. 
-            A client-only <code style={styles.codeSmStyle}>useEffect</code> mount callback then executes to write <code style={styles.codeSmStyle}>initialTheme</code> back into sessionStorage, resolving any cached state.
+            React state initializes with the cached value from sessionStorage (key: <code style={styles.codeSmStyle}>theme-mode</code>) if one exists, otherwise falling back to the server-passed <code style={styles.codeSmStyle}>initialTheme</code> (defaulting to &apos;dark&apos;). The BUG-001/H1 fix changed this priority so the cached client value wins on initial render. A client-only <code style={styles.codeSmStyle}>useEffect</code> mount callback then writes the resolved value back into sessionStorage, ensuring the cache stays consistent.
           </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Language State:</strong>
             <br />
-            Initialized from <code style={styles.codeSmStyle}>getInitialLang(serverDefaultLang)</code>. This helper reads the stored language from <code style={styles.codeSmStyle}>sessionStorage</code> (key: <code style={styles.codeSmStyle}>lang-mode</code>). If found, it uses the cached string; otherwise, it falls back to the server configuration.
+            Initialized by reading the stored language from <code style={styles.codeSmStyle}>sessionStorage</code> (key: <code style={styles.codeSmStyle}>lang-mode</code>). If a cached value exists, it is used; otherwise, the server-provided <code style={styles.codeSmStyle}>initialLang</code> prop is used as the fallback.
           </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Organization State:</strong>
@@ -282,7 +281,7 @@ export default function PreferencesSection() {
             <strong>theme-changed:</strong> Dispatched on the <code style={styles.codeSmStyle}>window</code> object when <code style={styles.codeSmStyle}>setMode()</code> is invoked. Other active provider instances capture this event, read sessionStorage, and synchronize their theme states to match.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>preferences-changed:</strong> Dispatched on the <code style={styles.codeSmStyle}>window</code> object when <code style={styles.codeSmStyle} >setLang()</code> or <code style={styles.codeSmStyle}>setAsOrg()</code> is called, notifying downstream consumers of modifications.
+            <strong>preferences-changed:</strong> Dispatched on the <code style={styles.codeSmStyle}>window</code> object when <code style={styles.codeSmStyle}>setLang()</code> is called, notifying downstream consumers of language modifications. <code style={styles.codeSmStyle}>setAsOrg()</code> does not dispatch a DOM event; it updates sessionStorage and context state directly.
           </li>
         </ul>
 

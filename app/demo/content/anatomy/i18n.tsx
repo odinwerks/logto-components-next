@@ -148,7 +148,7 @@ export default async function ServerInformationBlock() {
         Adding Locales to the System
       </h2>
       <p style={styles.textStyle}>
-        Adding a new locale to the application requires completing four configuration and registration steps:
+        Adding a new locale to the application requires completing five configuration and registration steps:
       </p>
 
       <p style={styles.textStyle}>
@@ -191,6 +191,9 @@ const locales: Record<LocaleCode, Translations> = {
         title="app/logto-kit/logic/i18n.ts"
         code={`export const AVAILABLE_LOCALES = ['en-US', 'ka-GE', 'uk-UA'] as const;`}
       />
+      <p style={styles.textStyle}>
+        Note: <code>AVAILABLE_LOCALES</code> is defined in <code>app/logto-kit/logic/i18n.ts</code>, not in <code>locales/index.ts</code>. The locales index manages the translation catalogues and the <code>LocaleCode</code> type; the logic module is the single source of truth for which locales are available to users.
+      </p>
 
       <p style={styles.textStyle}>
         <strong>Step 4: Update the environment configuration</strong><br />
@@ -199,6 +202,17 @@ const locales: Record<LocaleCode, Translations> = {
       <CodeBlock
         title=".env"
         code={`LANG_AVAILABLE=en-US,ka-GE,uk-UA`}
+      />
+
+      <p style={styles.textStyle}>
+        <strong>Step 5: Register the language metadata</strong><br />
+        Update the <code>LANGUAGE_META</code> record in <code>app/logto-kit/logic/languages.ts</code> with the display name, native name, and ISO code for flag emoji resolution.
+      </p>
+      <CodeBlock
+        title="app/logto-kit/logic/languages.ts"
+        code={`export const LANGUAGE_META: Record<string, { name: string; nativeName: string; iso: string }> = {
+  'ru-RU': { name: 'Russian', nativeName: 'Русский', iso: 'RU' },
+};`}
       />
 
       <div>
@@ -216,6 +230,9 @@ const locales: Record<LocaleCode, Translations> = {
         </p>
         <p style={styles.textStyle}>
           The forwarded value is the same BCP 47 tag used for UI resolution (for example <code>en-US</code>, <code>ka-GE</code>, <code>uk-UA</code>). No additional configuration is needed beyond setting a locale via <code>useLangMode()</code> or the Preferences tab. See the <Link href="/getting-started/backend-selection#feature-comparison-matrix">Backend Selection</Link> page for the full capability matrix.
+        </p>
+        <p style={styles.textStyle}>
+          The <code>LangSync</code> component (<code>app/logto-kit/components/LangSync.tsx</code>) keeps <code>document.documentElement.lang</code> in sync with the stored language preference. This ensures screen readers announce content in the correct language.
         </p>
       </div>
     </div>

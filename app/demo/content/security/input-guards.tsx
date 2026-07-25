@@ -141,8 +141,8 @@ const SAFE_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;`}
       <CodeBlock
         title="Control Character Stripping"
         code={`function stripControlChars(s: string): string {
-  // Strips ASCII control characters except whitespace-ish
-  return s.replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '');
+  // strip all ASCII control chars (including TAB, LF, CR)
+  return s.replace(/[\\x00-\\x1F\\x7F]/g, '');
 }`}
       />
 

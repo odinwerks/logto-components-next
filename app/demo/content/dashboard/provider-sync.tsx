@@ -105,16 +105,16 @@ export default function DashboardProviderSync() {
           </tr>
           <tr>
             <td style={customTdPropStyle}>org-mode</td>
-            <td style={customTdStyle}><code style={styles.codeSmStyle}>setAsOrg()</code></td>
+            <td style={customTdStyle}><code style={styles.codeSmStyle}>setAsOrg()</code> (sessionStorage only; no DOM event)</td>
           </tr>
         </tbody>
       </table>
 
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Event:</strong>{' '}
-        All changes dispatch custom DOM events for cross-tab or cross-component synchronization:
+        All changes dispatch custom DOM events for same-tab cross-component synchronization:
         <code style={styles.codeSmStyle}>theme-changed</code> (for themes) and{' '}
-        <code style={styles.codeSmStyle}>preferences-changed</code> (for language and organization selections).
+        <code style={styles.codeSmStyle}>preferences-changed</code> (for language changes only).
       </div>
     </div>
   );

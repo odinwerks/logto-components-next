@@ -79,7 +79,7 @@ export default function OverviewSection() {
             <tr>
               <td style={customTdPropStyle}>Profile</td>
               <td style={customTdStyle}>Common props plus profile callbacks</td>
-              <td style={customTdStyle}>useAvatarUpload</td>
+              <td style={customTdStyle}>useAvatarUpload, usePersonalRoles, usePersonalPermissions</td>
               <td style={customTdStyle}>Profile updates and contact verification</td>
             </tr>
             <tr>
@@ -91,13 +91,13 @@ export default function OverviewSection() {
             <tr>
               <td style={customTdPropStyle}>Security</td>
               <td style={customTdStyle}>Common props plus security callbacks</td>
-              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>useAsyncGuard</td>
               <td style={customTdStyle}>MFA, passkeys, password, account actions</td>
             </tr>
             <tr>
               <td style={customTdPropStyle}>Sessions</td>
               <td style={customTdStyle}>Common props plus session callbacks</td>
-              <td style={customTdStyle}> - </td>
+              <td style={customTdStyle}>useSessionGeoLocate</td>
               <td style={customTdStyle}>List and revoke session actions</td>
             </tr>
             <tr>
@@ -109,7 +109,7 @@ export default function OverviewSection() {
             <tr>
               <td style={customTdPropStyle}>Organizations</td>
               <td style={customTdStyle}>Common props plus organization callbacks</td>
-              <td style={customTdStyle}>useOrgMode</td>
+              <td style={customTdStyle}>useOrgSwitcher, useOrgRoles, useOrgPermissions</td>
               <td style={customTdStyle}>Organization switch and state updates</td>
             </tr>
           </tbody>
@@ -121,11 +121,12 @@ LOAD_TABS=
 LOAD_TABS=profile,preferences,security,organizations`} />
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>Common props:</strong>{' '}
-          Every tab receives <code style={styles.codeSmStyle}>userData: UserData</code>,{' '}
+          Profile, Security, Sessions, and Organizations receive <code style={styles.codeSmStyle}>userData: UserData</code>.{' '}
+          All tabs receive{' '}
           <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
           <code style={styles.codeSmStyle}>colors: ThemeColors</code>,{' '}
           <code style={styles.codeSmStyle}>t: Translations</code>, and{' '}
-          <code style={styles.codeSmStyle}>mobmode?: number</code>. Individual sections only document tab-specific props.
+          <code style={styles.codeSmStyle}>mobmode?: number</code>. Preferences does not receive <code style={styles.codeSmStyle}>userData</code>. Individual sections only document tab-specific props.
         </div>
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>mobmode:</strong>{' '}
@@ -164,7 +165,7 @@ LOAD_TABS=profile,preferences,security,organizations`} />
             <strong>Sidebar Filtering:</strong> The sidebar navigation links are dynamically iterated using only the elements in the <code style={styles.codeStyle}>loadedTabs</code> array. This ensures that unconfigured tabs do not appear in the interface.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Conditional Rendering:</strong> The central content panel uses short-circuit operators (e.g., <code style={styles.codeSmStyle}>activeTab === &apos;security&apos; &amp;&amp; &lt;SecurityTab ... /&gt;</code>) to render components. Unrendered tabs remain unmounted, preventing unauthorized component lifecycles, background api calls, or state initializations.
+            <strong>CrossFade Mounting:</strong> The content panel uses <code style={styles.codeSmStyle}>CrossFade</code> with <code style={styles.codeSmStyle}>keepMountedKeys</code> set to the visited tabs set. Visited tabs stay mounted but hidden via <code style={styles.codeSmStyle}>display:none</code>, preserving form drafts, hook subscriptions, and scroll positions across tab switches. Unvisited tabs are not mounted until first opened, so their lazy fetches (MFA, sessions) do not fire on page load.
           </li>
         </ul>
       </div>

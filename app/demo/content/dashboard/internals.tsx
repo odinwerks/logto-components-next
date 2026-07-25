@@ -83,7 +83,7 @@ return (
 );
 
 // 2. Dashboard Server Component (app/logto-kit/components/dashboard/index.tsx)
-const result = await fetchDashboardData();
+const result = await fetchDashboardDataCached(true);
 return (
   <DashboardClient
     initialData={{ userData: result.userData }}
@@ -121,8 +121,8 @@ return (
 
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
-        <code style={styles.codeStyle}>useOrgMode()</code> (returns asOrg, setAsOrg) is consumed by{' '}
-        <code style={styles.codeStyle}>OrganizationsTab</code>, not <code style={styles.codeStyle}>DashboardClient</code>.
+        <code style={styles.codeStyle}>useOrgMode()</code> (returns asOrg, setAsOrg) is consumed by LogtoProvider, Protected, CalculatorClient, and others. OrganizationsTab uses{' '}
+        <code style={styles.codeStyle}>useOrgSwitcher</code>, which wraps <code style={styles.codeStyle}>useOrgMode()</code> internally.
       </div>
 
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>

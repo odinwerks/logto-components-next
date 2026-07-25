@@ -62,7 +62,7 @@ export default function AnatomyProvidersDoc() {
         Multi-Tier Context Tree
       </h2>
       <p style={styles.textStyle}>
-        The application architecture relies on a structured, multi-tier provider tree. This hierarchy ensures that configuration preferences, authentication state, and user details are isolated and propagated to downstream components.
+        The application architecture relies on a structured provider tree. This hierarchy ensures that motion configuration, authentication state, and user details are isolated and propagated to downstream components.
       </p>
 
       <p style={styles.textStyle}>
@@ -79,43 +79,62 @@ export default function AnatomyProvidersDoc() {
         </thead>
         <tbody>
           <tr>
-            <td style={customTdPropStyle}>PreferencesProvider</td>
+            <td style={customTdPropStyle}>MotionConfigProvider</td>
             <td style={customTdStyle}>Outermost</td>
-            <td style={customTdStyle}>Tracks client-side user preferences including active theme mode and language locale.</td>
+            <td style={customTdStyle}>Controls Framer Motion reduced-motion preference.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>LogtoProvider</td>
-            <td style={customTdStyle}>Intermediate</td>
+            <td style={customTdStyle}>Inside MotionConfigProvider</td>
             <td style={customTdStyle}>Manages the OpenID Connect (OIDC) authentication state, tokens, and active session.</td>
           </tr>
           <tr>
+            <td style={customTdPropStyle}>AuthWatcher</td>
+            <td style={customTdStyle}>Child of LogtoProvider</td>
+            <td style={customTdStyle}>Watches tab focus, online status, and interval triggers to keep auth state fresh.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>SessionHeartbeat</td>
+            <td style={customTdStyle}>Child of LogtoProvider</td>
+            <td style={customTdStyle}>Sends a 30-second heartbeat ping to keep the session alive.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>LangSync</td>
+            <td style={customTdStyle}>Child of LogtoProvider</td>
+            <td style={customTdStyle}>Syncs the current language to document.documentElement.</td>
+          </tr>
+          <tr>
             <td style={customTdPropStyle}>UserDataProvider</td>
-            <td style={customTdStyle}>Innermost</td>
+            <td style={customTdStyle}>Inside LogtoProvider</td>
             <td style={customTdStyle}>Caches and distributes structured user profile details retrieved from the Logto Management API.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>ToastProvider</td>
+            <td style={customTdStyle}>Inside UserDataProvider</td>
+            <td style={customTdStyle}>Wraps children and provides toast notification context.</td>
           </tr>
         </tbody>
       </table>
 
       <CodeBlock
         title="Provider Tree Nesting Pattern"
-        code={`// Internal nesting of providers inside the root wrapper:
-<PreferencesProvider
-  initialTheme={initialTheme}
-  initialLang={initialLang}
->
-  <LogtoProviderContent
-    userData={userData}
-    dashboard={dashboard}
-  >
+        code={`// Effective nesting of providers (layout.tsx + LogtoProvider internals):
+<MotionConfigProvider>
+  <LogtoProvider userData={userData} dashboard={dashboard}>
     <UserDataProvider userData={userData}>
-      {children}
+      <ToastProvider allTranslations={allTranslations}>
+        <AuthWatcher />
+        <SessionHeartbeat />
+        {children}
+        <LangSync />
+      </ToastProvider>
     </UserDataProvider>
-  </LogtoProviderContent>
-</PreferencesProvider>`}
+  </LogtoProvider>
+</MotionConfigProvider>`}
       />
 
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Note:</strong> By wrapping the authentication state within the preferences layer, client-side preferences (such as theme and language selection) remain active and stable regardless of authentication transitions or active session changes.
+        <strong style={styles.strongNoteStyle}>Note:</strong> MotionConfigProvider wraps the entire tree to control Framer Motion reduced-motion behavior. AuthWatcher, SessionHeartbeat, and LangSync are direct children of LogtoProvider, alongside the wrapped children.
       </div>
 
       <h2 id={slugify("Core React Hooks")} style={h2Style}>
@@ -136,9 +155,9 @@ export default function AnatomyProvidersDoc() {
         <tbody>
           <tr>
             <td style={customTdPropStyle}>useLogto()</td>
-            <td style={customTdStyle}>Unified / Multiple</td>
+            <td style={customTdStyle}>LogtoContext</td>
             <td style={customTdStyle}>
-              Exposes authentication status, active theme, language, organization ID, and modal controller functions (openDashboard, closeDashboard). Throws an error if used outside a LogtoProvider. Does NOT expose user data — use <code>useUserDataContext()</code> for that.
+              Exposes authentication status, active theme, language, organization ID, and modal controller functions (openDashboard, closeDashboard). Throws an error if used outside a LogtoProvider. Does NOT expose user data -- use <code>useUserDataContext()</code> for that.
             </td>
           </tr>
           <tr>

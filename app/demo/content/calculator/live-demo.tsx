@@ -37,7 +37,7 @@ export default function CalculatorLiveDemoDoc() {
       </p>
       <ol style={{ ...styles.textStyle, marginLeft: '1.25rem', marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <li>
-          <strong>Switch Organization:</strong> Use the workspace selector in the sidebar to change your active organization context.
+          <strong>Switch Organization:</strong> Use the workspace selector in the Organizations tab to change your active organization context.
         </li>
         <li>
           <strong>Observe Role and Scope Mapping:</strong> Switching the organization changes your current user&apos;s role and permission mapping in Logto.

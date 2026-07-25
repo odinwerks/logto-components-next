@@ -25,7 +25,7 @@ export default function ReplaceTheDemo() {
       <h2 id={slugify("Replacing the Demo App")} style={{ ...h2Style, marginTop: 0 }}>Replacing the Demo App</h2>
       
       <p style={styles.textStyle}>
-        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, global layout + server-side OIDC hydration live in the ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code> (which wraps everything with <code style={styles.codeSmStyle}>LogtoProvider</code>). The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs additional data fetching for the docs shell and renders <code style={styles.codeSmStyle}>DocsLayoutClient</code>. When replacing the demo, either keep both layout files or consolidate into your root layout.
+        Once you understand how the kit functions, replace the demonstration showcase with your own application shell. In this starter kit, global layout + server-side OIDC hydration live in the ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code>. The root layout wraps everything in a provider tree: <code style={styles.codeSmStyle}>MotionConfigProvider</code> (outermost, controls Framer Motion reduced-motion), <code style={styles.codeSmStyle}>LogtoProvider</code>, <code style={styles.codeSmStyle}>AuthWatcher</code>, <code style={styles.codeSmStyle}>SessionHeartbeat</code> (fires heartbeat every 30s while tab is visible, gated to non-upstream backends), and <code style={styles.codeSmStyle}>LangSync</code> (syncs lang preference to the DOM for screen readers). The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs additional data fetching for the docs shell and renders <code style={styles.codeSmStyle}>DocsLayoutClient</code>. When replacing the demo, either keep both layout files or consolidate into your root layout.
       </p>
       
       <CodeBlock title="Current docs layout (from app/(docs)/layout.tsx)" code={`export const dynamic = 'force-dynamic';
@@ -68,6 +68,25 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
       <p style={styles.textStyle}>
         Note: <code style={styles.codeSmStyle}>LogtoProvider</code> wrapping (with <code style={styles.codeSmStyle}>userData</code> + dashboard JSX props) lives in the ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code>, not in <code style={styles.codeSmStyle}>(docs)/layout.tsx</code>. The docs layout only performs additional data fetching for the docs shell.
       </p>
+
+      <CodeBlock title="Root layout provider tree (from app/layout.tsx)" code={`<body>
+  <MotionConfigProvider>
+    <LogtoProvider
+      userData={userData}
+      dashboard={{ desktop: <Dashboard />, mobile: <MobileDashboard /> }}
+      initialTheme={resolvedTheme}
+      initialLang={resolvedLang}
+      initialOrgId={resolvedOrg}
+      allTranslations={allTranslations}
+      fallbackTranslations={fallbackTranslations}
+    >
+      <AuthWatcher />
+      <SessionHeartbeat />
+      {children}
+      <LangSync />
+    </LogtoProvider>
+  </MotionConfigProvider>
+</body>`} />
 
       <h2 id={slugify("Using the Kit inside your components")} style={h2Style}>Using the Kit inside your components</h2>
       
@@ -155,10 +174,10 @@ docker compose up -d`} />
             <strong style={styles.strongNoteStyle}>3. Callback Handler:</strong> The <code style={styles.codeSmStyle}>/callback</code> route delegates to <code style={styles.codeSmStyle}>handleSignIn()</code>, which completes the OAuth callback by exchanging the authorization code for tokens. Sign-in initiation is handled exclusively by <code style={styles.codeSmStyle}>/api/auth/sign-in</code>.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> The ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code> loads user data via <code style={styles.codeSmStyle}>fetchDashboardDataCached</code> and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context. The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs a secondary auth-tolerant fetch for the docs error banner.
+        <strong style={styles.strongNoteStyle}>4. Context Hydration:</strong> The ROOT <code style={styles.codeSmStyle}>app/layout.tsx</code> loads user data via <code style={styles.codeSmStyle}>fetchDashboardDataCached</code> and hydrates the client&apos;s <code style={styles.codeSmStyle}>LogtoProvider</code> context. The full provider tree is <code style={styles.codeSmStyle}>MotionConfigProvider</code> &gt; <code style={styles.codeSmStyle}>LogtoProvider</code> &gt; (<code style={styles.codeSmStyle}>AuthWatcher</code>, <code style={styles.codeSmStyle}>SessionHeartbeat</code>, <code style={styles.codeSmStyle}>{'{children}'}</code>, <code style={styles.codeSmStyle}>LangSync</code>). The <code style={styles.codeSmStyle}>app/(docs)/layout.tsx</code> performs a secondary auth-tolerant fetch for the docs error banner.
       </div>
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 60-second intervals to silently refresh authentication states.
+        <strong style={styles.strongNoteStyle}>5. Session Refresh:</strong> The <code style={styles.codeSmStyle}>AuthWatcher</code> watches for tab refocusing, online connection restored events, and standard 60-second intervals to silently refresh authentication states. The <code style={styles.codeSmStyle}>SessionHeartbeat</code> fires <code style={styles.codeSmStyle}>recordHeartbeat()</code> every 30 seconds while the tab is visible (gated to <code style={styles.codeSmStyle}>BACKEND_TYPE !== &apos;upstream&apos;</code>).
       </div>
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>6. Client Sign-out:</strong> Sign-out is handled by the <code style={styles.codeSmStyle}>signOutUser()</code> Server Action, which calls Logto&apos;s <code style={styles.codeSmStyle}>signOut()</code> and redirects back to the app. The <code style={styles.codeSmStyle}>/api/wipe</code> endpoint is a recovery path for stale cookies (e.g., <code style={styles.codeSmStyle}>invalid_grant</code>), not the primary sign-out mechanism.

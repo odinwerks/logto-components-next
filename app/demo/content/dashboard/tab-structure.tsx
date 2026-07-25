@@ -140,7 +140,7 @@ export function getLoadedTabs(): TabId[] {
           </tr>
           <tr>
             <td style={customTdPropStyle}>security</td>
-            <td style={customTdStyle}>MFA configuration (TOTP, backup codes, WebAuthn passkeys), password configuration, and email or phone verification.</td>
+            <td style={customTdStyle}>MFA configuration (TOTP, backup codes, WebAuthn passkeys), password configuration, and account deletion.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>identities</td>

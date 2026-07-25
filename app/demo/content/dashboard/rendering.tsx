@@ -68,8 +68,9 @@ export default function DashboardRendering() {
       <CodeBlock
         title="Modal lifecycle"
         code={`function DashboardDialog({
-  onClose, desktop, mobile, routeTo, authMode,
+  mode, onClose, desktop, mobile, routeTo, authMode,
 }: {
+  mode: 'dark' | 'light';
   onClose: () => void;
   desktop: ReactNode;
   mobile?: ReactNode;
@@ -133,7 +134,7 @@ export default function DashboardRendering() {
 
   const userData = opts.userData ?? contextUserData ?? null;
   const isExplicitlyUnauthenticated = isAuthenticated === false;
-  const effectiveShowFallback = userData ? false : showFallback;
+  const effectiveShowFallback = userData ? false : (isExplicitlyUnauthenticated || showFallback);
   const loading = !userData && !effectiveShowFallback;
 
   // 1.5s timeout fallback before showing anonymous avatar
@@ -160,7 +161,7 @@ export default function DashboardRendering() {
 
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Source note:</strong>{' '}
-        The real <code style={styles.codeSmStyle}>useUserDisplay</code> hook is 52 lines with additional i18n (<code style={styles.codeSmStyle}>t</code> translations) and mounted-ref management. User data is sourced from <code style={styles.codeSmStyle}>useUserDataContext()</code> (not the raw <code style={styles.codeSmStyle}>useLogto()</code> value), enabling cross-provider consistency.
+        The real <code style={styles.codeSmStyle}>useUserDisplay</code> hook is 60 lines with additional i18n (<code style={styles.codeSmStyle}>t</code> translations) and mounted-ref management. User data is sourced from <code style={styles.codeSmStyle}>useUserDataContext()</code> (not the raw <code style={styles.codeSmStyle}>useLogto()</code> value), enabling cross-provider consistency.
       </div>
 
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>

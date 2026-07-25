@@ -114,7 +114,7 @@ export default function LiveCalculator() {
           <tr>
             <td style={customTdPropStyle}>app/logto-kit/action-registry/calc-actions.ts</td>
             <td style={customTdStyle}>
-              Secure server-side mathematical handlers (add, subtract, sin, cos, etc.) protected by the Server Action gateway.
+              Secure server-side mathematical handlers (add, subtract, sin, cos, etc.) protected by the Protected Actions API.
             </td>
           </tr>
         </tbody>
@@ -181,7 +181,7 @@ export default function CalculatorPanel() {
           <tr>
             <td style={customTdPropStyle}>calc:scientific</td>
             <td style={customTdStyle}>
-              Advanced operations: Trigonometric (<code style={styles.codeSmStyle}>sin</code>, <code style={styles.codeSmStyle}>cos</code>, <code style={styles.codeSmStyle}>tan</code>, <code style={styles.codeSmStyle}>asin</code>, <code style={styles.codeSmStyle}>acos</code>, <code style={styles.codeSmStyle}>atan</code>), Logarithmic (<code style={styles.codeSmStyle}>log</code>, <code style={styles.codeSmStyle}>ln</code>, <code style={styles.codeSmStyle}>log2</code>), Square Root, Exponentials, and Factorials.
+              Advanced operations: Trigonometric (<code style={styles.codeSmStyle}>sin</code>, <code style={styles.codeSmStyle}>cos</code>, <code style={styles.codeSmStyle}>tan</code>, <code style={styles.codeSmStyle}>asin</code>, <code style={styles.codeSmStyle}>acos</code>, <code style={styles.codeSmStyle}>atan</code>), Logarithmic (<code style={styles.codeSmStyle}>log</code>, <code style={styles.codeSmStyle}>ln</code>, <code style={styles.codeSmStyle}>log2</code>), Square Root (<code style={styles.codeSmStyle}>sqrt</code>), Absolute Value (<code style={styles.codeSmStyle}>abs</code>), Reciprocal (<code style={styles.codeSmStyle}>inv</code>), Exponentials (<code style={styles.codeSmStyle}>exp10</code>, <code style={styles.codeSmStyle}>exp</code>), and Factorials.
             </td>
           </tr>
         </tbody>

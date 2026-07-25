@@ -66,9 +66,9 @@ export default function SecurityErrorHandlingDoc() {
         Error handling is split across helpers. <code style={styles.codeSmStyle}>safeAction</code> wraps server actions. <code style={styles.codeSmStyle}>sanitize</code> and <code style={styles.codeSmStyle}>throwOnApiError</code> shape what messages cross the boundary.
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
-        <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs the HTTP status and upstream error code server-side (not the upstream message or body) and may extract the <code style={styles.codeSmStyle}>message</code> field from known Logto JSON errors for opt-in client exposure (<code style={styles.codeSmStyle}>exposeMessage=true</code>).</li>
+        <li><code style={styles.codeSmStyle}>throwOnApiError</code> logs the HTTP status and upstream error code server-side. The <code style={styles.codeSmStyle}>exposeMessage</code> parameter is deprecated and unused; the client always receives a code, never a raw upstream message.</li>
         <li><code style={styles.codeSmStyle}>safeAction</code> returns <code style={styles.codeSmStyle}>{`{ ok: false, error }`}</code> and preserves pre-sanitized errors in production.</li>
-            <li><code style={styles.codeSmStyle}>sanitize</code> returns a fixed fallback error code for most errors, but <code style={styles.codeSmStyle}>ValidationError</code> instances pass through unmodified (they are pre-sanitized, client-safe). Only <code style={styles.codeSmStyle}>throwOnApiError</code> with <code style={styles.codeSmStyle}>exposeMessage=true</code> passes upstream Logto <code style={styles.codeSmStyle}>message</code> fields to the client.</li>
+            <li><code style={styles.codeSmStyle}>sanitize</code> returns a fixed fallback error code for most errors, but <code style={styles.codeSmStyle}>ValidationError</code> instances pass through unmodified (they are pre-sanitized, client-safe).</li>
       </ul>
 
       <h2 id={slugify("Safe Error Codes")} style={h2Style}>Safe Error Codes</h2>
@@ -126,6 +126,10 @@ export default function SecurityErrorHandlingDoc() {
           <tr>
             <td style={customTdPropStyle}>SESSION_REVOKE_FAILED</td>
             <td style={customTdStyle}>A session revocation request failed or was rejected.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>SESSION_REVOKE_PARTIAL</td>
+            <td style={customTdStyle}>A bulk session revocation partially succeeded. Some sessions could not be revoked.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>GRANT_REVOKE_FAILED</td>
@@ -225,7 +229,7 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
         Upstream identity endpoints often return useful JSON error payloads. The helper tries to keep those user-safe messages when possible.
       </p>
       <p style={styles.textStyle}>
-        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs upstream code server-side, and controls whether Logto&apos;s human-readable <code style={styles.codeSmStyle}>message</code> field reaches the client via the <code style={styles.codeSmStyle}>exposeMessage</code> parameter (default <code style={styles.codeSmStyle}>false</code>). Account API callers opt in with <code style={styles.codeSmStyle}>true</code>; Management API callers use the default <code style={styles.codeSmStyle}>false</code> to prevent internal detail leakage.
+        <code style={styles.codeSmStyle}>throwOnApiError</code> reads the response body, logs upstream code server-side, and maps it to a client-safe error code. If the upstream Logto code is in the error code registry, it is passed through so the i18n layer can map it. Otherwise it falls back to the caller-provided code (<code style={styles.codeSmStyle}>UNAUTHORIZED</code> for 401/403). The raw upstream English <code style={styles.codeSmStyle}>message</code> is never sent to the client.
       </p>
       <CodeBlock
         title="Upstream Error Extraction"
@@ -259,17 +263,26 @@ export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string }
     // Non-JSON payloads are expected for some upstream failures.
   }
 
-  // Log only status + code to server logs
+  // Log status + code to server logs
   warn(\`[\${operation}] HTTP \${res.status}\${upstreamCode ? \` (\${upstreamCode})\` : ''}\`);
 
-  const safeCode: ErrorCode = res.status === 401 || res.status === 403
+  const safeCode: ErrorCode = AUTH_HTTP_STATUSES.has(res.status)
     ? 'UNAUTHORIZED'
     : fallback;
 
-  const errorMessage = exposeMessage ? (upstreamMessage ?? safeCode) : safeCode;
+  // If the upstream Logto code is in the registry, pass it through
+  const recognisedKey = upstreamCode ? lookupErrorCodeKey(upstreamCode) : undefined;
+  const clientCode = recognisedKey && upstreamCode ? upstreamCode : safeCode;
 
-  const safe = new Error(errorMessage);
+  // Apply verbosity resolution
+  const resolvedCode = resolveClientCode(clientCode, clientCode);
+
+  // exposeMessage is deprecated; the client always receives a code now
+  void exposeMessage;
+
+  const safe = new Error(resolvedCode);
   safe.name = 'SanitizedError';
+  (safe as Error & { code?: string }).code = clientCode;
   throw safe;
 }`}
       />

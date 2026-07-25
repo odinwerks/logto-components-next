@@ -63,7 +63,7 @@ export default function DashboardMobile() {
       </h2>
 
       <p style={styles.textStyle}>
-        The system adapts to viewports using a responsive router driven by media queries. The mobile layout is used when the viewport is portrait <em>or</em> narrow.
+        The system adapts to viewports using a responsive router driven by media queries. The mobile layout is used when the viewport is portrait.
       </p>
 
       <CodeBlock
@@ -75,7 +75,7 @@ export default function DashboardMobile() {
       />
 
       <p style={{ ...styles.textStyle, marginBottom: 0 }}>
-        Detection is driven by CSS media queries: <code style={styles.codeSmStyle}>(orientation: portrait)</code> plus a width guard (<code style={styles.codeSmStyle}>(max-width: 64rem)</code>). So a narrow landscape window also switches to the mobile stack.
+        Detection is driven by a single CSS media query: <code style={styles.codeSmStyle}>(orientation: portrait)</code>. All landscape orientations get the desktop layout.
       </p>
 
       <h2 id={slugify("Orientation detection: useIsPortrait()")} style={h2Style}>
@@ -91,21 +91,15 @@ export default function DashboardMobile() {
         code={`const subscribeIsPortrait = (callback: () => void) => {
   if (typeof window === 'undefined') return () => {};
   const mqPortrait = window.matchMedia('(orientation: portrait)');
-  const mqNarrow = window.matchMedia('(max-width: 64rem)');
   mqPortrait.addEventListener('change', callback);
-  mqNarrow.addEventListener('change', callback);
   return () => {
     mqPortrait.removeEventListener('change', callback);
-    mqNarrow.removeEventListener('change', callback);
   };
 };
 
 const getSnapshotIsPortrait = () => {
   if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(orientation: portrait)').matches ||
-    window.matchMedia('(max-width: 64rem)').matches
-  );
+  return window.matchMedia('(orientation: portrait)').matches;
 };
 
 const getServerSnapshotIsPortrait = () => false;

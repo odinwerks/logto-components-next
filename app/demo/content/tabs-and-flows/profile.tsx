@@ -101,7 +101,7 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdateBasicInfo</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>({`{name?,username?}`}){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>({`{name?,username?}, identityVerificationRecordId?`}){`=>`}Promise{`<ActionResult>`}</code></td>
               <td style={customTdStyle}>Updates basic display name and username fields on the server</td>
             </tr>
             <tr>
@@ -136,7 +136,7 @@ export default function ProfileSection() {
             </tr>
             <tr>
               <td style={customTdPropStyle}>onUpdateEmail</td>
-              <td style={customTdStyle}><code style={styles.codeStyle}>(email, newIdentifierVerificationRecordId, identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
+              <td style={customTdStyle}><code style={styles.codeStyle}>(email: string | null, newIdentifierVerificationRecordId, identityVerificationRecordId){`=>`}Promise{`<ActionResult>`}</code></td>
               <td style={customTdStyle}>Binds the verified email using both the new identifier verification ID and the identity verification ID</td>
             </tr>
             <tr>
@@ -183,11 +183,7 @@ export default function ProfileSection() {
 
 const { upload, isUploading, error, clearError } = useAvatarUpload({
   onSuccess: async (url) => {
-    // The Server Action handles direct database persistence
-    // if the selected PFP backend is set to Logto.
-    if (process.env.PFP_BACKEND !== 'logto') {
-      await updateAvatarUrl(url); // Updates server database with custom storage link
-    }
+    await onUpdateAvatarUrl(url);
     onSuccess(t.profile.avatarUpdated);
     refreshData();
   },

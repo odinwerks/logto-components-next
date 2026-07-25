@@ -112,7 +112,7 @@ export default function EnvSetup() {
           <tr>
             <td style={customTdPathStyle}>COOKIE_SECRET</td>
             <td style={customTdStyle}>
-              A random, cryptographically secure 32-character string. Used to sign and encrypt session cookies.
+              A random, cryptographically secure 32+ character string. Used to sign session cookies.
               <br />Generate on Linux/macOS: <code style={styles.codeSmStyle}>openssl rand -hex 32</code>
             </td>
           </tr>
@@ -187,13 +187,14 @@ COUNTRY_CODE_BLOCK_LIST=   # Comma-separated blocked dial codes (e.g., 7,86)
 
 # - Security & Delay Controls -
 DELETE_REDIRECT_DELAY=3000 # Delay (ms) before redirecting client after deleting account
+SIGNOUT_REDIRECT_DELAY=2000 # Delay (ms) before redirecting after sign-out (used by SignOutModal farewell overlay)
 
 # - Developer Diagnostics -
 DEBUG=                    # Set to 'true' to enable verbose terminal server logging
 LOG_BACKEND=both          # Logging output destinations: console | pino | both
 
 # - Pino Telemetry & Logging -
-LOG_LEVEL=info            # Minimum severity log filter: debug | info | warn | error
+LOG_LEVEL=info            # Minimum severity log filter: trace | debug | info | warn | error | fatal | silent (default: debug in dev, info in prod)
 LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log telemetry`} />
 
       <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
@@ -219,7 +220,7 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
           <tr>
             <td style={customTdPathStyle}>THEME</td>
             <td style={customTdStyle}>
-              The directory name of the active custom theme layout folder (defaults to <code style={styles.codeSmStyle}>Default</code>).
+              The directory name of the active custom theme layout folder. Currently unused infrastructure.
             </td>
           </tr>
           <tr>
@@ -255,7 +256,7 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
           <tr>
             <td style={customTdPathStyle}>COUNTRY_CODE_BLOCK_LIST</td>
             <td style={customTdStyle}>
-              Comma-separated list of blocked dial codes (e.g., <code style={styles.codeSmStyle}>7,86</code>). Used only when allow list is not set. If neither list is set, fallback allow list is <code style={styles.codeSmStyle}>1,995</code>.
+              Comma-separated list of blocked dial codes (e.g., <code style={styles.codeSmStyle}>7,86</code>). Used only when allow list is not set. If neither list is set, all countries are permitted (no filtering).
             </td>
           </tr>
         </tbody>

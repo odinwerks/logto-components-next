@@ -80,8 +80,8 @@ export default function CalculatorRbacDesignDoc() {
           <tr>
             <td style={customTdPropStyle}>calc:scientific</td>
             <td style={customTdStyle}>
-              Grants access to advanced scientific functions (sin, cos, tan, log, square root, etc.). 
-              This scope is checked prior to evaluating trigonometric or logarithmic nodes.
+              Grants access to advanced scientific functions (sin, cos, tan, asin, acos, atan, log, ln, log2, sqrt, abs, inv, exp10, exp, fact).
+              This scope is checked prior to evaluating trigonometric, logarithmic, exponential, or other advanced nodes.
             </td>
           </tr>
         </tbody>

@@ -185,6 +185,9 @@ export default function UiProtectedDoc() {
         4. **Organization Matching**: If <code style={styles.codeStyle}>orgName</code> is provided, it resolves the corresponding ID from the user organization list. It verifies that the active organization (asOrg) matches the target organization.
       </p>
       <p style={styles.textStyle}>
+        <strong style={styles.strongNoteStyle}>Org membership guard:</strong> After matching asOrg, the component additionally verifies <code style={styles.codeStyle}>userData.organizations.some(org =&gt; org.id === resolvedOrgId)</code>. This is a defense-in-depth check that confirms the user actually belongs to the matched organization.
+      </p>
+      <p style={styles.textStyle}>
         5. **Permission Fetching**: It fetches active organization permission keys via a client-side effect. For organization scopes, it uses <code style={styles.codeStyle}>loadOrganizationPermissions(orgId)</code>. For personal scopes (orgId=&quot;self&quot;), it uses <code style={styles.codeStyle}>loadPersonalPermissions()</code>.
       </p>
       <p style={styles.textStyle}>
@@ -193,6 +196,9 @@ export default function UiProtectedDoc() {
       <div style={styles.noteStyle}>
         <strong style={styles.strongNoteStyle}>Strict Fallback Behavior:</strong> If permission loading fails, returns an error, or if there is an organization mismatch, the component fails closed. It defaults to clearing loaded permissions and rendering the fallback UI.
       </div>
+      <p style={styles.textStyle}>
+        <strong style={styles.strongNoteStyle}>Denial toast:</strong> When a user transitions from authorized to unauthorized state (for example, after switching organizations or losing a role), the component fires a <code style={styles.codeStyle}>PERMISSION_DENIED</code> toast notification to inform the user.
+      </p>
     </div>
   );
 }

@@ -71,14 +71,14 @@ export default function LogtoConsole() {
             <br />
             <code style={styles.codeSmStyle}>http://localhost:3000/callback</code>
             <br />
-            <span style={{ fontSize: '10px' }}>Where Logto redirects the browser with the auth code.</span>
+            <span style={{ fontSize: '10px' }}>Where Logto redirects the browser with the auth code. In Logto Console, this field is labeled &quot;Allowed Callback URLs&quot;.</span>
           </div>
           <div style={styles.noteStyle}>
             <strong style={styles.strongNoteStyle}>Post Sign-Out Redirect URI</strong>
             <br />
             <code style={styles.codeSmStyle}>http://localhost:3000/</code>
             <br />
-            <span style={{ fontSize: '10px' }}>Where Logto redirects the browser after wiping session cookies.</span>
+            <span style={{ fontSize: '10px' }}>Where Logto redirects the browser after Logto completes its sign-out flow.</span>
           </div>
           <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
             <strong style={styles.strongNoteStyle}>Required Toggle</strong>

@@ -141,6 +141,82 @@ export default function AnatomyAsyncPatternsDoc() {
         <strong style={styles.strongNoteStyle}>Rule of thumb:</strong> treat async effects as best-effort operations. Always guard
         state writes locally so stale responses become harmless no-ops.
       </div>
+
+      <h2 id={slugify('Generation Ref Counter Pattern')} style={h2Style}>
+        Generation Ref Counter Pattern
+      </h2>
+      <p style={styles.textStyle}>
+        The <code>useAsyncList</code> hook (in <code>app/logto-kit/hooks/use-async-list.ts</code>) uses a numeric counter alongside
+        the boolean cancellation pattern. A <code>generationRef</code> increments each time a fetch starts. When the async operation
+        completes, it compares its captured generation value against the current ref. If they differ, the result is discarded.
+      </p>
+      <p style={styles.textStyle}>
+        This avoids the need for a mutable boolean that must be set in both the effect cleanup and the resolution callbacks.
+        The counter pattern is self-contained: each effect run captures its own generation, and only the latest run's value
+        will match the ref when the promise settles.
+      </p>
+
+      <CodeBlock
+        title="Generation Ref Cancellation"
+        code={`const generationRef = useRef(0);
+
+useEffect(() => {
+  const generation = ++generationRef.current;
+
+  loader()
+    .then((result) => {
+      // Discard if a newer fetch started before this one finished
+      if (generation !== generationRef.current) return;
+      dispatch({ type: 'success', data: result.data });
+    })
+    .catch((err) => {
+      if (generation !== generationRef.current) return;
+      dispatch({ type: 'error', error: err.message });
+    });
+
+  return () => {
+    generationRef.current++;
+  };
+}, [sourceKey]);`}
+      />
+
+      <h2 id={slugify('Streaming and Suspense with RSC')} style={h2Style}>
+        Streaming and Suspense with RSC
+      </h2>
+      <p style={styles.textStyle}>
+        The codebase uses React Server Components to kick off data fetches on the server and stream the results to the client.{' '}
+        <code>RbacPromisesProvider</code> wraps the component tree and passes server-created promises into a client context.
+        Consumer components call <code>use(promise)</code> inside a <code>&lt;Suspense&gt;</code> boundary, which suspends until
+        the server data resolves.
+      </p>
+      <p style={styles.textStyle}>
+        Once resolved, the data is passed as <code>initialData</code> to hooks like <code>useAsyncList</code>. When
+        <code>initialData</code> is provided, the hook seeds its state immediately and skips the mount-effect fetch. This is the
+        "instant-fetch" architecture from commit 5b608e9: the server does the heavy lifting, the client renders with data on
+        first paint, and subsequent interactions (org switches, manual refresh) still go through the normal server-action path.
+      </p>
+
+      <CodeBlock
+        title="Streaming Data Flow"
+        code={`// Server component: kick off the promise
+const dataPromise = fetchDashboardData();
+
+// Client provider: pass promise to context
+<RbacPromisesProvider promises={[dataPromise]}>
+  <DashboardConsumer />
+</RbacPromisesProvider>
+
+// Consumer: use() inside Suspense
+function DashboardConsumer() {
+  const promise = useRbacPromise(0);
+  const result = use(promise);
+  // Pass to hook -- skips mount fetch
+  const { items } = useAsyncList({
+    loader: loadRoles,
+    initialData: result.data.roles,
+  });
+}`}
+      />
     </div>
   );
 }

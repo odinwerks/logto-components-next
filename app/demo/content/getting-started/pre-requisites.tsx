@@ -102,6 +102,10 @@ export default function PreRequisites() {
         </table>
       </div>
 
+      <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
+        <strong style={styles.strongNoteStyle}>Note:</strong> Pricing and feature availability are based on external Logto product pages at time of writing. Verify current details at logto.io before relying on them.
+      </div>
+
       <h2 id={slugify("Feature Comparison Matrix")} style={h2Style}>Feature Comparison Matrix</h2>
 
       <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -185,6 +189,10 @@ export default function PreRequisites() {
         </table>
       </div>
 
+      <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
+        <strong style={styles.strongNoteStyle}>Backend Modes:</strong> For runtime behavior differences between backend modes, see <a href="/getting-started/backend-selection" style={{ color: styles.linkColor }}>Backend Selection</a>.
+      </div>
+
       <h2 id={slugify("Deploying Blacktop via Cloudflare Tunnel")} style={h2Style}>Deploying Blacktop via Cloudflare Tunnel</h2>
       
       <p style={styles.textStyle}>
@@ -194,9 +202,7 @@ export default function PreRequisites() {
         <strong>Directory Structure Rule:</strong> Git clone the Logto Blacktop repository into a directory named <code>logto-server</code>. Place this <code>docker-compose.yml</code> and its corresponding <code>.env</code> file <strong>on the same level (as siblings)</strong> as the <code>logto-server</code> directory (NOT inside of it).
       </p>
       
-      <CodeBlock title="docker-compose.yml" code={`version: "3.8"
-
-services:
+      <CodeBlock title="docker-compose.yml" code={`services:
   # Logto Core Service (built from local source)
   logto:
     build:
@@ -329,6 +335,10 @@ networks:
       <p style={styles.textStyle}>
         An external S3-compatible Object Storage service is only required if you intend to host custom asset files, themes, and user profile pictures. (Upstream OSS disables custom asset storage configurations, so hooking it up is irrelevant there).
       </p>
+
+      <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
+        <strong style={styles.strongNoteStyle}>Production Requirement:</strong> Production deployments require <code style={styles.codeSmStyle}>LOGTO_VERIFICATION_COOKIE_SECRET</code> for identity verification cookie signing (BUG-001 fix). See env-setup for details.
+      </div>
 
       <h2 id={slugify("Branding Hiding Hack (OSS Upstream & Cloud)")} style={h2Style}>Branding Hiding Hack (OSS Upstream & Cloud)</h2>
       

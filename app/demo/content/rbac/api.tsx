@@ -77,7 +77,7 @@ const response = await fetch('/api/protected', {
   },
   // Same-origin requests use the authenticated session cookie automatically
   body: JSON.stringify({
-    action: 'get-calculator-total', // Name of the registered action
+    action: 'calc/add', // Name of the registered action
     payload: { a: 10, b: 20 }        // Client payload passed to the action
   })
 });
@@ -97,16 +97,16 @@ if (result.error) {
         The API route validates incoming claims using a secure multi-layer sequence:
       </p>
       <p style={styles.textStyle}>
-        1. **Active Organization Determination**: The active organization is read and stored client-side via the user custom data preference path (<code style={styles.codeStyle}>customData.Preferences.asOrg</code>). During server action resolution, the backend checks this preference to confirm user context.
+        1. **Active Organization Determination**: The backend calls <code style={styles.codeStyle}>fetchUserAsOrg()</code>, which executes <code style={styles.codeSmStyle}>GET /api/users/{"{id}"}</code> via the Management API and reads <code style={styles.codeStyle}>customData.Preferences.asOrg</code> to determine the user's active organization. If it does not match the action's required org, the request is rejected immediately with <code style={styles.codeStyle}>ORG_NOT_MEMBER</code>.
       </p>
       <p style={styles.textStyle}>
         2. **Token Introspection**: The endpoint retrieves the user session token and executes token introspection via Logto OIDC endpoints. This validates whether the token is active, unexpired, and associated with a valid user ID.
       </p>
       <p style={styles.textStyle}>
-        3. **Management API Verification (M2M)**: If the action requires organization-specific access, the backend utilizes Machine-to-Machine (M2M) credentials to fetch the user organization roles and scopes directly from the Logto Management API. It executes the following endpoints:
+        3. **Management API Verification (M2M)**: If the active organization matches, the backend calls <code style={styles.codeStyle}>verifyOrgAccess()</code>, which uses Machine-to-Machine (M2M) credentials to confirm the user's organization roles and permissions. It executes the following endpoints:
       </p>
       <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
-        <li><code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code> to confirm active organization membership.</li>
+        <li><code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code> to fetch the user's roles in the organization. A non-empty result confirms membership.</li>
         <li><code style={styles.codeSmStyle}>GET /api/organization-roles/{"{roleId}"}/scopes</code> in parallel for each role to resolve active permission claims.</li>
       </ul>
       <p style={styles.textStyle}>

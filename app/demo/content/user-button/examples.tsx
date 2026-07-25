@@ -81,7 +81,7 @@ export default function UserButtonExamples() {
       <ExampleCard
         label="Default + sizes"
         subLabel="80px, 56px, and 36px"
-        code={`<UserButton />            {/* default 6.25rem */}
+        code={`<UserButton Size="80px" />
 <UserButton Size="56px" />
 <UserButton Size="36px" />`}
         note="Sizes adjusted for clarity"
@@ -96,7 +96,7 @@ export default function UserButtonExamples() {
 
       <ExampleCard
         label="Shapes"
-        subLabel="circle / square / rounded-sq"
+        subLabel="circle / sq / rsq"
         code={`<UserButton Size="56px" shape="circle" />
 <UserButton Size="56px" shape="sq" />
 <UserButton Size="56px" shape="rsq" />`}
@@ -120,8 +120,8 @@ export default function UserButtonExamples() {
       <ExampleCard
         label="Canvas modes"
         subLabel="Avatar vs Initials"
-        code={`<UserButton /> <UserButton Canvas="Initials" />
-<UserBadge /> <UserBadge Canvas="Initials" />`}
+        code={`<UserButton Size="56px" /> <UserButton Size="56px" Canvas="Initials" />
+<UserBadge Size="56px" /> <UserBadge Size="56px" Canvas="Initials" />`}
         isMobile={isMobile}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

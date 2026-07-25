@@ -65,7 +65,7 @@ export default function AnatomyThemeDoc() {
         The design system uses a strict color-only theme mechanism. Color parameters are configured through CSS custom properties (variables) that are mapped directly to JS-accessible parameters. All layout structure, typography sizing, margins, and border radii remain constant between themes to maintain layout consistency.
       </p>
       <p style={styles.textStyle}>
-        Theme transitions are managed by applying a <code>data-theme</code> attribute on the document root (<code>&lt;html&gt;</code> element). This attribute selects the appropriate CSS rules loaded from <code>dark.css</code> or <code>light.css</code>. Component styles read these values inline via the <code>colors</code> object supplied by the theme hook.
+        Theme transitions are managed by applying a <code>data-theme</code> attribute on the document root (<code>&lt;html&gt;</code> element). This attribute selects the appropriate CSS rules loaded from <code>default/dark.css</code> or <code>default/light.css</code>. Component styles read these values inline via the <code>colors</code> object supplied by the theme hook.
       </p>
 
       <CodeBlock
@@ -137,7 +137,7 @@ const elementStyle: React.CSSProperties = {
           <tr>
             <td style={customTdPropStyle}>textTertiary</td>
             <td style={customTdStyle}><code>#90959e</code></td>
-            <td style={customTdStyle}><code>#6b7280</code></td>
+            <td style={customTdStyle}><code>#4b5563</code></td>
             <td style={customTdStyle}>Highly muted placeholder or help text.</td>
           </tr>
           <tr>

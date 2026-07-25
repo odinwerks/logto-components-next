@@ -154,10 +154,11 @@ if (!isValid) {
   return;
 }
 
-// 2. Propagate state change to sessionStorage and PreferencesProvider React context
+// 2. Persist the selection to sessionStorage and PreferencesProvider React context (awaited before transition for BUG-018 race condition prevention)
+await setAsOrg(orgId);
+
+// 3. Trigger RSC reload to fetch fresh dashboard data under the updated org context
 startTransition(() => {
-  setAsOrg(orgId);
-  // 3. Trigger RSC reload to fetch fresh dashboard data under the updated org context
   router.refresh();
 });`} />
 
@@ -259,11 +260,7 @@ useEffect(() => {
           1. Security-First Role Exposure
         </h4>
         <p style={styles.textStyle}>
-          Organization roles are filtered dynamically on the client. The component only displays roles matching the active organization:
-          <br />
-          <code style={styles.codeSmStyle}>const organizationRoles = activeOrgId ? (userData.organizationRoles || []).filter(role =&gt; role.organizationId === activeOrgId) : [];</code>
-          <br />
-          If no organization is selected (global personal mode), organization roles are hidden from view. This prevents cross-tenant metadata exposure.
+          Organization roles are fetched server-side via the M2M Management API through the <code style={styles.codeSmStyle}>useOrgRoles</code> hook, not filtered from client-side OIDC claims. The <code style={styles.codeSmStyle}>loadOrganizationUserRoles(orgId)</code> server action calls <code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code> with an M2M token to retrieve role objects with UUIDs and descriptions. If no organization is selected (global personal mode), no role fetch is initiated and the roles section is empty.
         </p>
 
         <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
@@ -277,7 +274,7 @@ useEffect(() => {
             <strong>Batch Resolution:</strong> Upon mounting or context transition, the client runs <code style={styles.codeSmStyle}>loadOrganizationUserRoles(orgId)</code>. This queries the server action, which utilizes a safe machine-to-machine (M2M) Management API token to request <code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code>. The action retrieves the actual role objects, including UUIDs and descriptions, which are mapped by name to the UI cards.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Lazy Hover Fetches:</strong> For individual roles rendered on other screens, the <code style={styles.codeSmStyle}>RoleCard</code> component executes <code style={styles.codeSmStyle}>getRoleDetails(roleId)</code> on demand when the user hovers over the Info icon. Results are written to an in-memory cache shared across card instances to optimize hover responsiveness.
+            <strong>Lazy Hover Fetches:</strong> For individual roles rendered on other screens, the <code style={styles.codeSmStyle}>RoleCard</code> component executes <code style={styles.codeSmStyle}>getRoleDetails(roleId)</code> on demand when the user hovers over the Info icon. Results are stored in a per-instance useRef cache to avoid redundant fetches within the same card lifecycle.
           </li>
         </ol>
 
@@ -299,20 +296,21 @@ useEffect(() => {
           </li>
         </ul>
 
-        <CodeBlock title="RoleCard Lazy-Fetch & Shareable Cache" code={`// Module-scoped in-memory cache to prevent duplicate backend requests
-const descriptionCache = new Map<string, string | null>();
+        <CodeBlock title="RoleCard Lazy-Fetch & Per-Instance Cache" code={`// Per-instance useRef cache avoids redundant fetches within the same card lifecycle
+const descriptionRef = useRef<Map<string, string | null> | null>(null);
 
 const fetchDescription = async () => {
   if (!roleId) return;
   if (description !== undefined) return; // pre-filled from batch API
 
-  const cached = descriptionCache.get(roleId);
-  if (cached !== undefined) return;
+  const cache = descriptionRef.current;
+  if (cache?.has(roleId)) return;
 
   const result = await getRoleDetails(roleId);
   if (result.ok) {
     const desc = result.data.description || null;
-    descriptionCache.set(roleId, desc);
+    if (!descriptionRef.current) descriptionRef.current = new Map();
+    descriptionRef.current.set(roleId, desc);
     setResolvedDescription(desc);
   }
 };`} />
