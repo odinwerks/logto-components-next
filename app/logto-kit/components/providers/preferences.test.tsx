@@ -240,7 +240,7 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       </PreferencesProvider>
     );
 
-    const cleanHtml = html.replace(/<!--.*?-->/g, '');
+    const cleanHtml = html.replace(/<!--[\s\S]*?-->/g, '');
 
     // Initial render / SSR should strictly match the props/defaults first
     expect(cleanHtml).toContain('Theme: dark');

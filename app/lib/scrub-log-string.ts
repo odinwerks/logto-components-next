@@ -88,7 +88,7 @@ export function scrubLogString(s: string): string {
 
   // JWT tokens: eyJ...header.eyJ...payload.signature
   result = result.replace(
-    /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]*/g,
+    /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?/g,
     '[JWT_REDACTED]',
   );
 
