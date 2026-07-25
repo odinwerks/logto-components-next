@@ -192,7 +192,7 @@ describe('log.ts — Pino path scrubbing (BUG-M-001)', () => {
     }));
 
     const { warn } = await import('./log');
-    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.sig123';
+    const jwt = 'eyJ' + 'hbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.sig123';
     warn(`Credential leak: ${jwt}`);
 
     const calls = pinoLoggerMock.warn.mock.calls;

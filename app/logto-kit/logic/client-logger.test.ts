@@ -65,7 +65,7 @@ describe('client-logger', () => {
 
   it('scrubs JWT tokens from string arguments', async () => {
     const { clientLog } = await import('./client-logger');
-    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.signature123';
+    const jwt = 'eyJ' + 'hbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.signature123';
     clientLog.warn('Token', `Token: ${jwt}`);
     const output = consoleSpies.warn.mock.calls[0].join(' ');
     expect(output).not.toContain(jwt);

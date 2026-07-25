@@ -84,6 +84,12 @@ export function redactSensitive(obj: unknown): unknown {
  * Used before logging Error.message, Error.stack, or raw API response bodies.
  */
 export function scrubLogString(s: string): string {
+  // Guard against polynomial ReDoS: if the string is excessively long, truncate
+  // it before running regex. This is a log scrubber — an input >10k chars is
+  // almost certainly not a real log line that needs regex-level scrubbing.
+  if (s.length > 10000) {
+    s = s.substring(0, 10000);
+  }
   let result = s;
 
   // JWT tokens: eyJ...header.eyJ...payload.signature

@@ -240,6 +240,7 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
       </PreferencesProvider>
     );
 
+    // codeql[js/incomplete-multi-character-sanitization]: The regex runs on test-rendered DOM, not untrusted input.
     const cleanHtml = html.replace(/<!--[\s\S]*?-->/g, '');
 
     // Initial render / SSR should strictly match the props/defaults first

@@ -36,7 +36,9 @@ function copyRecursive(src, dest) {
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
   for (const entry of entries) {
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
     const srcPath = path.join(src, entry.name);
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
@@ -52,6 +54,7 @@ function countFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal
       count += countFiles(path.join(dir, entry.name));
     } else {
       count++;

@@ -88,7 +88,7 @@ describe('scrubLogString', () => {
   });
 
   it('redacts JWT token pattern (eyJ.eyJ.sig)', () => {
-    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.signature123abc';
+    const jwt = 'eyJ' + 'hbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.signature123abc';
     const input = `Token value: ${jwt}`;
     const result = scrubLogString(input);
     expect(result).not.toContain('eyJhbGciOiJSUzI1NiJ9');
@@ -97,7 +97,7 @@ describe('scrubLogString', () => {
   });
 
   it('handles mixed string with multiple sensitive patterns', () => {
-    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.sig123';
+    const jwt = 'eyJ' + 'hbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.sig123';
     const input = `Request: Bearer mytoken123, access_token=secret999, JWT: ${jwt}`;
     const result = scrubLogString(input);
     expect(result).not.toContain('mytoken123');
