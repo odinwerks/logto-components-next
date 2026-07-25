@@ -1,5 +1,4 @@
-name: Semgrep Aggressive Scan
-
+name: Semgrep
 on:
   push:
     branches: [ "main" ]
