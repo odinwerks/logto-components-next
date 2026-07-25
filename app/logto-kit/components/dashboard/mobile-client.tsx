@@ -241,6 +241,7 @@ export function MobileClient({
               minHeight: '100dvh',
               display: 'flex',
               flexDirection: 'column',
+
               alignItems: 'center',
               justifyContent: 'center',
               background: colors.bgPage,
@@ -389,12 +390,13 @@ export function MobileClient({
                   <CrossFade
                     activeKey={activeTab}
                   className="dashboard-tabpanel-content"
-                  duration={0.12}
+                  duration={0.05}
+                  instant
                   fillHeightKeys={fillHeightKeys}
                   keepMountedKeys={[...visitedTabs]}
                   wrapItem={(tabId, isVisible, content) => (
                     <TabErrorBoundary
-                      resetKey={`${tabId}-${activeTab}`}
+                      resetKey={`${tabId}-${isVisible ? 'visible' : 'hidden'}`}
                       fallback={(
                         <div
                           role="alert"

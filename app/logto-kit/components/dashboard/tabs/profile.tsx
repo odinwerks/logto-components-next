@@ -647,6 +647,7 @@ export function ProfileTab({
   const handleCloseModal = useCallback(() => {
     // BUG-035: prevent closing during upload — otherwise success toast fires after user "cancelled"
     if (isUploading) return;
+
     // Use the ref (not the state) so a stale closure can't double-revoke an
     // already-revoked URL. Nulling the ref acts as the "already revoked" flag.
     if (cropPreviewUrlRef.current) {
@@ -656,6 +657,7 @@ export function ProfileTab({
     setCropPreviewUrl(null);
     setSelectedFile(null);
     setAvatarModalOpen(false);
+
   }, [isUploading]);
 
   // Focus management: mount focus & focus restoration

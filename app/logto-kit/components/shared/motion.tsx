@@ -240,6 +240,7 @@ export function CrossFade({ activeKey, className, duration = 0.12, instant = fal
     return () => clearTimeout(timer);
   }, [activeKey, displayedKey, duration, instant]);
 
+
   // Render-time sync for instant mode: React 18's render-time setState pattern
   // immediately re-renders with the new state before painting, eliminating the
   // one-frame stale render that useEffect-based sync creates.
