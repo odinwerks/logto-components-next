@@ -36,7 +36,6 @@ export function PhoneCountrySelect({
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const mountedRef = useRef(false);
   const isKeyboardNavRef = useRef(false);
-  const scrollAncestorsRef = useRef<Element[]>([]);
 
   const triggerId = useId();
   const listboxId = useId();
@@ -87,23 +86,25 @@ export function PhoneCountrySelect({
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      updateCoords();
-      const ancestors = triggerRef.current ? findScrollableAncestors(triggerRef.current) : [];
-      scrollAncestorsRef.current = ancestors;
-      window.addEventListener('resize', updateCoords);
-      window.addEventListener('scroll', updateCoords, { passive: true });
-      ancestors.forEach((el) => {
-        el.addEventListener('scroll', updateCoords, { passive: true });
-      });
-    }
+    if (!isOpen) return;
+
+    updateCoords();
+    
+    const handleScroll = () => setIsOpen(false);
+    const ancestors = triggerRef.current ? findScrollableAncestors(triggerRef.current) : [];
+    
+    window.addEventListener('resize', updateCoords);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    ancestors.forEach((el) => {
+      el.addEventListener('scroll', handleScroll, { passive: true });
+    });
+
     return () => {
       window.removeEventListener('resize', updateCoords);
-      window.removeEventListener('scroll', updateCoords);
-      scrollAncestorsRef.current.forEach((el) => {
-        el.removeEventListener('scroll', updateCoords);
+      window.removeEventListener('scroll', handleScroll);
+      ancestors.forEach((el) => {
+        el.removeEventListener('scroll', handleScroll);
       });
-      scrollAncestorsRef.current = [];
     };
   }, [isOpen, updateCoords, findScrollableAncestors]);
 
