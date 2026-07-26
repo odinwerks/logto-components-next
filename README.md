@@ -1,5 +1,9 @@
 # logto-debug-dashboard
 
+> **This is a starter template, not an npm package.** Clone this repo and build your
+> secured application on top. See the docs site at `/getting-started/pre-requisites`
+> for setup instructions.
+
 A modular Next.js app that provides a base for building with a dashboard, user button, providers for user data, Logto Auth integration, theme and language handlers, and custom action runners.
 
 ## Features
