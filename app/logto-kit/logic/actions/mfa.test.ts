@@ -738,7 +738,11 @@ describe('generateBackupCodes', () => {
     expect(deleteCalled).toBe(false);
   });
 
-  it('retries enrollment first, then deletes old factors, when Logto rejects concurrent BackupCode factors (409) (BUG-015)', async () => {
+  // CAN-ACT-005: When an existing BackupCode factor causes a 409/422 singleton
+  // rejection, a blind retry of the identical body CANNOT succeed (no
+  // factor-state change). The fix skips the retry and fails safely with
+  // BACKUP_CODES_SINGLETON_CONFLICT, retaining the user's old codes.
+  it('fails safely with BACKUP_CODES_SINGLETON_CONFLICT on 409 when existing backup factors are present (CAN-ACT-005)', async () => {
     const conflictResponse = {
       status: 409,
       ok: false,
@@ -756,41 +760,65 @@ describe('generateBackupCodes', () => {
         },
       ]))
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
-      .mockResolvedValueOnce(conflictResponse)                  // enroll (1st) → 409
-      .mockResolvedValueOnce(mockOkResponse())                  // enroll (retry) → ok
-      .mockResolvedValueOnce(mockOkResponse());                 // delete old (after retry)
+      .mockResolvedValueOnce(conflictResponse);                  // enroll → 409
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
-    expect(r.ok).toBe(true);
-    if (!r.ok) throw new Error('Expected success');
-    expect(r.data.codes).toEqual(['A1']);
-    expect(makeRequest).toHaveBeenCalledTimes(5);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('BACKUP_CODES_SINGLETON_CONFLICT');
 
-    // BUG-015: the retry enroll (4th call) happens BEFORE the old-factor
-    // deletion (5th call), so a retry failure preserves the old factors.
-    expect(makeRequest).toHaveBeenNthCalledWith(
-      4,
-      '/api/my-account/mfa-verifications',
-      expect.objectContaining({
-        method: 'POST',
-        body: { type: 'BackupCode', codes: ['A1'] },
-        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
-      }),
+    // Only 3 calls: list, generate, enroll. NO blind retry.
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+
+    // The old backup factor was NEVER deleted — old codes are preserved.
+    const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
+    const deleteCalled = calls.some(
+      ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
     );
-    expect(makeRequest).toHaveBeenNthCalledWith(
-      5,
-      '/api/my-account/mfa-verifications/backup-old-1',
-      expect.objectContaining({
-        method: 'DELETE',
-        extraHeaders: { 'logto-verification-id': validIdentityVrecId },
-      }),
-    );
+    expect(deleteCalled).toBe(false);
   });
 
-  it('does NOT delete old backup factors when the retry enrollment fails (BUG-015)', async () => {
+  it('fails safely with BACKUP_CODES_SINGLETON_CONFLICT on 422 when existing backup factors are present (CAN-ACT-005)', async () => {
+    const conflictResponse = {
+      status: 422,
+      ok: false,
+      json: vi.fn().mockResolvedValue({ code: 'backup_code.exists' }),
+      text: vi.fn().mockResolvedValue('Unprocessable Entity'),
+    } as unknown as Response;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] })) // generate
+      .mockResolvedValueOnce(conflictResponse);                       // enroll → 422
+
+    const r = await generateBackupCodes(validIdentityVrecId);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected failure');
+    expect(r.error).toBe('BACKUP_CODES_SINGLETON_CONFLICT');
+
+    // Only 3 calls: list, generate, enroll. NO blind retry.
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+
+    // The old backup factor was NEVER deleted.
+    const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
+    const deleteCalled = calls.some(
+      ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
+    );
+    expect(deleteCalled).toBe(false);
+  });
+
+  it('falls through to BACKUP_CODES_FAILED (not singleton conflict) on 409 when NO existing backup factors are present', async () => {
     // Make throwOnApiError behave like the real implementation: throw on
-    // non-ok responses so the retry failure actually propagates.
+    // non-ok responses so the enroll failure actually propagates.
     vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
       if (!res.ok) {
         const err = new Error('BACKUP_CODES_FAILED');
@@ -806,42 +834,22 @@ describe('generateBackupCodes', () => {
       text: vi.fn().mockResolvedValue('Conflict'),
     } as unknown as Response;
 
-    const failResponse = {
-      status: 503,
-      ok: false,
-      json: vi.fn().mockResolvedValue({}),
-      text: vi.fn().mockResolvedValue('Service Unavailable'),
-    } as unknown as Response;
-
+    // No existing backup factors — the 409 is NOT a singleton conflict.
     vi.mocked(makeRequest)
-      .mockResolvedValueOnce(mockOkResponse([
-        {
-          id: 'backup-old-1',
-          type: 'BackupCode',
-          createdAt: new Date('2024-01-01').toISOString(),
-          updatedAt: new Date('2024-01-01').toISOString(),
-        },
-      ]))
+      .mockResolvedValueOnce(mockOkResponse([]))               // list (empty)
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
-      .mockResolvedValueOnce(conflictResponse)                  // enroll (1st) → 409
-      .mockResolvedValueOnce(failResponse);                     // enroll (retry) → 503
+      .mockResolvedValueOnce(conflictResponse);                 // enroll → 409
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
     expect(r.ok).toBe(false);
-    if (r.ok) throw new Error('Expected error');
+    if (r.ok) throw new Error('Expected failure');
+    // Must NOT be the singleton conflict code — this is a genuine error path.
     expect(r.error).toBe('BACKUP_CODES_FAILED');
+    expect(r.error).not.toBe('BACKUP_CODES_SINGLETON_CONFLICT');
 
-    // BUG-015: only 4 calls (list, generate, enroll-1st, enroll-retry). The old
-    // backup factor was NEVER deleted because the retry failed — preserving the
-    // user's existing backup codes (BUG-L04 invariant: a failed enroll never
-    // leaves the user with zero backup codes).
-    expect(makeRequest).toHaveBeenCalledTimes(4);
-    const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
-    const deleteCalled = calls.some(
-      ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
-    );
-    expect(deleteCalled).toBe(false);
+    // Only 3 calls: list, generate, enroll. No retry.
+    expect(makeRequest).toHaveBeenCalledTimes(3);
   });
 
   it('still generates and enrolls when no existing backup factors are present', async () => {

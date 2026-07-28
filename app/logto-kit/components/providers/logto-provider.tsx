@@ -51,7 +51,7 @@ export interface LogtoProviderProps {
   initialLang?: string;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
   onLangChange?: () => void;
-  initialOrgId?: string | null;
+  initialOrgId?: string | null | undefined;
   /** All locale translations, keyed by locale code. Required by ToastProvider. */
   allTranslations?: Record<string, Translations>;
   /** Fallback translations when the current locale isn't found. Defaults to en-US. */

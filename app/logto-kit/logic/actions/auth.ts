@@ -4,6 +4,7 @@ import { signIn, signOut } from '@logto/next/server-actions';
 import { logtoConfig, getLogtoConfig } from '../../config';
 import { sanitize } from '../errors';
 import { assertSafeRouteTo } from '../assert-safe-route';
+import { clearVerificationCookie } from './verification-cookie';
 
 /**
  * Initiates the Logto sign-in flow.
@@ -59,6 +60,11 @@ export async function signInUser(routeTo?: string): Promise<void> {
  */
 export async function signOutUser(): Promise<void> {
   try {
+    // Clear the verification seal BEFORE sign-out so that a stale cookie
+    // (User A's verification) is never left behind for User B on the same
+    // browser (CAN-ACT-002). `clearVerificationCookie()` is best-effort and
+    // internally catches errors, so it won't block the sign-out redirect.
+    await clearVerificationCookie();
     await signOut(getLogtoConfig());
   } catch (err) {
     // NEXT_REDIRECT is a control-flow pseudo-error that Next.js uses to perform

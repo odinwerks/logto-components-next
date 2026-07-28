@@ -49,6 +49,9 @@ export function useSessionVerification({
   const [loading, setLoading] = useState(false);
   const [viewState, setViewState] = useState<'unverified' | 'loaded'>('unverified');
   const [verificationError, setVerificationError] = useState<string>('');
+  // Every async verification/session request owns an attempt number. Resetting (including
+  // auto-expiry) advances it so late callbacks cannot revive an expired/reset flow.
+  const attemptRef = useRef(0);
 
   // Store callbacks in refs to avoid stale closures (use-avatar-upload.ts pattern)
   const onVerifyPasswordRef = useRef(onVerifyPassword);
@@ -84,10 +87,14 @@ export function useSessionVerification({
   );
 
   const resetVerification = useCallback(() => {
+    attemptRef.current += 1;
     setVerificationRecordId(null);
     setVerificationExpiry(0);
     setViewState('unverified');
     setVerificationError('');
+    // HOOK-003 fix: clear any in-flight loading state so reset / auto-expiry never leaves
+    // loading stuck at `true` (e.g., after a callback rejected before adoption).
+    setLoading(false);
   }, []);
 
   // Auto-expiry: schedule reset when verification expires
@@ -108,52 +115,67 @@ export function useSessionVerification({
   // Time remaining countdown is now derived from `now` via useMemo above — no extra effect needed.
 
   const verifyAndLoad = useCallback(async (password: string): Promise<void> => {
+    const attempt = ++attemptRef.current;
+    const isCurrentAttempt = () => attempt === attemptRef.current;
     setLoading(true);
     setVerificationError('');
 
-    const verifyResult = await onVerifyPasswordRef.current(password);
-    if (!verifyResult.ok) {
-      setVerificationError(verifyResult.error);
-      setLoading(false);
-      return;
+    try {
+      const verifyResult = await onVerifyPasswordRef.current(password);
+      if (!isCurrentAttempt()) return;
+
+      if (!verifyResult.ok) {
+        setVerificationError(verifyResult.error);
+        return;
+      }
+
+      const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
+      setVerificationRecordId(vid);
+      setVerificationExpiry(ts); // ts IS the expiresAt (future epoch ms)
+
+      const sessionsResult = await onGetSessionsRef.current(vid);
+      if (!isCurrentAttempt()) return;
+
+      if (!sessionsResult.ok) {
+        // Bug 2 fix: on sessions fetch failure, reset verification so viewState stays 'unverified'
+        onErrorRef.current(sessionsResult.error);
+        setVerificationRecordId(null);
+        setVerificationExpiry(0);
+        return;
+      }
+
+      setSessions(sessionsResult.data);
+      setViewState('loaded');
+    } finally {
+      // HOOK-003 fix: always clear loading, even when either callback throws/rejects.
+      if (isCurrentAttempt()) setLoading(false);
     }
-
-    const { verificationRecordId: vid, verificationTimestamp: ts } = verifyResult.data;
-    setVerificationRecordId(vid);
-    setVerificationExpiry(ts); // ts IS the expiresAt (future epoch ms)
-
-    const sessionsResult = await onGetSessionsRef.current(vid);
-    if (!sessionsResult.ok) {
-      // Bug 2 fix: on sessions fetch failure, reset verification so viewState stays 'unverified'
-      onErrorRef.current(sessionsResult.error);
-      setVerificationRecordId(null);
-      setVerificationExpiry(0);
-      setLoading(false);
-      return;
-    }
-
-    setSessions(sessionsResult.data);
-    setViewState('loaded');
-    setLoading(false);
   }, []);
 
   const loadSessionsWith = useCallback(async (recordId: string): Promise<void> => {
+    const attempt = ++attemptRef.current;
+    const isCurrentAttempt = () => attempt === attemptRef.current;
     setLoading(true);
-    const r = await onGetSessionsRef.current(recordId);
-    if (!r.ok) {
-      // Bug 3 fix: auth errors reset to unverified; other errors keep viewState 'loaded'
-      if (AUTH_ERRORS.has(r.error)) {
-        setViewState('unverified');
-        setVerificationRecordId(null);
-        setVerificationExpiry(0);
-      } else {
-        onErrorRef.current(r.error);
+    try {
+      const r = await onGetSessionsRef.current(recordId);
+      if (!isCurrentAttempt()) return;
+
+      if (!r.ok) {
+        // Bug 3 fix: auth errors reset to unverified; other errors keep viewState 'loaded'
+        if (AUTH_ERRORS.has(r.error)) {
+          setViewState('unverified');
+          setVerificationRecordId(null);
+          setVerificationExpiry(0);
+        } else {
+          onErrorRef.current(r.error);
+        }
+        return;
       }
-      setLoading(false);
-      return;
+      setSessions(r.data);
+    } finally {
+      // HOOK-003 fix: always clear loading, even when the sessions callback throws/rejects.
+      if (isCurrentAttempt()) setLoading(false);
     }
-    setSessions(r.data);
-    setLoading(false);
   }, []);
 
   const loadSessions = useCallback(async (): Promise<void> => {

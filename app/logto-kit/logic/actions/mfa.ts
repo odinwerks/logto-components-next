@@ -324,9 +324,7 @@ export async function generateBackupCodes(
       // Step 3: Enroll/bind codes to the account. We enroll WITHOUT first
       // deleting the old factors, so a failure here leaves the user's existing
       // backup codes intact (BUG-L04). If Logto does not permit multiple
-      // concurrent BackupCode factors, the enroll is rejected with 409/422 —
-      // in that case we retry the enrollment first, and only delete the old
-      // factors once the retry succeeds (BUG-015).
+      // concurrent BackupCode factors, the enroll is rejected with 409/422.
       const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
         method: 'POST',
         body: { type: 'BackupCode', codes },
@@ -338,43 +336,39 @@ export async function generateBackupCodes(
         (enrollRes.status === 409 || enrollRes.status === 422) &&
         existingBackupFactors.length > 0
       ) {
+        // CAN-ACT-005: The enrollment was rejected because a BackupCode factor
+        // already exists (singleton enforcement). A blind retry of the identical
+        // body + header CANNOT succeed — no factor-state change occurred between
+        // the first attempt and a retry would (the old factors are intentionally
+        // NOT deleted before enrolling, per the BUG-L04 invariant). We do NOT
+        // delete-then-enroll either: a failure on the enroll step after deleting
+        // would leave the user with ZERO backup-code recovery factors.
+        //
+        // Remediation: fail safely with a clear error, retaining the user's
+        // existing backup codes, until the provider offers a documented atomic
+        // replacement operation. The user must remove existing backup codes
+        // first, then generate new ones.
         warn(
           `[generateBackupCodes] Enrollment rejected with ${enrollRes.status} ` +
-            '(concurrent BackupCode factor not permitted); retrying enrollment, then deleting old factors.'
+            '(existing BackupCode factor — singleton conflict). ' +
+            'A blind retry cannot succeed (no state change); failing safely ' +
+            'with old codes retained.'
         );
-        // BUG-015: Retry enrollment FIRST (with the original codes). Only delete
-        // old factors AFTER the retry succeeds. Previously deletion ran BEFORE
-        // the retry, so a transient 5xx on the retry left the user with zero
-        // backup-code recovery factors (violating BUG-L04).
-        const retryRes = await makeRequest('/api/my-account/mfa-verifications', {
-          method: 'POST',
-          body: { type: 'BackupCode', codes },
-          extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-        });
+        throw plainCode('BACKUP_CODES_SINGLETON_CONFLICT');
+      }
 
-        await throwOnApiError(retryRes, 'BACKUP_CODES_FAILED', 'backup-enroll-retry');
+      await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
-        // Only delete old factors AFTER retry succeeds (best-effort: a cleanup
-        // failure must not prevent returning the newly-bound codes — BUG-056).
-        try {
-          await deleteOldBackupFactors();
-        } catch {
-          // Best-effort cleanup; new codes are bound and will be returned.
-        }
-      } else {
-        await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
-
-        // Step 4: New codes are now bound — invalidate the old ones so they can
-        // no longer be used. This only runs after a successful enrollment, so a
-        // failure above never reaches here (old codes stay intact).
-        // BUG-056: Best-effort cleanup — if deletion throws, the new codes are
-        // still bound; returning them must not be blocked by a cleanup failure
-        // (otherwise the user is left with orphaned bound codes never displayed).
-        try {
-          await deleteOldBackupFactors();
-        } catch {
-          // Best-effort cleanup; new codes are bound and will be returned.
-        }
+      // Step 4: New codes are now bound — invalidate the old ones so they can
+      // no longer be used. This only runs after a successful enrollment, so a
+      // failure above never reaches here (old codes stay intact).
+      // BUG-056: Best-effort cleanup — if deletion throws, the new codes are
+      // still bound; returning them must not be blocked by a cleanup failure
+      // (otherwise the user is left with orphaned bound codes never displayed).
+      try {
+        await deleteOldBackupFactors();
+      } catch {
+        // Best-effort cleanup; new codes are bound and will be returned.
       }
 
       // Audit (best-effort - failure must not break the main action)

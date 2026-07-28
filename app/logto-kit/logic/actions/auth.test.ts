@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { signInUser, signOutUser } from './auth';
 import { assertSafeRouteTo } from '../assert-safe-route';
 import { ValidationError } from '../validation';
@@ -8,7 +8,12 @@ vi.mock('@logto/next/server-actions', () => ({
   signOut: vi.fn(),
 }));
 
+vi.mock('./verification-cookie', () => ({
+  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { signIn, signOut } from '@logto/next/server-actions';
+import { clearVerificationCookie } from './verification-cookie';
 
 describe('signInUser', () => {
   it('calls signIn without postRedirectUri when routeTo is omitted', async () => {
@@ -106,9 +111,31 @@ describe('signInUser', () => {
 // ============================================================================
 
 describe('signOutUser', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(signOut).mockResolvedValue(undefined);
+  });
+
   it('completes successfully when signOut resolves', async () => {
     vi.mocked(signOut).mockResolvedValueOnce(undefined);
     await expect(signOutUser()).resolves.toBeUndefined();
+  });
+
+  it('clears the verification cookie before calling signOut (CAN-ACT-002)', async () => {
+    vi.mocked(signOut).mockResolvedValueOnce(undefined);
+    await signOutUser();
+    expect(clearVerificationCookie).toHaveBeenCalledTimes(1);
+    // clearVerificationCookie must be called BEFORE signOut so the seal is
+    // cleared before the redirect throws.
+    expect(vi.mocked(clearVerificationCookie).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(signOut).mock.invocationCallOrder[0]);
+  });
+
+  it('clears the verification cookie even when signOut throws NEXT_REDIRECT', async () => {
+    const redirectErr = new Error('NEXT_REDIRECT');
+    vi.mocked(signOut).mockRejectedValueOnce(redirectErr);
+    await expect(signOutUser()).rejects.toBe(redirectErr);
+    expect(clearVerificationCookie).toHaveBeenCalledTimes(1);
   });
 
   it('re-throws NEXT_REDIRECT errors unchanged (Next.js redirect control-flow)', async () => {

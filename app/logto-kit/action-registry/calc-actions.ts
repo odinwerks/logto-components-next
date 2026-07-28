@@ -6,9 +6,19 @@ import type { ActionConfig } from '../logic/types';
 // Payload validators
 // ============================================================================
 
+/**
+ * Validates that `val` is a finite number (rejects NaN, Infinity, -Infinity,
+ * and all non-number values). This is the input boundary — non-finite inputs
+ * (e.g. JSON `1e400` which parses to `Infinity`) MUST be rejected here, before
+ * any computation runs, so they never reach the output guard or serializer.
+ *
+ * `Number.isFinite` returns `false` for NaN, ±Infinity, AND non-numbers, so it
+ * is a single-call replacement for the previous `typeof + Number.isNaN` pair
+ * that incorrectly let `Infinity`/`-Infinity` through.
+ */
 function assertNumber(val: unknown, name: string): asserts val is number {
-  if (typeof val !== 'number' || Number.isNaN(val)) {
-    throw new Error(`INVALID_PAYLOAD: ${name} must be a number`);
+  if (typeof val !== 'number' || !Number.isFinite(val)) {
+    throw new Error(`INVALID_PAYLOAD: ${name} must be a finite number`);
   }
 }
 
@@ -56,12 +66,44 @@ const CALC_ORG_ID = '8joxv3kicmlz';
 const CALC_BASIC_PERM = 'calc:basic';
 const CALC_SCI_PERM = 'calc:scientific';
 
+/**
+ * Output guard — validates that a handler's computed `answer` is a finite
+ * number. This is the computation boundary (defense-in-depth alongside the
+ * input guard `assertNumber`): even with finite inputs, some operations yield
+ * non-finite results — overflow (`Math.pow(10, 400)` → `Infinity`) and
+ * domain violations (`Math.asin(2)` → `NaN`).
+ *
+ * Without this guard, `NaN`/`Infinity` would reach `NextResponse.json`, where
+ * `JSON.stringify` silently coerces them to `null`, producing HTTP 200 with
+ * `answer:null` — a contract violation (CAN-ACT-012). By throwing
+ * `INVALID_PAYLOAD` here, the protected route's existing catch block maps it
+ * to a 400 response.
+ *
+ * Centralized in `calcConfig` so every calc action is guarded uniformly — no
+ * per-handler boilerplate, no chance of one handler being missed.
+ */
+function assertFiniteResult(result: unknown): void {
+  if (result !== null && typeof result === 'object' && 'answer' in result) {
+    const answer = (result as { answer: unknown }).answer;
+    if (typeof answer !== 'number' || !Number.isFinite(answer)) {
+      throw new Error('INVALID_PAYLOAD: result is not representable');
+    }
+  }
+}
+
 function calcConfig(perm: string, handler: ActionConfig['handler']): ActionConfig {
+  // Wrap the handler so the output guard runs after computation, before the
+  // result is returned to the protected route serializer.
+  const wrappedHandler: ActionConfig['handler'] = async (ctx) => {
+    const result = await handler(ctx);
+    assertFiniteResult(result);
+    return result;
+  };
   return {
     requiredOrgId: CALC_ORG_ID,
     requiredRoleId: CALC_ROLE_ID,
     requiredPermId: perm,
-    handler,
+    handler: wrappedHandler,
   };
 }
 

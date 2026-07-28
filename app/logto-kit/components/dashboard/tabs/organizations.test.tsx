@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import type { UserData } from '../../../logic/types';
 import { DARK_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
+import type { DataResult } from '../../../logic/actions/safe';
 
 const {
   mockRefresh,
@@ -15,7 +16,7 @@ const {
 } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
   mockSetAsOrg: vi.fn(),
-  mockSetActiveOrg: vi.fn<(_orgId: string | null) => Promise<boolean>>(),
+  mockSetActiveOrg: vi.fn<(_orgId: string | null) => Promise<DataResult<boolean>>>(),
   mockLoadOrganizationPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
   mockLoadOrganizationUserRoles: vi.fn().mockResolvedValue({ ok: true, data: [] }),
   mockLoadOrgPermissionDescriptions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
@@ -111,7 +112,7 @@ describe('OrganizationsTab - BUG-002 clear-org semantics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('does not fall back to stale currentOrgId when asOrg is explicitly null', () => {
@@ -125,7 +126,7 @@ describe('OrganizationsTab - BUG-002 clear-org semantics', () => {
   });
 
   it('awaits server-side clear-org persistence before local state update and refresh', async () => {
-    const pendingClear = deferred<boolean>();
+    const pendingClear = deferred<DataResult<boolean>>();
     mockSetActiveOrg.mockReturnValue(pendingClear.promise);
 
     renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
@@ -140,7 +141,7 @@ describe('OrganizationsTab - BUG-002 clear-org semantics', () => {
     expect(mockRefresh).not.toHaveBeenCalled();
 
     await act(async () => {
-      pendingClear.resolve(true);
+      pendingClear.resolve({ ok: true, data: true });
       await pendingClear.promise;
     });
 
@@ -155,7 +156,7 @@ describe('OrganizationsTab - BUG-008 permissions loading synchronization', () =>
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('keeps loading until permissions settle when descriptions resolve first', async () => {
@@ -266,7 +267,7 @@ describe('OrganizationsTab - error message semantic correctness', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   afterEach(() => {
@@ -292,8 +293,8 @@ describe('OrganizationsTab - error message semantic correctness', () => {
     });
   });
 
-  it('shows clearOrgFailed message when handleBeYourself setActiveOrg returns false', async () => {
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+  it('shows clearOrgFailed message when handleBeYourself receives a negative result', async () => {
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
 
     renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
 
@@ -327,7 +328,7 @@ describe('OrganizationsTab - BUG-011 keyboard reachable tooltips', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('triggers tooltip when focusing on OrgCard info button (not the radio button)', async () => {
@@ -437,7 +438,7 @@ describe('OrganizationsTab - DASH-BUG-004 Org roles refresh button', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('renders roles refresh button and calls loadOrganizationUserRoles on click', async () => {
@@ -498,7 +499,7 @@ describe('OrganizationsTab - BUG-021 organization list container role', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('renders the organization list container with role="radiogroup" and proper aria-label', () => {
@@ -513,7 +514,7 @@ describe('OrganizationsTab - Accessibility and Focus (BUG-V01 & BUG-L-014)', () 
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('verifies that aria-describedby is removed from the main radio button and only exists on the info button', async () => {
@@ -572,7 +573,7 @@ describe('OrganizationsTab - BUG-034 no duplicate selectOrgForRoles', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrgMode.asOrg = null;
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
   });
 
   it('renders selectOrgForRoles exactly once when no org is selected', () => {

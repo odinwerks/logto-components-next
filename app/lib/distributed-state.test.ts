@@ -21,6 +21,12 @@ type IoredisMockState = {
   evalMock: ReturnType<typeof vi.fn>;
   connectMock: ReturnType<typeof vi.fn>;
   pingMock: ReturnType<typeof vi.fn>;
+  // `set` is used by RedisBackend.lockAcquire (SET NX). The impl returns
+  // 'OK' for a successful SET NX (lock acquired) or null when the key already
+  // exists (lock held). Tests override `setImpl` to simulate contention.
+  setImpl: (...args: unknown[]) => Promise<unknown>;
+  setMock: ReturnType<typeof vi.fn>;
+  delMock: ReturnType<typeof vi.fn>;
 };
 
 const g = globalThis as unknown as Record<string, IoredisMockState | undefined>;
@@ -32,6 +38,13 @@ vi.mock('ioredis', () => {
     if (state?.evalImpl) return state.evalImpl(...args);
     return Promise.resolve(1);
   });
+  const setMock = vi.fn().mockImplementation((...args: unknown[]) => {
+    const state = g[MOCK_KEY];
+    if (state?.setImpl) return state.setImpl(...args);
+    // SET NX default: succeed (fresh lock). Tests override setImpl to simulate
+    // a held lock (return null).
+    return Promise.resolve('OK');
+  });
   const connectMock = vi.fn().mockResolvedValue(undefined);
   const pingMock = vi.fn().mockResolvedValue('PONG');
   const delMock = vi.fn().mockResolvedValue(1);
@@ -40,6 +53,7 @@ vi.mock('ioredis', () => {
     connect: connectMock,
     ping: pingMock,
     eval: evalMock,
+    set: setMock,
     del: delMock,
   };
 
@@ -49,6 +63,9 @@ vi.mock('ioredis', () => {
     evalMock,
     connectMock,
     pingMock,
+    setImpl: () => Promise.resolve('OK'),
+    setMock,
+    delMock,
   };
 
   return { default: vi.fn().mockImplementation(function() { return mockClient; }) };
@@ -63,6 +80,7 @@ describe('createRateLimiter (in-memory backend)', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
   });
 
   afterEach(() => {
@@ -587,4 +605,565 @@ describe('createRateLimiter — graceful degradation on Redis init failure', () 
 
     vi.restoreAllMocks();
   });
+});
+
+// ============================================================================
+// CAN-STATE-005: Lock ownership must NOT split during the temporary
+// in-memory → Redis handoff. createLockManager().acquire() awaits a settled
+// backend before granting any lock, so exactly ONE backend (in-memory OR
+// Redis) issues locks for a given key — never both during the cold init
+// window. Fail-closed behavior is preserved on Redis init failure.
+// ============================================================================
+
+describe('createLockManager — Redis cold-init handoff (CAN-STATE-005)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+    if (g[MOCK_KEY]) {
+      // Restore default healthy-Redis behavior between tests.
+      g[MOCK_KEY]!.connectMock.mockReset();
+      g[MOCK_KEY]!.pingMock.mockReset();
+      g[MOCK_KEY]!.evalMock.mockClear();
+      g[MOCK_KEY]!.setMock.mockClear();
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.evalImpl = () => Promise.resolve(1);
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+    }
+  });
+
+  it('does NOT grant a lock during the Redis cold-init window (no split-brain from temp in-memory backend)', async () => {
+    // Defer Redis connect so we control precisely when init settles.
+    let resolveConnect!: () => void;
+    const connectPromise = new Promise<void>((resolve) => {
+      resolveConnect = resolve;
+    });
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockReturnValue(connectPromise);
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005');
+
+    // Kick off an acquire DURING the cold-init window. It must block until the
+    // backend settles — it must NOT resolve by grabbing the temporary
+    // in-memory stand-in backend.
+    let acquired = false;
+    const acquirePromise = manager
+      .acquire('user-A')
+      .then((release) => {
+        acquired = true;
+        return release;
+      })
+      .catch(() => {
+        // Should not reject in the success path
+        acquired = false;
+      });
+
+    // Let microtasks + a short timer flush. The acquire should still be
+    // pending — blocked on awaitBackendReady().
+    await new Promise((r) => setTimeout(r, 50));
+    expect(acquired).toBe(false);
+
+    // The Redis SET NX must NOT have been issued yet (no lock granted from
+    // either the temp in-memory backend or the still-init Redis backend).
+    const state = g[MOCK_KEY];
+    expect(state).toBeDefined();
+    expect(state!.setMock).not.toHaveBeenCalled();
+
+    // Settle the backend: Redis init succeeds.
+    resolveConnect();
+    // Allow the connect → ping → _backend assignment → acquire chain to flush.
+    await new Promise((r) => setTimeout(r, 50));
+
+    // The acquire should now have resolved, and the lock must have been issued
+    // by the Redis backend (SET NX), proving the post-settlement path is used.
+    expect(acquired).toBe(true);
+    expect(state!.setMock).toHaveBeenCalledWith(
+      'lock:can-state-005:user-A',
+      expect.any(String), // crypto.randomUUID()
+      'PX',
+      expect.any(Number), // DEFAULT_LOCK_TIMEOUT_MS = 30_000
+      'NX',
+    );
+
+    // Clean up: invoke the ownership-safe async release.
+    const release = await acquirePromise;
+    if (release) {
+      await release();
+    }
+  });
+
+  it('serializes same-key acquisitions on the Redis backend after settle (single backend grants locks)', async () => {
+    // Immediate healthy connect: init settles quickly.
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005-serial');
+
+    // First acquire: SET NX returns 'OK' — lock granted on Redis.
+    const release1 = await manager.acquire('user-B');
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalled();
+
+    // Simulate a held lock for the second acquire: SET NX returns null
+    // (key already exists). The second acquire must block in the Redis retry
+    // loop — it must NOT fall back to (or split ownership with) the temp
+    // in-memory backend, which would have granted it immediately.
+    g[MOCK_KEY]!.setImpl = () => Promise.resolve(null);
+    let secondAcquired = false;
+    const p2 = manager.acquire('user-B').then((rel) => {
+      secondAcquired = true;
+      return rel;
+    });
+
+    // After a short tick, the second acquire must still be blocked — mutual
+    // exclusion is enforced on the (single) Redis backend.
+    await new Promise((r) => setTimeout(r, 120));
+    expect(secondAcquired).toBe(false);
+
+    // Now allow SET NX to succeed again; the retry loop (50ms cadence) will
+    // acquire on the next iteration — still on the Redis backend, never on
+    // the temp in-memory backend.
+    g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+    const release2 = await p2;
+    expect(secondAcquired).toBe(true);
+
+    await release1();
+    await release2();
+  });
+
+  it('fail-closes lock acquisition when Redis init fails (no locks from temp in-memory backend)', async () => {
+    // Suppress the expected console.error from the Lua release fallback path
+    // (not exercised here, but defensive) and any init error logging.
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    if (g[MOCK_KEY]) {
+      // Redis connect fails → initRedisBackend rejects → getBackend() records
+      // the failure in _backendInitError and clears _backend.
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('Redis init failed: ECONNREFUSED'));
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005-fail');
+
+    // The acquire must block on awaitBackendReady() until init settles to
+    // failure, then getBackend() must throw _backendInitError — fail-closed.
+    // No lock is granted from either the temp in-memory backend or Redis.
+    await expect(manager.acquire('user-C')).rejects.toThrow(/Redis connection failed.*REDIS_URL/);
+
+    // Redis SET NX must never have been called (no lock granted at all).
+    expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+
+    // A subsequent acquire must also fail-closed — the failure is sticky and
+    // locks are never granted from the temp in-memory backend after failure.
+    await expect(manager.acquire('user-D')).rejects.toThrow(/Redis connection failed.*REDIS_URL/);
+    expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+  });
+
+  it('does not grant a temporary lock when a slow failed init immediately retries', async () => {
+    // A connection attempt can outlive the retry interval. When it then fails,
+    // the acquire that was awaiting it starts the retry itself. It must await
+    // that retry rather than accept the retry's temporary in-memory backend.
+    process.env.REDIS_RETRY_INTERVAL_MS = '1';
+    let rejectFirstConnect!: (reason: Error) => void;
+    let resolveRetryConnect!: () => void;
+    const firstConnect = new Promise<void>((_resolve, reject) => {
+      rejectFirstConnect = reject;
+    });
+    const retryConnect = new Promise<void>((resolve) => {
+      resolveRetryConnect = resolve;
+    });
+
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock
+        .mockImplementationOnce(() => firstConnect)
+        .mockImplementationOnce(() => retryConnect);
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005-retry-race');
+    let acquired = false;
+    const acquire = manager.acquire('user-retry').then((release) => {
+      acquired = true;
+      return release;
+    });
+
+    // Ensure the first attempt is older than the configured retry interval,
+    // then fail it. The acquire's post-settlement re-check starts retry #2.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    rejectFirstConnect(new Error('ECONNREFUSED'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(2);
+    expect(acquired).toBe(false);
+    expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+
+    resolveRetryConnect();
+    const release = await acquire;
+    expect(acquired).toBe(true);
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalledWith(
+      'lock:can-state-005-retry-race:user-retry',
+      expect.any(String),
+      'PX',
+      expect.any(Number),
+      'NX',
+    );
+    await release();
+  });
+
+  it('never uses unconditional DEL when an ownership-safe Redis release fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005-release');
+    const release = await manager.acquire('user-release');
+
+    // Simulate a Lua ownership check outage. An unconditional DEL could erase
+    // a lock reacquired by another owner after this lease expires.
+    g[MOCK_KEY]!.evalImpl = () => Promise.reject(new Error('Redis unavailable'));
+    g[MOCK_KEY]!.delMock.mockClear();
+
+    await expect(release()).resolves.toBeUndefined();
+    expect(g[MOCK_KEY]!.delMock).not.toHaveBeenCalled();
+  });
+
+  it('bounds a hung token-checked Redis release without deleting a possible later owner', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { createLockManager, REDIS_LOCK_RELEASE_TIMEOUT_MS } = await import('./distributed-state');
+    const manager = createLockManager('can-act-006-release-budget');
+    const release = await manager.acquire('user-release-timeout');
+
+    // The ownership-check Lua call never settles. A release must still settle
+    // inside the cleanup margin; it must never issue a direct DEL, because the
+    // TTL may have expired and a different owner may now hold the key.
+    let settleLateEval!: () => void;
+    const lateEval = new Promise<void>((resolve) => { settleLateEval = resolve; });
+    g[MOCK_KEY]!.evalImpl = () => lateEval;
+    g[MOCK_KEY]!.delMock.mockClear();
+
+    vi.useFakeTimers();
+    const releasePromise = release();
+    await vi.advanceTimersByTimeAsync(REDIS_LOCK_RELEASE_TIMEOUT_MS);
+    await expect(releasePromise).resolves.toBeUndefined();
+    expect(g[MOCK_KEY]!.delMock).not.toHaveBeenCalled();
+
+    // Even if the delayed Lua request eventually reaches Redis, it is still
+    // the token-checked script (not an unconditional stale-owner deletion).
+    settleLateEval();
+    await Promise.resolve();
+    expect(g[MOCK_KEY]!.evalMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("redis.call('get', KEYS[1]) == ARGV[1]"),
+      1,
+      'lock:can-act-006-release-budget:user-release-timeout',
+      expect.any(String),
+    );
+    expect(g[MOCK_KEY]!.delMock).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for the pure in-memory backend (no REDIS_URL) — existing behavior unchanged', async () => {
+    // No REDIS_URL → _readyPromise stays null, awaitBackendReady() is a no-op
+    // after the getBackend() trigger, and locks are issued by InMemoryBackend
+    // exactly as before the fix.
+    delete process.env.REDIS_URL;
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-005-inmem');
+
+    const release1 = await manager.acquire('user-E');
+    // Same-key second acquire must block (in-memory mutual exclusion).
+    let secondAcquired = false;
+    const p2 = manager.acquire('user-E').then((rel) => {
+      secondAcquired = true;
+      return rel;
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(secondAcquired).toBe(false);
+
+    await release1();
+    const release2 = await p2;
+    expect(secondAcquired).toBe(true);
+    await release2();
+
+    // Redis SET must never have been called (no Redis backend instantiated).
+    if (g[MOCK_KEY]) {
+      expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+    }
+  });
+});
+
+// ============================================================================
+// CAN-STATE-006: Bounded retry after Redis init failure.
+//
+// After an initial Redis connection failure, _backendInitError must NOT
+// permanently latch. Instead, getBackend() throws (fail-closed for locks)
+// until RETRY_INTERVAL_MS elapses, then attempts reinitialization. On
+// success, locks and rate limiting resume. On failure, locks stay fail-closed.
+// Rate-limit fail-open behavior is preserved throughout.
+// ============================================================================
+
+describe('CAN-STATE-006 — bounded retry after Redis init failure', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+    if (g[MOCK_KEY]) {
+      // Restore default healthy-Redis behavior between tests.
+      g[MOCK_KEY]!.connectMock.mockReset();
+      g[MOCK_KEY]!.pingMock.mockReset();
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.evalImpl = () => Promise.resolve(1);
+      g[MOCK_KEY]!.evalMock.mockClear();
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+    }
+  });
+
+  it('(a) after initial Redis failure, a subsequent call triggers a retry', async () => {
+    // Short retry interval for fast testing (50ms). The module reads this at
+    // load time, so it must be set BEFORE the dynamic import.
+    process.env.REDIS_RETRY_INTERVAL_MS = '50';
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Make Redis connect fail
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
+    }
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-006-retry');
+
+    // First acquire: init fails → fail-closed
+    await expect(manager.acquire('user-A')).rejects.toThrow(/Redis connection failed.*REDIS_URL/);
+
+    // connect should have been called once (initial attempt)
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+
+    // Immediately after: retry not due yet (50ms interval) → still fail-closed
+    await expect(manager.acquire('user-A2')).rejects.toThrow(/Redis connection failed.*REDIS_URL/);
+    // connect should still be 1 (no retry yet)
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+
+    // Wait past the retry interval
+    await new Promise((r) => setTimeout(r, 80));
+
+    // Second acquire: retry is due → reinitialization attempted (connect called again)
+    // connect still rejects, so the retry also fails → fail-closed
+    await expect(manager.acquire('user-B')).rejects.toThrow(/Redis connection failed.*REDIS_URL/);
+
+    // connect must have been called at least twice (initial + retry)
+    expect(g[MOCK_KEY]!.connectMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    // Redis SET NX must never have been called (no lock ever granted)
+    expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+  });
+
+  it('(b) if retry succeeds, locks are granted again (recovery)', async () => {
+    process.env.REDIS_RETRY_INTERVAL_MS = '50';
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // First: make connect fail
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-006-recovery');
+
+    // First acquire: fails (init failure)
+    await expect(manager.acquire('user-A')).rejects.toThrow(/Redis connection failed/);
+
+    // Wait past retry interval
+    await new Promise((r) => setTimeout(r, 80));
+
+    // Now make Redis healthy (recovery)
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+
+    // Second acquire: retry succeeds → lock granted on Redis backend
+    const release = await manager.acquire('user-B');
+    expect(typeof release).toBe('function');
+
+    // Verify Redis SET NX was called (lock granted on the Redis backend,
+    // proving recovery — not the temp in-memory stand-in)
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalledWith(
+      'lock:can-state-006-recovery:user-B',
+      expect.any(String),  // crypto.randomUUID()
+      'PX',
+      expect.any(Number), // DEFAULT_LOCK_TIMEOUT_MS
+      'NX',
+    );
+
+    await release();
+  });
+
+  it('(c) if retry fails, locks remain fail-closed', async () => {
+    process.env.REDIS_RETRY_INTERVAL_MS = '50';
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Make connect always fail (no recovery)
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
+      g[MOCK_KEY]!.setMock.mockClear();
+    }
+
+    const { createLockManager } = await import('./distributed-state');
+    const manager = createLockManager('can-state-006-failretry');
+
+    // First acquire: fails (init failure)
+    await expect(manager.acquire('user-A')).rejects.toThrow(/Redis connection failed/);
+
+    // Wait past retry interval
+    await new Promise((r) => setTimeout(r, 80));
+
+    // Second acquire: retry is attempted but also fails → still fail-closed
+    await expect(manager.acquire('user-B')).rejects.toThrow(/Redis connection failed/);
+
+    // Redis SET NX must never have been called (no lock ever granted,
+    // even after retry)
+    expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
+  });
+
+  it('(d) rate-limit fail-open behavior is preserved after init failure and during retry', async () => {
+    process.env.REDIS_RETRY_INTERVAL_MS = '50';
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Make connect fail
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
+    }
+
+    const { createRateLimiter } = await import('./distributed-state');
+    const limiter = createRateLimiter({ name: 'can-state-006-rl', windowMs: 60_000, max: 1 });
+
+    // Trigger init — kicks off Redis init (which will fail)
+    await limiter.check('warmup');
+    // Wait for Redis init failure to propagate
+    await new Promise((r) => setTimeout(r, 20));
+
+    // After init failure: rate limiter must allow-through (not throw)
+    const result1 = await limiter.check('user-A');
+    expect(result1).toBe(true);
+
+    // Wait past retry interval — retry also fails (connect still rejects)
+    await new Promise((r) => setTimeout(r, 80));
+
+    // Rate limiter must still allow-through after a failed retry
+    const result2 = await limiter.check('user-B');
+    expect(result2).toBe(true);
+
+    // Warning must have been logged for the degraded state
+    const consoleCalls = vi.mocked(console.warn).mock.calls;
+    expect(
+      consoleCalls.some((call) =>
+        typeof call[0] === 'string' && call[0].includes('Backend unavailable'),
+      ),
+    ).toBe(true);
+  });
+
+  it.each(['-1', '0', 'not-a-number'])(
+    '(e) invalid retry interval %j uses the default interval without a retry storm',
+    async (retryInterval) => {
+      let now = 1_000_000;
+      vi.spyOn(Date, 'now').mockImplementation(() => now);
+      process.env.REDIS_RETRY_INTERVAL_MS = retryInterval;
+      process.env.REDIS_URL = 'redis://localhost:6379';
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      if (g[MOCK_KEY]) {
+        g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+        g[MOCK_KEY]!.connectMock.mockClear();
+        g[MOCK_KEY]!.setMock.mockClear();
+      }
+
+      const { createRateLimiter } = await import('./distributed-state');
+      const limiter = createRateLimiter({
+        name: 'can-state-006-invalid-interval',
+        windowMs: 60_000,
+        max: 10,
+      });
+
+      // Rate limiting is fail-open while the first async init fails.
+      expect(await limiter.check('initial')).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+
+      // Repeated callers before the default five-second retry window must not
+      // initiate another Redis connection attempt.
+      for (let index = 0; index < 3; index++) {
+        expect(await limiter.check(`before-retry-${index}`)).toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      now += 4_999;
+      expect(await limiter.check('just-before-default-retry')).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+
+      // A retry occurs only when the default five-second interval has elapsed.
+      now += 1;
+      expect(await limiter.check('default-retry')).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(2);
+    },
+  );
 });

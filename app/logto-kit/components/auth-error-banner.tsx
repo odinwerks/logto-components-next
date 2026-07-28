@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, X } from 'lucide-react';
 
@@ -32,24 +32,27 @@ const KNOWN_OAUTH_ERRORS = new Set([
  */
 export function AuthErrorBanner() {
   const searchParams = useSearchParams();
-  const authError = searchParams.get('auth_error');
+  const [capturedError, setCapturedError] = useState<string | null>(null);
 
-  // Derive the safe error code without state — useMemo is sufficient because
-  // authError comes from searchParams which is a stable reference per navigation.
-  const activeError = useMemo(() => {
-    if (!authError) return null;
-    return KNOWN_OAUTH_ERRORS.has(authError) ? authError : 'authentication_error';
-  }, [authError]);
+  // Capture the error from searchParams into local state on mount, BEFORE
+  // the URL is cleaned up. This prevents the banner from unmounting when
+  // AuthErrorBannerInner clears the query param.
+  useEffect(() => {
+    const raw = searchParams.get('auth_error');
+    if (raw) {
+      setCapturedError(KNOWN_OAUTH_ERRORS.has(raw) ? raw : 'authentication_error');
+    }
+  }, [searchParams]);
 
-  if (!activeError) {
+  if (!capturedError) {
     return null;
   }
 
   return (
     // key ensures AuthErrorBannerInner remounts (resetting dismissed) when error changes
     <AuthErrorBannerInner
-      key={activeError}
-      authError={activeError}
+      key={capturedError}
+      authError={capturedError}
     />
   );
 }

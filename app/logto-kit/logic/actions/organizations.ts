@@ -7,6 +7,7 @@ import { assertSafeLogtoId, decodeLogtoAccessToken, assertSafeUserId } from '../
 import { safeAction, type DataResult } from './safe';
 import { warn } from '../log';
 import { sanitize, plainCode } from '../errors';
+import crypto from 'node:crypto';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
@@ -21,10 +22,15 @@ import { makeManagementFetch } from './management-request';
  * grant wins and the loser submits a revoked token → invalid_grant → false
  * denial of UI content (BUG-020).
  *
- * Keyed by orgId. The operation is idempotent (same orgId → same scope list
- * from the decoded org token), so concurrent callers safely share the promise.
- * Entries are evicted on settlement (success or failure) so a failed call is
- * retried on the next invocation.
+ * Keyed by a SHA-256 digest of a length-unambiguous encoding of the
+ * introspected session ID and org ID. This prevents cross-session permission
+ * leaking (CAN-ACT-003): distinct sessions for the same user requesting the
+ * same org use separate promise slots instead of sharing results.
+ *
+ * The operation is idempotent for the same session + orgId, so concurrent
+ * callers safely share the promise.
+ * Entries are evicted on settlement (success or failure) so a failed call
+ * is retried on the next invocation.
  */
 const inFlightPermissions = new Map<string, Promise<DataResult<string[]>>>();
 
@@ -50,10 +56,31 @@ const inFlightPermissions = new Map<string, Promise<DataResult<string[]>>>();
  * rotation.
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
-  // BUG-020: Return in-flight promise if a concurrent call for this org is
-  // already running. Without this dedup, multiple Protected components
-  // mounting together would race on the one-time-use refresh token grant.
-  const existing = inFlightPermissions.get(orgId);
+  // Derive a session-scoped dedup key to prevent cross-session permission
+  // leaking (CAN-ACT-003). `sid` is supplied by the server-side token
+  // introspection response; it is never accepted from or logged to the client.
+  let dedupKey: string;
+  try {
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken);
+    if (!introspection.active || !introspection.sub || !introspection.sid) {
+      return { ok: false, error: 'UNAUTHORIZED' };
+    }
+    // JSON preserves field boundaries, unlike concatenation (`ab` + `c`
+    // versus `a` + `bc`). Only the non-reversible digest is retained.
+    dedupKey = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ sessionId: introspection.sid, orgId }))
+      .digest('hex');
+  } catch {
+    return { ok: false, error: 'UNAUTHORIZED' };
+  }
+
+  // BUG-020: Return in-flight promise if a concurrent call for this session
+  // + org is already running. Without this dedup, multiple Protected
+  // components mounting together would race on the one-time-use refresh
+  // token grant.
+  const existing = inFlightPermissions.get(dedupKey);
   if (existing) return existing;
 
   const promise = safeAction(async () => {
@@ -157,9 +184,9 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     return permissions;
   });
 
-  inFlightPermissions.set(orgId, promise);
+  inFlightPermissions.set(dedupKey, promise);
   promise.finally(() => {
-    inFlightPermissions.delete(orgId);
+    inFlightPermissions.delete(dedupKey);
   });
 
   return promise;

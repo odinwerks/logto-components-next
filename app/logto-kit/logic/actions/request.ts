@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { getTokenForServerAction } from './tokens';
 import { getCleanEndpoint } from '../utils';

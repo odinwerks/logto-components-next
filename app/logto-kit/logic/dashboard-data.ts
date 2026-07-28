@@ -14,6 +14,14 @@ import { warn, error, log } from './log';
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 500;
 
+/** A timeout produced by this module's timer, rather than by the SDK. */
+class LocalTimeoutError extends Error {
+  constructor() {
+    super('Request timed out');
+    this.name = 'LocalTimeoutError';
+  }
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -27,7 +35,7 @@ async function fetchWithTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, time
       new Promise<never>((_, reject) => {
         const onAbort = () => {
           controller.signal.removeEventListener('abort', onAbort);
-          reject(new Error('Request timed out'));
+          reject(new LocalTimeoutError());
         };
         controller.signal.addEventListener('abort', onAbort);
       }),
@@ -50,6 +58,16 @@ async function fetchWithRetry<T>(fn: (signal: AbortSignal) => Promise<T>, retrie
       lastError = err;
       if (isAuthError(err)) {
         warn(`[fetchWithRetry] Auth error on attempt ${i + 1}, not retrying:`, err instanceof Error ? err.message : err);
+        break;
+      }
+      // CAN-STATE-008: getLogtoContext does not accept AbortSignal. A local
+      // timeout wins only the caller's Promise.race; it does not demonstrate
+      // that the SDK work (including a token refresh) was cancelled. Do not
+      // start another SDK client while that work may still be live. Returning
+      // the timeout also avoids turning a bounded request into an unbounded
+      // wait for an opaque promise that may never settle.
+      if (err instanceof LocalTimeoutError) {
+        warn(`[fetchWithRetry] Local timeout on attempt ${i + 1}, not retrying without confirmed SDK cancellation or settlement.`);
         break;
       }
       if (i < retries - 1 && isTransientError(err)) {
@@ -104,9 +122,11 @@ export async function fetchDashboardDataCore(
   const tolerateAuthErrors = opts?.tolerateAuthErrors ?? false;
   try {
     const result = await fetchWithRetry(async (_signal): Promise<DashboardResult> => {
-      // Removed redundant getTokenForServerAction() - getLogtoContext handles refresh internally
-      // _signal is threaded from fetchWithTimeout's AbortController so that any fetch()
-      // calls inside this callback can be wired to the abort signal if needed.
+      // Removed redundant getTokenForServerAction() - getLogtoContext handles refresh internally.
+      // The Logto SDK does not accept _signal, so a local timeout cannot cancel
+      // it. fetchWithRetry consequently returns that timeout without retrying
+      // and starting overlapping refresh work (CAN-STATE-008).
+      void _signal;
       const { claims, userInfo } = await getLogtoContext(getLogtoConfig(), { fetchUserInfo: true });
 
       if (!claims?.sub) {

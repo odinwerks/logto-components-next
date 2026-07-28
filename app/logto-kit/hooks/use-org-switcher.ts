@@ -109,8 +109,13 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
         // to-self / null: setActiveOrg(null) does the server PATCH.
         // persistOrg short-circuits on null (BUG-L06 guard), so setAsOrg(null)
         // only updates local sessionStorage — zero server writes.
-        const isCleared = await setActiveOrg(null);
-        if (!isCleared) {
+        // CAN-ACT-010: setActiveOrg returns DataResult<boolean> (safeAction
+        // envelope). We unwrap it — a non-ok result OR data:false means the
+        // server-side persist failed. The pre-fix code treated the DataResult
+        // object as a plain boolean, so `!{ok:false,error}` was always false
+        // (objects are truthy) — failures were silently swallowed.
+        const result = await setActiveOrg(null);
+        if (!result.ok || !result.data) {
           const msg = 'Failed to switch to personal mode';
           setError(msg);
           onErrorRef.current?.(msg);
@@ -126,8 +131,12 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
         // does NOT persist. setAsOrg(orgId) triggers persistOrg — ONE server PATCH.
         // Await persistOrg before router.refresh() to prevent BUG-018: the RSC
         // fetch must read the already-persisted customData.asOrg, not the old value.
-        const isValid = await setActiveOrg(target);
-        if (!isValid) {
+        // CAN-ACT-010: unwrap DataResult<boolean> — non-ok OR data:false means
+        // validation failed or the action errored. The pre-fix `!isValid` check
+        // was always false (DataResult objects are truthy), silently swallowing
+        // membership failures and safeAction errors.
+        const result = await setActiveOrg(target);
+        if (!result.ok || !result.data) {
           const msg = 'Failed to switch organization';
           setError(msg);
           onErrorRef.current?.(msg);

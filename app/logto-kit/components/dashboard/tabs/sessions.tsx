@@ -1269,7 +1269,13 @@ export function SessionsTab({
           subtitle={t.sessions.revokeSessionDesc}
           step={modalStep}
           onPasswordSubmit={handlePasswordSubmit}
-          onClose={() => { setModalStep(null); setRevokingId(null); revokeTargetRef.current = null; setModalError(''); setModalLoading(false); }}
+          // CAN-STATE-004: Clear gcAllLoading on cancel. The onConfirm handler
+          // sets gcAllLoading=true before opening this password modal. If the
+          // user cancels without submitting (handlePasswordSubmit never runs,
+          // so its catch/finally blocks don't clear it), gcAllLoading stays
+          // true and the reopened GcAllConfirmModal is fully locked (Yes, Close,
+          // Escape, and backdrop-click all gated on !loading).
+          onClose={() => { setModalStep(null); setRevokingId(null); setGcAllLoading(false); revokeTargetRef.current = null; setModalError(''); setModalLoading(false); }}
           passwordError={modalError}
           loading={modalLoading}
           mode={mode}

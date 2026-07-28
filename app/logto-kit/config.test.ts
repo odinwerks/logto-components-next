@@ -150,6 +150,60 @@ describe('config resolution', () => {
       expect(getLogtoConfig()).toBeDefined();
     });
 
+    // CAN-ACT-008: BASE_URL derives the OAuth redirect_uri (/callback) on both
+    // sign-in paths. A public http:// BASE_URL in production would yield an
+    // insecure redirect_uri transport. This regression test proves the existing
+    // assertHttpsInProduction(config.baseUrl, 'BASE_URL') guard fires and
+    // rejects the module load before any OAuth flow can use the URL.
+    it('rejects HTTP BASE_URL in production (CAN-ACT-008)', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'http://evil.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      await expect(import('./config')).rejects.toThrow(
+        'BASE_URL must use HTTPS in production'
+      );
+    });
+
+    it('allows HTTP localhost BASE_URL in production (loopback exemption)', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'http://localhost:3000';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('allows HTTP 127.0.0.1 BASE_URL in production (loopback exemption)', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'http://127.0.0.1:3000';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
+    it('allows HTTPS BASE_URL in production', async () => {
+      process.env.LOGTO_INTROSPECTION_URL = 'https://logto.example.com/oidc/introspect';
+      process.env.APP_ID = 'client-id-123';
+      process.env.APP_SECRET = 'super-secret-value';
+      process.env.ENDPOINT = 'https://logto.example.com';
+      process.env.BASE_URL = 'https://app.example.com';
+      process.env.COOKIE_SECRET = 'cookie-secret';
+
+      const { getLogtoConfig } = await import('./config');
+      expect(getLogtoConfig()).toBeDefined();
+    });
+
     it('skips HTTPS validation during next build', async () => {
       vi.stubEnv('npm_lifecycle_event', 'build');
       vi.stubEnv('LOGTO_INTROSPECTION_URL', 'http://evil.example.com/introspect');
@@ -574,5 +628,67 @@ describe('getManagementApiToken circuit breaker (HIGH-2)', () => {
     // Next call: no backoff (retry count reset), no circuit open, succeeds immediately
     const nextToken = await getManagementApiToken();
     expect(nextToken).toBe('second-token');
+  });
+});
+
+// CAN-ACT-007: Every operational token-request failure must count exactly once.
+// Five sequential failures must therefore make five requests, clear each failed
+// shared promise, and open the circuit before a sixth request can reach fetch.
+describe('getManagementApiToken operational failure accounting (CAN-ACT-007)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('APP_SECRET', 'dummy-app-secret');
+    vi.stubEnv('APP_ID', 'test-app-id');
+    vi.stubEnv('ENDPOINT', 'https://logto.example.com');
+    vi.stubEnv('BASE_URL', 'https://app.example.com');
+    vi.stubEnv('COOKIE_SECRET', 'cookie-secret');
+    vi.stubEnv('LOGTO_M2M_APP_ID', 'm2m-app-id');
+    vi.stubEnv('LOGTO_M2M_APP_SECRET', 'm2m-app-secret');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ['an AbortError from fetch', () => Promise.reject(Object.assign(new Error('timeout'), { name: 'AbortError' }))],
+    ['a non-AbortError from fetch', () => Promise.reject(new Error('DNS lookup failed'))],
+    ['a rejected error-response text read', () => Promise.resolve({
+      ok: false,
+      status: 503,
+      text: async () => Promise.reject(new Error('body decode failed')),
+    } as unknown as Response)],
+    ['a rejected successful-response JSON read', () => Promise.resolve({
+      ok: true,
+      json: async () => Promise.reject(new Error('JSON decode failed')),
+    } as unknown as Response)],
+    ['a successful response with no access token', () => Promise.resolve({
+      ok: true,
+      json: async () => ({}),
+    } as Response)],
+  ])('counts %s once, clears the pending promise, and opens the circuit after five attempts', async (_scenario, failingFetch) => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(failingFetch);
+    const { getManagementApiToken } = await import('./config');
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      // Attach the rejection assertion before advancing fake time so Vitest does
+      // not report the deliberately rejected shared promise as unhandled.
+      const failure = expect(getManagementApiToken()).rejects.toThrow('Management API token request failed');
+      // The maximum retry delay is 5 seconds. Ten seconds advances each retry
+      // without passing the circuit's 30 second reset window after the fifth.
+      await vi.advanceTimersByTimeAsync(10_000);
+      await failure;
+    }
+
+    // Five fetches proves each rejected owner promise was cleared for the next
+    // sequential caller; opening any earlier would reveal double accounting.
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
+    await expect(getManagementApiToken()).rejects.toThrow('M2M_TOKEN_CIRCUIT_OPEN');
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
   });
 });

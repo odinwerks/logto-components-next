@@ -587,6 +587,62 @@ describe('SessionsTab', () => {
     });
   });
 
+  // ─── CAN-STATE-004: gcAllLoading not cleared on password-modal cancel ───
+  describe('CAN-STATE-004: gcAllLoading cleared on password-modal cancel', () => {
+    it('re-enables the Yes button after cancelling the password modal and reopening confirmation', async () => {
+      const onVerifyPassword = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { verificationRecordId: 'test-vid', verificationTimestamp: Date.now() + 10 * 60 * 1000 },
+      });
+      const onGetSessions = vi.fn().mockResolvedValue({
+        ok: true,
+        data: createdSessions,
+      });
+
+      renderSessionsTab({
+        onVerifyPassword,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+      });
+
+      await verifyAndLoadSessions();
+      await waitFor(() => {
+        expect(screen.getByText('This device')).toBeDefined();
+      });
+
+      // Open GC ALL confirmation modal
+      const gcAllBtn = screen.getByRole('button', { name: enUS.sessions.revokeAll });
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      // Click "Yes" — sets gcAllLoading=true and opens the revoke password modal
+      const confirmBtn = screen.getByRole('button', { name: enUS.common.yes });
+      await act(async () => { fireEvent.click(confirmBtn); });
+
+      // The revoke-purpose password modal should now be open.
+      // Scope by accessible name to avoid conflict with any exiting view-purpose modal.
+      const revokeDialog = await screen.findByRole('dialog', { name: enUS.sessions.revokeSession });
+
+      // Cancel the password modal by clicking the close (X) button.
+      // This triggers onClose WITHOUT running handlePasswordSubmit, so the
+      // catch/finally blocks that normally clear gcAllLoading never execute.
+      const closeBtn = within(revokeDialog).getByRole('button', { name: 'Close dialog' });
+      await act(async () => { fireEvent.click(closeBtn); });
+
+      // Wait for the password modal to be dismissed
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: enUS.sessions.revokeSession })).toBeNull();
+      });
+
+      // Reopen the GC ALL confirmation modal
+      await act(async () => { fireEvent.click(gcAllBtn); });
+
+      // The "Yes" button must NOT be disabled — gcAllLoading should have been
+      // cleared on the cancel path. If it's still true, the entire modal is
+      // locked (Yes, Close, Escape, and backdrop-click all gated on !loading).
+      const reopenedConfirmBtn = screen.getByRole('button', { name: enUS.common.yes });
+      expect(reopenedConfirmBtn).not.toBeDisabled();
+    });
+  });
+
   describe('BUG 1: re-verification uses fresh values', () => {
     it('reloads sessions with refreshed verification after revoke re-verification', async () => {
       const now = new Date('2026-01-01T00:00:00.000Z').getTime();

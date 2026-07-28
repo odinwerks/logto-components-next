@@ -42,12 +42,12 @@ const defaultColors = {
 describe('OrgSwitcher auto-switching behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     mockAsOrg = null;
   });
 
   it('auto-switches to single org on mount', async () => {
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     const organizations = [{ id: 'org_1', name: 'Organization One' }];
 
     render(
@@ -68,7 +68,7 @@ describe('OrgSwitcher auto-switching behavior', () => {
   });
 
   it('allows switching to "Be yourself" after being in an org', async () => {
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
 
     // Simulate being in an org
     mockAsOrg = 'org_1';
@@ -108,7 +108,7 @@ describe('OrgSwitcher auto-switching behavior', () => {
   });
 
   it('returns null when there are no organizations', () => {
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     const { container } = render(
       <OrgSwitcher
         organizations={[]}

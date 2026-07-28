@@ -147,7 +147,7 @@ describe('verifyPasswordForIdentity', () => {
         body: { password: 'MySecureP@ss1' },
       })
     );
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_test123', expect.any(Number));
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_test123', expect.any(Number), 'user-test-123');
   });
 
   it('returns verificationRecordId from successful API response', async () => {
@@ -170,7 +170,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000);
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123');
   });
 
   it('correctly handles expiresAt as a Unix timestamp in milliseconds', async () => {
@@ -182,7 +182,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000);
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123');
   });
 
   it('correctly handles expiresAt as an ISO string', async () => {
@@ -194,7 +194,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(new Date('2024-06-03T19:00:00.000Z').getTime());
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', new Date('2024-06-03T19:00:00.000Z').getTime());
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', new Date('2024-06-03T19:00:00.000Z').getTime(), 'user-test-123');
   });
 
   it('does NOT call makeRequest when validation fails', async () => {

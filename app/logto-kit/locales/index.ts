@@ -498,6 +498,7 @@ export interface Translations {
     MFA_ENROLL_FAILED: string;
     MFA_REMOVE_FAILED: string;
     BACKUP_CODES_FAILED: string;
+    BACKUP_CODES_SINGLETON_CONFLICT: string;
     PASSWORD_UPDATE_FAILED: string;
     EMAIL_UPDATE_FAILED: string;
     PHONE_UPDATE_FAILED: string;

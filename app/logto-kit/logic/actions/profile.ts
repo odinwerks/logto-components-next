@@ -12,6 +12,11 @@ import {
 } from '../guards';
 import { safeAction, type ActionResult } from './safe';
 import { getManagementApiToken } from '../../config';
+import {
+  makeManagementFetch,
+  parseManagementResponseJson,
+  throwIfManagementDeadlineExceeded,
+} from './management-request';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { warn, logEvent } from '../log';
 import { auditSafe } from './helpers';
@@ -19,6 +24,14 @@ import { requireVerifiedIdentity } from './verification-cookie';
 import { LOG_EVENTS } from '../../../lib/log-events';
 import { createLockManager } from '../../../lib/distributed-state';
 import { getTokenForServerAction } from './tokens';
+
+function warnCustomDataFailure(message: string): void {
+  try {
+    warn(message, 'UPDATE_FAILED');
+  } catch {
+    // Logging is best-effort and must not alter the action result.
+  }
+}
 
 export async function updateUserBasicInfo(
   updates: { name?: string; username?: string; avatar?: string },
@@ -140,6 +153,14 @@ export async function updateUserProfile(profile: {
 // Per-user Map keyed by user ID to avoid blocking different users.
 const customDataLockManager = createLockManager('profile-custom-data');
 
+// Redis locks lease for 30 seconds. Leave five seconds for the awaited
+// ownership-safe release and scheduler/network overhead after lock-held work.
+const CUSTOM_DATA_LOCK_BUDGET_MS = 25_000;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 /**
  * Updates the user's custom data Preferences via the Logto Management API.
  *
@@ -183,26 +204,41 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     const endpoint = getCleanEndpoint();
 
     const releaseLock = await customDataLockManager.acquire(userId);
+    const lockDeadlineAt = Date.now() + CUSTOM_DATA_LOCK_BUDGET_MS;
 
     try {
       // GET current Preferences via Management API.
       // Using the Management API's custom-data endpoint avoids the Account API's
       // full-replace PATCH, which would wipe top-level customData keys written by
       // other applications, Logto Console, or other flows.
-      const getRes = await fetch(
-        `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
-        {
-          headers: { Authorization: `Bearer ${mgmtToken}` },
-          cache: 'no-store',
-        },
-      );
-      if (!getRes.ok) {
-        const errBody = await getRes.text().catch(() => getRes.statusText);
-        warn(`[updateUserCustomData] GET custom-data failed ${getRes.status}: ${errBody.substring(0, 200)}`);
+      let getRes: Response;
+      try {
+        getRes = await makeManagementFetch(
+          `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
+          { token: mgmtToken, deadlineAt: lockDeadlineAt },
+        );
+      } catch {
+        warnCustomDataFailure('[updateUserCustomData] GET custom-data fetch failed:');
         throw plainCode('UPDATE_FAILED');
       }
-      const existingCustomData = (await getRes.json()) as Record<string, unknown>;
-      const existingPrefs = (existingCustomData.Preferences as Record<string, unknown>) ?? {};
+      if (!getRes.ok) {
+        warnCustomDataFailure('[updateUserCustomData] GET custom-data failed:');
+        throw plainCode('UPDATE_FAILED');
+      }
+      let existingCustomData: Record<string, unknown>;
+      try {
+        const parsed = await parseManagementResponseJson<unknown>(getRes, lockDeadlineAt);
+        // Treat a malformed shape as a failed read rather than replacing an
+        // unknown Preferences object with an empty one.
+        if (!isRecord(parsed)) throw new Error('Invalid custom-data response body');
+        existingCustomData = parsed;
+      } catch {
+        warnCustomDataFailure('[updateUserCustomData] GET custom-data body parse failed:');
+        throw plainCode('UPDATE_FAILED');
+      }
+      const existingPrefs = isRecord(existingCustomData.Preferences)
+        ? existingCustomData.Preferences
+        : {};
 
       // Merge only the inner Preferences sub-object keys.
       const mergedPrefs = { ...existingPrefs, ...safePrefs };
@@ -211,31 +247,45 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
       // Logto merges { Preferences: mergedPrefs } into the stored customData at the
       // top level, leaving all other top-level keys (other apps, Logto Console, etc.)
       // untouched. The inner Preferences object is fully replaced, hence the GET above.
-      const patchRes = await fetch(
-        `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${mgmtToken}`,
-            'Content-Type': 'application/json',
+      let patchRes: Response;
+      try {
+        patchRes = await makeManagementFetch(
+          `${endpoint}/api/users/${encodeURIComponent(userId)}/custom-data`,
+          {
+            method: 'PATCH',
+            token: mgmtToken,
+            body: { customData: { Preferences: mergedPrefs } },
+            deadlineAt: lockDeadlineAt,
           },
-          body: JSON.stringify({ customData: { Preferences: mergedPrefs } }),
-          cache: 'no-store',
-        },
-      );
-
-      if (!patchRes.ok) {
-        const errBody = await patchRes.text().catch(() => patchRes.statusText);
-        warn(`[updateUserCustomData] Management API PATCH failed ${patchRes.status}: ${errBody.substring(0, 200)}`);
+        );
+      } catch {
+        warnCustomDataFailure('[updateUserCustomData] PATCH custom-data fetch failed:');
         throw plainCode('UPDATE_FAILED');
       }
 
-      // Audit + structured log (after successful PATCH, before releaseLock).
-      auditSafe(userId, 'custom_data.update', userId, { keys: Object.keys(safePrefs) });
-      logEvent.info(LOG_EVENTS.USER_CUSTOM_DATA_UPDATE, 'Custom data updated', { keys: Object.keys(safePrefs) });
+      if (!patchRes.ok) {
+        warnCustomDataFailure('[updateUserCustomData] Management API PATCH failed:');
+        throw plainCode('UPDATE_FAILED');
+      }
+
+      // Do not begin post-PATCH work once the lock-held budget is exhausted.
+      // This leaves the release cleanup margin intact even when PATCH resolves
+      // at the deadline.
+      try {
+        throwIfManagementDeadlineExceeded(lockDeadlineAt);
+      } catch {
+        warnCustomDataFailure('[updateUserCustomData] PATCH custom-data deadline exceeded:');
+        throw plainCode('UPDATE_FAILED');
+      }
     } finally {
       await releaseLock();
     }
+
+    // Audit/logging are not part of the read-modify-write critical section.
+    // Releasing first keeps the lock-held path strictly bounded; auditSafe is
+    // already best-effort and does not await its persistence work.
+    auditSafe(userId, 'custom_data.update', userId, { keys: Object.keys(safePrefs) });
+    logEvent.info(LOG_EVENTS.USER_CUSTOM_DATA_UPDATE, 'Custom data updated', { keys: Object.keys(safePrefs) });
   });
 }
 

@@ -109,6 +109,11 @@ export const ERROR_CODES = {
   MFA_ENROLL_FAILED: { code: 'MFA_ENROLL_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   MFA_REMOVE_FAILED: { code: 'MFA_REMOVE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   BACKUP_CODES_FAILED: { code: 'BACKUP_CODES_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  // CAN-ACT-005: Backup codes already exist and the provider offers no
+  // documented atomic replacement operation. A blind retry of the identical
+  // enroll body cannot succeed (no factor-state change). Fail safely with old
+  // codes retained; the user must delete existing backup codes first.
+  BACKUP_CODES_SINGLETON_CONFLICT: { code: 'BACKUP_CODES_SINGLETON_CONFLICT', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   PASSWORD_UPDATE_FAILED: { code: 'PASSWORD_UPDATE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   EMAIL_UPDATE_FAILED: { code: 'EMAIL_UPDATE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   PHONE_UPDATE_FAILED: { code: 'PHONE_UPDATE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },

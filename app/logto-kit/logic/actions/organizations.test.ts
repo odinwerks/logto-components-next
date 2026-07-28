@@ -42,7 +42,7 @@ vi.mock('../../config', () => ({
 }));
 
 vi.mock('../utils', () => ({
-  introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', active: true }),
+  introspectToken: vi.fn().mockResolvedValue({ sub: 'user-test-123', sid: 'session-test-123', active: true }),
 }));
 
 vi.mock('../guards', () => ({
@@ -103,7 +103,7 @@ describe('getOrgPermissionsWithDescriptions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
-    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', sid: 'session-test-123', active: true });
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
     vi.mocked(getLogtoConfig).mockReturnValue({ endpoint: 'https://auth.example.org', appId: 'mock-app-id', appSecret: 'mock-secret', baseUrl: 'http://localhost:3000', cookieSecret: 'mock-cookie-secret', cookieSecure: false, resources: [], scopes: [] });
 
@@ -287,7 +287,7 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
-    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123', sid: 'session-test-123' });
     vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
     vi.mocked(getLogtoConfig).mockReturnValue({ endpoint: 'https://auth.example.org', appId: 'mock-app-id', appSecret: 'mock-secret', baseUrl: 'http://localhost:3000', cookieSecret: 'mock-cookie-secret', cookieSecure: false, resources: [], scopes: [] });
 
@@ -545,6 +545,12 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
   // ── Concurrent call dedup (BUG-020) ──────────────────────────────────────
 
   it('deduplicates concurrent calls for the same orgId — only one fetch (BUG-020)', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({
+      active: true,
+      sub: 'user-test-123',
+      sid: 'session-test-123',
+    } as never);
+
     // Deferred fetch so we control exactly when the token endpoint responds.
     // Both concurrent callers must rendezvous on the same in-flight promise
     // BEFORE the fetch resolves, proving the dedup map works.
@@ -575,7 +581,8 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
 
   it('does NOT deduplicate concurrent calls for different orgIds (BUG-020)', async () => {
     // Different orgIds need separate org tokens with different scopes.
-    // The dedup map is keyed by orgId, so these should NOT share a promise.
+    // The dedup map is keyed by a session-specific digest plus orgId, so these should NOT
+    // share a promise.
     fetchSpy
       .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-1' }))
       .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-2' }));
@@ -591,6 +598,76 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
     expect(r2.ok).toBe(true);
     // Two different orgIds → two independent refresh_token grants
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // ── Cross-session isolation (CAN-ACT-003) ───────────────────────────────
+
+  it('does NOT share in-flight promise across different sessions for the same orgId (CAN-ACT-003)', async () => {
+    // Two sessions for the SAME user requesting the SAME org concurrently
+    // must NOT share the in-flight promise. The dedup key must contain a
+    // session-specific discriminator, not only the user subject.
+    //
+    // Before the fix, the key used only `sub`, so Session B would receive
+    // Session A's decoded scope names during A's pending refresh-token grant
+    // — a cross-session permission leak.
+    vi.mocked(introspectToken)
+      .mockResolvedValueOnce({ active: true, sub: 'user-Alice', sid: 'session-Alice-1' } as never)
+      .mockResolvedValueOnce({ active: true, sub: 'user-Alice', sid: 'session-Alice-2' } as never);
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-alice' }))
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-bob' }));
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+
+    const [r1, r2] = await Promise.all([
+      getOrganizationUserPermissions('org-shared'),
+      getOrganizationUserPermissions('org-shared'),
+    ]);
+
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    // Two separate fetches → two separate refresh_token grants.
+    // If the bug were present (keyed by orgId alone), only one fetch
+    // would fire and Session B would receive Session A's permissions.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    // The two results must be distinct promise settlements (not the same
+    // shared object), proving the dedup slots were separate.
+    expect(r1).not.toBe(r2);
+  });
+
+  it('does NOT collide when session and organization values have ambiguous concatenations', async () => {
+    // `ab` + `c` and `a` + `bc` both produce `abc` when concatenated. The
+    // encoded digest input must preserve field boundaries before hashing.
+    vi.mocked(introspectToken)
+      .mockResolvedValueOnce({ active: true, sub: 'ab', sid: 'session-ab' } as never)
+      .mockResolvedValueOnce({ active: true, sub: 'a', sid: 'session-a' } as never);
+
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-first' }))
+      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-second' }));
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+
+    const [r1, r2] = await Promise.all([
+      getOrganizationUserPermissions('c'),
+      getOrganizationUserPermissions('bc'),
+    ]);
+
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    expect(r1).not.toBe(r2);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed when the session discriminator is unavailable', async () => {
+    vi.mocked(introspectToken).mockResolvedValueOnce({ active: true, sub: 'user-test-123' } as never);
+
+    const { getOrganizationUserPermissions } = await import('./organizations');
+    const result = await getOrganizationUserPermissions('org-123');
+
+    expect(result).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('retries after a failed call — stale promise evicted from dedup map (BUG-020)', async () => {

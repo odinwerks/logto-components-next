@@ -35,6 +35,28 @@ vi.mock('./helpers', () => ({
   assertVerificationNotExpired: vi.fn(),
 }));
 
+// Mock tokens and utils for requireVerifiedIdentity session introspection
+// (CAN-ACT-002). Hoisted so we can control the mock return value per test.
+const hoistedIntrospect = vi.hoisted(() => ({
+  mockIntrospectToken: vi.fn(async () => ({
+    active: true,
+    sub: 'user-A-123',
+    client_id: 'test-client',
+    token_type: 'Bearer',
+    scope: 'all',
+    exp: Date.now() / 1000 + 3600,
+    iat: Date.now() / 1000,
+  })),
+}));
+
+vi.mock('./tokens', () => ({
+  getTokenForServerAction: vi.fn(async () => 'mock-token'),
+}));
+
+vi.mock('../utils', () => ({
+  introspectToken: vi.fn(hoistedIntrospect.mockIntrospectToken),
+}));
+
 // Mock guards: assertSafeLogtoId is a no-op (format validation is tested
 // elsewhere). We want to exercise the recordId-binding logic here.
 vi.mock('../guards', () => ({
@@ -54,6 +76,8 @@ vi.mock('../errors', () => ({
 import { cookies } from 'next/headers';
 import { assertVerificationNotExpired } from './helpers';
 import { plainCode } from '../errors';
+import { getTokenForServerAction } from './tokens';
+import { introspectToken } from '../utils';
 import {
   sealVerificationCookie,
   readVerificationCookie,
@@ -77,7 +101,7 @@ describe('verification-cookie sealing', () => {
   });
 
   it('sets an httpOnly, sameSite=strict, path=/, maxAge=15min cookie', async () => {
-    await sealVerificationCookie('rec_abc', Date.now() + 600_000);
+    await sealVerificationCookie('rec_abc', Date.now() + 600_000, 'user-A-123');
 
     expect(hoisted.setSpy).toHaveBeenCalledTimes(1);
     const call = hoisted.setSpy.mock.calls[0];
@@ -101,7 +125,7 @@ describe('verification-cookie sealing', () => {
     const original = process.env.NODE_ENV;
     setNodeEnv('production');
     try {
-      await sealVerificationCookie('rec_abc', Date.now() + 600_000);
+      await sealVerificationCookie('rec_abc', Date.now() + 600_000, 'user-A-123');
       const opts = hoisted.setSpy.mock.calls[0][2] as Record<string, unknown>;
       expect(opts.secure).toBe(true);
     } finally {
@@ -110,14 +134,20 @@ describe('verification-cookie sealing', () => {
   });
 
   it('rejects a non-finite expiresAt', async () => {
-    await expect(sealVerificationCookie('rec_abc', Number.NaN)).rejects.toThrow(
+    await expect(sealVerificationCookie('rec_abc', Number.NaN, 'user-A-123')).rejects.toThrow(
       'VERIFICATION_FAILED',
     );
     expect(hoisted.setSpy).not.toHaveBeenCalled();
   });
 
   it('rejects an empty recordId', async () => {
-    await expect(sealVerificationCookie('', Date.now() + 600_000)).rejects.toThrow(
+    await expect(sealVerificationCookie('', Date.now() + 600_000, 'user-A-123')).rejects.toThrow(
+      'VERIFICATION_FAILED',
+    );
+  });
+
+  it('rejects an empty sub', async () => {
+    await expect(sealVerificationCookie('rec_abc', Date.now() + 600_000, '')).rejects.toThrow(
       'VERIFICATION_FAILED',
     );
   });
@@ -132,11 +162,11 @@ describe('verification-cookie round-trip', () => {
     vi.mocked(assertVerificationNotExpired).mockImplementation(() => undefined);
   });
 
-  it('seal then read returns the same { recordId, expiresAt }', async () => {
+  it('seal then read returns the same { recordId, expiresAt, sub }', async () => {
     const expiresAt = Date.now() + 600_000;
-    await sealVerificationCookie('rec_roundtrip', expiresAt);
+    await sealVerificationCookie('rec_roundtrip', expiresAt, 'user-A-123');
     const sealed = await readVerificationCookie();
-    expect(sealed).toEqual({ recordId: 'rec_roundtrip', expiresAt });
+    expect(sealed).toEqual({ recordId: 'rec_roundtrip', expiresAt, sub: 'user-A-123' });
   });
 
   it('returns null when no cookie is present', async () => {
@@ -145,7 +175,7 @@ describe('verification-cookie round-trip', () => {
   });
 
   it('returns null for a tampered signature', async () => {
-    await sealVerificationCookie('rec_tamper', Date.now() + 600_000);
+    await sealVerificationCookie('rec_tamper', Date.now() + 600_000, 'user-A-123');
     const value = hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME)!;
     // Flip the last character of the signature to break the HMAC.
     const [b64, sig] = [value.slice(0, value.lastIndexOf('.')), value.slice(value.lastIndexOf('.') + 1)];
@@ -162,12 +192,12 @@ describe('verification-cookie round-trip', () => {
   });
 
   it('returns null for malformed JSON payload', async () => {
-    // Build a valid HMAC over a non-JSON base64url payload.
+    // Build a valid HMAC over a non-JSON base64url payload (v2 signing domain).
     const key = Buffer.from(TEST_SECRET, 'utf8');
     const b64 = Buffer.from('not-json').toString('base64url');
     const crypto = await import('node:crypto');
     const sig = Buffer.from(
-      crypto.createHmac('sha256', key).update(`logto-verification-cookie-v1.${b64}`).digest(),
+      crypto.createHmac('sha256', key).update(`logto-verification-cookie-v2.${b64}`).digest(),
     ).toString('base64url');
     hoisted.cookieStore.set(VERIFICATION_COOKIE_NAME, `${b64}.${sig}`);
     expect(await readVerificationCookie()).toBeNull();
@@ -181,6 +211,16 @@ describe('requireVerifiedIdentity', () => {
     process.env.LOGTO_VERIFICATION_COOKIE_SECRET = TEST_SECRET;
     delete process.env.COOKIE_SECRET;
     vi.mocked(assertVerificationNotExpired).mockImplementation(() => undefined);
+    // Re-establish the default introspection mock (cleared by vi.clearAllMocks)
+    hoistedIntrospect.mockIntrospectToken.mockResolvedValue({
+      active: true,
+      sub: 'user-A-123',
+      client_id: 'test-client',
+      token_type: 'Bearer',
+      scope: 'all',
+      exp: Date.now() / 1000 + 3600,
+      iat: Date.now() / 1000,
+    });
   });
 
   it('throws VERIFICATION_EXPIRED when no cookie is present', async () => {
@@ -191,19 +231,34 @@ describe('requireVerifiedIdentity', () => {
   });
 
   it('throws VERIFICATION_EXPIRED when the sealed recordId does not match', async () => {
-    await sealVerificationCookie('rec_A', Date.now() + 600_000);
+    await sealVerificationCookie('rec_A', Date.now() + 600_000, 'user-A-123');
     await expect(requireVerifiedIdentity('rec_B')).rejects.toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('throws VERIFICATION_EXPIRED when the sealed sub does not match the current session (CAN-ACT-002)', async () => {
+    // Seal with user-A but the mocked introspection returns user-B.
+    hoistedIntrospect.mockIntrospectToken.mockResolvedValueOnce({
+      active: true,
+      sub: 'user-B-456',
+      client_id: 'test-client',
+      token_type: 'Bearer',
+      scope: 'all',
+      exp: Date.now() / 1000 + 3600,
+      iat: Date.now() / 1000,
+    });
+    await sealVerificationCookie('rec_sub_mismatch', Date.now() + 600_000, 'user-A-123');
+    await expect(requireVerifiedIdentity('rec_sub_mismatch')).rejects.toThrow('VERIFICATION_EXPIRED');
   });
 
   it('resolves and runs the staleness check on the sealed expiresAt when bound', async () => {
     const expiresAt = Date.now() + 123_456;
-    await sealVerificationCookie('rec_bound', expiresAt);
+    await sealVerificationCookie('rec_bound', expiresAt, 'user-A-123');
     await expect(requireVerifiedIdentity('rec_bound')).resolves.toBeUndefined();
     expect(assertVerificationNotExpired).toHaveBeenCalledWith(expiresAt);
   });
 
   it('propagates VERIFICATION_EXPIRED when the staleness check rejects', async () => {
-    await sealVerificationCookie('rec_expired', Date.now() - 20_000);
+    await sealVerificationCookie('rec_expired', Date.now() - 20_000, 'user-A-123');
     vi.mocked(assertVerificationNotExpired).mockImplementation(() => {
       // Mimic the real helper throwing a ValidationError carrying the code.
       const e = new Error('VERIFICATION_EXPIRED');
@@ -216,7 +271,7 @@ describe('requireVerifiedIdentity', () => {
   });
 
   it('reads the cookie via cookies() (server-side only)', async () => {
-    await sealVerificationCookie('rec_check', Date.now() + 600_000);
+    await sealVerificationCookie('rec_check', Date.now() + 600_000, 'user-A-123');
     await requireVerifiedIdentity('rec_check');
     expect(cookies).toHaveBeenCalled();
   });
@@ -249,9 +304,9 @@ describe('verification-cookie secret resolution', () => {
   it('falls back to COOKIE_SECRET when LOGTO_VERIFICATION_COOKIE_SECRET is unset', async () => {
     delete process.env.LOGTO_VERIFICATION_COOKIE_SECRET;
     process.env.COOKIE_SECRET = 'fallback-cookie-secret-1234';
-    await sealVerificationCookie('rec_fallback', Date.now() + 600_000);
+    await sealVerificationCookie('rec_fallback', Date.now() + 600_000, 'user-A-123');
     const sealed = await readVerificationCookie();
-    expect(sealed).toEqual({ recordId: 'rec_fallback', expiresAt: expect.any(Number) });
+    expect(sealed).toEqual({ recordId: 'rec_fallback', expiresAt: expect.any(Number), sub: 'user-A-123' });
   });
 
   it('uses a dev fallback key in non-production when no secret is set', async () => {
@@ -260,10 +315,11 @@ describe('verification-cookie secret resolution', () => {
     const original = process.env.NODE_ENV;
     setNodeEnv('test');
     try {
-      await sealVerificationCookie('rec_dev', Date.now() + 600_000);
+      await sealVerificationCookie('rec_dev', Date.now() + 600_000, 'user-A-123');
       const sealed = await readVerificationCookie();
       expect(sealed).not.toBeNull();
       expect(sealed?.recordId).toBe('rec_dev');
+      expect(sealed?.sub).toBe('user-A-123');
     } finally {
       setNodeEnv(original ?? 'test');
     }

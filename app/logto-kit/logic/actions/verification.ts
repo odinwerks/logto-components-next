@@ -97,9 +97,10 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     // ── Seal the server-authoritative expiry into an httpOnly cookie ──────
     // BUG-001 fix: the destructive actions now read this cookie (via
     // requireVerifiedIdentity) instead of trusting a client-round-tripped
-    // timestamp. The cookie is HMAC-signed and bound to this recordId, so a
-    // malicious client cannot forge it or substitute a different expiry.
-    await sealVerificationCookie(parsed.verificationRecordId, verificationTimestamp);
+    // timestamp. The cookie is HMAC-signed and bound to this recordId and the
+    // session user's sub (CAN-ACT-002), so a malicious client cannot forge it,
+    // substitute a different expiry, or replay it across user sessions.
+    await sealVerificationCookie(parsed.verificationRecordId, verificationTimestamp, introspection.sub);
     return {
       verificationRecordId: parsed.verificationRecordId,
       // NOTE: verificationTimestamp is returned for CLIENT UX ONLY (e.g. the

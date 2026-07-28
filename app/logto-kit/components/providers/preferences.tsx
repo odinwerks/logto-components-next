@@ -84,7 +84,9 @@ export function PreferencesProvider({
   children: ReactNode;
   initialTheme?: 'dark' | 'light';
   initialLang?: string;
-  initialOrgId?: string | null;
+  // CAN-STATE-001: three-way distinction — `string` (active org), `null`
+  // (authoritative personal mode), `undefined` (server value unavailable).
+  initialOrgId?: string | null | undefined;
   onUpdateCustomData?: (customData: Record<string, unknown>) => Promise<ActionResult>;
   onLangChange?: () => void;
   onPersistError?: (message: string) => void;
@@ -102,6 +104,36 @@ export function PreferencesProvider({
   const themePersistMutationSeqRef = useRef(0);
   const langPersistMutationSeqRef = useRef(0);
   const asOrgPersistMutationSeqRef = useRef(0);
+  // A stale success may become the newest known server state after the latest
+  // optimistic write has failed. Keep the latest failure sequence so that
+  // success can reconcile UI/storage only after the current transition failed,
+  // never over a newer local or confirmed transition.
+  const lastFailedThemePersistMutationSeqRef = useRef(0);
+  const lastFailedLangPersistMutationSeqRef = useRef(0);
+  const lastFailedOrgPersistMutationSeqRef = useRef(0);
+  // CAN-STATE-002: per-key "last server-confirmed" baseline. Each persist
+  // callback's rollback target MUST be the most recent value the server
+  // actually accepted — NOT the captured `prev` ref snapshot, which is an
+  // optimistic-only intermediate that may itself never have been confirmed.
+  // Without this baseline, a double-failure (A optimistic, B optimistic
+  // superseding A, then BOTH fail) rolls back to A's optimistic value (the
+  // buggy intermediate) instead of the server's real last-confirmed value
+  // (which is still the INITIAL server-provided value when no persist has
+  // yet succeeded).
+  //
+  // The paired `*Seq` refs track the newest persist seq that successfully
+  // confirmed, so OUT-OF-ORDER older successes (superseded by a newer write
+  // in flight) cannot clobber a newer-confirmed value: we only advance
+  // `lastConfirmed*Ref` when the incoming success has a strictly newer seq
+  // than the previously confirmed one. The mutation-seq gate (above) still
+  // discards stale RESPONSES for UI rollback purposes; it is orthogonal to
+  // this confirmation tracking.
+  const lastConfirmedThemeRef = useRef(theme);
+  const lastConfirmedLangRef = useRef(lang);
+  const lastConfirmedOrgRef = useRef(asOrg);
+  const lastConfirmedThemeSeqRef = useRef(0);
+  const lastConfirmedLangSeqRef = useRef(0);
+  const lastConfirmedOrgSeqRef = useRef(0);
   // Ref to onUpdateCustomData so stable persist callbacks can access the latest value
   const onUpdateCustomDataRef = useRef(onUpdateCustomData);
   // Ref to onPersistError so stable persist callbacks can access the latest value
@@ -121,20 +153,42 @@ export function PreferencesProvider({
   }, [onLangChange]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    // After the initial one-shot sync, watch for divergence between the
-    // server-provided `initialOrgId` and the cached preference. sessionStorage
-    // is per-tab with no cross-tab events, so a stale cached value could pin
-    // the UI to an org that another tab/server has since changed. When the
-    // server disagrees with a *set* cached value, trust the server and reset
-    // the one-shot guard so the next sync round can re-hydrate other prefs.
+    // After the initial one-shot sync, reconcile the server-provided
+    // `initialOrgId` with the cached preference. sessionStorage is per-tab
+    // with no cross-tab events, so a stale cached value could pin the UI to an
+    // org that another tab/server has since changed. Three cases
+    // (CAN-STATE-001 distinguishes authoritative personal from unavailable):
+    //   - undefined: server value unavailable → keep cached (no-op).
+    //   - null:      authoritative personal mode → clear stale cached org.
+    //   - string:    authoritative org selection → override stale cached org
+    //                (BUG-028); reset the one-shot guard so the next sync round
+    //                can re-hydrate other prefs.
+    // The null/string paths mirror `setAsOrg`'s local side-effects (state +
+    // storage) WITHOUT persisting — the server is the source of these
+    // authoritative values, so no PATCH round-trip is needed. This matches
+    // the pre-existing string-divergence path; `setAsOrg` remains the only
+    // null writer that triggers persist coordination (BUG-L06).
     if (didSyncFromStorage.current) {
-      if (initialOrgId !== undefined && initialOrgId !== null) {
-        const storedOrg = getStoredOrg();
-        if (storedOrg !== null && initialOrgId !== storedOrg) {
-          setAsOrgState(initialOrgId);
-          setStoredOrg(initialOrgId);
-          didSyncFromStorage.current = false;
+      if (initialOrgId !== undefined) {
+        // A defined server value is authoritative even when it happens to
+        // equal the current optimistic state/storage. Always advance the
+        // sequence and baseline so a pending older request cannot later fail
+        // and roll the server-confirmed value back.
+        const seq = ++asOrgPersistMutationSeqRef.current;
+        if (seq > lastConfirmedOrgSeqRef.current) {
+          lastConfirmedOrgSeqRef.current = seq;
+          lastConfirmedOrgRef.current = initialOrgId;
         }
+
+        const storedOrg = getStoredOrg();
+        const stateChanged = asOrgRef.current !== initialOrgId;
+        const storageChanged = storedOrg !== initialOrgId;
+        if (stateChanged) {
+          asOrgRef.current = initialOrgId;
+          setAsOrgState(initialOrgId);
+        }
+        if (storageChanged) setStoredOrg(initialOrgId);
+        if (stateChanged || storageChanged) didSyncFromStorage.current = false;
       }
       return;
     }
@@ -159,11 +213,26 @@ export function PreferencesProvider({
     }
 
     const cachedOrg = getStoredOrg();
-    if (cachedOrg !== null) {
+    if (initialOrgId === null) {
+      // CAN-STATE-001: the server authoritatively reports personal mode
+      // ("be yourself"). A stale cached org from a prior session MUST NOT
+      // override the server's null — clear both storage and React state so
+      // the cached org cannot resurrect on the next load. This mirrors
+      // `setAsOrg(null)`'s local side-effects (state + storage wipe) WITHOUT
+      // persisting, since the server already holds asOrg:null. The
+      // interactive `setAsOrg(null)` remains the canonical UX null writer
+      // (BUG-L06); this is the server-sync counterpart, exactly like the
+      // string-divergence path which also writes state/storage directly.
+      if (cachedOrg !== null) setStoredOrg(null);
+      if (asOrgRef.current !== null) setAsOrgState(null);
+    } else if (cachedOrg !== null) {
+      // Cached user selection wins over the server prop on initial mount
+      // (BUG-001 invariant preserved for non-null values).
       if (cachedOrg !== asOrgRef.current) setAsOrgState(cachedOrg);
     } else if (initialOrgId !== undefined) {
-      setStoredOrg(initialOrgId ?? null);
-      setAsOrgState(initialOrgId ?? null);
+      // No cached value; fall back to the server-provided org id (string).
+      setStoredOrg(initialOrgId);
+      setAsOrgState(initialOrgId);
     }
   }, [initialTheme, initialLang, initialOrgId]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -234,96 +303,185 @@ export function PreferencesProvider({
   // Persisters are stable callbacks created once at mount.
   // useCallback with [] deps ensures they never change reference.
   // Ref access inside useCallback is allowed (refs are not needed for rendering).
-  const persistTheme = useCallback(async (
-    newTheme: 'dark' | 'light',
-    prev: 'dark' | 'light',
-  ) => {
+  const persistTheme = useCallback(async (newTheme: 'dark' | 'light') => {
+    // Increment before checking the optional callback. A prior request retains
+    // the callback it started with and can still fail after the parent removes
+    // it; this newer local transition must invalidate that stale rollback.
+    const seq = ++themePersistMutationSeqRef.current;
     const onUpdateCustomData = onUpdateCustomDataRef.current;
     if (!onUpdateCustomData) return;
-    const seq = ++themePersistMutationSeqRef.current;
     try {
       const r = await onUpdateCustomData({ Preferences: { theme: newTheme } });
-      if (seq !== themePersistMutationSeqRef.current) return;
-      if (!r.ok) {
-        console.error('[PreferencesProvider] Failed to persist theme:', r.error);
-        setStoredTheme(prev);
-        setThemeState(prev);
-        onPersistErrorRef.current?.('Failed to save theme preference');
+      // CAN-STATE-002: advance the last-confirmed baseline on every successful
+      // persist whose seq is newer than the previously confirmed one. This is
+      // tracked BEFORE the mutation-seq gate, so out-of-order older successes
+      // (superseded by a newer write in flight) still confirm the server's
+      // actual state without being clobbered by stale newer-in-flight optimism.
+      const didConfirm = r.ok && seq > lastConfirmedThemeSeqRef.current;
+      if (didConfirm) {
+        lastConfirmedThemeSeqRef.current = seq;
+        lastConfirmedThemeRef.current = newTheme;
       }
-    } catch {
+      if (didConfirm && (
+        seq === themePersistMutationSeqRef.current
+        || lastFailedThemePersistMutationSeqRef.current === themePersistMutationSeqRef.current
+      )) {
+        // Either this is current, or every newer transition has failed and
+        // this response is now the newest server-confirmed value.
+        themeRef.current = newTheme;
+        setStoredTheme(newTheme);
+        setThemeState(newTheme);
+      }
+      if (r.ok) return;
+      lastFailedThemePersistMutationSeqRef.current = seq;
       if (seq !== themePersistMutationSeqRef.current) return;
-      setStoredTheme(prev);
-      setThemeState(prev);
+      console.error('[PreferencesProvider] Failed to persist theme:', r.error);
+      // Roll back to the LAST-CONFIRMED server value, not the optimistic
+      // `prev` snapshot — the unconfirmed intermediate may also have failed.
+      const confirmed = lastConfirmedThemeRef.current;
+      themeRef.current = confirmed;
+      setStoredTheme(confirmed);
+      setThemeState(confirmed);
+      onPersistErrorRef.current?.('Failed to save theme preference');
+    } catch {
+      lastFailedThemePersistMutationSeqRef.current = seq;
+      if (seq !== themePersistMutationSeqRef.current) return;
+      const confirmed = lastConfirmedThemeRef.current;
+      themeRef.current = confirmed;
+      setStoredTheme(confirmed);
+      setThemeState(confirmed);
       onPersistErrorRef.current?.('Failed to save theme preference');
     }
   }, []);
 
-  const persistLang = useCallback(async (
-    newLang: string,
-    prev: string,
-  ) => {
+  const persistLang = useCallback(async (newLang: string) => {
+    // See persistTheme: every local transition invalidates older callbacks,
+    // including transitions made while persistence is unavailable.
+    const seq = ++langPersistMutationSeqRef.current;
     const onUpdateCustomData = onUpdateCustomDataRef.current;
     if (!onUpdateCustomData) return;
-    const seq = ++langPersistMutationSeqRef.current;
     try {
       const r = await onUpdateCustomData({ Preferences: { lang: newLang } });
-      if (seq !== langPersistMutationSeqRef.current) return;
-      if (!r.ok) {
-        console.error('[PreferencesProvider] Failed to persist lang:', r.error);
-        setStoredLang(prev);
-        setLangState(prev);
-        onPersistErrorRef.current?.('Failed to save language preference');
+      // CAN-STATE-002: advance last-confirmed baseline (see persistTheme).
+      const didConfirm = r.ok && seq > lastConfirmedLangSeqRef.current;
+      if (didConfirm) {
+        lastConfirmedLangSeqRef.current = seq;
+        lastConfirmedLangRef.current = newLang;
       }
-    } catch {
+      if (didConfirm && (
+        seq === langPersistMutationSeqRef.current
+        || lastFailedLangPersistMutationSeqRef.current === langPersistMutationSeqRef.current
+      )) {
+        langRef.current = newLang;
+        setStoredLang(newLang);
+        setLangState(newLang);
+      }
+      if (r.ok) return;
+      lastFailedLangPersistMutationSeqRef.current = seq;
       if (seq !== langPersistMutationSeqRef.current) return;
-      setStoredLang(prev);
-      setLangState(prev);
+      console.error('[PreferencesProvider] Failed to persist lang:', r.error);
+      const confirmed = lastConfirmedLangRef.current;
+      langRef.current = confirmed;
+      setStoredLang(confirmed);
+      setLangState(confirmed);
+      onPersistErrorRef.current?.('Failed to save language preference');
+    } catch {
+      lastFailedLangPersistMutationSeqRef.current = seq;
+      if (seq !== langPersistMutationSeqRef.current) return;
+      const confirmed = lastConfirmedLangRef.current;
+      langRef.current = confirmed;
+      setStoredLang(confirmed);
+      setLangState(confirmed);
       onPersistErrorRef.current?.('Failed to save language preference');
     }
   }, []);
 
-  const persistOrg = useCallback(async (
-    newOrgId: string | null,
-    prev: string | null,
-  ) => {
+  const persistOrg = useCallback(async (newOrgId: string | null) => {
+    // CAN-STATE-003: Advance/invalidate the org mutation sequence for EVERY
+    // transition — including null ("be yourself"). Previously the null case
+    // returned BEFORE incrementing the seq, so a pending non-null write
+    // (seq N) remained "current" (counter still N). When that older write
+    // later failed, its rollback handler saw `seq === counter` and proceeded
+    // to restore the LAST-CONFIRMED org — clobbering the personal mode the
+    // server had already persisted via setActiveOrg(null). Incrementing the
+    // seq here invalidates any in-flight older non-null writes (their failure
+    // handlers now see `seq !== counter` and bail without rolling back).
+    //
+    // We also advance the last-confirmed baseline to null, because
+    // setActiveOrg(null) — the canonical null writer (NEVER-TOUCH — persist
+    // + best-effort warn) — has already persisted null server-side by the
+    // time setAsOrg(null) runs in every caller (OrgSwitcher.handleChange,
+    // use-org-switcher.switchToSelf, OrganizationsTab.handleBeYourself all
+    // `await setActiveOrg(null)` before calling setAsOrg(null)). Without
+    // this advance, a LATER non-null write that fails would roll back to the
+    // OLD confirmed org instead of null — clobbering personal mode.
+    //
+    // BUG-L06: The customData PATCH for null is still skipped (no duplicate
+    // PATCH) — setActiveOrg(null) is the single persistence writer for null.
+    // Local state (setStoredOrg / setAsOrgState) is still updated by
+    // setAsOrg, so the UI reflects "be yourself" immediately; only the
+    // redundant PATCH round-trip is dropped. Non-null persists are untouched
+    // (setActiveOrg validates but does NOT persist non-null — BUG-015 — so
+    // setAsOrg remains the single writer there).
+    const seq = ++asOrgPersistMutationSeqRef.current;
+    if (newOrgId === null) {
+      // setActiveOrg(null) has already persisted null server-side; advance
+      // the last-confirmed baseline so subsequent failures roll back to null,
+      // and the incremented seq invalidates any in-flight older non-null write.
+      if (seq > lastConfirmedOrgSeqRef.current) {
+        lastConfirmedOrgSeqRef.current = seq;
+        lastConfirmedOrgRef.current = null;
+      }
+      return;
+    }
+    // Sequence invalidation must occur before this optional callback guard.
+    // A prior request retains the callback it started with, so it can still
+    // settle after a parent render removes onUpdateCustomData. Returning above
+    // the sequence increment would let that stale failure roll back over this
+    // newer local transition.
     const onUpdateCustomData = onUpdateCustomDataRef.current;
     if (!onUpdateCustomData) return;
-    // BUG-L06: Skip the redundant client-side persist for the null ("be
-    // yourself") case. `setActiveOrg(null)` is the canonical writer of
-    // asOrg:null (NEVER-TOUCH — persist + best-effort warn) and has already
-    // persisted by the time setAsOrg(null) runs in every caller
-    // (OrgSwitcher.handleChange, use-org-switcher.switchToSelf,
-    // OrganizationsTab.handleBeYourself). Local state (setStoredOrg /
-    // setAsOrgState) is still updated by setAsOrg, so the UI reflects "be
-    // yourself" immediately; only the second redundant PATCH round-trip is
-    // dropped. Non-null persists are untouched (setActiveOrg validates but
-    // does NOT persist non-null — BUG-015 — so setAsOrg remains the single
-    // writer there).
-    if (newOrgId === null) return;
-    const seq = ++asOrgPersistMutationSeqRef.current;
     try {
       const r = await onUpdateCustomData({ Preferences: { asOrg: newOrgId } });
-      if (seq !== asOrgPersistMutationSeqRef.current) return;
-      if (!r.ok) {
-        console.error('[PreferencesProvider] Failed to persist org:', r.error);
-        setStoredOrg(prev);
-        setAsOrgState(prev);
-        onPersistErrorRef.current?.('Failed to save organization preference');
+      // CAN-STATE-002: advance last-confirmed baseline (see persistTheme).
+      const didConfirm = r.ok && seq > lastConfirmedOrgSeqRef.current;
+      if (didConfirm) {
+        lastConfirmedOrgSeqRef.current = seq;
+        lastConfirmedOrgRef.current = newOrgId;
       }
-    } catch {
+      if (didConfirm && (
+        seq === asOrgPersistMutationSeqRef.current
+        || lastFailedOrgPersistMutationSeqRef.current === asOrgPersistMutationSeqRef.current
+      )) {
+        asOrgRef.current = newOrgId;
+        setStoredOrg(newOrgId);
+        setAsOrgState(newOrgId);
+      }
+      if (r.ok) return;
+      lastFailedOrgPersistMutationSeqRef.current = seq;
       if (seq !== asOrgPersistMutationSeqRef.current) return;
-      setStoredOrg(prev);
-      setAsOrgState(prev);
+      console.error('[PreferencesProvider] Failed to persist org:', r.error);
+      const confirmed = lastConfirmedOrgRef.current;
+      asOrgRef.current = confirmed;
+      setStoredOrg(confirmed);
+      setAsOrgState(confirmed);
+      onPersistErrorRef.current?.('Failed to save organization preference');
+    } catch {
+      lastFailedOrgPersistMutationSeqRef.current = seq;
+      if (seq !== asOrgPersistMutationSeqRef.current) return;
+      const confirmed = lastConfirmedOrgRef.current;
+      asOrgRef.current = confirmed;
+      setStoredOrg(confirmed);
+      setAsOrgState(confirmed);
       onPersistErrorRef.current?.('Failed to save organization preference');
     }
   }, []);
 
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
-    const prev = themeRef.current;
     themeRef.current = newTheme;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
-    persistTheme(newTheme, prev);
+    persistTheme(newTheme);
     window.dispatchEvent(new Event('theme-changed'));
   }, [persistTheme]);
 
@@ -333,21 +491,19 @@ export function PreferencesProvider({
   }, [theme, setMode]);
 
   const setLang = useCallback((newLang: string) => {
-    const prev = langRef.current;
     langRef.current = newLang;
     setStoredLang(newLang);
     setLangState(newLang);
-    persistLang(newLang, prev);
+    persistLang(newLang);
     window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { lang: newLang } }));
     onLangChangeRef.current?.();
   }, [persistLang]);
 
   const setAsOrg = useCallback(async (newOrgId: string | null) => {
-    const prev = asOrgRef.current;
     asOrgRef.current = newOrgId;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
-    await persistOrg(newOrgId, prev);
+    await persistOrg(newOrgId);
   }, [persistOrg]);
 
   const themeValue = useMemo(

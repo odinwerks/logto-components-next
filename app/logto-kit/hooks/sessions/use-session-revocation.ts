@@ -66,6 +66,14 @@ export function useSessionRevocation({
 
   // Persists the revoke target through failed attempts so retries send the correct session ID (Bug 1 fix)
   const revokeTargetRef = useRef<{ kind: 'single'; id: string } | { kind: 'all' } | null>(null);
+  // Cancellation can be followed by a new revoke while an earlier callback is
+  // still pending. Keep stale callbacks from mutating the new flow's state.
+  const nextRevokeAttemptIdRef = useRef(0);
+  const activeRevokeAttemptIdRef = useRef<number | null>(null);
+  // Cancellation must make the UI immediately retryable, but cannot cancel an
+  // already-dispatched destructive request. Keep that request's target locked
+  // until it settles so a same-target retry cannot issue a duplicate revoke.
+  const inFlightRevokeTargetsRef = useRef(new Set<string>());
 
   // Store verification credentials in refs so handleRevokePassword reads the latest value
   const verificationRecordIdRef = useRef(verificationRecordId);
@@ -112,78 +120,126 @@ export function useSessionRevocation({
   }, [revokingId, revokingAll]);
 
   const handleRevokePassword = useCallback(async (password: string): Promise<void> => {
+    // The UI disables the submit control while loading, but keep the state
+    // machine safe if the callback is invoked twice before React re-renders.
+    if (activeRevokeAttemptIdRef.current !== null) return;
+
+    const target = revokeTargetRef.current;
+    const targetKey = target
+      ? target.kind === 'all'
+        ? 'all'
+        : `single:${target.id}`
+      : null;
+    if (targetKey && inFlightRevokeTargetsRef.current.has(targetKey)) return;
+
+    const attemptId = ++nextRevokeAttemptIdRef.current;
+    activeRevokeAttemptIdRef.current = attemptId;
+    const isActiveAttempt = () => activeRevokeAttemptIdRef.current === attemptId;
     setRevokeLoading(true);
     setRevokeError('');
 
-    // Read latest verification credentials from refs
-    let vid = verificationRecordIdRef.current;
-    let vts = verificationExpiryRef.current;
+    // HOOK-002: outer try/catch/finally guarantees ALL loading/idle flags reset on
+    // business-error (!ok), transport rejection, and reload rejection alike.
+    // The target is retained for retry on failure (not cleared); cleared only on success.
+    let revokeSucceeded = false;
+    let inFlightTargetKey: string | null = null;
+    try {
+      // Read latest verification credentials from refs
+      let vid = verificationRecordIdRef.current;
+      let vts = verificationExpiryRef.current;
 
-    // Re-verify if credentials are missing or expired
-    if (!vid || Date.now() >= vts) {
-      const verifyResult = await onVerifyPasswordRef.current(password);
-      if (!verifyResult.ok) {
-        setRevokeError(verifyResult.error);
-        setRevokeLoading(false);
-        // Clear revokingId in finally-equivalent path
-        setRevokingId(null);
-        return;
-      }
-      vid = verifyResult.data.verificationRecordId;
-      vts = verifyResult.data.verificationTimestamp;
-    }
-
-    const target = revokeTargetRef.current;
-    if (!target) {
-      setRevokeModalStep(null);
-      setRevokeLoading(false);
-      return;
-    }
-
-    if (target.kind === 'all') {
-      setRevokingAll(true);
-      setGcAllLoading(true);
-      const revokeResult = await onRevokeAllOtherSessionsRef.current(vid);
-      if (!revokeResult.ok) {
-        setRevokeError(revokeResult.error);
-        setRevokeLoading(false);
-        setRevokingAll(false);
-        setGcAllLoading(false);
-        return;
-      }
-    } else {
-      // Single session revocation
-      let singleOk = false;
-      try {
-        const revokeResult = await onRevokeSessionRef.current(target.id, vid, 'firstParty');
-        if (!revokeResult.ok) {
-          setRevokeError(revokeResult.error);
-          setRevokeLoading(false);
+      // Re-verify if credentials are missing or expired
+      if (!vid || Date.now() >= vts) {
+        const verifyResult = await onVerifyPasswordRef.current(password);
+        if (!isActiveAttempt()) return;
+        if (!verifyResult.ok) {
+          setRevokeError(verifyResult.error);
           return;
         }
-        singleOk = true;
-      } finally {
-        // Bug LOG-003 fix: clear revokingId in finally, not just success path
-        if (!singleOk) {
-          setRevokingId(null);
+        vid = verifyResult.data.verificationRecordId;
+        vts = verifyResult.data.verificationTimestamp;
+      }
+
+      if (!target) {
+        setRevokeModalStep(null);
+        return;
+      }
+
+      if (target.kind === 'all') {
+        setRevokingAll(true);
+        setGcAllLoading(true);
+        const dispatchedTargetKey = 'all';
+        inFlightTargetKey = dispatchedTargetKey;
+        inFlightRevokeTargetsRef.current.add(dispatchedTargetKey);
+        const revokeResult = await onRevokeAllOtherSessionsRef.current(vid);
+        if (!isActiveAttempt()) return;
+        if (!revokeResult.ok) {
+          setRevokeError(revokeResult.error);
+          return;
+        }
+      } else {
+        // Single session revocation
+        const dispatchedTargetKey = `single:${target.id}`;
+        inFlightTargetKey = dispatchedTargetKey;
+        inFlightRevokeTargetsRef.current.add(dispatchedTargetKey);
+        const revokeResult = await onRevokeSessionRef.current(target.id, vid, 'firstParty');
+        if (!isActiveAttempt()) return;
+        if (!revokeResult.ok) {
+          setRevokeError(revokeResult.error);
+          return;
         }
       }
-    }
 
-    // Success path
-    onSuccessRef.current('Session revoked successfully');
-    await onReloadSessionsRef.current(vid);
-    setRevokeModalStep(null);
-    setRevokeLoading(false);
-    revokeTargetRef.current = null;
-    setRevokingId(null);
-    setRevokingAll(false);
-    setGcAllLoading(false);
+      // Success path — revoke succeeded; reload then tear down.
+      // NOTE: destructive calls use the record ID (`vid`) only, never a client
+      // timestamp — server-sealed verification model is preserved (BUG-001).
+      revokeSucceeded = true;
+      onSuccessRef.current('Session revoked successfully');
+      await onReloadSessionsRef.current(vid);
+      if (!isActiveAttempt()) return;
+    } catch (err) {
+      // HOOK-002: transport/rejected callback fallback. Surface the error and
+      // retain the target + modal for retry. finally resets every loading flag.
+      if (isActiveAttempt()) {
+        setRevokeError(err instanceof Error ? err.message : 'Unexpected error');
+      }
+    } finally {
+      // This guard tracks the dispatched operation rather than its UI attempt,
+      // so it is deliberately cleared even after cancelRevoke invalidates the
+      // active attempt.
+      if (inFlightTargetKey) {
+        inFlightRevokeTargetsRef.current.delete(inFlightTargetKey);
+      }
+      // cancelRevoke invalidates the active attempt. A stale completion must
+      // not reset a newer target or overwrite its error/loading state.
+      if (!isActiveAttempt()) return;
+      activeRevokeAttemptIdRef.current = null;
+      // Always reset loading/idle flags so the UI can never get stuck.
+      setRevokeLoading(false);
+      setRevokingAll(false);
+      setGcAllLoading(false);
+      if (revokeSucceeded) {
+        // Revoke (and reload) completed: tear down modal + target.
+        setRevokeModalStep(null);
+        revokeTargetRef.current = null;
+        setRevokingId(null);
+      } else {
+        // Failure/rejection: clear the per-session spinner but retain target +
+        // modal so the user can retry the SAME session (Bug 1 / LOG-003).
+        setRevokingId(null);
+      }
+    }
   }, []);
 
   const cancelRevoke = useCallback(() => {
+    // HOOK-002: clear ALL flags (previously left revokingAll/gcAllLoading stuck,
+    // which also blocked closeGcAllModal and startRevoke guards).
+    activeRevokeAttemptIdRef.current = null;
+    setShowGcAllModal(false);
     setRevokeModalStep(null);
     setRevokeLoading(false);
+    setRevokingAll(false);
+    setGcAllLoading(false);
     revokeTargetRef.current = null;
     setRevokingId(null);
     setRevokeError('');

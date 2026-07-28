@@ -33,7 +33,7 @@ vi.mock('../logic/capture-message', () => ({
 describe('useOrgSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     mockAsOrg = null;
   });
 
@@ -70,7 +70,7 @@ describe('useOrgSwitcher', () => {
   });
 
   it('switchToOrg sets error when validation fails', async () => {
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
     const { result } = renderHook(() => useOrgSwitcher());
 
     await act(async () => {
@@ -82,23 +82,28 @@ describe('useOrgSwitcher', () => {
     expect(mockSetAsOrg).not.toHaveBeenCalled();
   });
 
-  it('switchToOrg sets error when setActiveOrg throws', async () => {
-    mockSetActiveOrg.mockRejectedValueOnce(new Error('Network error'));
+  it('switchToOrg sets error when setActiveOrg returns { ok: false } (CAN-ACT-010)', async () => {
+    // With safeAction, setActiveOrg never rejects — it returns a DataResult
+    // envelope. An { ok: false } result means the action errored (e.g. SDK
+    // failure collapsed to INTERNAL_ERROR). The caller must surface this,
+    // not silently swallow it (the pre-fix boolean check was always truthy).
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: false, error: 'INTERNAL_ERROR' });
     const { result } = renderHook(() => useOrgSwitcher());
 
     await act(async () => {
       await result.current.switchToOrg('org-1');
     });
 
-    expect(result.current.error).toBe('Network error');
+    expect(result.current.error).toBe('Failed to switch organization');
+    expect(mockSetAsOrg).not.toHaveBeenCalled();
   });
 
   it('switchToOrg guards against concurrent switches', async () => {
-    let resolveFirst: (v: boolean) => void = () => {};
-    const first = new Promise<boolean>((r) => { resolveFirst = r; });
+    let resolveFirst: (v: { ok: true; data: boolean } | { ok: false; error: string }) => void = () => {};
+    const first = new Promise<{ ok: true; data: boolean } | { ok: false; error: string }>((r) => { resolveFirst = r; });
     mockSetActiveOrg
       .mockReturnValueOnce(first)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce({ ok: true, data: true });
 
     const { result } = renderHook(() => useOrgSwitcher());
 
@@ -108,7 +113,7 @@ describe('useOrgSwitcher', () => {
     const p2 = result.current.switchToOrg('org-2');
 
     await act(async () => {
-      resolveFirst(true);
+      resolveFirst({ ok: true, data: true });
       await p1;
       await p2;
     });
@@ -153,7 +158,7 @@ describe('useOrgSwitcher', () => {
 
   it('switchToSelf sets error when setActiveOrg(null) returns false', async () => {
     mockAsOrg = 'org-1';
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
 
     const { result } = renderHook(() => useOrgSwitcher());
 
@@ -167,7 +172,7 @@ describe('useOrgSwitcher', () => {
   // ─── auto-single ───────────────────────────────────────────────────────────
 
   it('auto-single fires when a single org is available and no org is active', async () => {
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     const orgs = [{ id: 'org-1', name: 'Only Org' }];
 
     const { result } = renderHook(() =>
@@ -192,7 +197,7 @@ describe('useOrgSwitcher', () => {
   it('auto-single does NOT fire when hasAutoSwitched is already true', async () => {
     const orgs = [{ id: 'org-1', name: 'Only Org' }];
 
-    mockSetActiveOrg.mockResolvedValue(true);
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     const { result, rerender } = renderHook(() =>
       useOrgSwitcher({
         autoSwitchSingleOrg: true,
@@ -260,7 +265,7 @@ describe('useOrgSwitcher', () => {
 
   it('error auto-clears after errorClearMs', async () => {
     vi.useFakeTimers();
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
 
     const { result } = renderHook(() =>
       useOrgSwitcher({ errorClearMs: 1000 }),
@@ -282,7 +287,7 @@ describe('useOrgSwitcher', () => {
   // ─── clearError ────────────────────────────────────────────────────────────
 
   it('clearError resets error', async () => {
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
 
     const { result } = renderHook(() => useOrgSwitcher());
 
@@ -327,7 +332,7 @@ describe('useOrgSwitcher', () => {
 
   it('calls onError when switch fails', async () => {
     const onError = vi.fn();
-    mockSetActiveOrg.mockResolvedValueOnce(false);
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: true, data: false });
 
     const { result } = renderHook(() => useOrgSwitcher({ onError }));
 
@@ -341,8 +346,8 @@ describe('useOrgSwitcher', () => {
   // ─── switchingOrgId gates ──────────────────────────────────────────────────
 
   it('switchingOrgId reflects in-flight state during switch', async () => {
-    let resolve: (v: boolean) => void = () => {};
-    const promise = new Promise<boolean>((r) => { resolve = r; });
+    let resolve: (v: { ok: true; data: boolean } | { ok: false; error: string }) => void = () => {};
+    const promise = new Promise<{ ok: true; data: boolean } | { ok: false; error: string }>((r) => { resolve = r; });
     mockSetActiveOrg.mockReturnValueOnce(promise);
 
     const { result } = renderHook(() => useOrgSwitcher());
@@ -357,7 +362,7 @@ describe('useOrgSwitcher', () => {
     // Actually, the promise is pending, so switchingOrgId should be 'org-1'
 
     await act(async () => {
-      resolve(true);
+      resolve({ ok: true, data: true });
       await switchPromise;
     });
 

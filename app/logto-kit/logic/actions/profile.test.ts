@@ -138,7 +138,7 @@ import { getCleanEndpoint, introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import { requireVerifiedIdentity } from './verification-cookie';
 import { auditSafe } from './helpers';
-import { logEvent } from '../log';
+import { logEvent, warn } from '../log';
 import { LOG_EVENTS } from '../../../lib/log-events';
 
 // ============================================================================
@@ -168,6 +168,23 @@ function mockErrorResponse(status = 400): Response {
     statusText: 'Bad Request',
     text: () => Promise.resolve('Bad Request'),
   } as unknown as Response;
+}
+
+/**
+ * Mimics the rejection produced by AbortSignal.timeout(15000) when the fetch
+ * is aborted on timeout. AbortSignal.timeout fires with a DOMException named
+ * 'TimeoutError'; fall back to a plain Error with that name in environments
+ * that lack the DOMException constructor. The CAN-ACT-006 fix must map ANY
+ * rejection from makeManagementFetch to the established UPDATE_FAILED code.
+ */
+function makeTimeoutError(): Error {
+  try {
+    return new DOMException('The operation timed out.', 'TimeoutError');
+  } catch {
+    const err = new Error('The operation timed out.');
+    err.name = 'TimeoutError';
+    return err;
+  }
 }
 
 // ============================================================================
@@ -306,6 +323,46 @@ describe('updateUserCustomData', () => {
     const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
 
     expect(result.ok).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    {
+      name: 'GET',
+      responses: [
+        {
+          ok: false,
+          status: 503,
+          statusText: 'Service Unavailable',
+          text: () => Promise.resolve('upstream GET failure: internal host 10.0.0.5'),
+        },
+      ],
+      expectedLog: '[updateUserCustomData] GET custom-data failed:',
+    },
+    {
+      name: 'PATCH',
+      responses: [
+        mockOkResponse({}),
+        {
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          text: () => Promise.resolve('upstream PATCH failure: internal host 10.0.0.6'),
+        },
+      ],
+      expectedLog: '[updateUserCustomData] Management API PATCH failed:',
+    },
+  ])('logs only UPDATE_FAILED for a failed custom-data $name response', async ({ responses, expectedLog }) => {
+    const rawUpstreamDetail = await responses.at(-1)!.text();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(responses.shift() as Response)));
+
+    const { updateUserCustomData } = await import('./profile');
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+    expect(warn).toHaveBeenCalledWith(expectedLog, 'UPDATE_FAILED');
+    expect(JSON.stringify(vi.mocked(warn).mock.calls)).not.toContain(rawUpstreamDetail);
 
     vi.unstubAllGlobals();
   });
@@ -658,6 +715,172 @@ describe('updateUserCustomData', () => {
       'start-GET', 'end-GET', 'start-PATCH', 'end-PATCH',
     ]);
 
+    vi.unstubAllGlobals();
+  });
+
+  // ==========================================================================
+  // CAN-ACT-006: Unbounded profile I/O must not outlive the lock lease.
+  // The GET and PATCH inside the lock critical section now go through
+  // makeManagementFetch, which applies AbortSignal.timeout(15000) — well under
+  // the 30-second Redis lease — so a hanging fetch rejects at 15s and the
+  // awaited finally can release the lock cleanly while the lease is still
+  // valid. A rejection (timeout/abort/network) is mapped to UPDATE_FAILED,
+  // never a raw TimeoutError or unhandled rejection.
+  // ==========================================================================
+
+  it('passes an AbortSignal (timeout) to the GET custom-data fetch (CAN-ACT-006)', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(mockOkResponse({}))  // GET
+      .mockResolvedValueOnce(mockOkResponse({}))  // PATCH
+    );
+
+    await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // The GET (first call) must carry an AbortSignal so it cannot hang forever
+    // and outlive the lock lease. makeManagementFetch sets
+    // signal: AbortSignal.timeout(15000) by default.
+    const getOpts = fetchMock.mock.calls[0][1] as RequestInit & { signal?: AbortSignal };
+    expect(getOpts.signal).toBeInstanceOf(AbortSignal);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('passes an AbortSignal (timeout) to the PATCH custom-data fetch (CAN-ACT-006)', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(mockOkResponse({}))  // GET
+      .mockResolvedValueOnce(mockOkResponse({}))  // PATCH
+    );
+
+    await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // The PATCH (second call) must also carry an AbortSignal — a hanging PATCH
+    // is just as dangerous as a hanging GET for lock-lease overlap.
+    const patchOpts = fetchMock.mock.calls[1][1] as RequestInit & { signal?: AbortSignal };
+    expect(patchOpts.signal).toBeInstanceOf(AbortSignal);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('maps a GET timeout (fetch rejection) to UPDATE_FAILED, not a raw TimeoutError (CAN-ACT-006)', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    // Simulate AbortSignal.timeout(15000) firing during the GET: the fetch
+    // rejects with a DOMException named 'TimeoutError'.
+    vi.stubGlobal('fetch', vi.fn()
+      .mockRejectedValueOnce(makeTimeoutError())  // GET times out
+    );
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    // The fixed action code is UPDATE_FAILED (the established code for this
+    // action) — never the raw 'TimeoutError' string nor an unhandled rejection.
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+    expect(fetch).toHaveBeenCalledTimes(1);  // GET rejected → PATCH never issued
+
+    vi.unstubAllGlobals();
+  });
+
+  it('maps a PATCH timeout (fetch rejection) to UPDATE_FAILED, not a raw TimeoutError (CAN-ACT-006)', async () => {
+    const { updateUserCustomData } = await import('./profile');
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(mockOkResponse({}))       // GET succeeds
+      .mockRejectedValueOnce(makeTimeoutError())        // PATCH times out
+    );
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+    expect(fetch).toHaveBeenCalledTimes(2);  // GET + PATCH (rejected)
+
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['an abort', makeTimeoutError()],
+    ['a malformed JSON error', new SyntaxError('Unexpected token < in JSON response')],
+  ])('maps GET response body parsing %s to UPDATE_FAILED (CAN-ACT-006)', async (_name, jsonError) => {
+    const { updateUserCustomData } = await import('./profile');
+
+    // A fetch can resolve after headers while its body is later aborted or
+    // malformed. The body read is part of the same lock-held deadline and
+    // must not escape safeAction as INTERNAL_ERROR.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ...mockOkResponse({}),
+      json: () => Promise.reject(jsonError),
+    } as unknown as Response));
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[updateUserCustomData] GET custom-data body parse failed:',
+      'UPDATE_FAILED',
+    );
+
+    vi.unstubAllGlobals();
+  });
+
+  it('releases the lock after a GET timeout so a subsequent same-user update is not blocked (CAN-ACT-006)', async () => {
+    vi.resetModules();
+
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-mgmt-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://logto.example.com');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'same-user-locks', active: true });
+
+    const { updateUserCustomData } = await import('./profile');
+
+    // First call: GET times out. If the lock were NOT released, the second
+    // call for the same user would block on acquire() for the 30s lease
+    // timeout — which would exceed the vitest per-test timeout and fail.
+    vi.stubGlobal('fetch', vi.fn()
+      .mockRejectedValueOnce(makeTimeoutError())        // first GET times out
+      .mockResolvedValueOnce(mockOkResponse({}))         // second GET succeeds
+      .mockResolvedValueOnce(mockOkResponse({}))         // second PATCH succeeds
+    );
+
+    const result1 = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+    expect(result1).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+
+    // The awaited finally in updateUserCustomData must have run releaseLock(),
+    // so this second same-user call acquires the lock immediately and completes.
+    const result2 = await updateUserCustomData({ Preferences: { theme: 'light' } });
+    expect(result2).toEqual({ ok: true });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('does not start PATCH after a slow GET consumes the shared lock budget (CAN-ACT-006)', async () => {
+    const { updateUserCustomData } = await import('./profile');
+    const now = vi.spyOn(Date, 'now')
+      // The lock-held deadline is set immediately after acquisition.
+      .mockReturnValueOnce(0)
+      // The GET starts with the full shared budget available.
+      .mockReturnValueOnce(0)
+      // Its response arrives only when the shared budget has expired.
+      .mockReturnValue(25_000);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(mockOkResponse({})));
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    // The action fails closed instead of allowing a second 15s request to run
+    // after the GET has consumed the lock-held budget.
+    expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    now.mockRestore();
     vi.unstubAllGlobals();
   });
 

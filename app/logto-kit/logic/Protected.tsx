@@ -80,7 +80,17 @@ import { clientLog } from './client-logger';
  *     last successful load. It is preserved by the `loading` action so a
  *     subsequent load render can decide whether to keep showing children
  *     without touching any ref during render.
+ *
+ * CAN-STATE-009 (principal binding): `lastAuthorized`/`hasLoadedOnce` are bound
+ * to the principal that produced them via `loadedForUserId`, the scope
+ * category `loadedForScopeKey`, and, for organization scope, `loadedForOrgId`.
+ * The `loading` action only preserves the prior snapshot when those bindings
+ * are unchanged; otherwise it
+ * discards the snapshot so a prior user's authorized children do not remain
+ * visible while a new principal's roles/scopes load.
  */
+type ScopeKey = 'personal' | 'org';
+
 interface PermState {
   loadedPerms: string[];
   loadedRoles: string[];
@@ -88,12 +98,18 @@ interface PermState {
   loadError: boolean;
   hasLoadedOnce: boolean;
   lastAuthorized: boolean;
+  /** User id the retained snapshot (`hasLoadedOnce`/`lastAuthorized`) was computed for. */
+  loadedForUserId: string | null;
+  /** Scope category the retained snapshot was computed for. */
+  loadedForScopeKey: ScopeKey | null;
+  /** Organization the retained organization-scope snapshot was computed for. */
+  loadedForOrgId: string | null;
 }
 
 type PermAction =
   | { type: 'reset' }
-  | { type: 'loading' }
-  | { type: 'success'; perms: string[]; roles: string[]; authorized: boolean }
+  | { type: 'loading'; userId: string; scopeKey: ScopeKey; orgId: string | null }
+  | { type: 'success'; perms: string[]; roles: string[]; authorized: boolean; userId: string; scopeKey: ScopeKey; orgId: string | null }
   | { type: 'error' };
 
 const initialPermState: PermState = {
@@ -103,24 +119,47 @@ const initialPermState: PermState = {
   loadError: false,
   hasLoadedOnce: false,
   lastAuthorized: false,
+  loadedForUserId: null,
+  loadedForScopeKey: null,
+  loadedForOrgId: null,
 };
 
 function permReducer(state: PermState, action: PermAction): PermState {
   switch (action.type) {
     case 'reset':
+      return { ...initialPermState };
+    case 'loading': {
+      // CAN-STATE-009: only preserve the prior authorization snapshot when the
+      // principal (user id) AND scope binding are unchanged — i.e. a
+      // subsequent load for the same identity and organization (BUG-014
+      // continuity on router.refresh). A changed user or organization discards
+      // the stale snapshot so prior authorized children do not remain
+      // visible while the new principal's roles/scopes load. UI-only; the
+      // Protected Actions API independently authorizes the current identity.
+      const samePrincipal =
+        action.userId === state.loadedForUserId &&
+        action.scopeKey === state.loadedForScopeKey &&
+        action.orgId === state.loadedForOrgId;
+      if (samePrincipal) {
+        // Preserve loadedPerms/loadedRoles/hasLoadedOnce/lastAuthorized (and
+        // the principal binding) so a subsequent same-principal load can keep
+        // showing the previously authorized content (BUG-014).
+        return { ...state, isLoadingPerms: true, loadError: false };
+      }
       return {
         loadedPerms: [],
         loadedRoles: [],
-        isLoadingPerms: false,
+        isLoadingPerms: true,
         loadError: false,
         hasLoadedOnce: false,
         lastAuthorized: false,
+        // Bind the new in-flight load so only its own later refresh can retain
+        // authorization — never a previous principal or organization snapshot.
+        loadedForUserId: action.userId,
+        loadedForScopeKey: action.scopeKey,
+        loadedForOrgId: action.orgId,
       };
-    case 'loading':
-      // Preserve loadedPerms/loadedRoles/hasLoadedOnce/lastAuthorized so a
-      // subsequent load (e.g. org switch) can keep showing the previously
-      // authorized content instead of unmounting it (BUG-014).
-      return { ...state, isLoadingPerms: true, loadError: false };
+    }
     case 'success':
       return {
         loadedPerms: action.perms,
@@ -129,6 +168,9 @@ function permReducer(state: PermState, action: PermAction): PermState {
         loadError: false,
         hasLoadedOnce: true,
         lastAuthorized: action.authorized,
+        loadedForUserId: action.userId,
+        loadedForScopeKey: action.scopeKey,
+        loadedForOrgId: action.orgId,
       };
     case 'error':
       // Blank stale perms/roles so a post-error render doesn't reuse them,
@@ -305,7 +347,7 @@ export function Protected({
     if (!isPersonalScope) return;
 
     let cancelled = false;
-    dispatch({ type: 'loading' });
+    dispatch({ type: 'loading', userId: userData.id, scopeKey: 'personal', orgId: null });
 
     Promise.all([
       loadPersonalPermissions(),
@@ -322,7 +364,7 @@ export function Protected({
           const authorized = computeAuthorized({
             perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
           });
-          dispatch({ type: 'success', perms, roles, authorized });
+          dispatch({ type: 'success', perms, roles, authorized, userId: userData.id, scopeKey: 'personal', orgId: null });
         }
       })
       .catch(() => {
@@ -365,7 +407,7 @@ export function Protected({
 
     // Start loading
     let cancelled = false;
-    dispatch({ type: 'loading' });
+    dispatch({ type: 'loading', userId: userData.id, scopeKey: 'org', orgId: targetOrgId });
 
     Promise.all([
       loadOrganizationPermissions(targetOrgId),
@@ -382,7 +424,7 @@ export function Protected({
           const authorized = computeAuthorized({
             perm, roleId, orgId, orgName, requireAll, asOrg, userData, loadedPerms: perms, loadedRoles: roles,
           });
-          dispatch({ type: 'success', perms, roles, authorized });
+          dispatch({ type: 'success', perms, roles, authorized, userId: userData.id, scopeKey: 'org', orgId: targetOrgId });
         }
       })
       .catch(() => {
@@ -398,7 +440,16 @@ export function Protected({
   }, [userData, orgId, orgName, targetOrgId, asOrg]);
 
   // Compute isAuthorized once for both the denial toast effect and the render path.
-  const isAuthorized = computeAuthorized({
+  const currentScopeKey: ScopeKey = isPersonalScopeFor(orgId, orgName) ? 'personal' : 'org';
+  const currentOrgId = currentScopeKey === 'org' ? targetOrgId ?? null : null;
+  // Effects run after render. Bind both normal authorization and BUG-014's
+  // retained snapshot to the identity/scope visible in this render, so an A→B
+  // context update cannot display A's permissions for even one render.
+  const isSnapshotCurrent =
+    state.loadedForUserId === userData?.id &&
+    state.loadedForScopeKey === currentScopeKey &&
+    state.loadedForOrgId === currentOrgId;
+  const isAuthorized = isSnapshotCurrent && computeAuthorized({
     perm,
     roleId,
     orgId,
@@ -413,7 +464,7 @@ export function Protected({
   // ── Denial toast: fire on authorized → unauthorized transition ───────────
   // Only for permission-based checks (not the initial loading state or org switches).
   useEffect(() => {
-    if (hasLoadedOnce && wasAuthorizedRef.current && !isAuthorized && !isLoadingPerms && !loadError) {
+    if (isSnapshotCurrent && hasLoadedOnce && wasAuthorizedRef.current && !isAuthorized && !isLoadingPerms && !loadError) {
       // Only fire for perm-based checks; org-switch is expected behavior.
       if (perm) {
         showToast('error', mapErrorToast('PERMISSION_DENIED'));
@@ -422,7 +473,7 @@ export function Protected({
     if (hasLoadedOnce) {
       wasAuthorizedRef.current = isAuthorized;
     }
-  }, [isAuthorized, hasLoadedOnce, isLoadingPerms, loadError, perm, showToast, mapErrorToast]);
+  }, [isAuthorized, hasLoadedOnce, isLoadingPerms, isSnapshotCurrent, loadError, perm, showToast, mapErrorToast]);
 
   if (!userData) {
     return <>{fallback ?? null}</>;
@@ -437,7 +488,7 @@ export function Protected({
     // being unauthorized). First load behaves as before (fallback ?? null).
     // `hasLoadedOnce` and `lastAuthorized` live in reducer state (not refs) so
     // we never read/write a ref during render.
-    if (hasLoadedOnce && lastAuthorized) {
+    if (isSnapshotCurrent && hasLoadedOnce && lastAuthorized) {
       return <>{children}</>;
     }
     return <>{fallback ?? null}</>;

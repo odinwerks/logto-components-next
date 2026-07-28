@@ -138,6 +138,12 @@ export const logtoConfig = (() => {
       'Set ENDPOINT environment variable to your Logto server URL before starting the server.'
     );
   }
+  if (config.appId === 'build-placeholder' && nodeEnv === 'production' && !IS_NEXT_BUILD) {
+    throw new Error(
+      'FATAL: appId is still "build-placeholder" at runtime in production. ' +
+      'Set APP_ID environment variable before starting the server.'
+    );
+  }
 
   // Runtime guard: enforce HTTPS for sensitive URLs in production (protects secrets in transit)
   if (nodeEnv === 'production' && !IS_NEXT_BUILD) {
@@ -176,6 +182,9 @@ export const logtoConfig = (() => {
 
     // Validate LOGTO_M2M_RESOURCE if set
     assertHttpsInProduction(process.env.LOGTO_M2M_RESOURCE, 'LOGTO_M2M_RESOURCE');
+
+    // Validate BASE_URL
+    assertHttpsInProduction(config.baseUrl, 'BASE_URL');
   }
 
   return config;
@@ -223,6 +232,23 @@ let m2mPendingWaiters = 0;
 function getM2mBackoffDelay(): number {
   // Exponential backoff: 500ms * 2^n, capped at 5 s
   return Math.min(M2M_BASE_DELAY_MS * Math.pow(2, m2mRetryCount), M2M_MAX_RETRY_DELAY_MS);
+}
+
+/**
+ * Records an M2M token fetch failure: increments the retry counter and opens
+ * the circuit breaker if the consecutive-failure threshold is reached.
+ *
+ * CAN-ACT-007: Centralized failure recording. ALL operational failures (network
+ * /DNS/TLS, AbortError, HTTP non-ok, text()/json() decode failures, missing
+ * access_token, null response body) funnel through this single function so the
+ * retry/circuit state is ALWAYS incremented exactly once per failed attempt.
+ */
+function recordM2mFailure(): void {
+  m2mRetryCount += 1;
+  if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
+    m2mCircuitOpenAt = Date.now();
+    warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
+  }
 }
 
 export async function getManagementApiToken(): Promise<string> {
@@ -292,9 +318,14 @@ export async function getManagementApiToken(): Promise<string> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8_000);
 
-    let res: Response;
+    // CAN-ACT-007: Single centralized try/catch/finally ensures ALL operational
+    // failures (network/DNS/TLS, AbortError, HTTP non-ok, text()/json() decode
+    // failures, missing/null access_token) increment retry/circuit state exactly
+    // once and always clear the timeout. Previously, network failures and
+    // decode failures could bypass the accounting, leaving the circuit closed
+    // after 5 consecutive failures during an outage.
     try {
-      res = await fetch(tokenEndpoint, {
+      const res = await fetch(tokenEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -303,58 +334,52 @@ export async function getManagementApiToken(): Promise<string> {
         body: body.toString(),
         signal: controller.signal,
       });
+
+      if (!res.ok) {
+        // Best-effort error text extraction for diagnostics; decode failure
+        // is recorded by the outer catch, not here.
+        let errorText = '';
+        try {
+          errorText = await res.text();
+        } catch {
+          // text() decode failure — outer catch records the failure
+        }
+        warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
+        throw new Error('Management API token request failed');
+      }
+
+      // json() decode failure propagates to outer catch for recording
+      const data: any = await res.json();
+
+      // Guard against null/undefined body (e.g. empty 200 response) — the old
+      // `!data.access_token` check would throw a TypeError on null that bypassed
+      // the increment entirely.
+      if (!data || !data.access_token) {
+        warn('[M2M Token] Response missing access_token');
+        throw new Error('Management API token request failed');
+      }
+
+      // Success: reset backoff counter and close circuit
+      m2mRetryCount = 0;
+      m2mCircuitOpenAt = null;
+
+      // Cache the token with dynamic TTL based on expires_in with a 60s buffer
+      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      cachedM2MToken = {
+        token: data.access_token as string,
+        expiresAt: Date.now() + (expiresIn - 60) * 1000,
+      };
+
+      return cachedM2MToken.token;
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         warn('[M2M Token] Request timed out after 8000ms');
-        m2mRetryCount += 1;
-        if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
-          m2mCircuitOpenAt = Date.now();
-          warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
-        }
-        throw new Error('Management API token request failed');
       }
-      throw err;
+      recordM2mFailure();
+      throw new Error('Management API token request failed');
     } finally {
       clearTimeout(timeoutId);
     }
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      warn(`[M2M Token] HTTP ${res.status}: ${errorText.substring(0, 200)}`);
-      m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
-      // Open circuit if consecutive failure threshold reached
-      if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
-        m2mCircuitOpenAt = Date.now();
-        warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
-      }
-      throw new Error('Management API token request failed');
-    }
-
-    const data = await res.json();
-    if (!data.access_token) {
-      m2mRetryCount += 1; // Increment for next caller's backoff (API-A05)
-      // Open circuit if consecutive failure threshold reached
-      if (m2mRetryCount >= M2M_CIRCUIT_OPEN_THRESHOLD) {
-        m2mCircuitOpenAt = Date.now();
-        warn(`[M2M Token] Circuit opened after ${m2mRetryCount} consecutive failures. Requests will be rejected for ${M2M_CIRCUIT_RESET_MS}ms.`);
-      }
-      throw new Error(
-        `Management API token response missing access_token. Got keys: [${Object.keys(data).join(', ')}]`
-      );
-    }
-
-    // Success: reset backoff counter and close circuit
-    m2mRetryCount = 0;
-    m2mCircuitOpenAt = null;
-
-    // Cache the token with dynamic TTL based on expires_in with a 60s buffer
-    const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
-    cachedM2MToken = {
-      token: data.access_token as string,
-      expiresAt: Date.now() + (expiresIn - 60) * 1000,
-    };
-
-    return cachedM2MToken.token;
   })();
 
   try {

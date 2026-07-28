@@ -117,3 +117,53 @@ describe('action-registry failure caching', () => {
     expect(vi.mocked(getCalcAddMock)).toHaveBeenCalledTimes(1);
   });
 });
+
+// ── CAN-ACT-013: inherited-property hardening ───────────────────────────────
+// The registry is a plain object, so naive bracket lookup (registry[name])
+// resolves inherited Object.prototype members (toString, constructor,
+// hasOwnProperty, __proto__, ...). An authenticated request using one of these
+// names as `action` would receive a truthy non-config, fail
+// validateActionConfig, and yield IMPROPER_SETUP_ERROR 500 — instead of the
+// correct ACTION_NOT_FOUND 404 for an unknown action. getAction MUST perform
+// an own-property lookup so inherited names resolve to undefined (→ 404).
+describe('action-registry inherited-property hardening (CAN-ACT-013)', () => {
+  const globalRecord = globalThis as unknown as Record<string, unknown>;
+
+  beforeEach(() => {
+    vi.resetModules();
+    delete globalRecord.__calcActionError;
+  });
+
+  afterEach(() => {
+    delete globalRecord.__calcActionError;
+  });
+
+  it('does NOT resolve inherited Object.prototype property names', async () => {
+    const { getAction } = await import('./index');
+
+    // Each of these exists on Object.prototype, never as a registered action.
+    // Naive `registry[name]` would return the inherited member (truthy) and
+    // cause a 500 setup error; the hardened lookup must return undefined.
+    expect(await getAction('toString')).toBeUndefined();
+    expect(await getAction('constructor')).toBeUndefined();
+    expect(await getAction('hasOwnProperty')).toBeUndefined();
+    expect(await getAction('isPrototypeOf')).toBeUndefined();
+    expect(await getAction('valueOf')).toBeUndefined();
+    expect(await getAction('toLocaleString')).toBeUndefined();
+    expect(await getAction('__proto__')).toBeUndefined();
+    expect(await getAction('__defineGetter__')).toBeUndefined();
+    expect(await getAction('__defineSetter__')).toBeUndefined();
+    expect(await getAction('__lookupGetter__')).toBeUndefined();
+    expect(await getAction('__lookupSetter__')).toBeUndefined();
+  });
+
+  it('still resolves legitimate registered actions (no false negatives)', async () => {
+    const { getAction } = await import('./index');
+
+    const action = await getAction('calc/add');
+    expect(action).toBeDefined();
+    expect(action?.requiredOrgId).toBe('org');
+    expect(action?.requiredRoleId).toBe('role');
+    expect(action?.requiredPermId).toBe('perm');
+  });
+});

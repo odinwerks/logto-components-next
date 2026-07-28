@@ -38,6 +38,8 @@ import crypto from 'node:crypto';
 import { assertVerificationNotExpired } from './helpers';
 import { assertSafeLogtoId } from '../guards';
 import { plainCode } from '../errors';
+import { getTokenForServerAction } from './tokens';
+import { introspectToken } from '../utils';
 
 /** Cookie name. Not prefixed with `logto_` so it is distinct from SDK cookies. */
 export const VERIFICATION_COOKIE_NAME = 'logto-verification-seal';
@@ -46,13 +48,15 @@ export const VERIFICATION_COOKIE_NAME = 'logto-verification-seal';
 export const VERIFICATION_COOKIE_MAX_AGE_SECONDS = 15 * 60;
 
 /** Domain-separation prefix for the HMAC message (key reuse safety). */
-const SIGNING_DOMAIN = 'logto-verification-cookie-v1';
+const SIGNING_DOMAIN = 'logto-verification-cookie-v2';
 
 export interface SealedVerification {
   /** The `verificationRecordId` returned by `verifyPasswordForIdentity`. */
   recordId: string;
   /** Logto's `expiresAt` for the verification record, in ms since epoch. */
   expiresAt: number;
+  /** The server-derived user ID (sub) from session token introspection (CAN-ACT-002). */
+  sub: string;
 }
 
 /**
@@ -91,7 +95,7 @@ function sign(key: Buffer, b64payload: string): string {
 }
 
 /**
- * Seals `{ recordId, expiresAt }` into an httpOnly, HMAC-signed cookie.
+ * Seals `{ recordId, expiresAt, sub }` into an httpOnly, HMAC-signed cookie.
  *
  * Called by `verifyPasswordForIdentity` after Logto confirms the password.
  * Must run inside a Server Action or Route Handler (mutates cookies).
@@ -99,6 +103,7 @@ function sign(key: Buffer, b64payload: string): string {
 export async function sealVerificationCookie(
   recordId: string,
   expiresAt: number,
+  sub: string,
 ): Promise<void> {
   if (typeof recordId !== 'string' || recordId.length === 0) {
     throw plainCode('VERIFICATION_FAILED');
@@ -106,8 +111,11 @@ export async function sealVerificationCookie(
   if (!Number.isFinite(expiresAt)) {
     throw plainCode('VERIFICATION_FAILED');
   }
+  if (typeof sub !== 'string' || sub.length === 0) {
+    throw plainCode('VERIFICATION_FAILED');
+  }
   const key = getSigningKey();
-  const payload = JSON.stringify({ r: recordId, e: expiresAt });
+  const payload = JSON.stringify({ r: recordId, e: expiresAt, s: sub });
   const b64 = base64url(payload);
   const sig = sign(key, b64);
   const cookieStore = await cookies();
@@ -169,10 +177,11 @@ export async function readVerificationCookie(): Promise<SealedVerification | nul
   if (typeof payload !== 'object' || payload === null) return null;
   const r = (payload as Record<string, unknown>).r;
   const e = (payload as Record<string, unknown>).e;
-  if (typeof r !== 'string' || r.length === 0 || typeof e !== 'number' || !Number.isFinite(e)) {
+  const s = (payload as Record<string, unknown>).s;
+  if (typeof r !== 'string' || r.length === 0 || typeof e !== 'number' || !Number.isFinite(e) || typeof s !== 'string' || s.length === 0) {
     return null;
   }
-  return { recordId: r, expiresAt: e };
+  return { recordId: r, expiresAt: e, sub: s };
 }
 
 /**
@@ -191,24 +200,41 @@ export async function clearVerificationCookie(): Promise<void> {
 
 /**
  * Verifies a destructive action is covered by a valid, server-sealed
- * verification, bound to the supplied `identityVerificationRecordId`.
+ * verification, bound to the supplied `identityVerificationRecordId` and
+ * the current session user (CAN-ACT-002).
  *
  * This replaces the old `assertVerificationNotExpired(clientTimestamp)` call at
  * every destructive action entry point. It:
- *   1. Reads the sealed cookie and verifies its HMAC (tamper-evident).
- *   2. Validates the client-supplied record ID format (defense in depth).
- *   3. Binds the sealed `recordId` to the client-supplied record ID, so a
+ *   1. Introspects the current session to get the live user ID (sub).
+ *   2. Reads the sealed cookie and verifies its HMAC (tamper-evident).
+ *   3. Validates the client-supplied record ID format (defense in depth).
+ *   4. Binds the sealed `sub` to the live session sub, preventing a seal
+ *      created for User A from being reused by User B on the same browser.
+ *   5. Binds the sealed `recordId` to the client-supplied record ID, so a
  *      cookie from verification A cannot authorize verification B.
- *   4. Runs the staleness check against the server-sealed `expiresAt`.
+ *   6. Runs the staleness check against the server-sealed `expiresAt`.
  *
  * @throws A sanitized `VERIFICATION_EXPIRED` error (via `plainCode`) if the
- *   cookie is missing, tampered, unbound, or expired.
+ *   cookie is missing, tampered, unbound, session-mismatched, or expired.
  */
 export async function requireVerifiedIdentity(
   identityVerificationRecordId: string,
 ): Promise<void> {
+  // Introspect the current session to get the live user ID (server-derived).
+  const sessionToken = await getTokenForServerAction();
+  const introspection = await introspectToken(sessionToken, { assertAudience: true });
+  if (!introspection.active || !introspection.sub) {
+    throw plainCode('VERIFICATION_EXPIRED');
+  }
+
   const sealed = await readVerificationCookie();
   if (!sealed) {
+    throw plainCode('VERIFICATION_EXPIRED');
+  }
+  // Bind the seal's sub to the live session sub (CAN-ACT-002).
+  // If User A verified their password and User B tries to use the seal,
+  // this throws because the sub values differ.
+  if (sealed.sub !== introspection.sub) {
     throw plainCode('VERIFICATION_EXPIRED');
   }
   // Validate the client-supplied ID format before comparing (defense in depth).

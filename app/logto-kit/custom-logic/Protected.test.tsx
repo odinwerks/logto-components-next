@@ -326,7 +326,7 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
       });
     });
 
-    it('keeps authorized children mounted during a subsequent in-flight load', async () => {
+    it('hides children during an org-switch load until the target org is authorized', async () => {
       // First scope (org_A): authorized.
       mockUseOrgMode.mockReturnValue({ asOrg: 'org_A' });
       mockUseUserDataContext.mockReturnValue({ id: 'user_1', organizations: twoOrgs });
@@ -357,13 +357,12 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
         </Protected>
       );
 
-      // During the in-flight load, the previously authorized children must stay
-      // mounted instead of collapsing to the fallback (BUG-014).
-      expect(screen.getByText('Survivor')).toBeInTheDocument();
-      expect(screen.queryByText('Denied')).not.toBeInTheDocument();
+      // Organization permissions are scoped. org_A's authorization cannot keep
+      // this org_B subtree visible while org_B's permissions are still loading.
+      expect(screen.queryByText('Survivor')).not.toBeInTheDocument();
+      expect(screen.getByText('Denied')).toBeInTheDocument();
 
-      // Let the stalled load resolve to an authorized result and confirm the
-      // children remain (cleanup so the test does not leak a pending promise).
+      // Let the stalled load resolve to an authorized result.
       await act(async () => {
         perms.resolve({ ok: true, data: ['perm_x'] });
         roles.resolve({ ok: true, data: [{ id: 'role_x' }] });
@@ -412,6 +411,147 @@ describe('Protected component (Dual-RBAC & strict asOrg)', () => {
       await act(async () => {
         perms.resolve({ ok: true, data: [] });
         roles.resolve({ ok: true, data: [] });
+      });
+    });
+  });
+
+  describe('CAN-STATE-009: prior user authorization must not persist across identity change', () => {
+    // Shared controllable never-resolving-by-default promise so a load can be
+    // held "in-flight" while we assert the rendered output.
+    function stalled<T>() {
+      let resolve!: (v: T) => void;
+      const promise = new Promise<T>((r) => { resolve = r; });
+      return { promise, resolve };
+    }
+
+    it('hides user A\'s authorized children while user B\'s personal perms load', async () => {
+      // ── User A: personal scope, authorized ──────────────────────────────
+      mockUseOrgMode.mockReturnValue({ asOrg: null });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_A', organizations: [] });
+      mockLoadPersonalRoles.mockResolvedValueOnce({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadPersonalPermissions.mockResolvedValueOnce({ ok: true, data: [{ scope: 'some_perm' }] });
+
+      const { rerender } = render(
+        <Protected orgId="self" roleId="role_admin" perm="some_perm" fallback={<div>Denied</div>}>
+          <div>A Secret</div>
+        </Protected>
+      );
+
+      // A is authorized — children become visible after A's load resolves.
+      await waitFor(() => expect(screen.getByText('A Secret')).toBeInTheDocument());
+
+      // ── Switch to user B and stall B's personal loaders ─────────────────
+      const perms = stalled<{ ok: true; data: { scope: string }[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadPersonalPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadPersonalRoles.mockImplementationOnce(() => roles.promise);
+
+      mockUseUserDataContext.mockReturnValue({ id: 'user_B', organizations: [] });
+
+      rerender(
+        <Protected orgId="self" roleId="role_admin" perm="some_perm" fallback={<div>Denied</div>}>
+          <div>A Secret</div>
+        </Protected>
+      );
+
+      // During B's in-flight load, A's authorized children must NOT remain
+      // visible — the stale authorization snapshot is principal-bound and
+      // must have been discarded on the A→B identity change.
+      await waitFor(() => expect(screen.queryByText('A Secret')).not.toBeInTheDocument());
+      expect(screen.getByText('Denied')).toBeInTheDocument();
+
+      // Let the stalled load resolve so the test tears down cleanly.
+      await act(async () => {
+        perms.resolve({ ok: true, data: [{ scope: 'some_perm' }] });
+        roles.resolve({ ok: true, data: [{ id: 'role_admin' }] });
+      });
+    });
+
+    it('hides user A\'s authorized children while user B\'s org perms load (same org)', async () => {
+      // ── User A: org scope (org_X), authorized ───────────────────────────
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_X' });
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_A',
+        organizations: [{ id: 'org_X', name: 'Org X' }],
+      });
+      mockLoadOrganizationPermissions.mockResolvedValueOnce({ ok: true, data: ['org_perm'] });
+      mockLoadOrganizationUserRoles.mockResolvedValueOnce({ ok: true, data: [{ id: 'org_role' }] });
+
+      const { rerender } = render(
+        <Protected orgId="org_X" roleId="org_role" perm="org_perm" fallback={<div>Denied</div>}>
+          <div>A Secret</div>
+        </Protected>
+      );
+
+      await waitFor(() => expect(screen.getByText('A Secret')).toBeInTheDocument());
+
+      // ── Switch to user B (still a member of org_X) and stall B's loaders ─
+      // user_B is in org_X so the only thing that should hide the children is
+      // the principal-bound snapshot being discarded — proving the fix rather
+      // than a trivial org-membership denial.
+      const perms = stalled<{ ok: true; data: string[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadOrganizationPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadOrganizationUserRoles.mockImplementationOnce(() => roles.promise);
+
+      mockUseUserDataContext.mockReturnValue({
+        id: 'user_B',
+        organizations: [{ id: 'org_X', name: 'Org X' }],
+      });
+
+      rerender(
+        <Protected orgId="org_X" roleId="org_role" perm="org_perm" fallback={<div>Denied</div>}>
+          <div>A Secret</div>
+        </Protected>
+      );
+
+      await waitFor(() => expect(screen.queryByText('A Secret')).not.toBeInTheDocument());
+      expect(screen.getByText('Denied')).toBeInTheDocument();
+
+      await act(async () => {
+        perms.resolve({ ok: true, data: ['org_perm'] });
+        roles.resolve({ ok: true, data: [{ id: 'org_role' }] });
+      });
+    });
+
+    it('regression guard: same-user, same-org subsequent load preserves children (BUG-014)', async () => {
+      // Ensures the CAN-STATE-009 principal binding did not regress the
+      // same-user, same-org subsequent-load preservation (BUG-014).
+      mockUseOrgMode.mockReturnValue({ asOrg: 'org_X' });
+      mockUseUserDataContext.mockReturnValue({ id: 'user_A', organizations: [{ id: 'org_X', name: 'Org X' }] });
+      mockLoadOrganizationUserRoles.mockResolvedValueOnce({ ok: true, data: [{ id: 'role_admin' }] });
+      mockLoadOrganizationPermissions.mockResolvedValueOnce({ ok: true, data: ['some_perm'] });
+
+      const { rerender } = render(
+        <Protected orgId="org_X" roleId="role_admin" perm="some_perm" fallback={<div>Denied</div>}>
+          <div>Survivor</div>
+        </Protected>
+      );
+
+      await waitFor(() => expect(screen.getByText('Survivor')).toBeInTheDocument());
+
+      // Same user and org: a provider refresh creates a fresh userData object
+      // and triggers another load for the unchanged authorization scope.
+      const perms = stalled<{ ok: true; data: string[] }>();
+      const roles = stalled<{ ok: true; data: { id: string }[] }>();
+      mockLoadOrganizationPermissions.mockImplementationOnce(() => perms.promise);
+      mockLoadOrganizationUserRoles.mockImplementationOnce(() => roles.promise);
+
+      mockUseUserDataContext.mockReturnValue({ id: 'user_A', organizations: [{ id: 'org_X', name: 'Org X' }] });
+
+      rerender(
+        <Protected orgId="org_X" roleId="role_admin" perm="some_perm" fallback={<div>Denied</div>}>
+          <div>Survivor</div>
+        </Protected>
+      );
+
+      // Same principal → previously authorized children stay mounted.
+      expect(screen.getByText('Survivor')).toBeInTheDocument();
+      expect(screen.queryByText('Denied')).not.toBeInTheDocument();
+
+      await act(async () => {
+        perms.resolve({ ok: true, data: ['some_perm'] });
+        roles.resolve({ ok: true, data: [{ id: 'role_admin' }] });
       });
     });
   });

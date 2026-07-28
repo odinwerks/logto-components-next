@@ -148,6 +148,10 @@ export default function SecurityErrorHandlingDoc() {
             <td style={customTdStyle}>Generating, retrieving, or verifying MFA backup codes failed.</td>
           </tr>
           <tr>
+            <td style={customTdPropStyle}>BACKUP_CODES_SINGLETON_CONFLICT</td>
+            <td style={customTdStyle}>Backup codes already exist and the provider offers no atomic replacement. The user must remove existing backup codes before generating new ones.</td>
+          </tr>
+          <tr>
             <td style={customTdPropStyle}>PASSWORD_UPDATE_FAILED</td>
             <td style={customTdStyle}>Updating the user&apos;s password failed validation or upstream checks.</td>
           </tr>

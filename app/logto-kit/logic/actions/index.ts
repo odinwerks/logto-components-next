@@ -18,9 +18,6 @@ export { throwOnApiError, patchMyAccount } from './shared';
 // Action Helpers (staleness checks, audit)
 export { assertVerificationNotExpired, auditSafe } from './helpers';
 
-// Request Helper
-export { makeRequest } from './request';
-
 // Dashboard Data Fetching
 export { fetchDashboardData } from './dashboard';
 

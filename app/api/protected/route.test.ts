@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getAction } from '../../logto-kit/action-registry';
+import {
+  getCalcAdd,
+  getCalcAsin,
+  getCalcMultiply,
+  getCalcPower,
+} from '../../logto-kit/action-registry/calc-actions';
+import type { ActionConfig } from '../../logto-kit/logic/types';
 
 vi.mock('../../logto-kit/logic/actions/tokens', () => ({
   getTokenForServerAction: vi.fn().mockResolvedValue('mock-token'),
@@ -525,6 +532,86 @@ describe('POST /api/protected - handler errors', () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toBe('INVALID_PAYLOAD');
+  });
+});
+
+// ── CAN-ACT-012: calculator finite-number contract ─────────────────────────
+describe('POST /api/protected - CAN-ACT-012 calculator validation', () => {
+  async function allowCalculatorAction(getter: () => Promise<ActionConfig>): Promise<ActionConfig> {
+    const calculatorConfig = await getter();
+    // Exercise the real calculator handler while using the self-access branch
+    // to keep this route contract test independent of Management API mocks.
+    return {
+      ...calculatorConfig,
+      requiredOrgId: 'self',
+      requiredRoleId: 'calc-user-role-id',
+      requiredPermId: 'calc:basic',
+    };
+  }
+
+  async function expectInvalidCalculatorPayload(
+    getter: () => Promise<ActionConfig>,
+    requestBody: string,
+  ): Promise<void> {
+    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
+    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
+        permissions: ['calc:basic'],
+      },
+    });
+    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(await allowCalculatorAction(getter));
+
+    const req = new NextRequest('http://localhost:3000/api/protected', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: requestBody,
+    });
+    const { POST } = await import('./route');
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body).toEqual({ error: 'INVALID_PAYLOAD', data: null });
+  }
+
+  it('rejects JSON 1e400 before calculator computation', async () => {
+    await expectInvalidCalculatorPayload(
+      getCalcAdd,
+      '{"action":"calc/add","payload":{"a":1e400,"b":1}}',
+    );
+  });
+
+  it('rejects a NaN input after JSON serialization converts it to null', async () => {
+    await expectInvalidCalculatorPayload(
+      getCalcAdd,
+      '{"action":"calc/add","payload":{"a":null,"b":1}}',
+    );
+  });
+
+  it('rejects a finite domain-invalid input that computes NaN', async () => {
+    await expectInvalidCalculatorPayload(
+      getCalcAsin,
+      '{"action":"calc/asin","payload":{"n":2,"mode":"rad"}}',
+    );
+  });
+
+  it('rejects a finite arithmetic overflow that computes Infinity', async () => {
+    await expectInvalidCalculatorPayload(
+      getCalcMultiply,
+      '{"action":"calc/multiply","payload":{"a":1e155,"b":1e155}}',
+    );
+  });
+
+  it('rejects a finite NaN-producing power operation', async () => {
+    await expectInvalidCalculatorPayload(
+      getCalcPower,
+      '{"action":"calc/power","payload":{"a":-1,"b":0.5}}',
+    );
   });
 });
 

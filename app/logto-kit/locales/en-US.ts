@@ -478,6 +478,7 @@ export const enUS: Translations = {
     MFA_ENROLL_FAILED: "Couldn't set up two-factor authentication.",
     MFA_REMOVE_FAILED: "Couldn't remove two-factor authentication.",
     BACKUP_CODES_FAILED: "Couldn't generate backup codes.",
+    BACKUP_CODES_SINGLETON_CONFLICT: 'Backup codes already exist and can\u2019t be replaced automatically. Remove your current backup codes, then try again.',
     PASSWORD_UPDATE_FAILED: "Couldn't update your password.",
     EMAIL_UPDATE_FAILED: "Couldn't update your email.",
     PHONE_UPDATE_FAILED: "Couldn't update your phone number.",

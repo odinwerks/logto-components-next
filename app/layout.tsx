@@ -60,7 +60,13 @@ export default async function RootLayout({
   const userPrefs = userData ? getPreferencesFromUserData(userData) : null;
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
   const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
-  const resolvedOrg   = userPrefs?.asOrg ?? null;
+  // CAN-STATE-001: preserve the three-way distinction — `string` (active org),
+  // `null` (authoritative personal mode / "be yourself"), `undefined` (server
+  // value unavailable, e.g. unauthenticated or no Preferences key). Do NOT
+  // collapse `null` and `undefined` with `?? null`: the provider relies on
+  // `null` to clear a stale cached org, and `undefined` to fall back to the
+  // cached value. `userPrefs?.asOrg` yields `string | null | undefined`.
+  const resolvedOrg   = userPrefs?.asOrg;
   const allTranslations = getAllTranslations();
   const fallbackTranslations = allTranslations['en-US'];
   // Defensive normalization for the inline theme-flash script. `resolvedTheme`

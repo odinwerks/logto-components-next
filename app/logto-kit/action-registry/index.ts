@@ -194,5 +194,17 @@ async function loadActions(): Promise<ActionRegistry> {
 
 export async function getAction(actionName: string): Promise<ActionConfig | undefined> {
   const actions = await loadActions();
+  // CAN-ACT-013: Enforce own-property lookup. `actions` is a plain object, so
+  // naive bracket access (actions[name]) would resolve inherited
+  // Object.prototype members (toString, constructor, hasOwnProperty,
+  // __proto__, ...). An authenticated request using such a name as `action`
+  // would otherwise get a truthy non-config back, fail validateActionConfig,
+  // and yield IMPROPER_SETUP_ERROR 500 instead of the correct 404
+  // ACTION_NOT_FOUND. Object.prototype.hasOwnProperty.call ignores both the
+  // prototype chain and the __proto__ accessor, returning false for any
+  // inherited name — so those resolve to undefined (→ 404) as unknown actions.
+  if (!Object.prototype.hasOwnProperty.call(actions, actionName)) {
+    return undefined;
+  }
   return actions[actionName];
 }
