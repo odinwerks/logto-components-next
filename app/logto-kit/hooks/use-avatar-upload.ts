@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { uploadAvatar } from '../logic/actions'
+import { uploadAvatar } from '../logic/actions/avatar'
 import { captureMessage } from '../logic/capture-message'
 
 export interface UseAvatarUploadOptions {

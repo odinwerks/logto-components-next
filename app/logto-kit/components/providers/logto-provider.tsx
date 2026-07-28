@@ -5,7 +5,7 @@ import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
 import type { Translations } from '../../locales';
-import { updateUserCustomData } from '../../logic/actions';
+import { updateUserCustomData } from '../../logic/actions/profile';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
 import { DashboardRouter } from '../dashboard/dashboard-router';

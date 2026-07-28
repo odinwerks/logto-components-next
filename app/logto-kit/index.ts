@@ -23,6 +23,7 @@ export type { KitTranslations, Translations } from './locales';
 
 export { useAvatarUpload } from './hooks/use-avatar-upload';
 
-export { Protected, OrgSwitcher } from './logic';
+export { Protected } from './logic/Protected';
+export { OrgSwitcher } from './logic/OrgSwitcher';
 
 export { default as AuthWatcher } from './components/providers/auth-watcher';
