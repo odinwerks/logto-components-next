@@ -156,6 +156,9 @@ export function DashboardClient({
 
   // Re-sync activeTab when loadedTabs changes (e.g. RBAC gates a tab away)
   useEffect(() => {
+    // This state reconciliation is intentional: deriving the fallback during
+    // render would restore a previously gated tab if RBAC later re-enables it.
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     setActiveTab((cur) => (loadedTabs.includes(cur) ? cur : (loadedTabs[0] ?? 'profile')));
   }, [loadedTabs]);
 

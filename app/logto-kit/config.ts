@@ -349,12 +349,16 @@ export async function getManagementApiToken(): Promise<string> {
       }
 
       // json() decode failure propagates to outer catch for recording
-      const data: any = await res.json();
+      const rawData: unknown = await res.json();
+      const data = rawData !== null && typeof rawData === 'object'
+        ? rawData as Record<string, unknown>
+        : null;
 
       // Guard against null/undefined body (e.g. empty 200 response) — the old
       // `!data.access_token` check would throw a TypeError on null that bypassed
       // the increment entirely.
-      if (!data || !data.access_token) {
+      const accessToken = data?.access_token;
+      if (typeof accessToken !== 'string' || accessToken.length === 0) {
         warn('[M2M Token] Response missing access_token');
         throw new Error('Management API token request failed');
       }
@@ -364,9 +368,9 @@ export async function getManagementApiToken(): Promise<string> {
       m2mCircuitOpenAt = null;
 
       // Cache the token with dynamic TTL based on expires_in with a 60s buffer
-      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      const expiresIn = typeof data?.expires_in === 'number' ? data.expires_in : 3600;
       cachedM2MToken = {
-        token: data.access_token as string,
+        token: accessToken,
         expiresAt: Date.now() + (expiresIn - 60) * 1000,
       };
 

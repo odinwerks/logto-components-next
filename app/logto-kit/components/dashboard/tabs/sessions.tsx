@@ -236,9 +236,8 @@ export function SessionsTab({
   onVerifyPassword,
   onSuccess,
   onError,
-}: SessionsTabProps) {
+  }: SessionsTabProps) {
   const isMobile = mobmode === 1;
-  const isDark = mode === 'dark';
 
   const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
   const showLastActive = backendType === 'blacktop';

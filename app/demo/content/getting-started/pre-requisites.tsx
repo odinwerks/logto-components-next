@@ -4,6 +4,7 @@ import { useDocStyles } from '../../components/useDocStyles';
 import CodeBlock from '../../components/SyntaxBlock';
 import { useThemeMode } from '../../../logto-kit/components/providers/preferences';
 import { slugify } from '../../components/SectionComponents';
+import Link from 'next/link';
 
 export default function PreRequisites() {
   const styles = useDocStyles();
@@ -190,7 +191,7 @@ export default function PreRequisites() {
       </div>
 
       <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
-        <strong style={styles.strongNoteStyle}>Backend Modes:</strong> For runtime behavior differences between backend modes, see <a href="/getting-started/backend-selection" style={{ color: styles.linkColor }}>Backend Selection</a>.
+        <strong style={styles.strongNoteStyle}>Backend Modes:</strong> For runtime behavior differences between backend modes, see <Link href="/getting-started/backend-selection" style={{ color: styles.linkColor }}>Backend Selection</Link>.
       </div>
 
       <h2 id={slugify("Deploying Blacktop via Cloudflare Tunnel")} style={h2Style}>Deploying Blacktop via Cloudflare Tunnel</h2>

@@ -32,17 +32,13 @@ const KNOWN_OAUTH_ERRORS = new Set([
  */
 export function AuthErrorBanner() {
   const searchParams = useSearchParams();
-  const [capturedError, setCapturedError] = useState<string | null>(null);
-
-  // Capture the error from searchParams into local state on mount, BEFORE
-  // the URL is cleaned up. This prevents the banner from unmounting when
-  // AuthErrorBannerInner clears the query param.
-  useEffect(() => {
+  // Capture the error from searchParams during the initial render, BEFORE
+  // AuthErrorBannerInner can clean up the URL. This prevents the banner from
+  // unmounting when the query parameter is removed.
+  const [capturedError] = useState<string | null>(() => {
     const raw = searchParams.get('auth_error');
-    if (raw) {
-      setCapturedError(KNOWN_OAUTH_ERRORS.has(raw) ? raw : 'authentication_error');
-    }
-  }, [searchParams]);
+    return raw ? (KNOWN_OAUTH_ERRORS.has(raw) ? raw : 'authentication_error') : null;
+  });
 
   if (!capturedError) {
     return null;

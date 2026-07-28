@@ -76,8 +76,6 @@ vi.mock('../errors', () => ({
 import { cookies } from 'next/headers';
 import { assertVerificationNotExpired } from './helpers';
 import { plainCode } from '../errors';
-import { getTokenForServerAction } from './tokens';
-import { introspectToken } from '../utils';
 import {
   sealVerificationCookie,
   readVerificationCookie,

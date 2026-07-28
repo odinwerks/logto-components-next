@@ -188,10 +188,8 @@ describe('useSessionGeoLocate', () => {
 
   it('BUG-029: stale error discarded when error comes from outdated generation', async () => {
     // When a stale fetch errors, the error should NOT be reported
-    let resolveSlow!: (v: { lat: number; lon: number; city: string; country: string; region: string }) => void;
     let rejectSlow!: (e: Error) => void;
-    const slowPromise = new Promise<typeof GEO_RESULT>((resolve, reject) => {
-      resolveSlow = resolve;
+    const slowPromise = new Promise<typeof GEO_RESULT>((_resolve, reject) => {
       rejectSlow = reject;
     });
 

@@ -202,7 +202,7 @@ describe('validateJsonObject - BUG-049 prototype pollution prevention', () => {
   });
 
   it('does not modify prototype of returned object', () => {
-    const result = validateJsonObject('{"__proto__":{"polluted":"yes"}}', mockTranslations);
+    validateJsonObject('{"__proto__":{"polluted":"yes"}}', mockTranslations);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 

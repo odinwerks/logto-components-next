@@ -419,7 +419,6 @@ interface OrgRolesListProps {
   mode: 'dark' | 'light';
   sectionLabel: React.CSSProperties;
   wellStyle: React.CSSProperties;
-  mutedMonoStyle: React.CSSProperties;
   emptyStateStyle: React.CSSProperties;
 }
 
@@ -431,7 +430,6 @@ const OrgRolesList = ({
   mode,
   sectionLabel,
   wellStyle,
-  mutedMonoStyle,
   emptyStateStyle,
 }: OrgRolesListProps) => {
   const {
@@ -536,7 +534,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
   // `sourceKey` (orgId) change on org-switch still triggers a refetch via
   // the existing server-action path.
 
-  const organizations = userData.organizations || [];
+  const organizations = useMemo(() => userData.organizations || [], [userData.organizations]);
 
   // ── Roving tabindex ref map & keyboard handler for org radiogroup ────────
   const radioRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
@@ -708,7 +706,6 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
                 mode={mode}
                 sectionLabel={sectionLabel}
                 wellStyle={wellStyle}
-                mutedMonoStyle={mutedMonoStyle}
                 emptyStateStyle={emptyStateStyle}
               />
             )}

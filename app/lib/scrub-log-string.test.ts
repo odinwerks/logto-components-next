@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrubLogString, scrubArgs, redactSensitive, SENSITIVE_KEYS } from './scrub-log-string';
+import { scrubLogString, scrubArgs } from './scrub-log-string';
 
 describe('scrubLogString', () => {
   it('returns unchanged string when no sensitive patterns present', () => {

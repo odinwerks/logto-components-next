@@ -32,20 +32,18 @@ export default function GlobalError({
   reset: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  useEffect(() => {
-    // Read stored theme preference (same key as PreferencesProvider)
+  const [theme] = useState<'dark' | 'light'>(() => {
+    // Read stored theme preference (same key as PreferencesProvider).
+    // The lazy initializer preserves the preference without a post-render
+    // state update, which would cause an avoidable cascading render.
     try {
       const stored = window.sessionStorage.getItem('theme-mode');
-      if (stored === 'dark' || stored === 'light') {
-        setTheme(stored);
-        return;
-      }
+      if (stored === 'dark' || stored === 'light') return stored;
     } catch { /* sessionStorage unavailable */ }
 
     // Fall back to dark theme default (matches root layout's DEFAULT_THEME_MODE)
-  }, []);
+    return 'dark';
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

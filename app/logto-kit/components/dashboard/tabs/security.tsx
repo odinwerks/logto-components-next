@@ -54,7 +54,6 @@ export function SecurityTab({
 }: SecurityTabProps) {
   const c = colors;
   const isMobile = mobmode === 1;
-  const isDark = mode === 'dark';
   // Theme-sourced palette for the mobile delete-account icon button (M6).
   const cyberFill   = c.errorBg;
   const cyberBorder = c.accentRed;

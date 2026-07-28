@@ -260,7 +260,8 @@ export async function fetchOrgRbacCore(userId: string, orgId: string): Promise<O
         if (scope.name && !seen.has(scope.name)) {
           seen.add(scope.name);
           // Strip tenantId before returning to client (BUG-048).
-          const { tenantId: _t, ...safeScope } = scope;
+          const safeScope = { ...scope };
+          Reflect.deleteProperty(safeScope, 'tenantId');
           permissions.push(safeScope as OrgRoleScope);
         }
       }

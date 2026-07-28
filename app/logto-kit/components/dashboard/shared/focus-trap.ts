@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Shared focus trap utilities for modal dialogs.
@@ -55,7 +55,6 @@ export function useFocusTrap(
   onClose: () => void
 ) {
   const onCloseRef = useRef(onClose);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
   // Per-instance unique ID for the module-level trapStack.
   const idRef = useRef(Symbol());
 
@@ -65,10 +64,11 @@ export function useFocusTrap(
   // instead of the trigger button. By capturing here (render phase), we
   // capture the element that was focused before the dialog was committed
   // to the DOM. Only capture once (on first render of this hook instance).
-  if (typeof document !== 'undefined' && restoreFocusRef.current === null) {
-    restoreFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  }
+  const [restoreFocus] = useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -140,7 +140,7 @@ export function useFocusTrap(
       if (idx !== -1) trapStack.splice(idx, 1);
 
       window.removeEventListener('keydown', handleKeyDown);
-      const previous = restoreFocusRef.current;
+      const previous = restoreFocus;
       if (previous && document.contains(previous)) {
         // Programmatic focus() alone does not trigger :focus-visible in
         // browsers; we force the outline via a data attribute that is
@@ -155,5 +155,5 @@ export function useFocusTrap(
         previous.addEventListener('blur', remove, { once: true });
       }
     };
-  }, [dialogRef]);
+  }, [dialogRef, restoreFocus]);
 }

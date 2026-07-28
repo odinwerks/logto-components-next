@@ -137,9 +137,7 @@ import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import { requireVerifiedIdentity } from './verification-cookie';
-import { auditSafe } from './helpers';
-import { logEvent, warn } from '../log';
-import { LOG_EVENTS } from '../../../lib/log-events';
+import { warn } from '../log';
 
 // ============================================================================
 // Helpers

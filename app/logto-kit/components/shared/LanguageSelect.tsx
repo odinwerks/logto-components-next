@@ -36,7 +36,6 @@ export function LanguageSelect({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [triggerWidth, setTriggerWidth] = useState<number | null>(null);
-  const [flipped, setFlipped] = useState(false);
   const mountedRef = useRef(false);
   const isKeyboardNavRef = useRef(false);
   const scrollAncestorsRef = useRef<Element[]>([]);
@@ -77,13 +76,11 @@ export function LanguageSelect({
 
       if (spaceBelow < DROPDOWN_ESTIMATED_HEIGHT && spaceAbove > DROPDOWN_ESTIMATED_HEIGHT) {
         // Flip above trigger
-        setFlipped(true);
         setCoords({
           top: rect.top + window.scrollY - DROPDOWN_ESTIMATED_HEIGHT - 4,
           left: rect.left + window.scrollX,
         });
       } else {
-        setFlipped(false);
         setCoords({
           top: rect.bottom + window.scrollY + 4,
           left: rect.left + window.scrollX,

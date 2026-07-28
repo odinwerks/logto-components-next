@@ -152,7 +152,7 @@ export default function AnatomyAsyncPatternsDoc() {
       </p>
       <p style={styles.textStyle}>
         This avoids the need for a mutable boolean that must be set in both the effect cleanup and the resolution callbacks.
-        The counter pattern is self-contained: each effect run captures its own generation, and only the latest run's value
+        The counter pattern is self-contained: each effect run captures its own generation, and only the latest run&apos;s value
         will match the ref when the promise settles.
       </p>
 
@@ -192,7 +192,7 @@ useEffect(() => {
       <p style={styles.textStyle}>
         Once resolved, the data is passed as <code>initialData</code> to hooks like <code>useAsyncList</code>. When
         <code>initialData</code> is provided, the hook seeds its state immediately and skips the mount-effect fetch. This is the
-        "instant-fetch" architecture from commit 5b608e9: the server does the heavy lifting, the client renders with data on
+        &quot;instant-fetch&quot; architecture from commit 5b608e9: the server does the heavy lifting, the client renders with data on
         first paint, and subsequent interactions (org switches, manual refresh) still go through the normal server-action path.
       </p>
 

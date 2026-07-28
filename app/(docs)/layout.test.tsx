@@ -133,7 +133,7 @@ describe('DocsLayout', () => {
       });
 
       const jsx = await DocsLayout({ children: <div>Should not render</div> });
-      const { container } = render(jsx as React.ReactElement);
+      render(jsx as React.ReactElement);
 
       // DocsErrorFallback renders its own error UI; children should not appear
       expect(screen.queryByText('Should not render')).not.toBeInTheDocument();

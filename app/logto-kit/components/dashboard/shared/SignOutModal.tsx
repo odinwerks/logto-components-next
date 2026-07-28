@@ -198,14 +198,9 @@ export function SignOutModal({
   const prevIsOpenRef = useRef(isOpen);
   const { showToast } = useToast();
 
-  // Transition to farewell when countdown reaches zero.
-  // Separated from the interval effect to avoid calling setState alongside another
-  // setState updater (BUG-080).
-  useEffect(() => {
-    if (isOpen && !showFarewell && countdown <= 0) {
-      setShowFarewell(true);
-    }
-  }, [countdown, isOpen, showFarewell]);
+  // Countdown expiry is a derived transition. Keeping it derived avoids an
+  // extra render solely to synchronize state from the countdown.
+  const farewellActive = showFarewell || (isOpen && countdown <= 0);
 
   useEffect(() => {
     // Reset state when transitioning from open to closed (not on initial render)
@@ -216,7 +211,7 @@ export function SignOutModal({
     prevIsOpenRef.current = isOpen;
 
     if (!isOpen) return;
-    if (showFarewell) {
+    if (farewellActive) {
       // Read SIGNOUT_REDIRECT_DELAY for farewell overlay duration (default 1000)
       const rawFarewellDelay = parseInt(readEnv('SIGNOUT_REDIRECT_DELAY') || '1000', 10);
       const farewellDelayMs = Number.isFinite(rawFarewellDelay) && rawFarewellDelay >= 0 ? rawFarewellDelay : 1000;
@@ -244,7 +239,7 @@ export function SignOutModal({
   // produced the latest countdown value.  Keeping countdown in deps would tear down and
   // recreate the interval every second, causing jitter.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, countdownSeconds, showFarewell]);
+  }, [isOpen, countdownSeconds, farewellActive]);
 
   const handleAbort = () => {
     setCountdown(countdownSeconds);
@@ -260,7 +255,7 @@ export function SignOutModal({
 
   return (
     <AnimatePresence mode="sync">
-      {showFarewell ? (
+      {farewellActive ? (
         <SignOutFarewell key="farewell" colors={colors} t={t} />
       ) : (
         <SignOutConfirm

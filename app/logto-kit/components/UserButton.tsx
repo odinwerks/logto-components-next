@@ -91,6 +91,9 @@ function useUserDisplay(opts: UseUserDisplayOptions) {
   // is attempted after a previous load failure.
   const currentAvatarUrl = opts.userData?.avatar ?? contextUserData?.avatar ?? null;
   useEffect(() => {
+    // Deriving this from the URL would retain stale failure state if an avatar
+    // URL changes away and later returns to the same value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset ephemeral image-event state for each new URL
     setImageFailed(false);
   }, [currentAvatarUrl]);
 
