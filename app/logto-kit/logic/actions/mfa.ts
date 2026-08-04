@@ -15,8 +15,48 @@ import { requireVerifiedIdentity } from './verification-cookie';
 import { createLockManager, createRateLimiter } from '../../../lib/distributed-state';
 import { LOG_EVENTS } from '../../../lib/log-events';
 
-// In-flight lock to prevent concurrent backup codes generation races
-const backupCodesLockManager = createLockManager('mfa-backup-codes');
+// The 70-second lease covers at most 45 seconds of normal rotation work,
+// 5 seconds of first-pass compensation, 8 seconds of final reconciliation,
+// and the lock manager's 1-second ownership-safe release. Thus every path has
+// an 11-second margin and remains below the action's 60-second request budget.
+const BACKUP_CODES_ROTATION_DEADLINE_MS = 45_000;
+const BACKUP_CODES_COMPENSATION_BUDGET_MS = 5_000;
+const BACKUP_CODES_RECONCILIATION_BUDGET_MS = 8_000;
+const BACKUP_CODES_LOCK_LEASE_MS = 70_000;
+
+// In-flight lock to prevent concurrent backup codes generation races.
+// Residual window: a broken transport/event loop that fails to settle after
+// AbortSignal fires can still outlive any finite Redis lease. The action fails
+// closed and audits ambiguity, but exclusivity cannot be extended indefinitely.
+const backupCodesLockManager = createLockManager('mfa-backup-codes', {
+  leaseDurationMs: BACKUP_CODES_LOCK_LEASE_MS,
+});
+
+async function withinBackupCodesLockBudget<T>(
+  signal: AbortSignal,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (signal.aborted) throw plainCode('BACKUP_CODES_FAILED');
+
+  // Do not separately race the operation against the deadline. Requests receive
+  // this same signal and therefore settle through fetch's real abort behavior;
+  // the aborted flag also prevents a response racing the deadline from being
+  // treated as success while the per-user lock is still held.
+  let aborted = false;
+  const onAbort = () => { aborted = true; };
+  signal.addEventListener('abort', onAbort, { once: true });
+
+  try {
+    const result = await operation();
+    if (aborted || signal.aborted) throw plainCode('BACKUP_CODES_FAILED');
+    return result;
+  } catch (err) {
+    if (aborted || signal.aborted) throw plainCode('BACKUP_CODES_FAILED');
+    throw err;
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+}
 
 // Rate limiter for TOTP secret generation (1 request per 10s per user)
 const totpGenerationRateLimiter = createRateLimiter({
@@ -270,24 +310,35 @@ export async function generateBackupCodes(
     assertSafeLogtoId(userId, 'userId');
 
     const releaseLock = await backupCodesLockManager.acquire(userId);
+    const rotationSignal = AbortSignal.timeout(BACKUP_CODES_ROTATION_DEADLINE_MS);
 
     try {
 
       // ── Staleness check (defense in depth) ────────────────────────────────
       // BUG-001 fix: expiry is read from the server-sealed httpOnly cookie.
-      await requireVerifiedIdentity(identityVerificationRecordId);
+      await withinBackupCodesLockBudget(
+        rotationSignal,
+        () => requireVerifiedIdentity(identityVerificationRecordId),
+      );
 
       // Step 1: List existing backup-code factors (read-only). We capture the
       // list up front so we know what to invalidate later, but we DO NOT delete
       // them yet — deleting is deferred until after a successful enrollment so
       // a failed enroll never leaves the user with zero backup codes (BUG-L04).
-      const listRes = await makeRequest('/api/my-account/mfa-verifications', {
-        extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-      });
+      const listRes = await withinBackupCodesLockBudget(
+        rotationSignal,
+        () => makeRequest('/api/my-account/mfa-verifications', {
+          extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+          signal: rotationSignal,
+        }),
+      );
 
-      await throwOnApiError(listRes, 'BACKUP_CODES_FAILED', 'backup-list');
+      await withinBackupCodesLockBudget(
+        rotationSignal,
+        () => throwOnApiError(listRes, 'BACKUP_CODES_FAILED', 'backup-list'),
+      );
 
-      const listData = await listRes.json();
+      const listData = await withinBackupCodesLockBudget(rotationSignal, () => listRes.json());
       const verifications: MfaVerification[] = Array.isArray(listData)
         ? listData
         : Array.isArray(listData?.verifications)
@@ -297,39 +348,215 @@ export async function generateBackupCodes(
             : [];
 
       const existingBackupFactors = verifications.filter(verification => verification.type === 'BackupCode');
+      const oldFactorIds = new Set(existingBackupFactors.map(factor => factor.id));
+
+      const listBackupFactors = async (
+        signal: AbortSignal,
+        auditAction: string,
+      ): Promise<MfaVerification[]> => {
+        const response = await withinBackupCodesLockBudget(
+          signal,
+          () => makeRequest('/api/my-account/mfa-verifications', {
+            extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+            signal,
+          }),
+        );
+        await withinBackupCodesLockBudget(
+          signal,
+          () => throwOnApiError(response, 'BACKUP_CODES_FAILED', auditAction),
+        );
+        const data = await withinBackupCodesLockBudget(signal, () => response.json());
+        const currentVerifications: MfaVerification[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.verifications)
+            ? data.verifications
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+        return currentVerifications.filter(factor => factor.type === 'BackupCode');
+      };
+
+      const deleteBackupFactors = async (
+        factors: MfaVerification[],
+        signal: AbortSignal,
+        auditAction: string,
+      ): Promise<void> => {
+        if (signal.aborted) throw plainCode('BACKUP_CODES_FAILED');
+
+        for (const factor of factors) {
+          const removeRes = await withinBackupCodesLockBudget(
+            signal,
+            () => makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {
+              method: 'DELETE',
+              extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+              signal,
+            }),
+          );
+          if (removeRes.status !== 404) {
+            await withinBackupCodesLockBudget(
+              signal,
+              () => throwOnApiError(removeRes, 'BACKUP_CODES_FAILED', auditAction),
+            );
+          }
+        }
+      };
 
       // Invalidate every previously-listed backup-code factor. Used as a
       // deferred cleanup AFTER a successful enroll, or as the compensation
       // step when Logto rejects concurrent BackupCode factors (409/422).
-      const deleteOldBackupFactors = async (): Promise<void> => {
-        for (const factor of existingBackupFactors) {
-          const removeRes = await makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {
-            method: 'DELETE',
-            extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-          });
+      const deleteOldBackupFactors = async (signal: AbortSignal): Promise<void> => {
+        await deleteBackupFactors(existingBackupFactors, signal, 'backup-remove-old');
+      };
 
-          await throwOnApiError(removeRes, 'BACKUP_CODES_FAILED', 'backup-remove-old');
+      // If enrollment loses its response (including a local abort), Logto may
+      // still have committed. Re-list factors and remove only newly-created
+      // BackupCode factors, preserving the known old factors and their codes.
+      const compensateAmbiguousEnrollment = async (signal: AbortSignal): Promise<void> => {
+        const currentBackupFactors = await listBackupFactors(signal, 'backup-reconcile-enroll');
+        const unexpectedFactors = currentBackupFactors.filter(factor => !oldFactorIds.has(factor.id));
+        await deleteBackupFactors(
+          unexpectedFactors,
+          signal,
+          'backup-remove-ambiguous-enroll',
+        );
+      };
+
+      const rollbackStateIsSettled = (factors: MfaVerification[]): boolean => {
+        const currentFactorIds = new Set(factors.map(factor => factor.id));
+        return factors.length === existingBackupFactors.length &&
+          currentFactorIds.size === oldFactorIds.size &&
+          [...oldFactorIds].every(id => currentFactorIds.has(id));
+      };
+
+      // This is deliberately separate from the first compensation pass. A
+      // remote enrollment may commit after that pass listed factors. The final
+      // lock-held read catches it, compensates once, and performs one last
+      // authoritative read before the lock can be released.
+      const reconcileAmbiguousEnrollment = async (signal: AbortSignal): Promise<boolean> => {
+        let currentBackupFactors = await listBackupFactors(signal, 'backup-final-rollback-list');
+        if (rollbackStateIsSettled(currentBackupFactors)) return true;
+
+        const unexpectedFactors = currentBackupFactors.filter(factor => !oldFactorIds.has(factor.id));
+        await deleteBackupFactors(
+          unexpectedFactors,
+          signal,
+          'backup-final-rollback-compensate',
+        );
+        currentBackupFactors = await listBackupFactors(signal, 'backup-final-rollback-confirm');
+        return rollbackStateIsSettled(currentBackupFactors);
+      };
+
+      const failAmbiguousEnrollment = async (cause: unknown): Promise<never> => {
+        auditSafe(userId, 'mfa.backup_codes.rotation_ambiguous', undefined, {
+          stage: 'enroll',
+          oldFactorCount: existingBackupFactors.length,
+          deadlineExceeded: rotationSignal.aborted,
+        });
+        warn('[generateBackupCodes] Enrollment response was not confirmed; failing closed.');
+
+        const cleanupSignal = AbortSignal.timeout(BACKUP_CODES_COMPENSATION_BUDGET_MS);
+        try {
+          await compensateAmbiguousEnrollment(cleanupSignal);
+        } catch (cleanupErr) {
+          warn('[generateBackupCodes] Enrollment compensation failed:', cleanupErr);
         }
+
+        const reconciliationSignal = AbortSignal.timeout(BACKUP_CODES_RECONCILIATION_BUDGET_MS);
+        let rollbackSettled = false;
+        try {
+          rollbackSettled = await reconcileAmbiguousEnrollment(reconciliationSignal);
+        } catch (reconciliationErr) {
+          warn('[generateBackupCodes] Final enrollment reconciliation failed:', reconciliationErr);
+        }
+        if (!rollbackSettled) {
+          auditSafe(userId, 'mfa.backup_codes.rotation_divergence', undefined, {
+            stage: 'final-rollback',
+            oldFactorCount: existingBackupFactors.length,
+          });
+        }
+
+        throw plainCode('BACKUP_CODES_FAILED', cause);
+      };
+
+      // A successful rotation has exactly one BackupCode factor, it is not one
+      // of the old factor IDs, and (when the provider returned an ID) it is the
+      // factor created by this enrollment. Old or duplicate factors are
+      // compensated once and then re-read; uncertainty never becomes success.
+      const reconcileSuccessfulEnrollment = async (
+        signal: AbortSignal,
+        providerEnrolledFactorId?: string,
+      ): Promise<boolean> => {
+        let currentBackupFactors = await listBackupFactors(signal, 'backup-final-list');
+        let intendedFactorId = providerEnrolledFactorId;
+        const newFactors = currentBackupFactors.filter(factor => !oldFactorIds.has(factor.id));
+        if (!intendedFactorId && newFactors.length === 1) {
+          intendedFactorId = newFactors[0]?.id;
+        }
+
+        const isIntendedState = (factors: MfaVerification[]): boolean =>
+          intendedFactorId !== undefined &&
+          factors.length === 1 &&
+          factors[0]?.id === intendedFactorId &&
+          !oldFactorIds.has(intendedFactorId);
+
+        if (isIntendedState(currentBackupFactors)) return true;
+
+        // If the intended factor can be identified, remove every old/duplicate
+        // BackupCode factor. Without an identifiable intended factor, only old
+        // factors are safe to remove; duplicate unknown factors remain a
+        // fail-closed divergence rather than deleting arbitrary recovery data.
+        const inconsistentFactors = intendedFactorId
+          ? currentBackupFactors.filter(factor => factor.id !== intendedFactorId)
+          : currentBackupFactors.filter(factor => oldFactorIds.has(factor.id));
+        await deleteBackupFactors(
+          inconsistentFactors,
+          signal,
+          'backup-final-compensate',
+        );
+        currentBackupFactors = await listBackupFactors(signal, 'backup-final-confirm');
+        if (!intendedFactorId) {
+          const finalNewFactors = currentBackupFactors.filter(factor => !oldFactorIds.has(factor.id));
+          if (finalNewFactors.length === 1) intendedFactorId = finalNewFactors[0]?.id;
+        }
+        return isIntendedState(currentBackupFactors);
       };
 
       // Step 2: Generate new codes (no verification header needed)
-      const genRes = await makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
-        method: 'POST',
-      });
+      const genRes = await withinBackupCodesLockBudget(
+        rotationSignal,
+        () => makeRequest('/api/my-account/mfa-verifications/backup-codes/generate', {
+          method: 'POST',
+          signal: rotationSignal,
+        }),
+      );
 
-      await throwOnApiError(genRes, 'BACKUP_CODES_FAILED', 'backup-gen');
+      await withinBackupCodesLockBudget(
+        rotationSignal,
+        () => throwOnApiError(genRes, 'BACKUP_CODES_FAILED', 'backup-gen'),
+      );
 
-      const { codes } = await genRes.json();
+      const { codes } = await withinBackupCodesLockBudget(rotationSignal, () => genRes.json());
 
       // Step 3: Enroll/bind codes to the account. We enroll WITHOUT first
       // deleting the old factors, so a failure here leaves the user's existing
       // backup codes intact (BUG-L04). If Logto does not permit multiple
       // concurrent BackupCode factors, the enroll is rejected with 409/422.
-      const enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
-        method: 'POST',
-        body: { type: 'BackupCode', codes },
-        extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
-      });
+      // Enrollment is non-idempotent. Use the explicit 45-second rotation
+      // signal so makeRequest cannot substitute its shorter 15-second default
+      // and 14 seconds remain for compensation, reconciliation, and release.
+      // A rejected fetch is commit-ambiguous and must be reconciled before unlock.
+      if (rotationSignal.aborted) throw plainCode('BACKUP_CODES_FAILED');
+      let enrollRes: Response;
+      try {
+        enrollRes = await makeRequest('/api/my-account/mfa-verifications', {
+          method: 'POST',
+          body: { type: 'BackupCode', codes },
+          extraHeaders: { 'logto-verification-id': identityVerificationRecordId },
+          signal: rotationSignal,
+        });
+      } catch (enrollErr) {
+        return failAmbiguousEnrollment(enrollErr);
+      }
 
       if (
         !enrollRes.ok &&
@@ -357,18 +584,84 @@ export async function generateBackupCodes(
         throw plainCode('BACKUP_CODES_SINGLETON_CONFLICT');
       }
 
+      if (
+        !enrollRes.ok &&
+        enrollRes.status !== 409 &&
+        enrollRes.status !== 422
+      ) {
+        // A resolved non-success response is still commit-ambiguous: Logto may
+        // have persisted the factor before returning (for example) a 5xx. Keep
+        // throwOnApiError's sanitization contract, but settle remote state under
+        // the lock before surfacing that sanitized failure.
+        let enrollErr: unknown;
+        try {
+          await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
+        } catch (error) {
+          enrollErr = error;
+        }
+        await failAmbiguousEnrollment(enrollErr);
+      }
+
       await throwOnApiError(enrollRes, 'BACKUP_CODES_FAILED', 'backup-enroll');
 
-      // Step 4: New codes are now bound — invalidate the old ones so they can
-      // no longer be used. This only runs after a successful enrollment, so a
-      // failure above never reaches here (old codes stay intact).
-      // BUG-056: Best-effort cleanup — if deletion throws, the new codes are
-      // still bound; returning them must not be blocked by a cleanup failure
-      // (otherwise the user is left with orphaned bound codes never displayed).
+      let providerEnrolledFactorId: string | undefined;
+      if (typeof enrollRes.clone === 'function') {
+        try {
+          const enrollData = await withinBackupCodesLockBudget(
+            rotationSignal,
+            () => enrollRes.clone().json(),
+          ) as { id?: unknown };
+          if (typeof enrollData?.id === 'string' && enrollData.id.length > 0) {
+            providerEnrolledFactorId = enrollData.id;
+          }
+        } catch {
+          // A 204/empty enrollment response is valid. Final factor-state
+          // reconciliation can identify a sole non-old factor instead.
+        }
+      }
+
+      // Step 4: New codes are now bound — invalidate the old ones. Once enroll
+      // commits, an unsettled DELETE is an ambiguous security state: returning
+      // the codes as success could overlap another rotation with a late remote
+      // commit. Fail closed, audit the ambiguity, and retry cleanup under a
+      // fresh bounded signal while retaining the lock through settlement.
       try {
-        await deleteOldBackupFactors();
+        await deleteOldBackupFactors(rotationSignal);
       } catch {
-        // Best-effort cleanup; new codes are bound and will be returned.
+        auditSafe(userId, 'mfa.backup_codes.rotation_ambiguous', undefined, {
+          stage: 'delete-old',
+          oldFactorCount: existingBackupFactors.length,
+          deadlineExceeded: rotationSignal.aborted,
+        });
+        warn('[generateBackupCodes] Old-factor deletion was not confirmed settled; failing closed.');
+
+        const cleanupSignal = AbortSignal.timeout(BACKUP_CODES_COMPENSATION_BUDGET_MS);
+        try {
+          await deleteOldBackupFactors(cleanupSignal);
+        } catch (cleanupErr) {
+          warn('[generateBackupCodes] Compensation cleanup failed:', cleanupErr);
+        }
+      }
+
+      // Final lock-held reconciliation is mandatory on every success path,
+      // including after cleanup compensation. Only the authoritative intended
+      // state permits the new codes to leave the server.
+      const reconciliationSignal = AbortSignal.timeout(BACKUP_CODES_RECONCILIATION_BUDGET_MS);
+      let rotationSettled = false;
+      try {
+        rotationSettled = await reconcileSuccessfulEnrollment(
+          reconciliationSignal,
+          providerEnrolledFactorId,
+        );
+      } catch (reconciliationErr) {
+        warn('[generateBackupCodes] Final rotation reconciliation failed:', reconciliationErr);
+      }
+      if (!rotationSettled) {
+        auditSafe(userId, 'mfa.backup_codes.rotation_divergence', undefined, {
+          stage: 'final-success',
+          oldFactorCount: existingBackupFactors.length,
+        });
+        throw plainCode('BACKUP_CODES_FAILED');
       }
 
       // Audit (best-effort - failure must not break the main action)

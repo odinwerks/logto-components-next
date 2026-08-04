@@ -54,6 +54,9 @@ const defaultMfaList: MfaVerification[] = [
 
 type RenderOptions = {
   onVerifyPassword?: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
+  onGetMfaVerifications?: () => Promise<DataResult<MfaVerification[]>>;
+  onGenerateTotpSecret?: () => Promise<DataResult<{ secret: string }>>;
+  onAddMfaVerification?: React.ComponentProps<typeof SecurityTab>['onAddMfaVerification'];
   onGenerateBackupCodes?: (verificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
   mobmode?: number;
 };
@@ -79,9 +82,9 @@ function renderSecurity(options: RenderOptions = {}) {
       t={enUS}
       mobmode={options.mobmode}
       onVerifyPassword={onVerifyPassword}
-      onGetMfaVerifications={vi.fn().mockResolvedValue({ ok: true, data: defaultMfaList })}
-      onGenerateTotpSecret={vi.fn().mockResolvedValue({ ok: true, data: { secret: 'secret' } })}
-      onAddMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+      onGetMfaVerifications={options.onGetMfaVerifications ?? vi.fn().mockResolvedValue({ ok: true, data: defaultMfaList })}
+      onGenerateTotpSecret={options.onGenerateTotpSecret ?? vi.fn().mockResolvedValue({ ok: true, data: { secret: 'secret' } })}
+      onAddMfaVerification={options.onAddMfaVerification ?? vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onDeleteMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onReplaceTotpVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onGenerateBackupCodes={onGenerateBackupCodes}
@@ -173,6 +176,63 @@ describe('SecurityTab', () => {
 
     const deleteButton = await screen.findByRole('button', { name: enUS.security.deleteAccount });
     expect(deleteButton).toHaveStyle({ width: '2rem', height: '2rem', flexShrink: '0' });
+  });
+
+  it('keeps the TOTP secret and verification record available after activation fails', async () => {
+    const onAddMfaVerification = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: 'Invalid authenticator code' } satisfies ActionResult)
+      .mockResolvedValueOnce({ ok: true } satisfies ActionResult);
+
+    renderSecurity({
+      onGetMfaVerifications: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      onGenerateTotpSecret: vi.fn().mockResolvedValue({ ok: true, data: { secret: 'REUSABLESECRET' } }),
+      onAddMfaVerification,
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: enUS.mfa.generateTotpSecret }));
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), {
+      target: { value: 'password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+
+    const codeInput = await screen.findByLabelText(enUS.verification.totpCodeLabel);
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid authenticator code');
+    expect(screen.getByText('REUSABLESECRET')).toBeInTheDocument();
+    expect(onAddMfaVerification).toHaveBeenLastCalledWith(
+      { type: 'Totp', payload: { secret: 'REUSABLESECRET', code: '123456' } },
+      'vid-1',
+    );
+
+    fireEvent.change(codeInput, { target: { value: '654321' } });
+    await waitFor(() => expect(onAddMfaVerification).toHaveBeenCalledTimes(2));
+    expect(onAddMfaVerification).toHaveBeenLastCalledWith(
+      { type: 'Totp', payload: { secret: 'REUSABLESECRET', code: '654321' } },
+      'vid-1',
+    );
+  });
+
+  it('names and enables the mobile backup-code button when prerequisites are met', async () => {
+    renderSecurity({ mobmode: 1 });
+
+    const button = await screen.findByRole('button', { name: enUS.security.generateBackupCodesTitle });
+    expect(button).toBeEnabled();
+  });
+
+  it('names and natively disables the mobile backup-code button without another MFA factor', async () => {
+    const { onError } = renderSecurity({
+      mobmode: 1,
+      onGetMfaVerifications: vi.fn().mockResolvedValue({
+        ok: true,
+        data: [{ id: 'backup-1', type: 'BackupCode', createdAt: new Date('2024-01-01').toISOString() }],
+      }),
+    });
+
+    const button = await screen.findByRole('button', { name: enUS.security.generateBackupCodesTitle });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it('renders the security tab root as a flex column that fills its parent', async () => {

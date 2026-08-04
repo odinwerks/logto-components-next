@@ -134,11 +134,12 @@ export function SecurityTab({
   // ── TOTP modal ──
   const [totpStep, setTotpStep] = useState<ModalStep | null>(null);
   const [totpPwErr, setTotpPwErr] = useState('');
+  const [totpActivateErr, setTotpActivateErr] = useState('');
   const [totpMode, setTotpMode] = useState<'setup' | 'remove'>('setup');
   const [totpLoading, setTotpLoading] = useState(false);
 
-  const openTotp = () => { ++totpGenRef.current; setTotpStep({ kind: 'password' }); setTotpMode('setup'); setTotpPwErr(''); setTotpLoading(false); };
-  const closeTotp = () => { totpGenRef.current++; setTotpStep(null); setTotpMode('setup'); setTotpLoading(false); };
+  const openTotp = () => { ++totpGenRef.current; setTotpStep({ kind: 'password' }); setTotpMode('setup'); setTotpPwErr(''); setTotpActivateErr(''); setTotpLoading(false); };
+  const closeTotp = () => { totpGenRef.current++; setTotpStep(null); setTotpMode('setup'); setTotpActivateErr(''); setTotpLoading(false); };
 
   const handleTotpPassword = async (pw: string) => {
     const totpGen = totpGenRef.current;
@@ -172,6 +173,7 @@ export function SecurityTab({
 
   const handleTotpActivate = async (code: string, secret: string, identityVerificationId: string) => {
     const totpGen = totpGenRef.current;
+    setTotpActivateErr('');
     setTotpLoading(true);
     let r: ActionResult;
     if (totpFactor) {
@@ -181,7 +183,7 @@ export function SecurityTab({
     }
     if (totpGenRef.current !== totpGen) return;
     setTotpLoading(false);
-    if (!r.ok) { onError(r.error); closeTotp(); return; }
+    if (!r.ok) { setTotpActivateErr(r.error); onError(r.error); return; }
     onSuccess(t.mfa.totpEnrolled);
     closeTotp();
     await refreshMfa();
@@ -428,7 +430,19 @@ export function SecurityTab({
           onClose={closeTotp}
           passwordError={totpPwErr}
           loading={totpLoading}
-          headerExtra={totpMode === 'setup' && totpFactor && totpStep.kind === 'password' ? (
+          headerExtra={totpMode === 'setup' && totpStep.kind === 'totp-scan' && totpActivateErr ? (
+            <span
+              role="alert"
+              style={{
+                color: T.redText,
+                fontFamily: T.font,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+              }}
+            >
+              {totpActivateErr}
+            </span>
+          ) : totpMode === 'setup' && totpFactor && totpStep.kind === 'password' ? (
             <button
               onClick={() => { setTotpMode('remove'); setTotpPwErr(''); }}
               style={{
@@ -849,6 +863,8 @@ export function SecurityTab({
                     if (!hasOtherMfaFactor) { onError(t.mfa.backupCodesRequireOtherFactor); return; }
                     openBackup();
                   }}
+                  aria-label={t.security.generateBackupCodesTitle}
+                  disabled={!hasOtherMfaFactor}
                   title={!hasOtherMfaFactor ? t.mfa.backupCodesRequireOtherFactor : undefined}
                   style={{
                     width: '2rem', height: '2rem',

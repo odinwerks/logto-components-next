@@ -355,6 +355,30 @@ describe('createLockManager (in-memory backend)', () => {
     expect(secondAcquired).toBe(true);
   });
 
+  it('honors an extended in-memory stale-wait lease', async () => {
+    vi.useFakeTimers();
+    try {
+      const { createLockManager } = await import('./distributed-state');
+      const manager = createLockManager('test-extended-lease', { leaseDurationMs: 70_000 });
+      const releaseFirst = await manager.acquire('shared-key');
+      let secondAcquired = false;
+      const second = manager.acquire('shared-key').then((release) => {
+        secondAcquired = true;
+        return release;
+      });
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(secondAcquired).toBe(false);
+
+      await releaseFirst();
+      const releaseSecond = await second;
+      expect(secondAcquired).toBe(true);
+      await releaseSecond();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('different keys do not block each other', async () => {
     const { createLockManager } = await import('./distributed-state');
     const manager = createLockManager('test-parallel');
@@ -902,6 +926,34 @@ describe('createLockManager — Redis cold-init handoff (CAN-STATE-005)', () => 
 
     await expect(release()).resolves.toBeUndefined();
     expect(g[MOCK_KEY]!.delMock).not.toHaveBeenCalled();
+  });
+
+  it('uses an explicit lease duration for Redis TTL without changing the default', async () => {
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    const { createLockManager } = await import('./distributed-state');
+
+    const defaultManager = createLockManager('default-lease');
+    const releaseDefault = await defaultManager.acquire('user-default');
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalledWith(
+      'lock:default-lease:user-default',
+      expect.any(String),
+      'PX',
+      30_000,
+      'NX',
+    );
+    await releaseDefault();
+
+    g[MOCK_KEY]!.setMock.mockClear();
+    const extendedManager = createLockManager('extended-lease', { leaseDurationMs: 70_000 });
+    const releaseExtended = await extendedManager.acquire('user-extended');
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalledWith(
+      'lock:extended-lease:user-extended',
+      expect.any(String),
+      'PX',
+      70_000,
+      'NX',
+    );
+    await releaseExtended();
   });
 
   it('bounds a hung token-checked Redis release without deleting a possible later owner', async () => {

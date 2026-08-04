@@ -29,6 +29,14 @@ vi.mock('../audit', () => ({
   audit: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../log', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../log')>();
+  return {
+    ...actual,
+    warn: vi.fn(),
+  };
+});
+
 vi.mock('../guards', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../guards')>();
   return {
@@ -51,7 +59,12 @@ vi.mock('../../../lib/distributed-state', () => {
   // Use globalThis to hold state so it's accessible for cleanup in afterEach
   // (vi.mock factories are hoisted above variable declarations)
   type RLEntry = { count: number; resetAt: number };
-  type LockNs = Map<string, Promise<void>>;
+  type LockEntry = {
+    promise: Promise<void>;
+    release: () => void;
+    leaseTimer: ReturnType<typeof setTimeout>;
+  };
+  type LockNs = Map<string, LockEntry>;
 
   if (!(globalThis as Record<string, unknown>).__mfa_test_rl_state) {
     (globalThis as Record<string, unknown>).__mfa_test_rl_state = new Map<string, RLEntry>();
@@ -84,7 +97,8 @@ vi.mock('../../../lib/distributed-state', () => {
     };
   }
 
-  function createLockManager(name: string) {
+  function createLockManager(name: string, options: { leaseDurationMs?: number } = {}) {
+    const leaseDurationMs = options.leaseDurationMs ?? 30_000;
     if (!lockState.has(name)) {
       lockState.set(name, new Map());
     }
@@ -95,16 +109,35 @@ vi.mock('../../../lib/distributed-state', () => {
         while (true) {
           const existing = ns.get(key);
           if (!existing) break;
-          await existing.catch(() => {});
+          await existing.promise.catch(() => {});
         }
         let release!: () => void;
         const promise = new Promise<void>(resolve => { release = resolve; });
-        ns.set(key, promise);
-        return () => { ns.delete(key); release(); };
+        const entry: LockEntry = {
+          promise,
+          release,
+          leaseTimer: setTimeout(() => {
+            if (ns.get(key) === entry) {
+              ns.delete(key);
+              release();
+            }
+          }, leaseDurationMs),
+        };
+        ns.set(key, entry);
+        return () => {
+          if (ns.get(key) === entry) ns.delete(key);
+          clearTimeout(entry.leaseTimer);
+          release();
+        };
       },
       release(key: string): void {
         const ns = lockState.get(name);
-        if (ns) ns.delete(key);
+        const entry = ns?.get(key);
+        if (entry) {
+          ns!.delete(key);
+          clearTimeout(entry.leaseTimer);
+          entry.release();
+        }
       },
     };
   }
@@ -120,6 +153,8 @@ import { makeRequest } from './request';
 import { throwOnApiError } from '../errors';
 import { introspectToken } from '../utils';
 import { requireVerifiedIdentity } from './verification-cookie';
+import { audit } from '../audit';
+import { warn } from '../log';
 
 // ============================================================================
 // Imports under test
@@ -145,6 +180,53 @@ const mockOkResponse = (data?: unknown): Response =>
     json: vi.fn().mockResolvedValue(data ?? {}),
     text: vi.fn().mockResolvedValue(''),
   } as unknown as Response);
+
+const installFakeAbortSignalTimeout = () =>
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation((delayMs: number) => {
+    const controller = new AbortController();
+    setTimeout(
+      () => controller.abort(new DOMException('The operation timed out', 'TimeoutError')),
+      delayMs,
+    );
+    return controller.signal;
+  });
+
+const waitForAbort = (
+  signal: AbortSignal | undefined,
+  onAbort?: () => void,
+): Promise<Response> => {
+  if (!signal) throw new Error('Expected an explicit request signal');
+  return new Promise<Response>((_resolve, reject) => {
+    const rejectForAbort = () => {
+      onAbort?.();
+      reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+    };
+    if (signal.aborted) {
+      rejectForAbort();
+      return;
+    }
+    signal.addEventListener('abort', rejectForAbort, { once: true });
+  });
+};
+
+const resolveBeforeAbort = (
+  signal: AbortSignal | undefined,
+  delayMs: number,
+  response: Response,
+): Promise<Response> => {
+  if (!signal) throw new Error('Expected an explicit request signal');
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', rejectForAbort);
+      resolve(response);
+    }, delayMs);
+    const rejectForAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', rejectForAbort, { once: true });
+  });
+};
 
 // ============================================================================
 // addMfaVerification - payload validation
@@ -652,7 +734,12 @@ describe('generateBackupCodes', () => {
       ]))
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] })) // generate
       .mockResolvedValueOnce(mockOkResponse())                         // enroll
-      .mockResolvedValueOnce(mockOkResponse());                        // delete old
+      .mockResolvedValueOnce(mockOkResponse())                         // delete old
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-1',
+        type: 'BackupCode',
+        createdAt: new Date('2024-02-01').toISOString(),
+      }]));                                                            // final reconciliation
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
@@ -693,9 +780,7 @@ describe('generateBackupCodes', () => {
     );
   });
 
-  it('does NOT delete old backup codes when enrollment fails with a non-conflict error (BUG-L04)', async () => {
-    // Make throwOnApiError behave like the real implementation: throw on
-    // non-ok responses so the enroll failure actually propagates.
+  it('M-007 audits and compensates a resolved 500 after enrollment committed server-side', async () => {
     vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
       if (!res.ok) {
         const err = new Error('BACKUP_CODES_FAILED');
@@ -704,6 +789,15 @@ describe('generateBackupCodes', () => {
       }
     });
 
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+      updatedAt: new Date('2024-01-01').toISOString(),
+    };
+    const committedFactor = { ...oldFactor, id: 'backup-committed-on-500' };
+    let currentFactors = [oldFactor];
+    let listCall = 0;
     const failResponse = {
       status: 500,
       ok: false,
@@ -711,31 +805,48 @@ describe('generateBackupCodes', () => {
       text: vi.fn().mockResolvedValue('Internal Server Error'),
     } as unknown as Response;
 
-    vi.mocked(makeRequest)
-      .mockResolvedValueOnce(mockOkResponse([
-        {
-          id: 'backup-old-1',
-          type: 'BackupCode',
-          createdAt: new Date('2024-01-01').toISOString(),
-          updatedAt: new Date('2024-01-01').toISOString(),
-        },
-      ]))
-      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] })) // generate
-      .mockResolvedValueOnce(failResponse);                     // enroll → 500
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        return mockOkResponse([...currentFactors]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        return mockOkResponse({ codes: ['A1'] });
+      }
+      if (path === '/api/my-account/mfa-verifications' && options?.method === 'POST') {
+        currentFactors = [oldFactor, committedFactor];
+        return failResponse;
+      }
+      if (path.endsWith('/backup-committed-on-500') && options?.method === 'DELETE') {
+        currentFactors = [oldFactor];
+        return mockOkResponse();
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error('Expected error');
     expect(r.error).toBe('BACKUP_CODES_FAILED');
-    // Crucially: only 3 calls (list, generate, enroll). The old backup factor
-    // was NEVER deleted, so the user keeps their existing backup codes.
-    expect(makeRequest).toHaveBeenCalledTimes(3);
+    expect(listCall).toBe(3);
+    expect(currentFactors).toEqual([oldFactor]);
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.rotation_ambiguous',
+      metadata: expect.objectContaining({ stage: 'enroll', deadlineExceeded: false }),
+    }));
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/mfa-verifications/backup-committed-on-500',
+      expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+    );
     const calls = vi.mocked(makeRequest).mock.calls as unknown as [string, { method?: string }][];
-    const deleteCalled = calls.some(
+    const oldFactorDeleteCalled = calls.some(
       ([url, opts]) => url.includes('backup-old-1') && opts?.method === 'DELETE'
     );
-    expect(deleteCalled).toBe(false);
+    expect(oldFactorDeleteCalled).toBe(false);
+    expect(audit).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.generate',
+    }));
   });
 
   // CAN-ACT-005: When an existing BackupCode factor causes a 409/422 singleton
@@ -856,19 +967,25 @@ describe('generateBackupCodes', () => {
     vi.mocked(makeRequest)
       .mockResolvedValueOnce(mockOkResponse([]))
       .mockResolvedValueOnce(mockOkResponse({ codes: ['C3'] }))
-      .mockResolvedValueOnce(mockOkResponse());
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-1',
+        type: 'BackupCode',
+        createdAt: new Date('2024-02-01').toISOString(),
+      }]));
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('Expected success');
     expect(r.data.codes).toEqual(['C3']);
-    expect(makeRequest).toHaveBeenCalledTimes(3);
+    expect(makeRequest).toHaveBeenCalledTimes(4);
   });
 
-  it('returns newly-bound codes even if old-factor cleanup throws (BUG-056)', async () => {
-    // Simulate: list ok → generate ok → enroll ok → delete old THROWS.
-    // The new codes are bound; cleanup failure must not swallow the return.
+  it('M-007 logs compensation cleanup failure and fails closed', async () => {
+    // Simulate: list ok → generate ok → enroll ok → delete old throws, then
+    // the bounded compensation attempt also throws. Neither failure may be
+    // swallowed after enrollment has committed.
     vi.mocked(throwOnApiError).mockImplementation(async (res: Response, _code, _action) => {
       if (!res.ok) {
         const err = new Error('BACKUP_CODES_FAILED');
@@ -888,16 +1005,29 @@ describe('generateBackupCodes', () => {
       ]))
       .mockResolvedValueOnce(mockOkResponse({ codes: ['A1', 'B2'] })) // generate
       .mockResolvedValueOnce(mockOkResponse())                        // enroll (ok)
-      .mockRejectedValueOnce(new Error('transient delete failure'));  // delete old → throws
+      .mockRejectedValueOnce(new Error('transient delete failure'))   // delete old → throws
+      .mockRejectedValueOnce(new Error('compensation delete failure'))
+      .mockRejectedValueOnce(new Error('final reconciliation unavailable'));
 
     const r = await generateBackupCodes(validIdentityVrecId);
 
-    // Best-effort cleanup: codes are returned despite the delete failure.
-    expect(r.ok).toBe(true);
-    if (!r.ok) throw new Error('Expected success');
-    expect(r.data.codes).toEqual(['A1', 'B2']);
-    // All 4 calls happened (list, generate, enroll, failed-delete).
-    expect(makeRequest).toHaveBeenCalledTimes(4);
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('Expected fail-closed error');
+    expect(r.error).toBe('BACKUP_CODES_FAILED');
+    expect(makeRequest).toHaveBeenCalledTimes(6);
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      actor: 'user-test-123',
+      action: 'mfa.backup_codes.rotation_ambiguous',
+      metadata: expect.objectContaining({ stage: 'delete-old' }),
+    }));
+    expect(warn).toHaveBeenCalledWith(
+      '[generateBackupCodes] Compensation cleanup failed:',
+      expect.objectContaining({ message: 'compensation delete failure' }),
+    );
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.rotation_divergence',
+      metadata: expect.objectContaining({ stage: 'final-success' }),
+    }));
   });
 
   it('serializes concurrent backup-code generation for the same user', async () => {
@@ -918,6 +1048,12 @@ describe('generateBackupCodes', () => {
       .mockResolvedValueOnce(mockOkResponse({ codes: ['X1'] }))
       // First call's enroll request
       .mockResolvedValueOnce(mockOkResponse())
+      // First call's final reconciliation
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-first',
+        type: 'BackupCode',
+        createdAt: new Date('2024-02-01').toISOString(),
+      }]))
       // Second call's list request - starts only after first finishes
       .mockImplementationOnce(async () => {
         secondCallStarted = true;
@@ -926,7 +1062,13 @@ describe('generateBackupCodes', () => {
       // Second call's generate request
       .mockResolvedValueOnce(mockOkResponse({ codes: ['X2'] }))
       // Second call's enroll request
-      .mockResolvedValueOnce(mockOkResponse());
+      .mockResolvedValueOnce(mockOkResponse())
+      // Second call's final reconciliation
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-second',
+        type: 'BackupCode',
+        createdAt: new Date('2024-03-01').toISOString(),
+      }]));
 
     const promise1 = generateBackupCodes(validIdentityVrecId);
     const promise2 = generateBackupCodes(validIdentityVrecId);
@@ -944,6 +1086,599 @@ describe('generateBackupCodes', () => {
     expect(r2.ok).toBe(true);
     // Now second call should have completed
     expect(secondCallStarted).toBe(true);
+  });
+
+  it('holds the backup-code lock until successful old-factor cleanup finishes', async () => {
+    let cleanupStarted = false;
+    let secondRotationStarted = false;
+    let resolveCleanup!: () => void;
+    const cleanupBlock = new Promise<void>(resolve => { resolveCleanup = resolve; });
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['FIRST'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockImplementationOnce(async () => {
+        cleanupStarted = true;
+        await cleanupBlock;
+        return mockOkResponse();
+      })
+      .mockImplementationOnce(async () => {
+        return mockOkResponse([{
+          id: 'backup-new-first',
+          type: 'BackupCode',
+          createdAt: new Date('2024-02-01').toISOString(),
+        }]);
+      })
+      .mockImplementationOnce(async () => {
+        secondRotationStarted = true;
+        return mockOkResponse([]);
+      })
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['SECOND'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-second',
+        type: 'BackupCode',
+        createdAt: new Date('2024-03-01').toISOString(),
+      }]));
+
+    const first = generateBackupCodes(validIdentityVrecId);
+    await vi.waitFor(() => expect(cleanupStarted).toBe(true));
+
+    const second = generateBackupCodes(validIdentityVrecId);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(secondRotationStarted).toBe(false);
+
+    resolveCleanup();
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+
+    expect(firstResult.ok).toBe(true);
+    expect(secondResult.ok).toBe(true);
+    expect(secondRotationStarted).toBe(true);
+  });
+
+  it('M-007 lease covers a stalled-then-completing rotation', async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = installFakeAbortSignalTimeout();
+    let enrollmentStarted = false;
+    let secondRotationStarted = false;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['FIRST'] }))
+      .mockImplementationOnce(async (_path, options) => {
+        enrollmentStarted = true;
+        return resolveBeforeAbort(options?.signal, 44_000, mockOkResponse());
+      })
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-first',
+        type: 'BackupCode',
+        createdAt: new Date('2024-02-01').toISOString(),
+      }]))
+      .mockImplementationOnce(async () => {
+        secondRotationStarted = true;
+        return mockOkResponse([]);
+      })
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['SECOND'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-second',
+        type: 'BackupCode',
+        createdAt: new Date('2024-03-01').toISOString(),
+      }]));
+
+    try {
+      const first = generateBackupCodes(validIdentityVrecId);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(enrollmentStarted).toBe(true);
+
+      const second = generateBackupCodes(validIdentityVrecId);
+      await vi.advanceTimersByTimeAsync(43_999);
+      expect(secondRotationStarted).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const [firstResult, secondResult] = await Promise.all([first, second]);
+      expect(firstResult.ok).toBe(true);
+      expect(secondResult.ok).toBe(true);
+      expect(secondRotationStarted).toBe(true);
+      expect(timeoutSpy).toHaveBeenCalledWith(45_000);
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('M-007 post-abort remote DELETE commit returns error and audits ambiguity', async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = installFakeAbortSignalTimeout();
+    let remoteDeleteCommitted = false;
+    const alreadyDeleted = {
+      status: 404,
+      ok: false,
+      json: vi.fn().mockResolvedValue({}),
+      text: vi.fn().mockResolvedValue('Not found'),
+    } as unknown as Response;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-old-1',
+        type: 'BackupCode',
+        createdAt: new Date('2024-01-01').toISOString(),
+        updatedAt: new Date('2024-01-01').toISOString(),
+      }]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['LATE'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockImplementationOnce(async (_path, options) =>
+        waitForAbort(options?.signal, () => { remoteDeleteCommitted = true; }))
+      .mockImplementationOnce(async () => remoteDeleteCommitted ? alreadyDeleted : mockOkResponse());
+
+    try {
+      const pending = generateBackupCodes(validIdentityVrecId);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const result = await pending;
+
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected fail-closed error');
+      expect(result.error).toBe('BACKUP_CODES_FAILED');
+      expect(remoteDeleteCommitted).toBe(true);
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+        actor: 'user-test-123',
+        action: 'mfa.backup_codes.rotation_ambiguous',
+        metadata: expect.objectContaining({
+          stage: 'delete-old',
+          deadlineExceeded: true,
+        }),
+      }));
+      expect(vi.mocked(makeRequest).mock.calls[3]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+      expect(audit).not.toHaveBeenCalledWith(expect.objectContaining({
+        action: 'mfa.backup_codes.generate',
+      }));
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('M-007 audits and compensates enrollment rejection ambiguity', async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = installFakeAbortSignalTimeout();
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+      updatedAt: new Date('2024-01-01').toISOString(),
+    };
+    const committedFactor = { ...oldFactor, id: 'backup-ambiguous-new' };
+    let remoteEnrollmentCommitted = false;
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([oldFactor]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['UNKNOWN'] }))
+      .mockImplementationOnce(async (_path, options) =>
+        waitForAbort(options?.signal, () => { remoteEnrollmentCommitted = true; }))
+      .mockImplementationOnce(async () => mockOkResponse(
+        remoteEnrollmentCommitted ? [oldFactor, committedFactor] : [oldFactor],
+      ))
+      .mockResolvedValueOnce(mockOkResponse());
+
+    try {
+      const pending = generateBackupCodes(validIdentityVrecId);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const result = await pending;
+
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected fail-closed error');
+      expect(result.error).toBe('BACKUP_CODES_FAILED');
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'mfa.backup_codes.rotation_ambiguous',
+        metadata: expect.objectContaining({ stage: 'enroll', deadlineExceeded: true }),
+      }));
+      expect(makeRequest).toHaveBeenNthCalledWith(
+        5,
+        '/api/my-account/mfa-verifications/backup-ambiguous-new',
+        expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+      );
+      expect(vi.mocked(makeRequest).mock.calls.some(([path]) => path.endsWith('backup-old-1'))).toBe(false);
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('M-007 keeps a rejected enrollment pending until ambiguous settlement', async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = installFakeAbortSignalTimeout();
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+      updatedAt: new Date('2024-01-01').toISOString(),
+    };
+    const committedFactor = { ...oldFactor, id: 'backup-ambiguous-new' };
+    let listCall = 0;
+    let generateCall = 0;
+    let compensationStarted = false;
+    let resolveCompensation!: () => void;
+    const compensationBlock = new Promise<void>(resolve => {
+      resolveCompensation = resolve;
+    });
+
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        if (listCall === 1) return mockOkResponse([oldFactor]);
+        if (listCall === 2) {
+          compensationStarted = true;
+          await compensationBlock;
+          return mockOkResponse([oldFactor, committedFactor]);
+        }
+        if (listCall === 3) return mockOkResponse([oldFactor]);
+        return mockOkResponse([{
+          id: 'backup-new-second',
+          type: 'BackupCode',
+          createdAt: new Date('2024-03-01').toISOString(),
+        }]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        generateCall++;
+        return mockOkResponse({ codes: [generateCall === 1 ? 'FIRST' : 'SECOND'] });
+      }
+      if (path.endsWith('/backup-ambiguous-new')) return mockOkResponse();
+      if (options?.method === 'POST' && (options.body as { codes?: string[] })?.codes?.[0] === 'FIRST') {
+        return waitForAbort(options.signal);
+      }
+      return mockOkResponse();
+    });
+
+    try {
+      const first = generateBackupCodes(validIdentityVrecId);
+      let firstSettled = false;
+      void first.then(() => { firstSettled = true; });
+      await vi.advanceTimersByTimeAsync(45_000);
+      await vi.waitFor(() => expect(compensationStarted).toBe(true));
+      expect(firstSettled).toBe(false);
+
+      resolveCompensation();
+      const firstResult = await first;
+      expect(firstResult.ok).toBe(false);
+      expect(firstSettled).toBe(true);
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('M-007 holds the backup-code lock through resolved-500 reconciliation', async () => {
+    let enrollmentStarted = false;
+    let finalReconciliationStarted = false;
+    let secondRotationStarted = false;
+    let resolveEnrollment!: (response: Response) => void;
+    const enrollmentBlock = new Promise<Response>(resolve => { resolveEnrollment = resolve; });
+    let resolveFinalReconciliation!: () => void;
+    const finalReconciliationBlock = new Promise<void>(resolve => {
+      resolveFinalReconciliation = resolve;
+    });
+    const secondFactor = {
+      id: 'backup-new-second',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-03-01').toISOString(),
+    };
+    let listCall = 0;
+    let generateCall = 0;
+    let enrollCall = 0;
+    const failedEnrollment = {
+      status: 500,
+      ok: false,
+      json: vi.fn().mockResolvedValue({}),
+      text: vi.fn().mockResolvedValue('Internal Server Error'),
+    } as unknown as Response;
+
+    vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
+      if (!res.ok) throw Object.assign(new Error('BACKUP_CODES_FAILED'), { name: 'SanitizedError' });
+    });
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        if (listCall === 1 || listCall === 2) return mockOkResponse([]);
+        if (listCall === 3) {
+          finalReconciliationStarted = true;
+          await finalReconciliationBlock;
+          return mockOkResponse([]);
+        }
+        if (listCall === 4) {
+          secondRotationStarted = true;
+          return mockOkResponse([]);
+        }
+        return mockOkResponse([secondFactor]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        generateCall++;
+        return mockOkResponse({ codes: [generateCall === 1 ? 'FIRST' : 'SECOND'] });
+      }
+      if (path === '/api/my-account/mfa-verifications' && options?.method === 'POST') {
+        enrollCall++;
+        if (enrollCall === 1) {
+          enrollmentStarted = true;
+          return enrollmentBlock;
+        }
+        return mockOkResponse();
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    const first = generateBackupCodes(validIdentityVrecId);
+    await vi.waitFor(() => expect(enrollmentStarted).toBe(true));
+
+    const second = generateBackupCodes(validIdentityVrecId);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(secondRotationStarted).toBe(false);
+
+    resolveEnrollment(failedEnrollment);
+    await vi.waitFor(() => expect(finalReconciliationStarted).toBe(true));
+    expect(secondRotationStarted).toBe(false);
+
+    resolveFinalReconciliation();
+    const firstResult = await first;
+    await vi.waitFor(() => expect(secondRotationStarted).toBe(true));
+    const secondResult = await second;
+
+    expect(firstResult.ok).toBe(false);
+    expect(secondResult.ok).toBe(true);
+    expect(secondRotationStarted).toBe(true);
+  });
+
+  it('passes one explicit long-deadline signal to every rotation request', async () => {
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([
+        {
+          id: 'backup-old-1',
+          type: 'BackupCode',
+          createdAt: new Date('2024-01-01').toISOString(),
+          updatedAt: new Date('2024-01-01').toISOString(),
+        },
+      ]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: 'backup-new-1',
+        type: 'BackupCode',
+        createdAt: new Date('2024-02-01').toISOString(),
+      }]));
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(true);
+    const signals = vi.mocked(makeRequest).mock.calls.map(([, options]) => options?.signal);
+    expect(signals).toHaveLength(5);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signals[1]).toBe(signals[0]);
+    expect(signals[2]).toBe(signals[0]);
+    expect(signals[3]).toBe(signals[0]);
+    expect(signals[4]).toBeInstanceOf(AbortSignal);
+    expect(signals[4]).not.toBe(signals[0]);
+  });
+
+  it('M-007 final reconciliation catches enrollment committed after the first compensation re-list', async () => {
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+    };
+    const delayedFactor = { ...oldFactor, id: 'backup-delayed-new' };
+    let currentFactors = [oldFactor];
+    let listCall = 0;
+
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        if (listCall === 1) return mockOkResponse([oldFactor]);
+        if (listCall === 2) {
+          const response = mockOkResponse([oldFactor]);
+          vi.mocked(response.json).mockImplementationOnce(async () => {
+            const snapshot = [...currentFactors];
+            queueMicrotask(() => { currentFactors = [oldFactor, delayedFactor]; });
+            return snapshot;
+          });
+          return response;
+        }
+        return mockOkResponse([...currentFactors]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        return mockOkResponse({ codes: ['UNKNOWN'] });
+      }
+      if (options?.method === 'POST') {
+        throw new Error('enrollment response lost');
+      }
+      if (path.endsWith('/backup-delayed-new') && options?.method === 'DELETE') {
+        currentFactors = [oldFactor];
+        return mockOkResponse();
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected fail-closed error');
+    expect(result.error).toBe('BACKUP_CODES_FAILED');
+    expect(listCall).toBe(4);
+    expect(currentFactors).toEqual([oldFactor]);
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/mfa-verifications/backup-delayed-new',
+      expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+    );
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.rotation_ambiguous',
+      metadata: expect.objectContaining({ stage: 'enroll' }),
+    }));
+    expect(audit).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.generate',
+    }));
+  });
+
+  it('M-007 compensates a delayed enrollment commit during final reconciliation and leaves clean state', async () => {
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+    };
+    const delayedFactor = { ...oldFactor, id: 'backup-delayed-during-reconcile' };
+    let currentFactors = [oldFactor];
+    let listCall = 0;
+
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        if (listCall <= 2) return mockOkResponse([oldFactor]);
+        if (listCall === 3) {
+          currentFactors = [oldFactor, delayedFactor];
+        }
+        return mockOkResponse([...currentFactors]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        return mockOkResponse({ codes: ['UNKNOWN'] });
+      }
+      if (options?.method === 'POST') {
+        throw new Error('enrollment response lost');
+      }
+      if (path.endsWith('/backup-delayed-during-reconcile') && options?.method === 'DELETE') {
+        currentFactors = [oldFactor];
+        return mockOkResponse();
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected fail-closed error');
+    expect(result.error).toBe('BACKUP_CODES_FAILED');
+    expect(listCall).toBe(4);
+    expect(currentFactors).toEqual([oldFactor]);
+  });
+
+  it('M-007 returns success only after final reconciliation confirms the new factor', async () => {
+    const oldFactor = {
+      id: 'backup-old-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+    };
+    const newFactor = { ...oldFactor, id: 'backup-new-1' };
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([oldFactor]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['NEW1', 'NEW2'] }))
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([newFactor]));
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected reconciled success');
+    expect(result.data.codes).toEqual(['NEW1', 'NEW2']);
+    expect(makeRequest).toHaveBeenNthCalledWith(
+      5,
+      '/api/my-account/mfa-verifications',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.generate',
+    }));
+  });
+
+  it('M-007 fails closed and audits divergence when duplicate new factors survive reconciliation', async () => {
+    const intendedFactor = {
+      id: 'backup-new-intended',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-02-01').toISOString(),
+    };
+    const duplicateFactor = { ...intendedFactor, id: 'backup-new-duplicate' };
+    const enrollResponse = mockOkResponse();
+    enrollResponse.clone = vi.fn(() => mockOkResponse({ id: intendedFactor.id }));
+
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['NEW1'] }))
+      .mockResolvedValueOnce(enrollResponse)
+      .mockResolvedValueOnce(mockOkResponse([intendedFactor, duplicateFactor]))
+      // Simulate an acknowledged compensation DELETE whose remote state did
+      // not actually converge before the one allowed confirmation read.
+      .mockResolvedValueOnce(mockOkResponse())
+      .mockResolvedValueOnce(mockOkResponse([intendedFactor, duplicateFactor]));
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected fail-closed divergence');
+    expect(result.error).toBe('BACKUP_CODES_FAILED');
+    expect(makeRequest).toHaveBeenCalledWith(
+      '/api/my-account/mfa-verifications/backup-new-duplicate',
+      expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+    );
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.rotation_divergence',
+      metadata: expect.objectContaining({ stage: 'final-success' }),
+    }));
+    expect(audit).not.toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mfa.backup_codes.generate',
+    }));
+  });
+
+  it('M-007 does not release the lock before final reconciliation settles', async () => {
+    const newFactor = {
+      id: 'backup-new-1',
+      type: 'BackupCode' as const,
+      createdAt: new Date('2024-01-01').toISOString(),
+    };
+    let listCall = 0;
+    let finalReconciliationStarted = false;
+    let secondRotationStarted = false;
+    let resolveFinalReconciliation!: () => void;
+    const finalReconciliationBlock = new Promise<void>(resolve => {
+      resolveFinalReconciliation = resolve;
+    });
+
+    vi.mocked(makeRequest).mockImplementation(async (path, options) => {
+      if (path === '/api/my-account/mfa-verifications' && !options?.method) {
+        listCall++;
+        if (listCall === 1) return mockOkResponse([]);
+        if (listCall === 2) {
+          finalReconciliationStarted = true;
+          await finalReconciliationBlock;
+          return mockOkResponse([newFactor]);
+        }
+        secondRotationStarted = true;
+        return mockOkResponse([newFactor]);
+      }
+      if (path.endsWith('/backup-codes/generate')) {
+        return mockOkResponse({ codes: [listCall < 3 ? 'FIRST' : 'SECOND'] });
+      }
+      if (options?.method === 'POST') return mockOkResponse();
+      return mockOkResponse();
+    });
+
+    const first = generateBackupCodes(validIdentityVrecId);
+    await vi.waitFor(() => expect(finalReconciliationStarted).toBe(true));
+
+    const second = generateBackupCodes(validIdentityVrecId);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(secondRotationStarted).toBe(false);
+
+    resolveFinalReconciliation();
+    const firstResult = await first;
+    expect(firstResult.ok).toBe(true);
+
+    await vi.waitFor(() => expect(secondRotationStarted).toBe(true));
+    await second;
   });
 });
 

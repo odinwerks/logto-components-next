@@ -15,7 +15,7 @@
  * Exports:
  *   initDistributedState()      — startup/readiness validation hook
  *   createRateLimiter(options)  — rate limiter factory
- *   createLockManager(name)     — per-key lock manager factory
+ *   createLockManager(name, options) — per-key lock manager factory
  *   tokenCache                  — singleton M2M token cache
  */
 
@@ -38,6 +38,14 @@ interface LockManagerInstance {
   acquire(key: string): Promise<() => Promise<void>>;
   /** Releases the lock for the given key (explicit release, non-awaited). */
   release(key: string): void;
+}
+
+interface LockManagerOptions {
+  /**
+   * Redis lease duration and in-memory stale-wait timeout in milliseconds.
+   * Defaults to 30 seconds to preserve existing lock-manager behavior.
+   */
+  leaseDurationMs?: number;
 }
 
 interface TokenCacheInstance {
@@ -65,7 +73,7 @@ interface Backend {
   rateLimitReset(namespace: string, key: string): Promise<void>;
 
   // Locking
-  lockAcquire(namespace: string, key: string): Promise<() => Promise<void>>;
+  lockAcquire(namespace: string, key: string, leaseDurationMs?: number): Promise<() => Promise<void>>;
   lockRelease(namespace: string, key: string): void;
 
   // Token cache
@@ -90,13 +98,21 @@ export const REDIS_LOCK_RELEASE_TIMEOUT_MS = 1_000;
 
 class InMemoryBackend implements Backend {
   private readonly rateLimits = new Map<string, { count: number; resetAt: number }>();
-  private readonly locks = new Map<string, Map<string, { promise: Promise<void>; resolve: () => void }>>();
+  private readonly locks = new Map<string, Map<string, {
+    promise: Promise<void>;
+    resolve: () => void;
+    leaseDurationMs: number;
+  }>>();
   private readonly tokens = new Map<string, { token: string; expiresAt: number }>();
 
   /** Maximum lock entries per namespace before rejecting new acquisitions (HIGH-3). */
   private readonly MAX_LOCK_ENTRIES_PER_NAMESPACE = 1000;
 
-  private getLockNamespace(namespace: string): Map<string, { promise: Promise<void>; resolve: () => void }> {
+  private getLockNamespace(namespace: string): Map<string, {
+    promise: Promise<void>;
+    resolve: () => void;
+    leaseDurationMs: number;
+  }> {
     let ns = this.locks.get(namespace);
     if (!ns) {
       ns = new Map();
@@ -126,7 +142,11 @@ class InMemoryBackend implements Backend {
     this.rateLimits.delete(`${namespace}|${key}`);
   }
 
-  async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
+  async lockAcquire(
+    namespace: string,
+    key: string,
+    leaseDurationMs = DEFAULT_LOCK_TIMEOUT_MS,
+  ): Promise<() => Promise<void>> {
     const ns = this.getLockNamespace(namespace);
 
     // Capacity check (HIGH-3): if namespace is at max and key is not already locked, reject
@@ -147,10 +167,10 @@ class InMemoryBackend implements Backend {
           () =>
             reject(
               new Error(
-                `Lock acquisition timed out for key '${key}' in '${namespace}' after ${DEFAULT_LOCK_TIMEOUT_MS}ms`,
+                  `Lock acquisition timed out for key '${key}' in '${namespace}' after ${existing.leaseDurationMs}ms`,
               ),
             ),
-          DEFAULT_LOCK_TIMEOUT_MS,
+          existing.leaseDurationMs,
         );
       });
 
@@ -173,7 +193,7 @@ class InMemoryBackend implements Backend {
     const promise = new Promise<void>((resolve) => {
       release = resolve;
     });
-    ns.set(key, { promise, resolve: release });
+    ns.set(key, { promise, resolve: release, leaseDurationMs });
 
     return async () => {
       const entry = ns.get(key);
@@ -306,10 +326,14 @@ class RedisBackend implements Backend {
     void this.client.del(mapKey).catch(() => {});
   }
 
-  async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
+  async lockAcquire(
+    namespace: string,
+    key: string,
+    leaseDurationMs = DEFAULT_LOCK_TIMEOUT_MS,
+  ): Promise<() => Promise<void>> {
     const lockKey = `lock:${namespace}:${key}`;
     const lockValue = crypto.randomUUID();
-    const ttlMs = DEFAULT_LOCK_TIMEOUT_MS;
+    const ttlMs = leaseDurationMs;
 
     // Retry loop: SET NX with TTL
     const deadline = Date.now() + ttlMs;
@@ -718,8 +742,19 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiterInsta
  * const manager = createLockManager('custom-data');
  * const release = await manager.acquire(userId);
  * try { ... } finally { release(); }
+ *
+ * Pass `{ leaseDurationMs }` only when a critical section has a known longer
+ * upper bound. Omitting it preserves the existing 30-second behavior.
  */
-export function createLockManager(name: string): LockManagerInstance {
+export function createLockManager(
+  name: string,
+  options: LockManagerOptions = {},
+): LockManagerInstance {
+  const leaseDurationMs = options.leaseDurationMs ?? DEFAULT_LOCK_TIMEOUT_MS;
+  if (!Number.isSafeInteger(leaseDurationMs) || leaseDurationMs <= 0) {
+    throw new RangeError('Lock leaseDurationMs must be a positive safe integer');
+  }
+
   return {
     async acquire(key: string): Promise<() => Promise<void>> {
       // CAN-STATE-005: gate lock grants on backend settlement.
@@ -738,7 +773,7 @@ export function createLockManager(name: string): LockManagerInstance {
       // ownership-safe async release function returned by lockAcquire() is
       // passed through unchanged — release semantics are preserved.
       const backend = await getSettledBackendForLock();
-      return backend.lockAcquire(name, key);
+      return backend.lockAcquire(name, key, leaseDurationMs);
     },
     release(key: string): void {
       getBackend().lockRelease(name, key);
