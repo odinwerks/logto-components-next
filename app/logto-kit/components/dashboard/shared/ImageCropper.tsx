@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef, useId } from 'react';
 import type { ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 
@@ -10,6 +10,8 @@ const CROP_X = (CANVAS_SIZE - CROP_SIZE) / 2;
 const CROP_Y = (CANVAS_SIZE - CROP_SIZE) / 2;
 const OVERSCROLL_DAMPING = 0.3;
 const SNAP_DURATION = 200;
+const KEYBOARD_MOVE_STEP = 5;
+const KEYBOARD_MOVE_LARGE_STEP = 25;
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -222,11 +224,14 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
   const [minScale, setMinScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [isSnapping, setIsSnapping] = useState(false);
+  const [isPositionFocused, setIsPositionFocused] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const scaleRef = useRef(scale);
   const offsetRef = useRef(offset);
   const imageRef = useRef(image);
   const snapAnimRef = useRef<number | null>(null);
+  const positionInstructionsId = useId();
+  const positionStatusId = useId();
 
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { offsetRef.current = offset; }, [offset]);
@@ -405,6 +410,50 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
     }
   }, [isDragging, snapBack]);
 
+  const moveImageByKeyboard = useCallback((deltaX: number, deltaY: number) => {
+    const currentImage = imageRef.current;
+    if (!currentImage) return;
+
+    if (snapAnimRef.current) {
+      cancelAnimationFrame(snapAnimRef.current);
+      snapAnimRef.current = null;
+      setIsSnapping(false);
+    }
+
+    setOffset((current) => clampOffset(
+      currentImage,
+      scaleRef.current,
+      current.x + deltaX,
+      current.y + deltaY,
+    ));
+  }, []);
+
+  const handlePositionKeyDown = useCallback((e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const step = e.shiftKey ? KEYBOARD_MOVE_LARGE_STEP : KEYBOARD_MOVE_STEP;
+    let deltaX = 0;
+    let deltaY = 0;
+
+    switch (e.key) {
+      case 'ArrowLeft':
+        deltaX = -step;
+        break;
+      case 'ArrowRight':
+        deltaX = step;
+        break;
+      case 'ArrowUp':
+        deltaY = -step;
+        break;
+      case 'ArrowDown':
+        deltaY = step;
+        break;
+      default:
+        return;
+    }
+
+    e.preventDefault();
+    moveImageByKeyboard(deltaX, deltaY);
+  }, [moveImageByKeyboard]);
+
   const handleZoomIn = useCallback(() => {
     if (!imageRef.current) return;
     const step = minScale * 0.15;
@@ -463,6 +512,12 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
 
   const c = colors;
   const zoomPct = minScale > 0 ? Math.round((scale / minScale) * 100) : 100;
+  const formatPosition = (value: number, negativeDirection: string, positiveDirection: string) => {
+    const rounded = Math.round(value);
+    if (rounded === 0) return 'centered';
+    return `${Math.abs(rounded)} pixels ${rounded < 0 ? negativeDirection : positiveDirection}`;
+  };
+  const positionStatus = `Image position: horizontal ${formatPosition(offset.x, 'left', 'right')}; vertical ${formatPosition(offset.y, 'up', 'down')}.`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
@@ -470,8 +525,14 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         ref={canvasRef}
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
-        role="img"
-        aria-label="Image cropper canvas for avatar preview"
+        role="application"
+        aria-label="Avatar crop position"
+        aria-describedby={`${positionInstructionsId} ${positionStatusId}`}
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown"
+        tabIndex={0}
+        onFocus={() => setIsPositionFocused(true)}
+        onBlur={() => setIsPositionFocused(false)}
+        onKeyDown={handlePositionKeyDown}
         onMouseDown={handleMouseDown}
         onMouseLeave={endDrag}
         onTouchStart={handleTouchStart}
@@ -487,8 +548,25 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
           userSelect: 'none',
           WebkitUserSelect: 'none',
           borderRadius: '0.375rem',
+          outline: isPositionFocused ? `2px solid ${c.accentBlue}` : undefined,
+          outlineOffset: isPositionFocused ? '2px' : undefined,
         }}
       />
+      <span
+        id={positionInstructionsId}
+        style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}
+      >
+        Use the arrow keys to move the image. Hold Shift with an arrow key for larger movements.
+      </span>
+      <span
+        id={positionStatusId}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}
+      >
+        {positionStatus}
+      </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', maxWidth: `${displaySize}px` }}>
         <button
           onClick={handleZoomOut}
@@ -554,7 +632,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         fontFamily: "'DM Sans', system-ui, sans-serif",
         textAlign: 'center',
       }}>
-        {t?.common.imageCropperHint || 'Drag to move · Scroll or +/− to zoom · Double-click to reset'}
+        {t?.common.imageCropperHint || 'Drag to move · Scroll or +/− to zoom · Double-click to reset'} · Arrow keys to move
       </p>
     </div>
   );

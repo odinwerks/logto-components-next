@@ -167,8 +167,8 @@ export function IdentitiesTab({ userData, mode, colors, t, mobmode: _mobmode }: 
     border: `1px solid ${c.accentGreen}44`,
     letterSpacing: 0.2,
   };
-  // BUG-007: Light-mode accentGreen (#059669) on tint background has 3.34:1
-  // contrast. Use a darker green only in light mode.
+  // BUG-007: Keep the light identity badge on its #047857 foreground treatment;
+  // dark mode continues to use the theme accent.
   const successBadgeColor: React.CSSProperties = mode === 'light'
     ? { color: '#047857' }
     : { color: c.accentGreen };

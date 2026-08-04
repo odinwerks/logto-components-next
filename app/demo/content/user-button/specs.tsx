@@ -58,7 +58,7 @@ export default function UserButtonSpecs() {
 
   const customTdTypeStyle: React.CSSProperties = {
     ...customTdStyle,
-    color: isDark ? '#4ec9b0' : '#059669',
+    color: isDark ? '#4ec9b0' : '#047857',
     fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '0.75rem',
   };

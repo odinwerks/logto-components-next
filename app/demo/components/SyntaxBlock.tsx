@@ -11,19 +11,33 @@ interface Token {
   value: string;
 }
 
-// ─── VSCode Dark+ colors ────────────────────────────────────────────────────
+// ─── Theme-specific syntax colors ───────────────────────────────────────────
 
-const COLORS: Record<Token['type'], string> = {
-  comment:   '#6A9955',
-  string:    '#CE9178',
-  keyword:   '#569CD6',
-  type:      '#4EC9B0',
-  function:  '#DCDCAA',
-  number:    '#B5CEA8',
-  tag:       '#569CD6',
-  attribute: '#9CDCDB',
-  jsxExpr:   '#D4D4D4',
-  plain:     '#D4D4D4',
+export const SYNTAX_TOKEN_COLORS: Record<'dark' | 'light', Record<Token['type'], string>> = {
+  dark: {
+    comment:   '#6A9955',
+    string:    '#CE9178',
+    keyword:   '#569CD6',
+    type:      '#4EC9B0',
+    function:  '#DCDCAA',
+    number:    '#B5CEA8',
+    tag:       '#569CD6',
+    attribute: '#9CDCDB',
+    jsxExpr:   '#D4D4D4',
+    plain:     '#D4D4D4',
+  },
+  light: {
+    comment:   '#008000',
+    string:    '#A31515',
+    keyword:   '#0000FF',
+    type:      '#1F6F89',
+    function:  '#795E26',
+    number:    '#08764B',
+    tag:       '#0000FF',
+    attribute: '#795E26',
+    jsxExpr:   '#1F2937',
+    plain:     '#1F2937',
+  },
 };
 
 // ─── Tokenizer ──────────────────────────────────────────────────────────────
@@ -162,13 +176,13 @@ function tokenize(code: string): Token[] {
 
 // ─── Render highlighted code ────────────────────────────────────────────────
 
-function HighlightedCode({ code }: { code: string }) {
+function HighlightedCode({ code, colors }: { code: string; colors: Record<Token['type'], string> }) {
   const tokens = useMemo(() => tokenize(code), [code]);
 
   return (
     <code style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", fontSize: '0.75rem', lineHeight: 1.65, whiteSpace: 'pre' }}>
       {tokens.map((tok, i) => (
-        <span key={i} style={{ color: COLORS[tok.type] }}>{tok.value}</span>
+        <span key={i} style={{ color: colors[tok.type] }}>{tok.value}</span>
       ))}
     </code>
   );
@@ -191,9 +205,8 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
 
   const isDark = mode === 'dark';
 
-  // Frame / chrome colors — theme-aware
-  // Note: COLORS (token highlighting) stays dark-only: code editors conventionally
-  // use dark syntax colors even on light backgrounds, matching VS Code Dark+.
+  // Frame / chrome and token colors are theme-aware. The light token palette is
+  // independently tuned for normal-text contrast against the light code surface.
   const frameBorder   = isDark ? '#3c3c3c' : '#d1d5db';
   const titleBg       = isDark ? '#252526' : '#f3f4f6';
   const titleBorder   = isDark ? '#3c3c3c' : '#d1d5db';
@@ -271,7 +284,7 @@ export default function CodeBlock({ code, lang = 'tsx', title }: CodeBlockProps)
           overflowY: 'hidden',
           background: 'transparent',
         }}>
-          <HighlightedCode code={trimmedCode} />
+          <HighlightedCode code={trimmedCode} colors={SYNTAX_TOKEN_COLORS[mode]} />
         </pre>
 
         <button

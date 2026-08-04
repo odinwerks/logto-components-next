@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { ThemeColors } from '../../../themes';
+import { LIGHT_STATUS_TINTS, type ThemeColors } from '../../../themes';
 
 /**
  * Shared UI primitives for the dashboard.
@@ -78,7 +78,8 @@ export function IconBox({ children, color, mode, colors }: { children: React.Rea
 
   const colorStyles: Record<string, React.CSSProperties> = {
     blue: { background: isDark ? '#3b82f61a' : '#2563eb1a', border: '1px solid transparent' },
-    green: { background: isDark ? '#10b9811a' : '#0596691a', border: '1px solid transparent' },
+    // Light: #047857 at 10% over #f3f4f6 => #dbe7e6; #065f46 text is 6.07:1.
+    green: { background: isDark ? '#10b9811a' : LIGHT_STATUS_TINTS.green10, border: '1px solid transparent' },
     red: { background: c.errorBg, border: isDark ? '1px solid #ef44444d' : '1px solid #dc26264d' },
   };
 

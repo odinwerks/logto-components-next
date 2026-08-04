@@ -62,11 +62,13 @@ export const LIGHT_COLORS: ThemeColors = {
   bgTertiary: '#e5e7eb',
   textPrimary: '#111827',
   textSecondary: '#374151',
-  textTertiary: '#6b7280',
+  textTertiary: '#4b5563',
   borderColor: '#d1d5db',
-  accentGreen: '#059669',
+  // At 20% over bgSecondary, #065f46 composites to #c4d6d3 and keeps
+  // 5.09:1 contrast; #047857 only reached 3.77:1 on that status tint.
+  accentGreen: '#065f46',
   accentRed: '#dc2626',
-  accentYellow: '#d97706',
+  accentYellow: '#92400e',
   accentBlue: '#2563eb',
   successBg: '#d1fae5',
   errorBg: '#fee2e2',
@@ -74,6 +76,12 @@ export const LIGHT_COLORS: ThemeColors = {
   contrastText: '#fff',
   fontWeight: 500,
 };
+
+/** Explicit light-only translucent fills used by shared status primitives. */
+export const LIGHT_STATUS_TINTS = {
+  green10: '#0478571a',
+  amber10: '#92400e1a',
+} as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENV helpers

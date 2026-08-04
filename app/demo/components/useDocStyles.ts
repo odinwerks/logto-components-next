@@ -150,7 +150,7 @@ export function useDocStyles() {
     tdTypeStyle: {
       padding: '7px 10px',
       borderBottom: `1px solid var(--ldd-border-color)`,
-      color: isDark ? '#4ec9b0' : '#059669',
+      color: isDark ? '#4ec9b0' : '#047857',
       fontFamily: "'IBM Plex Mono', monospace",
       fontSize: '0.625rem',
       verticalAlign: 'top',

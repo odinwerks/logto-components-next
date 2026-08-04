@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { DARK_COLORS } from '../../../themes';
+import { DARK_COLORS, LIGHT_COLORS } from '../../../themes';
 import { enUS } from '../../../locales/en-US';
 import { FlowModal, PasswordVerifyModal, BackupCodesModal } from './FlowModal';
 
@@ -191,6 +191,29 @@ describe('FlowModal - TOTP auto-submit behavior', () => {
 });
 
 describe('BackupCodesModal - theming', () => {
+  it('resolves different warning tints per mode and preserves the original dark tint', () => {
+    const props = {
+      codes: [{ code: 'ABC123', used: false }],
+      isNew: true,
+      onDone: () => {},
+      onSuccess: () => {},
+      t: enUS,
+    };
+    const { rerender } = render(
+      <BackupCodesModal {...props} mode="dark" colors={DARK_COLORS} />,
+    );
+
+    const warning = screen.getByText(enUS.mfa.backupCodesWarning).parentElement;
+    expect(warning).toHaveStyle({ background: '#f59e0b1a' });
+
+    rerender(<BackupCodesModal {...props} mode="light" colors={LIGHT_COLORS} />);
+
+    expect(screen.getByText(enUS.mfa.backupCodesWarning).parentElement).toHaveStyle({
+      background: '#92400e1a',
+    });
+    expect('#f59e0b1a').not.toBe('#92400e1a');
+  });
+
   it('renders with theme colors for border, not hardcoded hex', () => {
     render(
       <BackupCodesModal

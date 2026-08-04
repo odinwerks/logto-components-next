@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import type { ThemeColors } from '../../../themes';
+import { LIGHT_STATUS_TINTS, type ThemeColors } from '../../../themes';
 import type { Translations } from '../../../locales';
 import { X, Eye, EyeOff, AlertTriangle, ChevronRight, Check, Copy, Download } from 'lucide-react';
 import { Button } from '../../shared/Button';
@@ -643,7 +643,8 @@ export function BackupCodesModal({
     text: c.textPrimary,
     sub: c.textSecondary,
     muted: c.textTertiary,
-    amberDim: '#f59e0b1a',
+    // Preserve the original dark fill; use the contrast-safe palette tint only in light mode.
+    amberDim: mode === 'dark' ? '#f59e0b1a' : LIGHT_STATUS_TINTS.amber10,
     amberText: c.accentYellow,
     accentYellow: c.accentYellow,
   };

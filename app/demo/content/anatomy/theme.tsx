@@ -149,7 +149,9 @@ const elementStyle: React.CSSProperties = {
           <tr>
             <td style={customTdPropStyle}>accentGreen</td>
             <td style={customTdStyle}><code>#059669</code></td>
-            <td style={customTdStyle}><code>#059669</code></td>
+            <td style={customTdStyle}>
+              <code>#065f46</code> (10% tint base <code>#047857</code>: <code>#0478571a</code>)
+            </td>
             <td style={customTdStyle}>Positive indicators, checked states, and active items.</td>
           </tr>
           <tr>
@@ -161,7 +163,9 @@ const elementStyle: React.CSSProperties = {
           <tr>
             <td style={customTdPropStyle}>accentYellow</td>
             <td style={customTdStyle}><code>#d97706</code></td>
-            <td style={customTdStyle}><code>#d97706</code></td>
+            <td style={customTdStyle}>
+              <code>#92400e</code> (10% tint <code>#92400e1a</code>)
+            </td>
             <td style={customTdStyle}>Warnings, pending setups, and configuration alerts.</td>
           </tr>
           <tr>
