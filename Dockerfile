@@ -3,7 +3,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Install all dependencies
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:25-alpine AS deps
+# Review the Node tag and registry digest periodically; update only after verifying it via Docker Registry API.
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -16,7 +17,8 @@ RUN npm ci
 # the client bundle by the Next.js compiler and cannot be changed at runtime.
 # Pass them via docker-compose build.args (sourced from your .env file).
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:25-alpine AS builder
+# Review the Node tag and registry digest periodically; update only after verifying it via Docker Registry API.
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -60,7 +62,8 @@ RUN npm run build
 # Copies only the minimal standalone output produced by output: 'standalone'.
 # Runs as a non-root user for container security.
 # ──────────────────────────────────────────────────────────────────────────────
-FROM node:25-alpine AS runner
+# Review the Node tag and registry digest periodically; update only after verifying it via Docker Registry API.
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

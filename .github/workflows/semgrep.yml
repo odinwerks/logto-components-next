@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: {} 
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -25,15 +25,16 @@ jobs:
 
       - name: Run Semgrep and generate SARIF
         run: >-
-          semgrep scan 
-          --config="p/default" 
-          --config="p/security-audit" 
-          --config="p/secrets" 
-          --config="p/typescript" 
-          --config="p/react" 
-          --config="p/nextjs" 
-          --sarif > semgrep.sarif
-        continue-on-error: true
+           semgrep scan
+           --config="p/default"
+           --config="p/security-audit"
+           --config="p/secrets"
+           --config="p/typescript"
+           --config="p/react"
+           --config="p/nextjs"
+           --severity=ERROR
+           --error
+           --sarif > semgrep.sarif
 
       - name: Upload alerts to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@4187e74d05793876e9989daffde9c3e66b4acd07  # v3.37.3 (pinned)

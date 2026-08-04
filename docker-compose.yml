@@ -90,7 +90,8 @@ services:
   # Configure the tunnel routing in the Cloudflare dashboard:
   #   Public hostname → http://logto-dash:2999
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Review the tag and registry digest periodically; update only after verifying it via Docker Registry API.
+    image: cloudflare/cloudflared:latest@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf
     command: tunnel --no-autoupdate run
     networks:
       - dash-net
@@ -113,8 +114,6 @@ services:
       - dash-net
     ports:
       - "127.0.0.1:2998:6379"
-    env_file:
-      - .env
     restart: unless-stopped
 
 volumes: {}
