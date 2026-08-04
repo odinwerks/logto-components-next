@@ -52,11 +52,13 @@ describe('useAsyncList', () => {
 
   it('discards stale result when sourceKey changes mid-flight', async () => {
     let resolveFirst: (v: DataResult<string>) => void = () => {};
+    let resolveSecond: (v: DataResult<string>) => void = () => {};
     const first = new Promise<DataResult<string>>((r) => { resolveFirst = r; });
+    const second = new Promise<DataResult<string>>((r) => { resolveSecond = r; });
 
     const loader = vi.fn()
       .mockReturnValueOnce(first)
-      .mockResolvedValue({ ok: true, data: 'second' } as DataResult<string>);
+      .mockReturnValueOnce(second);
 
     const { result, rerender } = renderHook(
       ({ sourceKey }) => useAsyncList({ loader, sourceKey }),
@@ -68,13 +70,25 @@ describe('useAsyncList', () => {
     // Change sourceKey before first resolves
     rerender({ sourceKey: 'org-2' });
 
+    // A new source fails closed while its request is pending.
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loading).toBe(true);
+
     // Resolve stale first fetch
     await act(async () => {
       resolveFirst({ ok: true, data: 'stale' });
       await Promise.resolve();
     });
 
-    // Stale result should be discarded; items should be from second fetch
+    // Stale result should be discarded while the current fetch remains pending.
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      resolveSecond({ ok: true, data: 'second' });
+      await Promise.resolve();
+    });
+
     expect(result.current.items).toBe('second');
     expect(result.current.loading).toBe(false);
     expect(loader).toHaveBeenCalledTimes(2);
@@ -151,6 +165,32 @@ describe('useAsyncList', () => {
     expect(loader).not.toHaveBeenCalled();
   });
 
+  it('settles loading when disabled mid-fetch and ignores the stale completion', async () => {
+    let resolveLoad: (v: DataResult<string[]>) => void = () => {};
+    const pending = new Promise<DataResult<string[]>>((resolve) => { resolveLoad = resolve; });
+    const loader = vi.fn().mockReturnValue(pending);
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useAsyncList<string[]>({ loader, enabled }),
+      { initialProps: { enabled: true } },
+    );
+
+    expect(result.current.loading).toBe(true);
+    rerender({ enabled: false });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.items).toEqual([]);
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      resolveLoad({ ok: true, data: ['stale'] });
+      await pending;
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.items).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
   // ─── sourceKey change triggers re-fetch ─────────────────────────────────────
 
   it('re-fetches when sourceKey changes', async () => {
@@ -175,7 +215,7 @@ describe('useAsyncList', () => {
 
   // ─── Keeps previous items while loading ─────────────────────────────────────
 
-  it('keeps previous items while loading new data', async () => {
+  it('keeps previous items while refreshing the same source', async () => {
     let resolveSecond: (v: DataResult<string[]>) => void = () => {};
     const second = new Promise<DataResult<string[]>>((r) => { resolveSecond = r; });
 
@@ -183,15 +223,12 @@ describe('useAsyncList', () => {
       .mockResolvedValueOnce({ ok: true, data: ['old'] } as DataResult<string[]>)
       .mockReturnValueOnce(second);
 
-    const { result, rerender } = renderHook(
-      ({ sourceKey }) => useAsyncList({ loader, sourceKey }),
-      { initialProps: { sourceKey: 'org-1' } },
-    );
+    const { result } = renderHook(() => useAsyncList({ loader, sourceKey: 'org-1' }));
 
     await act(async () => { await Promise.resolve(); });
     expect(result.current.items).toEqual(['old']);
 
-    rerender({ sourceKey: 'org-2' });
+    act(() => { result.current.refresh(); });
 
     // Loading: should still show old items
     expect(result.current.loading).toBe(true);
@@ -203,6 +240,35 @@ describe('useAsyncList', () => {
     });
 
     expect(result.current.items).toEqual(['new']);
+  });
+
+  it('clears prior-source rows and retains the empty snapshot when the new source fails', async () => {
+    let resolveSecond: (v: DataResult<string[]>) => void = () => {};
+    const second = new Promise<DataResult<string[]>>((resolve) => { resolveSecond = resolve; });
+    const loader = vi.fn()
+      .mockResolvedValueOnce({ ok: true, data: ['org-a-role'] } as DataResult<string[]>)
+      .mockReturnValueOnce(second);
+
+    const { result, rerender } = renderHook(
+      ({ sourceKey }) => useAsyncList<string[]>({ loader, sourceKey }),
+      { initialProps: { sourceKey: 'org-a' } },
+    );
+
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.items).toEqual(['org-a-role']);
+
+    rerender({ sourceKey: 'org-b' });
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      resolveSecond({ ok: false, error: 'ORG_B_FAILED' });
+      await second;
+    });
+
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBe('ORG_B_FAILED');
   });
 
   // ─── initialData seeding (instant-fetch / streaming) ───────────────────────

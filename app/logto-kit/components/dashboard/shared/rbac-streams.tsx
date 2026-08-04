@@ -48,13 +48,19 @@ export function PersonalRolesStream({
    */
   render: (initialData: UserRole[] | undefined) => ReactNode;
 }) {
-  const { personalRbacPromise } = useRbacPromises();
+  const { personalRbacPromise, personalGeneration } = useRbacPromises();
   if (!personalRbacPromise) {
     // No promise (defensive — the RSC always provides one for authenticated
     // users). Render with undefined so the hook fetches on mount.
     return <>{render(undefined)}</>;
   }
-  return <PersonalRolesResolved promise={personalRbacPromise} render={render} />;
+  return (
+    <PersonalRolesResolved
+      key={personalGeneration}
+      promise={personalRbacPromise}
+      render={render}
+    />
+  );
 }
 
 function PersonalRolesResolved({
@@ -75,11 +81,17 @@ export function PersonalPermissionsStream({
 }: {
   render: (initialData: PersonalPermission[] | undefined) => ReactNode;
 }) {
-  const { personalRbacPromise } = useRbacPromises();
+  const { personalRbacPromise, personalGeneration } = useRbacPromises();
   if (!personalRbacPromise) {
     return <>{render(undefined)}</>;
   }
-  return <PersonalPermissionsResolved promise={personalRbacPromise} render={render} />;
+  return (
+    <PersonalPermissionsResolved
+      key={personalGeneration}
+      promise={personalRbacPromise}
+      render={render}
+    />
+  );
 }
 
 function PersonalPermissionsResolved({
@@ -108,7 +120,7 @@ export function OrgRolesStream({
    */
   render: (initialData: UserRole[] | undefined) => ReactNode;
 }) {
-  const { orgRbacPromise } = useRbacPromises();
+  const { orgRbacPromise, orgGeneration } = useRbacPromises();
   if (!orgRbacPromise) {
     // No promise — could be "no active org" OR "active org but RSC didn't
     // pre-fetch" (e.g., during the interim between org-switch and
@@ -116,7 +128,7 @@ export function OrgRolesStream({
     // `undefined` so the downstream hook decides whether to fetch.
     return <>{render(undefined)}</>;
   }
-  return <OrgRolesResolved promise={orgRbacPromise} render={render} />;
+  return <OrgRolesResolved key={orgGeneration} promise={orgRbacPromise} render={render} />;
 }
 
 function OrgRolesResolved({
@@ -149,11 +161,11 @@ export function OrgPermissionsStream({
     initialData: { permissions: string[]; descriptions: Map<string, OrgRoleScope> } | undefined,
   ) => ReactNode;
 }) {
-  const { orgRbacPromise } = useRbacPromises();
+  const { orgRbacPromise, orgGeneration } = useRbacPromises();
   if (!orgRbacPromise) {
     return <>{render(undefined)}</>;
   }
-  return <OrgPermissionsResolved promise={orgRbacPromise} render={render} />;
+  return <OrgPermissionsResolved key={orgGeneration} promise={orgRbacPromise} render={render} />;
 }
 
 function OrgPermissionsResolved({

@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Suspense, useState, useEffect, act } from 'react';
 import { RbacPromisesProvider, useRbacPromises } from '../../providers/rbac-stream-context';
+import { usePersonalRoles } from '../../../hooks/use-personal-roles';
+import { useOrgPermissions } from '../../../hooks/use-org-permissions';
+import {
+  loadOrganizationPermissions,
+  loadOrgPermissionDescriptions,
+} from '../../../server-actions';
 import {
   PersonalRolesStream,
   PersonalPermissionsStream,
@@ -15,6 +21,12 @@ import type {
   PersonalPermission,
   OrgRoleScope,
 } from '../../../logic/types';
+
+vi.mock('../../../server-actions', () => ({
+  loadPersonalRoles: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+  loadOrganizationPermissions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+  loadOrgPermissionDescriptions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+}));
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -102,6 +114,154 @@ describe('RbacPromisesProvider + useRbacPromises', () => {
       </RbacPromisesProvider>,
     );
     expect(screen.getByTestId('org-null').textContent).toBe('null');
+  });
+
+  it('preserves unrelated state while replacing streamed hook data across two generations', async () => {
+    const first = makeControllablePromise<PersonalRbacResult>();
+    const second = makeControllablePromise<PersonalRbacResult>();
+    let unrelatedMounts = 0;
+    let activeSubscriptions = 0;
+    let maxActiveSubscriptions = 0;
+
+    function UnrelatedState() {
+      const [draft, setDraft] = useState('');
+      useEffect(() => {
+        unrelatedMounts++;
+      }, []);
+      return (
+        <input
+          aria-label="unrelated draft"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      );
+    }
+
+    function MountedRoles({ initialRoles }: { initialRoles: UserRole[] | undefined }) {
+      const { roles } = usePersonalRoles('user-1', initialRoles);
+      useEffect(() => {
+        activeSubscriptions++;
+        maxActiveSubscriptions = Math.max(maxActiveSubscriptions, activeSubscriptions);
+        return () => {
+          activeSubscriptions--;
+        };
+      }, []);
+      return <span data-testid="mounted-roles">{roles.map((role) => role.name).join(',')}</span>;
+    }
+
+    function Harness({ promise }: { promise: Promise<PersonalRbacResult> }) {
+      return (
+        <RbacPromisesProvider personalRbacPromise={promise} orgRbacPromise={null}>
+          <UnrelatedState />
+          <Suspense fallback={<Fallback label="loading-refreshed-roles" />}>
+            <PersonalRolesStream
+              render={(initialRoles) => <MountedRoles initialRoles={initialRoles} />}
+            />
+          </Suspense>
+        </RbacPromisesProvider>
+      );
+    }
+
+    let rerender!: ReturnType<typeof render>['rerender'];
+    await act(async () => {
+      const rendered = render(<Harness promise={first.promise} />);
+      rerender = rendered.rerender;
+    });
+    await act(async () => {
+      first.resolve({ roles: [makeRole('old', 'Old role')], permissions: [] });
+      await first.promise;
+    });
+    expect(screen.getByTestId('mounted-roles').textContent).toBe('Old role');
+    fireEvent.change(screen.getByRole('textbox', { name: 'unrelated draft' }), {
+      target: { value: 'keep this draft' },
+    });
+    expect(unrelatedMounts).toBe(1);
+    expect(activeSubscriptions).toBe(1);
+
+    await act(async () => {
+      rerender(<Harness promise={second.promise} />);
+    });
+    expect(screen.getByTestId('fallback').textContent).toBe('loading-refreshed-roles');
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'unrelated draft' }).value)
+      .toBe('keep this draft');
+    expect(unrelatedMounts).toBe(1);
+    expect(activeSubscriptions).toBe(1);
+
+    await act(async () => {
+      second.resolve({ roles: [makeRole('new', 'New role')], permissions: [] });
+      await second.promise;
+    });
+    expect(screen.getByTestId('mounted-roles').textContent).toBe('New role');
+    expect(activeSubscriptions).toBe(1);
+    expect(maxActiveSubscriptions).toBe(1);
+  });
+
+  it('never mounts live loaders for superseded A→B→C stream generations and settles on C', async () => {
+    const first = makeControllablePromise<OrgRbacResult>();
+    const second = makeControllablePromise<OrgRbacResult>();
+    const third = makeControllablePromise<OrgRbacResult>();
+
+    function MountedPermissions({
+      orgId,
+      initialData,
+    }: {
+      orgId: string;
+      initialData: { permissions: string[]; descriptions: Map<string, OrgRoleScope> } | undefined;
+    }) {
+      const { permissions } = useOrgPermissions({ orgId, initialData });
+      return <span data-testid="mounted-permissions">{permissions.join(',')}</span>;
+    }
+
+    function Harness({
+      orgId,
+      promise,
+    }: {
+      orgId: string;
+      promise: Promise<OrgRbacResult>;
+    }) {
+      return (
+        <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={promise}>
+          <Suspense fallback={<Fallback label={`loading-${orgId}`} />}>
+            <OrgPermissionsStream
+              render={(initialData) => (
+                <MountedPermissions orgId={orgId} initialData={initialData} />
+              )}
+            />
+          </Suspense>
+        </RbacPromisesProvider>
+      );
+    }
+
+    let rerender!: ReturnType<typeof render>['rerender'];
+    await act(async () => {
+      const rendered = render(<Harness orgId="A" promise={first.promise} />);
+      rerender = rendered.rerender;
+    });
+    await act(async () => {
+      first.resolve({ roles: [], permissions: [makeOrgScope('a', 'scope:A')] });
+      await first.promise;
+    });
+    expect(screen.getByTestId('mounted-permissions').textContent).toBe('scope:A');
+
+    await act(async () => {
+      rerender(<Harness orgId="B" promise={second.promise} />);
+    });
+    await act(async () => {
+      rerender(<Harness orgId="C" promise={third.promise} />);
+    });
+
+    expect(loadOrganizationPermissions).not.toHaveBeenCalled();
+    expect(loadOrgPermissionDescriptions).not.toHaveBeenCalled();
+    expect(screen.getByTestId('fallback').textContent).toBe('loading-C');
+
+    await act(async () => {
+      third.resolve({ roles: [], permissions: [makeOrgScope('c', 'scope:C')] });
+      await third.promise;
+    });
+
+    expect(screen.getByTestId('mounted-permissions').textContent).toBe('scope:C');
+    expect(loadOrganizationPermissions).not.toHaveBeenCalled();
+    expect(loadOrgPermissionDescriptions).not.toHaveBeenCalled();
   });
 });
 

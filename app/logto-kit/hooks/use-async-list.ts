@@ -51,27 +51,38 @@ type ListState<T> = {
   items: T;
   loading: boolean;
   error: string | null;
+  sourceKey: string | null | undefined;
 };
 
 type ListAction<T> =
-  | { type: 'start' }
-  | { type: 'success'; data: T }
-  | { type: 'error'; error: string }
-  | { type: 'reset'; items: T };
+  | { type: 'start'; sourceKey: string | null | undefined; emptyItems: T }
+  | { type: 'success'; sourceKey: string | null | undefined; data: T }
+  | { type: 'error'; sourceKey: string | null | undefined; error: string }
+  | { type: 'idle'; sourceKey: string | null | undefined; emptyItems: T };
 
 function listReducer<T>(state: ListState<T>, action: ListAction<T>): ListState<T> {
   switch (action.type) {
     case 'start':
-      // Keep previous items while loading so the list doesn't flash empty
-      return { ...state, loading: true, error: null };
+      // Same-source refreshes retain rows. A source identity change fails
+      // closed so data from (for example) the prior organization cannot be
+      // displayed while the new request is pending.
+      return {
+        items: state.sourceKey === action.sourceKey ? state.items : action.emptyItems,
+        loading: true,
+        error: null,
+        sourceKey: action.sourceKey,
+      };
     case 'success':
-      return { items: action.data, loading: false, error: null };
+      return { items: action.data, loading: false, error: null, sourceKey: action.sourceKey };
     case 'error':
-      return { ...state, loading: false, error: action.error };
-    case 'reset':
-      // Clear stale items from the previous source on sourceKey change
-      // before the new fetch begins (BUG-M04).
-      return { items: action.items, loading: false, error: null };
+      return { ...state, loading: false, error: action.error, sourceKey: action.sourceKey };
+    case 'idle':
+      return {
+        items: state.sourceKey === action.sourceKey ? state.items : action.emptyItems,
+        loading: false,
+        error: null,
+        sourceKey: action.sourceKey,
+      };
   }
 }
 
@@ -84,10 +95,12 @@ export function useAsyncList<T>({
   enabled = true,
   initialData,
 }: UseAsyncListOptions<T>): UseAsyncListReturn<T> {
+  const emptyItems = [] as unknown as T;
   const [state, dispatch] = useReducer(listReducer<T>, {
-    items: (initialData ?? ([] as unknown as T)),
+    items: (initialData ?? emptyItems),
     loading: enabled && initialData === undefined,
     error: null,
+    sourceKey,
   });
 
   const generationRef = useRef(0);
@@ -120,34 +133,28 @@ export function useAsyncList<T>({
 
     if (!active) {
       generationRef.current++;
+      // Invalidating the generation prevents stale completion, while this
+      // explicit transition deterministically settles a pending spinner.
+      dispatch({ type: 'idle', sourceKey, emptyItems });
       return;
     }
 
-    // On sourceKey change with initialData, reset items to the seeded data
-    // before the new fetch so stale data from the previous source is never
-    // shown (BUG-M04). When initialData is undefined, preserve the legacy
-    // "keep previous items while loading" behavior via the `start` action.
-    const sourceKeyChanged = prevSourceKeyRef.current !== sourceKey;
-    if (sourceKeyChanged && initialData !== undefined) {
-      dispatch({ type: 'reset', items: initialData });
-    }
-
     const generation = ++generationRef.current;
-    dispatch({ type: 'start' });
+    dispatch({ type: 'start', sourceKey, emptyItems });
 
     loader()
       .then((result) => {
         if (generation !== generationRef.current) return;
         if (result.ok) {
-          dispatch({ type: 'success', data: result.data });
+          dispatch({ type: 'success', sourceKey, data: result.data });
         } else {
-          dispatch({ type: 'error', error: result.error });
+          dispatch({ type: 'error', sourceKey, error: result.error });
         }
       })
       .catch((err) => {
         if (generation !== generationRef.current) return;
         const message = err instanceof Error ? err.message : 'FETCH_FAILED';
-        dispatch({ type: 'error', error: message });
+        dispatch({ type: 'error', sourceKey, error: message });
       });
 
     return () => {
@@ -184,10 +191,14 @@ export function useAsyncList<T>({
     }
   }, [strategy, triggerRefresh]);
 
+  // Effects run after render. Mask a mismatched snapshot synchronously so a
+  // source switch cannot commit even one render containing prior-source rows.
+  const stateMatchesSource = state.sourceKey === sourceKey;
+
   return {
-    items: state.items,
-    loading: state.loading,
-    error: state.error,
+    items: stateMatchesSource ? state.items : emptyItems,
+    loading: active && (stateMatchesSource ? state.loading : true),
+    error: stateMatchesSource ? state.error : null,
     visible,
     refresh,
   };

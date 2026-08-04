@@ -20,11 +20,10 @@ import type { PersonalRbacResult, OrgRbacResult } from '../../logic/types';
  *
  * Promise identity:
  *   The promises are created in the RSC (server-side) and passed as stable
- *   props. The provider value is memoized on the promise identities —
- *   re-renders of the shell with the same promise props do not create a
- *   new context value. The RSC re-creates the promises only on
- *   `router.refresh()` / org-switch, which is exactly when consumers
- *   should re-suspend via `use()`.
+ *   props. Re-renders with the same promise props retain the context value.
+ *   When an RSC refresh supplies a new identity, only the corresponding
+ *   resolved-stream subtree is reset before consumers re-suspend via `use()`;
+ *   the provider's complete child tree is never keyed or remounted.
  *
  * Consumption:
  *   Stream consumers (`PersonalRolesStream`, `OrgRolesStream`, etc. in
@@ -43,9 +42,24 @@ import type { PersonalRbacResult, OrgRbacResult } from '../../logic/types';
 interface RbacPromisesValue {
   personalRbacPromise: Promise<PersonalRbacResult> | undefined;
   orgRbacPromise: Promise<OrgRbacResult> | null;
+  personalGeneration: number;
+  orgGeneration: number;
 }
 
 const RbacPromisesContext = createContext<RbacPromisesValue | null>(null);
+const promiseGenerations = new WeakMap<Promise<unknown>, number>();
+let nextGeneration = 1;
+
+function getPromiseGeneration(promise: Promise<unknown> | null | undefined): number {
+  if (!promise) return 0;
+
+  const existing = promiseGenerations.get(promise);
+  if (existing !== undefined) return existing;
+
+  const generation = nextGeneration++;
+  promiseGenerations.set(promise, generation);
+  return generation;
+}
 
 interface RbacPromisesProviderProps {
   /** Streamed personal RBAC promise (roles + permissions). */
@@ -68,14 +82,15 @@ export function RbacPromisesProvider({
   // simple null check without also handling undefined.
   const normalizedOrgPromise = orgRbacPromise ?? null;
   const value = useMemo<RbacPromisesValue>(
-    () => ({ personalRbacPromise, orgRbacPromise: normalizedOrgPromise }),
+    () => ({
+      personalRbacPromise,
+      orgRbacPromise: normalizedOrgPromise,
+      personalGeneration: getPromiseGeneration(personalRbacPromise),
+      orgGeneration: getPromiseGeneration(normalizedOrgPromise),
+    }),
     [personalRbacPromise, normalizedOrgPromise],
   );
-  return (
-    <RbacPromisesContext.Provider value={value}>
-      {children}
-    </RbacPromisesContext.Provider>
-  );
+  return <RbacPromisesContext.Provider value={value}>{children}</RbacPromisesContext.Provider>;
 }
 
 export function useRbacPromises(): RbacPromisesValue {
