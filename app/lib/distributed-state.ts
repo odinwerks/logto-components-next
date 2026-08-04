@@ -2,15 +2,18 @@
  * Centralized distributed-state module.
  *
  * Provides rate limiting, distributed locking, and token caching with
- * automatic Redis/in-memory backend switching.
+ * explicit Redis readiness validation and in-memory operation when Redis is
+ * not configured.
  *
  * Backend selection:
  *   - REDIS_URL undefined  → in-memory backend (silent, no Redis required)
- *   - REDIS_URL defined    → Redis backend; FAILS FAST if connection fails,
- *                             with bounded retry (CAN-STATE-006) so recovery
- *                             does not require a process restart
+ *   - REDIS_URL defined    → Redis backend; initDistributedState() FAILS FAST
+ *                             if startup connect/PING fails. Runtime retries
+ *                             remain bounded so recovery does not require a
+ *                             process restart.
  *
  * Exports:
+ *   initDistributedState()      — startup/readiness validation hook
  *   createRateLimiter(options)  — rate limiter factory
  *   createLockManager(name)     — per-key lock manager factory
  *   tokenCache                  — singleton M2M token cache
@@ -211,6 +214,41 @@ class InMemoryBackend implements Backend {
   }
 }
 
+/**
+ * Bounded, retained per-limiter fallback used whenever configured Redis is
+ * initializing or unavailable. One instance is created by each limiter and
+ * survives every connection retry, so an outage can never reset its counters.
+ */
+class RetainedRateLimitFallback {
+  private readonly entries = new Map<string, { count: number; resetAt: number }>();
+  private static readonly MAX_ENTRIES = 10_000;
+
+  check(namespace: string, key: string, windowMs: number, max: number): boolean {
+    const mapKey = `${namespace}|${key}`;
+    const now = Date.now();
+    const entry = this.entries.get(mapKey);
+
+    if (!entry || now > entry.resetAt) {
+      if (!entry && this.entries.size >= RetainedRateLimitFallback.MAX_ENTRIES) {
+        const oldestKey = this.entries.keys().next().value;
+        if (oldestKey !== undefined) {
+          this.entries.delete(oldestKey);
+        }
+      }
+      this.entries.set(mapKey, { count: 1, resetAt: now + windowMs });
+      return true;
+    }
+
+    if (entry.count >= max) return false;
+    entry.count++;
+    return true;
+  }
+
+  reset(namespace: string, key: string): void {
+    this.entries.delete(`${namespace}|${key}`);
+  }
+}
+
 // ============================================================================
 // Redis backend
 // ============================================================================
@@ -244,21 +282,6 @@ class RedisBackend implements Backend {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly client: any;
 
-  /**
-   * Per-instance fallback in-memory rate limiter for degraded mode.
-   *
-   * When Redis throws during rateLimitCheck, we log a warning and fall back
-   * to this local in-memory map. This is DEGRADED MODE — not fail-closed.
-   * The fallback is bounded to prevent unbounded memory growth.
-   *
-   * NOTE: In a multi-instance deployment, degraded mode only enforces per-instance
-   * limits (not global distributed limits). This is intentional and documented.
-   * The alternative (fail-closed) would deny all requests when Redis is down,
-   * which is worse for availability in most deployments.
-   */
-  private readonly _fallbackRateLimits = new Map<string, { count: number; resetAt: number }>();
-  private static readonly FALLBACK_MAP_MAX_ENTRIES = 10_000;
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(client: any) {
     this.client = client;
@@ -268,75 +291,19 @@ class RedisBackend implements Backend {
     const mapKey = `rl:${namespace}|${key}`;
     const windowSec = Math.ceil(windowMs / 1000);
 
-    try {
-      const result = await this.client.eval(
-        RATE_LIMIT_LUA_SCRIPT,
-        1,
-        mapKey,
-        String(max),
-        String(windowSec),
-      );
-      return result === 1;
-    } catch (err) {
-      // Redis error during rate limit check: DEGRADED MODE.
-      // Fall back to per-instance in-memory rate limiter rather than fail-closed.
-      // This preserves availability when Redis is temporarily unavailable,
-      // at the cost of distributed enforcement (each instance enforces independently).
-      const errMsg = (err as Error).message ?? '';
-      const isAuthError = errMsg.includes('WRONGPASS') || errMsg.includes('NOAUTH');
-      if (isAuthError) {
-        // Auth failures are logged at ERROR level — operators must fix the password.
-        // The fallback is still used so the app stays up, but the misconfiguration
-        // is surfaced loudly. In high-assurance deployments, re-throw here instead.
-        console.error(
-          `[RateLimit] Redis authentication failed for key "${mapKey}" — ` +
-          `check REDIS_PASSWORD. Falling back to per-instance in-memory limit. ` +
-          `Original error: ${errMsg}`,
-        );
-      } else {
-        console.warn(
-          `[RateLimit] Redis unavailable for key "${mapKey}" — falling back to per-instance in-memory limit. ` +
-          `Original error: ${errMsg}`,
-        );
-      }
-      return this._fallbackRateLimitCheck(namespace, key, windowMs, max);
-    }
-  }
-
-  /**
-   * Per-instance in-memory rate limit check for degraded mode.
-   * Bounded to FALLBACK_MAP_MAX_ENTRIES to prevent memory exhaustion.
-   */
-  private _fallbackRateLimitCheck(
-    namespace: string,
-    key: string,
-    windowMs: number,
-    max: number,
-  ): boolean {
-    const mapKey = `${namespace}|${key}`;
-    const now = Date.now();
-    const entry = this._fallbackRateLimits.get(mapKey);
-
-    if (!entry || now > entry.resetAt) {
-      // Evict oldest entry if at capacity before adding new one
-      if (!entry && this._fallbackRateLimits.size >= RedisBackend.FALLBACK_MAP_MAX_ENTRIES) {
-        const firstKey = this._fallbackRateLimits.keys().next().value;
-        if (firstKey !== undefined) {
-          this._fallbackRateLimits.delete(firstKey);
-        }
-      }
-      this._fallbackRateLimits.set(mapKey, { count: 1, resetAt: now + windowMs });
-      return true;
-    }
-    if (entry.count >= max) return false;
-    entry.count++;
-    return true;
+    const result = await this.client.eval(
+      RATE_LIMIT_LUA_SCRIPT,
+      1,
+      mapKey,
+      String(max),
+      String(windowSec),
+    );
+    return result === 1;
   }
 
   async rateLimitReset(namespace: string, key: string): Promise<void> {
     const mapKey = `rl:${namespace}|${key}`;
     void this.client.del(mapKey).catch(() => {});
-    this._fallbackRateLimits.delete(`${namespace}|${key}`);
   }
 
   async lockAcquire(namespace: string, key: string): Promise<() => Promise<void>> {
@@ -468,11 +435,12 @@ class RedisBackend implements Backend {
 }
 
 // ============================================================================
-// Backend initialization (lazy singleton)
+// Backend initialization (startup-validated singleton)
 // ============================================================================
 
 let _backend: Backend | null = null;
 let _backendInitError: Error | null = null;
+let _redisHealth: 'unknown' | 'healthy' | 'degraded' = 'unknown';
 
 /**
  * Timestamp (Date.now()) of the most recent Redis init attempt (CAN-STATE-006).
@@ -507,18 +475,16 @@ const RETRY_INTERVAL_MS = parseRetryIntervalMs(process.env.REDIS_RETRY_INTERVAL_
  * Active-init latch for backend readiness (CAN-STATE-005).
  *
  * - `null` when no Redis URL is configured (pure in-memory backend) or before
- *   any getBackend() call has triggered Redis init.
+ *   any initialization call has triggered Redis init.
  * - A `Promise<void>` only while getBackend() has a Redis init attempt in
- *   flight. The promise NEVER rejects — the `.catch` handler in getBackend()
+ *   flight. The promise NEVER rejects — the `.catch` handler in
+ *   startRedisInitialization()
  *   swallows the rejection and records the failure in `_backendInitError`.
  *
- * createLockManager().acquire() awaits this latch before issuing a lock so
- * that exactly one authoritative backend (in-memory OR Redis) grants locks
- * for a given key — never both during the cold-init handoff. Without this
- * gate, a lock acquired from the temporary in-memory stand-in and a same-key
- * lock later acquired from the Redis backend could both be held, splitting
- * lock ownership across backends and bypassing mutual exclusion for the
- * profile/MFA critical sections.
+ * createLockManager().acquire() awaits this latch before issuing a lock. Redis
+ * initialization never exposes the rate limiter's local fallback through the
+ * Backend interface, so lock ownership cannot split across local and Redis
+ * backends during a cold-init handoff.
  */
 let _pendingBackendInit: Promise<void> | null = null;
 
@@ -542,13 +508,60 @@ async function initRedisBackend(redisUrl: string): Promise<Backend> {
   return new RedisBackend(client);
 }
 
+function reportRedisDegraded(error: Error): void {
+  if (_redisHealth === 'degraded') return;
+  _redisHealth = 'degraded';
+  console.error(
+    `[DistributedState] Redis readiness failed; configured distributed state is degraded. ${error.message}`,
+  );
+}
+
+function reportRedisHealthy(): void {
+  if (_redisHealth === 'degraded') {
+    console.info('[DistributedState] Redis recovered; distributed state is healthy.');
+  }
+  _redisHealth = 'healthy';
+}
+
+/** Starts one Redis connect+PING attempt and records its settled state. */
+function startRedisInitialization(redisUrl: string): void {
+  if (_pendingBackendInit) return;
+
+  _lastInitAttemptAt = Date.now();
+  const initPromise = initRedisBackend(redisUrl)
+    .then((redisBackend) => {
+      _backend = redisBackend;
+      _backendInitError = null;
+      reportRedisHealthy();
+    })
+    .catch((err: Error) => {
+      const isAuthError = err.message.includes('WRONGPASS') || err.message.includes('NOAUTH');
+      const authHint = isAuthError
+        ? ' This is a Redis authentication failure — check that REDIS_PASSWORD is set correctly.'
+        : '';
+      _backendInitError = new Error(
+        `REDIS_URL is set but Redis connection failed: ${err.message}.${authHint} ` +
+          'Fix the Redis connection or unset REDIS_URL to use in-memory backend.',
+      );
+      _backend = null;
+      reportRedisDegraded(_backendInitError);
+    });
+
+  _pendingBackendInit = initPromise;
+  void initPromise.then(() => {
+    if (_pendingBackendInit === initPromise) {
+      _pendingBackendInit = null;
+    }
+  });
+}
+
 /**
- * Returns the active backend, initializing it on first call.
+ * Returns the active backend, starting initialization on first call.
  * - No REDIS_URL → in-memory (silent)
  * - REDIS_URL set → Redis (fail fast on connection error, with bounded retry)
  *
- * During the Redis init window, uses in-memory backend as a stand-in.
- * A warning is logged because rate limits during this window are per-instance only.
+ * During Redis initialization this throws. Rate limiter instances catch the
+ * error and use their own retained bounded fallback; locks remain fail-closed.
  *
  * CAN-STATE-006: After a Redis init failure, throws _backendInitError
  * (fail-closed for locks) until RETRY_INTERVAL_MS elapses, then attempts
@@ -566,74 +579,17 @@ function getBackend(): Backend {
   }
 
   // REDIS_URL is set. If a previous init failed (CAN-STATE-006), decide
-  // whether to retry or throw (fail-closed). The retry is bounded by
-  // RETRY_INTERVAL_MS to prevent retry storms — between attempts, getBackend()
-  // throws _backendInitError so locks stay fail-closed and the rate limiter
-  // catches and allows-through. Once the interval elapses, the error is
-  // cleared and reinitialization is attempted. On success, Redis resumes;
-  // on failure, the error is re-set and the next retry is scheduled.
+  // whether a bounded retry is due. Between attempts, locks stay fail-closed
+  // and each limiter uses its retained local quota.
   if (_backendInitError) {
     if (Date.now() - _lastInitAttemptAt < RETRY_INTERVAL_MS) {
-      // Retry not due yet — fail-closed for locks; rate limiter catches.
+      // Retry not due yet — fail-closed for locks; rate limiter falls back.
       throw _backendInitError;
     }
-    // Retry is due: clear the error and fall through to reinitialize.
-    _backendInitError = null;
   }
 
-  // Redis URL is set: initialize synchronously using in-memory backend as
-  // a temporary stand-in, then replace once connection is established.
-  //
-  // NOTE: During the Redis init window, rate limits are per-instance only.
-  // A warning is logged to alert operators.
-  //
-  // CAN-STATE-005: The active init promise is captured in `_pendingBackendInit` so lock
-  // acquisitions can await backend settlement before granting locks (see
-  // getSettledBackendForLock). The temporary in-memory stand-in is intentionally NOT
-  // used for locks — without the latch, a lock acquired from it and a same-key
-  // Redis lock acquired post-settlement could both be held, splitting lock
-  // ownership across backends. The captured promise never rejects; the
-  // `.catch` handler swallows the rejection and records the failure in
-  // `_backendInitError`, so lock gating fails closed via getBackend() throwing.
-  //
-  // CAN-STATE-006: _lastInitAttemptAt is set so the bounded retry knows when
-  // the next reconnection attempt is due.
-  const tempBackend = new InMemoryBackend();
-  _backend = tempBackend;
-  _lastInitAttemptAt = Date.now();
-
-  // Kick off async init and capture the settlement latch. The handler chain
-  // resolves (never rejects) on both success and failure.
-  const initPromise = initRedisBackend(redisUrl)
-    .then((redisBackend) => {
-      _backend = redisBackend;
-      // Success: _backendInitError stays null (already cleared above if this
-      // was a retry). Redis is healthy — locks and rate limiting resume.
-    })
-    .catch((err: Error) => {
-      const isAuthError = err.message.includes('WRONGPASS') || err.message.includes('NOAUTH');
-      const authHint = isAuthError
-        ? ' This is a Redis authentication failure — check that REDIS_PASSWORD is set correctly.'
-        : '';
-      _backendInitError = new Error(
-        `REDIS_URL is set but Redis connection failed: ${err.message}.${authHint} ` +
-          'Fix the Redis connection or unset REDIS_URL to use in-memory backend.',
-      );
-      // Clear backend so the next getBackend() call either throws (retry not
-      // due) or reinitializes (retry due).
-      _backend = null;
-    });
-
-  _pendingBackendInit = initPromise;
-  // Clear only if this is still the active attempt. This identity check keeps
-  // a prior attempt's settlement from clearing a later retry's latch.
-  void initPromise.then(() => {
-    if (_pendingBackendInit === initPromise) {
-      _pendingBackendInit = null;
-    }
-  });
-
-  return _backend;
+  startRedisInitialization(redisUrl);
+  throw _backendInitError ?? new Error('REDIS_URL is set and Redis initialization is still in progress.');
 }
 
 /**
@@ -643,37 +599,59 @@ function getBackend(): Backend {
  * is configured. It loops rather than awaiting a one-time promise: an init
  * attempt can fail after its retry interval has elapsed, and the next
  * getBackend() call then starts a new attempt. A caller that was awaiting the
- * old attempt must also await that retry rather than receiving its temporary
- * in-memory stand-in. The latch never rejects; failed attempts are recorded in
- * `_backendInitError`, so locks fail closed between attempts. For the pure
- * in-memory backend (no REDIS_URL), the latch is null and this returns it.
+ * old attempt must also await that retry. The latch never rejects; failed
+ * attempts are recorded in `_backendInitError`, so locks fail closed between
+ * attempts. For the pure in-memory backend (no REDIS_URL), the latch is null
+ * and this returns it.
  *
  * CAN-STATE-006: If getBackend() throws _backendInitError (init failed, retry
  * not yet due), this function propagates the throw — locks stay fail-closed.
- * Once RETRY_INTERVAL_MS elapses, getBackend() clears the error and
- * reinitializes; this function then awaits the new active-init latch and, on
- * success, the subsequent getBackend() returns the healthy Redis backend.
+ * Once RETRY_INTERVAL_MS elapses, getBackend() starts reinitialization; this
+ * function then awaits the new active-init latch and, on success, the
+ * subsequent getBackend() returns the healthy Redis backend.
  */
 async function getSettledBackendForLock(): Promise<Backend> {
   while (true) {
-    // getBackend() either returns a settled backend, starts an init attempt and
-    // returns its temporary rate-limit backend, or throws while retry is not
-    // due. The latter is deliberately fail-closed for locks.
-    const backend = getBackend();
-    const pendingInit = _pendingBackendInit;
-    if (!pendingInit) {
-      return backend;
+    try {
+      return getBackend();
+    } catch (error) {
+      const pendingInit = _pendingBackendInit;
+      if (!pendingInit) {
+        throw error;
+      }
+      await pendingInit;
     }
-
-    await pendingInit;
-    // Re-check after every settlement. A failed attempt may have caused this
-    // call to start a retry, whose temporary backend must never grant a lock.
   }
 }
 
 // ============================================================================
 // Public API
 // ============================================================================
+
+/**
+ * Validates the configured distributed-state backend before the server becomes
+ * ready. Next.js calls this from root instrumentation.ts during Node startup.
+ * When REDIS_URL is configured, connect and PING failures reject with an
+ * actionable error; without REDIS_URL, the in-memory backend is initialized.
+ */
+export async function initDistributedState(): Promise<void> {
+  let initialError: unknown;
+  try {
+    getBackend();
+    return;
+  } catch (error) {
+    initialError = error;
+  }
+
+  const pendingInit = _pendingBackendInit;
+  if (pendingInit) {
+    await pendingInit;
+    if (_backend) return;
+    throw _backendInitError ?? initialError;
+  }
+
+  throw initialError;
+}
 
 /**
  * Rate limiter factory. Returns a rate limiter for a named resource.
@@ -690,21 +668,37 @@ async function getSettledBackendForLock(): Promise<Backend> {
  */
 export function createRateLimiter(options: RateLimiterOptions): RateLimiterInstance {
   const { name, windowMs, max } = options;
+  const fallback = new RetainedRateLimitFallback();
+  let degraded = false;
 
   return {
     async check(key: string): Promise<boolean> {
       try {
-        return await getBackend().rateLimitCheck(name, key, windowMs, max);
+        const allowed = await getBackend().rateLimitCheck(name, key, windowMs, max);
+        if (degraded) {
+          console.info(`[RateLimiter] Redis recovered for '${name}'; distributed limiting resumed.`);
+          degraded = false;
+        }
+        return allowed;
       } catch (err) {
-        // Redis backend init failed — degrade gracefully to allow-through.
-        // Operators should fix Redis; users must not receive 500s due to infra issues.
-        console.warn(
-          `[RateLimiter] Backend unavailable for '${name}', degrading to allow-through: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return true; // allow the request
+        // Availability trade-off: enforce a bounded per-instance quota rather
+        // than failing requests. This fallback is retained for the lifetime of
+        // this limiter, including across every initialization retry.
+        if (!degraded) {
+          const message = err instanceof Error ? err.message : String(err);
+          const isAuthError = message.includes('WRONGPASS') || message.includes('NOAUTH');
+          const log = isAuthError ? console.error : console.warn;
+          log(
+            `[RateLimiter] Redis unavailable for '${name}' — falling back to retained ` +
+              `per-instance in-memory limit. Original error: ${message}`,
+          );
+          degraded = true;
+        }
+        return fallback.check(name, key, windowMs, max);
       }
     },
     async reset(key: string): Promise<void> {
+      fallback.reset(name, key);
       try {
         return await getBackend().rateLimitReset(name, key);
       } catch {
@@ -730,23 +724,19 @@ export function createLockManager(name: string): LockManagerInstance {
     async acquire(key: string): Promise<() => Promise<void>> {
       // CAN-STATE-005: gate lock grants on backend settlement.
       //
-      // getSettledBackendForLock() triggers getBackend() (which, on first call with a
-      // Redis URL configured, sets `_backend` to a temporary in-memory stand-in
-      // and starts the async Redis init) and awaits every active init latch.
-      // It intentionally discards every stand-in returned during an init
-      // window, returning only an authoritative backend so the lock is issued
-      // by exactly one backend:
+      // getSettledBackendForLock() triggers getBackend() and awaits every
+      // active Redis init latch. No local fallback is exposed to locks during
+      // an init window, so the lock is issued by exactly one backend:
       //   - Redis on successful init  → locked via Redis SET NX
       //   - init failure                → getBackend() throws _backendInitError
       //                                     (fail-closed: no lock granted)
       //   - no REDIS_URL                → Pure in-memory backend (no latch set)
       //
-      // This prevents a lock acquired from the temporary in-memory stand-in
-      // from co-existing with a same-key Redis lock acquired post-settlement,
-      // which would split ownership across backends and bypass mutual exclusion
-      // for the profile/MFA critical sections. The ownership-safe async release
-      // function returned by the backend's lockAcquire() is passed through
-      // unchanged — release semantics are preserved.
+      // This prevents a local lock from co-existing with a same-key Redis lock
+      // acquired post-settlement, which would split ownership across backends
+      // and bypass mutual exclusion for profile/MFA critical sections. The
+      // ownership-safe async release function returned by lockAcquire() is
+      // passed through unchanged — release semantics are preserved.
       const backend = await getSettledBackendForLock();
       return backend.lockAcquire(name, key);
     },
@@ -769,7 +759,7 @@ export const tokenCache: TokenCacheInstance = {
     } catch {
       // Backend unavailable — treat as cache miss (fail-open). The caller
       // fetches a fresh token; caching resumes when Redis recovers
-      // (CAN-STATE-006 bounded retry clears _backendInitError).
+      // (CAN-STATE-006 bounded retry replaces _backendInitError on success).
       return null;
     }
   },

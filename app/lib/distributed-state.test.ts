@@ -534,13 +534,24 @@ describe('backend selection', () => {
     // Basic operation should work
     expect(await limiter.check('test-user')).toBe(true);
   });
+
+  it('initializes successfully without Redis when REDIS_URL is not set', async () => {
+    delete process.env.REDIS_URL;
+    vi.resetModules();
+    g[MOCK_KEY]!.connectMock.mockClear();
+
+    const { initDistributedState } = await import('./distributed-state');
+
+    await expect(initDistributedState()).resolves.toBeUndefined();
+    expect(g[MOCK_KEY]!.connectMock).not.toHaveBeenCalled();
+  });
 });
 
 // ============================================================================
-// BUG-M-002: Graceful degradation when Redis backend init fails
+// BUG-012: Startup validation and retained rate-limit degradation
 // ============================================================================
 
-describe('createRateLimiter — graceful degradation on Redis init failure', () => {
+describe('BUG-012 — Redis initialization failure', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
@@ -548,6 +559,7 @@ describe('createRateLimiter — graceful degradation on Redis init failure', () 
     if (g[MOCK_KEY]) {
       // Make connect fail so _backendInitError gets set
       g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('Redis init failed: ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
       g[MOCK_KEY]!.evalMock.mockClear();
       g[MOCK_KEY]!.pingMock.mockClear();
     }
@@ -561,27 +573,64 @@ describe('createRateLimiter — graceful degradation on Redis init failure', () 
     }
   });
 
-  it('check() returns true (allow-through) when backend init fails', async () => {
+  it('initDistributedState() rejects with a clear startup error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { initDistributedState } = await import('./distributed-state');
+
+    await expect(initDistributedState()).rejects.toThrow(
+      /REDIS_URL is set but Redis connection failed.*ECONNREFUSED/,
+    );
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+    expect(g[MOCK_KEY]!.pingMock).not.toHaveBeenCalled();
+  });
+
+  it('root instrumentation propagates the Redis readiness failure', async () => {
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const { register } = await import('../../instrumentation');
+
+    await expect(register()).rejects.toThrow(
+      /REDIS_URL is set but Redis connection failed.*ECONNREFUSED/,
+    );
+  });
+
+  it('startup readiness connects and verifies Redis with PING', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+    g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+
+    const { initDistributedState } = await import('./distributed-state');
+
+    await expect(initDistributedState()).resolves.toBeUndefined();
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(1);
+    expect(g[MOCK_KEY]!.pingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the retained fallback quota instead of an unconditional-true window', async () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     process.env.REDIS_URL = 'redis://localhost:6379';
 
     const { createRateLimiter } = await import('./distributed-state');
     const limiter = createRateLimiter({ name: 'init-fail-test', windowMs: 60_000, max: 1 });
 
-    // Trigger init — uses tempBackend while Redis connects
-    await limiter.check('warmup');
+    // The first request starts initialization and consumes the local quota.
+    expect(await limiter.check('user-test')).toBe(true);
 
     // Wait for Redis init failure to propagate (_backendInitError gets set)
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 20));
 
-    // After init failure, _backend = null and _backendInitError is set.
-    // check() must NOT throw — must return true (allow-through)
-    const result = await limiter.check('user-test');
-    expect(result).toBe(true);
+    // Initialization failure must not open an unconditional-allow window.
+    expect(await limiter.check('user-test')).toBe(false);
 
-    // Warning must have been logged
+    // The transition into per-instance degraded mode is surfaced once.
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Backend unavailable'),
+      expect.stringContaining('per-instance in-memory limit'),
     );
 
     consoleSpy.mockRestore();
@@ -1081,7 +1130,7 @@ describe('CAN-STATE-006 — bounded retry after Redis init failure', () => {
     expect(g[MOCK_KEY]!.setMock).not.toHaveBeenCalled();
   });
 
-  it('(d) rate-limit fail-open behavior is preserved after init failure and during retry', async () => {
+  it('(d) retries reuse the same bounded fallback counters', async () => {
     process.env.REDIS_RETRY_INTERVAL_MS = '50';
     process.env.REDIS_URL = 'redis://localhost:6379';
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1095,33 +1144,75 @@ describe('CAN-STATE-006 — bounded retry after Redis init failure', () => {
     const { createRateLimiter } = await import('./distributed-state');
     const limiter = createRateLimiter({ name: 'can-state-006-rl', windowMs: 60_000, max: 1 });
 
-    // Trigger init — kicks off Redis init (which will fail)
-    await limiter.check('warmup');
+    // Trigger init and consume the single retained local allowance.
+    expect(await limiter.check('user-A')).toBe(true);
     // Wait for Redis init failure to propagate
     await new Promise((r) => setTimeout(r, 20));
 
-    // After init failure: rate limiter must allow-through (not throw)
-    const result1 = await limiter.check('user-A');
-    expect(result1).toBe(true);
+    // After init failure, the same fallback counter still enforces the quota.
+    expect(await limiter.check('user-A')).toBe(false);
 
     // Wait past retry interval — retry also fails (connect still rejects)
     await new Promise((r) => setTimeout(r, 80));
 
-    // Rate limiter must still allow-through after a failed retry
-    const result2 = await limiter.check('user-B');
-    expect(result2).toBe(true);
+    // Starting a retry must not create fresh counters.
+    expect(await limiter.check('user-A')).toBe(false);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(await limiter.check('user-A')).toBe(false);
+    expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(2);
 
-    // Warning must have been logged for the degraded state
+    // The degraded transition is logged, not every denied request/retry.
     const consoleCalls = vi.mocked(console.warn).mock.calls;
     expect(
       consoleCalls.some((call) =>
-        typeof call[0] === 'string' && call[0].includes('Backend unavailable'),
+        typeof call[0] === 'string' && call[0].includes('per-instance in-memory limit'),
       ),
     ).toBe(true);
   });
 
+  it('(e) recovers from retained fallback limiting back to Redis', async () => {
+    process.env.REDIS_RETRY_INTERVAL_MS = '50';
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+      g[MOCK_KEY]!.connectMock.mockClear();
+      g[MOCK_KEY]!.evalMock.mockClear();
+    }
+
+    const { createRateLimiter } = await import('./distributed-state');
+    const limiter = createRateLimiter({ name: 'can-state-006-rl-recovery', windowMs: 60_000, max: 1 });
+
+    expect(await limiter.check('user-recovery')).toBe(true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(await limiter.check('user-recovery')).toBe(false);
+
+    await new Promise((r) => setTimeout(r, 80));
+    g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+    g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+    g[MOCK_KEY]!.evalImpl = () => Promise.resolve(1);
+
+    // This call starts the bounded retry and remains locally denied while it connects.
+    expect(await limiter.check('user-recovery')).toBe(false);
+    await new Promise((r) => setTimeout(r, 20));
+
+    // Once connected, checks return to the atomic Redis path.
+    expect(await limiter.check('user-recovery')).toBe(true);
+    expect(g[MOCK_KEY]!.evalMock).toHaveBeenCalledWith(
+      expect.stringContaining('redis.call'),
+      1,
+      'rl:can-state-006-rl-recovery|user-recovery',
+      '1',
+      expect.any(String),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('Redis recovered'));
+  });
+
   it.each(['-1', '0', 'not-a-number'])(
-    '(e) invalid retry interval %j uses the default interval without a retry storm',
+    '(f) invalid retry interval %j uses the default interval without a retry storm',
     async (retryInterval) => {
       let now = 1_000_000;
       vi.spyOn(Date, 'now').mockImplementation(() => now);
