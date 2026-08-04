@@ -36,6 +36,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@edge-runtime/cookies": "^5.0.2",
     "@logto/next": "^4.2.10",
     "@simplewebauthn/browser": "^13.3.0",
     "framer-motion": "^12.42.2",

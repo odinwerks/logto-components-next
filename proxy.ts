@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import LogtoClient from '@logto/next/edge';
+import { RequestCookies, ResponseCookies, type ResponseCookie } from '@edge-runtime/cookies';
 import { getLogtoConfig } from './app/logto-kit/config';
 import { isInvalidGrantError, isTransientError } from './app/logto-kit/logic/errors';
 import { warn as logWarn, log } from './app/logto-kit/logic/log';
@@ -212,6 +213,36 @@ export async function proxy(request: NextRequest) {
   // Request headers forwarded to the app (layout.tsx reads x-nonce)
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', cspHeader);
+
+  // Assigned before getContext is awaited so a refresh completed before a
+  // later userinfo failure can still be persisted.
+  let logtoResponseHeaders: Headers | undefined;
+
+  function getLogtoCookieUpdates(): ResponseCookie[] {
+    return logtoResponseHeaders
+      ? new ResponseCookies(logtoResponseHeaders).getAll()
+      : [];
+  }
+
+  function applyLogtoCookies(response: NextResponse): NextResponse {
+    for (const cookie of getLogtoCookieUpdates()) {
+      response.cookies.set(cookie);
+    }
+    return response;
+  }
+
+  function passThroughResponse(): NextResponse {
+    const updates = getLogtoCookieUpdates();
+    const forwardedCookies = new RequestCookies(requestHeaders);
+    for (const { name, value } of updates) {
+      forwardedCookies.set(name, value);
+    }
+
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('Content-Security-Policy', cspHeader);
+    return applyLogtoCookies(response);
+  }
 
   // ── RSC soft-refresh detection ───────────────────────────────────────
   // router.refresh() sends an RSC payload request with the `RSC` header set
@@ -231,36 +262,32 @@ export async function proxy(request: NextRequest) {
    * on the next render cycle.
    */
   function rscPassThroughResponse() {
-    const res = NextResponse.next({ request: { headers: requestHeaders } });
-    res.headers.set('Content-Security-Policy', cspHeader);
-    return res;
+    return passThroughResponse();
+  }
+
+  // Never inspect, refresh, or reissue a Logto session while the wipe route
+  // is validating its nonce and clearing cookies.
+  if (pathname === '/api/wipe') {
+    return passThroughResponse();
   }
 
   try {
     // Attempt to get Logto context to handle session error recovery and auth check.
-    const context = await getClient().getLogtoContext(request, { fetchUserInfo: true });
+    const { nodeClient, headers } = await getClient().createNodeClientFromEdgeRequest(request);
+    logtoResponseHeaders = headers;
+    const context = await nodeClient.getContext({ fetchUserInfo: true });
 
     // If unauthenticated and on a protected route, redirect to sign-in.
     if (!context.isAuthenticated && !isPublicPath(pathname)) {
       if (isRsc) return rscPassThroughResponse();
       const signInUrl = new URL('/api/auth/sign-in', request.url);
-      return NextResponse.redirect(signInUrl);
+      return applyLogtoCookies(NextResponse.redirect(signInUrl));
     }
 
     // Proceed with nonce and CSP headers
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('Content-Security-Policy', cspHeader);
-    return response;
+    return passThroughResponse();
   } catch (error) {
     const errorMessage = safeLogMessage(error);
-
-    // If we're already on /api/wipe, let the route handler execute — do NOT
-    // redirect back to /api/wipe which would create an infinite loop.
-    if (pathname === '/api/wipe') {
-      const response = NextResponse.next({ request: { headers: requestHeaders } });
-      response.headers.set('Content-Security-Policy', cspHeader);
-      return response;
-    }
 
     // Handle stale cookie error
     if (errorMessage.includes(STALE_COOKIE_ERROR)) {
@@ -303,7 +330,9 @@ export async function proxy(request: NextRequest) {
     if (isTransientError(error)) {
       logWarn('[Proxy] Transient error, returning 503:', errorMessage);
       if (isRsc) return rscPassThroughResponse();
-      return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 });
+      return applyLogtoCookies(
+        NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 }),
+      );
     }
 
     // Any other error from the Logto client (e.g. network, config).
@@ -312,11 +341,11 @@ export async function proxy(request: NextRequest) {
     logWarn('[Proxy] Non-critical error from Logto client:', errorMessage);
     if (!isPublicPath(pathname)) {
       if (isRsc) return rscPassThroughResponse();
-      return NextResponse.redirect(new URL('/api/auth/sign-in', request.url));
+      return applyLogtoCookies(
+        NextResponse.redirect(new URL('/api/auth/sign-in', request.url)),
+      );
     }
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('Content-Security-Policy', cspHeader);
-    return response;
+    return passThroughResponse();
   }
 }
 

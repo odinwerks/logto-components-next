@@ -2,12 +2,16 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const getLogtoContextMock = vi.fn();
+const createNodeClientFromEdgeRequestMock = vi.fn(async () => ({
+  nodeClient: { getContext: getLogtoContextMock },
+  headers: new Headers(),
+}));
 const warnMock = vi.fn();
 const errorMock = vi.fn();
 
 vi.mock('@logto/next/edge', () => ({
   default: class MockLogtoClient {
-    getLogtoContext = getLogtoContextMock;
+    createNodeClientFromEdgeRequest = createNodeClientFromEdgeRequestMock;
   },
 }));
 
@@ -33,12 +37,34 @@ vi.mock('./app/logto-kit/logic/log', () => ({
 }));
 
 function getSetCookies(res: Response): string[] {
-  const setCookies: string[] = [];
-  res.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') setCookies.push(value);
-  });
-  return setCookies;
+  return res.headers.getSetCookie();
 }
+
+function createSdkHeaders(...setCookies: string[]): Headers {
+  const headers = new Headers();
+  for (const cookie of setCookies) {
+    headers.append('Set-Cookie', cookie);
+  }
+  return headers;
+}
+
+function expectMatchingCspAndNonce(res: Response) {
+  const requestCsp = res.headers.get('x-middleware-request-content-security-policy');
+  const responseCsp = res.headers.get('Content-Security-Policy');
+  const forwardedNonce = res.headers.get('x-middleware-request-x-nonce');
+
+  expect(requestCsp).toBeTruthy();
+  expect(requestCsp).toBe(responseCsp);
+  expect(responseCsp?.match(/'nonce-([^']+)'/)?.[1]).toBe(forwardedNonce);
+}
+
+beforeEach(() => {
+  createNodeClientFromEdgeRequestMock.mockReset();
+  createNodeClientFromEdgeRequestMock.mockImplementation(async () => ({
+    nodeClient: { getContext: getLogtoContextMock },
+    headers: new Headers(),
+  }));
+});
 
 describe('proxy stale-cookie recovery', () => {
   beforeEach(() => {
@@ -93,10 +119,18 @@ describe('proxy /api/wipe infinite redirect loop fix', () => {
   });
 
   it('does NOT redirect to /api/wipe when already on /api/wipe (stale cookie)', async () => {
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: createSdkHeaders(
+        'logto_test-app-id=R1; Path=/; HttpOnly; SameSite=Lax',
+      ),
+    });
     getLogtoContextMock.mockRejectedValue(new Error('Cookies can only be modified by middleware'));
 
     const { proxy } = await import('./proxy');
-    const req = new NextRequest('https://example.com/api/wipe?nonce=test');
+    const req = new NextRequest('https://example.com/api/wipe?nonce=test', {
+      headers: { Cookie: 'logto_test-app-id=R0' },
+    });
     const res = await proxy(req);
 
     // Must NOT redirect — should pass through to the wipe route handler
@@ -106,6 +140,9 @@ describe('proxy /api/wipe infinite redirect loop fix', () => {
       expect(location).not.toContain('/api/wipe');
     }
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(createNodeClientFromEdgeRequestMock).not.toHaveBeenCalled();
+    expect(getSetCookies(res)).toEqual([]);
+    expectMatchingCspAndNonce(res);
   });
 
   it('does NOT redirect to /api/wipe when already on /api/wipe (invalid_grant)', async () => {
@@ -125,6 +162,9 @@ describe('proxy /api/wipe infinite redirect loop fix', () => {
       expect(location).not.toContain('/api/wipe');
     }
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(createNodeClientFromEdgeRequestMock).not.toHaveBeenCalled();
+    expect(getSetCookies(res)).toEqual([]);
+    expectMatchingCspAndNonce(res);
   });
 });
 
@@ -143,6 +183,12 @@ describe('proxy invalid_grant recovery', () => {
   });
 
   it('issues nonce contract for invalid_grant redirect', async () => {
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: createSdkHeaders(
+        'logto_test-app-id=partial-R1; Path=/; HttpOnly; SameSite=Lax',
+      ),
+    });
     getLogtoContextMock.mockRejectedValue({
       code: 'oidc.invalid_grant',
       message: 'Grant request is invalid.',
@@ -171,6 +217,7 @@ describe('proxy invalid_grant recovery', () => {
     expect(nonceCookieHeader).toContain('Path=/');
     expect(nonceCookieHeader).toContain('Max-Age=60');
     expect(nonceCookieHeader).toContain('Secure');
+    expect(setCookies.filter(cookie => cookie.startsWith('logto_test-app-id='))).toEqual([]);
 
     expect(warnMock).toHaveBeenCalledWith(
       '[Proxy] invalid_grant detected, redirecting to wipe:',
@@ -279,6 +326,7 @@ describe('proxy choke-point: public vs protected routes', () => {
       expect(location).not.toContain('/api/auth/sign-in');
     }
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(getSetCookies(res)).toEqual([]);
   });
 
   it('allows unauthenticated access to /demo/foo', async () => {
@@ -693,6 +741,177 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toContain('/api/auth/sign-in');
     expect(res.headers.get('X-Auth-Expired')).toBeNull();
+  });
+});
+
+describe('proxy Logto session rotation propagation (BUG-002)', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+    warnMock.mockReset();
+    errorMock.mockReset();
+    logMock.mockReset();
+  });
+
+  it('forwards the final rotated session to the same request and browser exactly once', async () => {
+    const sdkHeaders = createSdkHeaders(
+      'logto_test-app-id=R1; Path=/; HttpOnly; SameSite=Lax',
+    );
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: sdkHeaders,
+    });
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: true });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/protected', {
+      headers: { Cookie: 'logto_test-app-id=R0; preference=kept' },
+    });
+    const res = await proxy(req);
+
+    const sessionCookies = getSetCookies(res)
+      .filter(cookie => cookie.startsWith('logto_test-app-id='));
+    expect(sessionCookies).toHaveLength(1);
+    expect(sessionCookies[0]).toContain('logto_test-app-id=R1');
+    expect(sessionCookies[0]).not.toContain('R0');
+
+    const forwardedCookie = res.headers.get('x-middleware-request-cookie');
+    expect(forwardedCookie).toContain('logto_test-app-id=R1');
+    expect(forwardedCookie).toContain('preference=kept');
+    expect(forwardedCookie).not.toContain('logto_test-app-id=R0');
+
+    const middlewareCookie = res.headers.get('x-middleware-set-cookie');
+    expect(middlewareCookie).toContain('logto_test-app-id=R1');
+  });
+
+  it('transfers distinct SDK cookies without corrupting an Expires comma', async () => {
+    const sdkHeaders = createSdkHeaders(
+      'logto_test-app-id=R1; Path=/; HttpOnly; SameSite=Lax',
+      'logto-sdk-marker=marker; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+    );
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: sdkHeaders,
+    });
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: true });
+
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected'));
+    const setCookies = getSetCookies(res);
+
+    expect(setCookies).toHaveLength(2);
+    expect(setCookies.filter(cookie => cookie.startsWith('logto_test-app-id='))).toHaveLength(1);
+    const markerCookie = setCookies.find(cookie => cookie.startsWith('logto-sdk-marker='));
+    expect(markerCookie).toContain('Expires=Wed, 21 Oct 2037 07:28:00 GMT');
+  });
+
+  it('persists a completed rotation on a transient 503 response', async () => {
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: createSdkHeaders(
+        'logto_test-app-id=R1; Path=/; HttpOnly; SameSite=Lax',
+      ),
+    });
+    getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
+
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected', {
+      headers: { Cookie: 'logto_test-app-id=R0' },
+    }));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: 'SERVICE_UNAVAILABLE' });
+    expect(getSetCookies(res)
+      .filter(cookie => cookie.startsWith('logto_test-app-id='))).toHaveLength(1);
+    expect(getSetCookies(res)[0]).toContain('logto_test-app-id=R1');
+  });
+
+  it('persists and forwards a completed rotation on an RSC transient error', async () => {
+    createNodeClientFromEdgeRequestMock.mockResolvedValue({
+      nodeClient: { getContext: getLogtoContextMock },
+      headers: createSdkHeaders(
+        'logto_test-app-id=R1; Path=/; HttpOnly; SameSite=Lax',
+      ),
+    });
+    getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
+
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected', {
+      headers: {
+        RSC: '1',
+        Cookie: 'logto_test-app-id=R0; preference=kept',
+      },
+    }));
+
+    expect(res.status).not.toBe(503);
+    expect(res.headers.get('x-middleware-request-cookie')).toContain('logto_test-app-id=R1');
+    expect(res.headers.get('x-middleware-request-cookie')).toContain('preference=kept');
+    expect(res.headers.get('x-middleware-set-cookie')).toContain('logto_test-app-id=R1');
+    expectMatchingCspAndNonce(res);
+  });
+});
+
+describe('proxy request CSP forwarding (BUG-003)', () => {
+  beforeEach(() => {
+    getLogtoContextMock.mockReset();
+  });
+
+  it('uses the same nonce-bearing CSP for authenticated request and response', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: true });
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected'));
+
+    expectMatchingCspAndNonce(res);
+  });
+
+  it('uses matching CSP for an unauthenticated public callback', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/callback'));
+
+    expect(res.status).not.toBe(307);
+    expectMatchingCspAndNonce(res);
+  });
+
+  it('uses matching CSP for an unauthenticated protected RSC pass-through', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    }));
+
+    expect(res.status).not.toBe(307);
+    expectMatchingCspAndNonce(res);
+  });
+
+  it('uses matching CSP for transient RSC recovery', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/protected', {
+      headers: { RSC: '1' },
+    }));
+
+    expect(res.status).not.toBe(503);
+    expectMatchingCspAndNonce(res);
+  });
+
+  it('uses matching CSP for public pass-through after an unexpected SDK error', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('Unexpected SDK failure'));
+    const { proxy } = await import('./proxy');
+    const res = await proxy(
+      new NextRequest('https://example.com/getting-started/pre-requisites'),
+    );
+
+    expect(res.status).not.toBe(307);
+    expectMatchingCspAndNonce(res);
+  });
+
+  it('keeps static skips outside CSP handling and Logto construction', async () => {
+    const { proxy } = await import('./proxy');
+    const res = await proxy(new NextRequest('https://example.com/_next/static/chunk.js'));
+
+    expect(res.headers.get('Content-Security-Policy')).toBeNull();
+    expect(res.headers.get('x-middleware-request-content-security-policy')).toBeNull();
+    expect(createNodeClientFromEdgeRequestMock).not.toHaveBeenCalled();
   });
 });
 
