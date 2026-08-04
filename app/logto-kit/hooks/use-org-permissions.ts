@@ -61,6 +61,7 @@ export interface UseOrgPermissionsReturn {
 }
 
 type PermsState = {
+  sourceKey: string | null | undefined;
   loading: boolean;
   permissions: string[];
   descriptions: Map<string, OrgRoleScope>;
@@ -71,17 +72,19 @@ type PermsState = {
 };
 
 type PermsAction =
-  | { type: 'fetchStart' }
-  | { type: 'auditStart' }
-  | { type: 'fetchPermissionsDone'; permissions: string[] }
-  | { type: 'fetchDescriptionsDone'; descriptions: Map<string, OrgRoleScope> }
-  | { type: 'fetchDescriptionsError' }
-  | { type: 'fetchDone' }
-  | { type: 'fetchError'; error: string }
-  | { type: 'auditSuccess' }
-  | { type: 'auditError' };
+  | { type: 'idle'; sourceKey: string | null | undefined }
+  | { type: 'fetchStart'; sourceKey: string }
+  | { type: 'auditStart'; sourceKey: string }
+  | { type: 'fetchPermissionsDone'; sourceKey: string; permissions: string[] }
+  | { type: 'fetchDescriptionsDone'; sourceKey: string; descriptions: Map<string, OrgRoleScope> }
+  | { type: 'fetchDescriptionsError'; sourceKey: string }
+  | { type: 'fetchDone'; sourceKey: string }
+  | { type: 'fetchError'; sourceKey: string; error: string }
+  | { type: 'auditSuccess'; sourceKey: string }
+  | { type: 'auditError'; sourceKey: string };
 
 const initialState: PermsState = {
+  sourceKey: undefined,
   loading: false,
   permissions: [],
   descriptions: new Map(),
@@ -92,11 +95,26 @@ const initialState: PermsState = {
 };
 
 function permsReducer(state: PermsState, action: PermsAction): PermsState {
+  if (
+    action.type !== 'idle'
+    && action.type !== 'fetchStart'
+    && action.type !== 'auditStart'
+    && state.sourceKey !== action.sourceKey
+  ) {
+    return state;
+  }
+
   switch (action.type) {
+    case 'idle':
+      return { ...initialState, sourceKey: action.sourceKey };
     case 'fetchStart':
-      return { ...state, loading: true, error: null };
+      return state.sourceKey === action.sourceKey
+        ? { ...state, loading: true, error: null }
+        : { ...initialState, sourceKey: action.sourceKey, loading: true };
     case 'auditStart':
-      return { ...state, loading: true, error: null, auditStatus: 'auditing' };
+      return state.sourceKey === action.sourceKey
+        ? { ...state, loading: true, error: null, auditStatus: 'auditing' }
+        : { ...initialState, sourceKey: action.sourceKey, loading: true, auditStatus: 'auditing' };
     case 'fetchPermissionsDone':
       return { ...state, permissions: action.permissions };
     case 'fetchDescriptionsDone':
@@ -125,6 +143,7 @@ function permsReducer(state: PermsState, action: PermsAction): PermsState {
 export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptions): UseOrgPermissionsReturn {
   const [state, dispatch] = useReducer(permsReducer, initialData
     ? {
+        sourceKey: orgId,
         loading: false,
         permissions: initialData.permissions,
         descriptions: initialData.descriptions,
@@ -133,10 +152,13 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
         source: 'm2m-derived' as OrgPermissionSource,
         auditStatus: 'idle' as OrgPermissionAuditStatus,
       }
-    : { ...initialState, loading: !!orgId });
+    : { ...initialState, sourceKey: orgId, loading: !!orgId });
 
   const { tooltip, handlers: baseHandlers } = useTooltipTrigger({ width: 288, height: 88 });
-  const [activePermission, setActivePermission] = useState<string | null>(null);
+  const [activePermissionState, setActivePermissionState] = useState<{
+    sourceKey: string | null | undefined;
+    permission: string;
+  } | null>(null);
 
   // When `initialData` seeded the state on first render, skip the first
   // effect run so we don't immediately re-fetch (and don't rotate the
@@ -160,9 +182,13 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
   const prevDepsRef = useRef({ orgId, refreshNonce });
 
   useEffect(() => {
-    if (!visible || !orgId) return;
     if (hasInitialDataRef.current) {
       hasInitialDataRef.current = false;
+      if (visible && orgId) return;
+    }
+    if (!visible || !orgId) {
+      prevDepsRef.current = { orgId, refreshNonce };
+      dispatch({ type: 'idle', sourceKey: orgId });
       return;
     }
     let cancelled = false;
@@ -173,16 +199,16 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
     prevDepsRef.current = { orgId, refreshNonce };
 
     if (isExplicitRefresh) {
-      dispatch({ type: 'auditStart' });
+      dispatch({ type: 'auditStart', sourceKey: orgId });
     } else {
-      dispatch({ type: 'fetchStart' });
+      dispatch({ type: 'fetchStart', sourceKey: orgId });
     }
 
     const permissionsRequest = loadOrganizationPermissions(orgId)
       .then(r => {
         if (cancelled) return r;
         if (!r.ok) return r;
-        dispatch({ type: 'fetchPermissionsDone', permissions: r.data });
+        dispatch({ type: 'fetchPermissionsDone', sourceKey: orgId, permissions: r.data });
         return r;
       })
       .catch(err => {
@@ -194,20 +220,20 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
       .then(r => {
         if (cancelled) return r;
         if (!r.ok) {
-          dispatch({ type: 'fetchDescriptionsError' });
+          dispatch({ type: 'fetchDescriptionsError', sourceKey: orgId });
           return r;
         }
         const map = new Map<string, OrgRoleScope>();
         for (const scope of r.data) {
           if (scope.name) map.set(scope.name, scope);
         }
-        dispatch({ type: 'fetchDescriptionsDone', descriptions: map });
+        dispatch({ type: 'fetchDescriptionsDone', sourceKey: orgId, descriptions: map });
         return r;
       })
       .catch(err => {
         if (!cancelled) {
           clientLog.error('useOrgPermissions', 'descriptions failed:', err);
-          dispatch({ type: 'fetchDescriptionsError' });
+          dispatch({ type: 'fetchDescriptionsError', sourceKey: orgId });
         }
         return null;
       });
@@ -219,14 +245,14 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
         const errMsg = (permResult.status === 'fulfilled' && permResult.value && !permResult.value.ok)
           ? permResult.value.error
           : 'FETCH_FAILED';
-        dispatch({ type: 'fetchError', error: errMsg });
+        dispatch({ type: 'fetchError', sourceKey: orgId, error: errMsg });
         if (isExplicitRefresh) {
-          dispatch({ type: 'auditError' });
+          dispatch({ type: 'auditError', sourceKey: orgId });
         }
       } else {
-        dispatch({ type: 'fetchDone' });
+        dispatch({ type: 'fetchDone', sourceKey: orgId });
         if (isExplicitRefresh) {
-          dispatch({ type: 'auditSuccess' });
+          dispatch({ type: 'auditSuccess', sourceKey: orgId });
         }
       }
     });
@@ -234,35 +260,45 @@ export function useOrgPermissions({ orgId, initialData }: UseOrgPermissionsOptio
     return () => { cancelled = true; };
   }, [orgId, visible, refreshNonce]);
 
+  // Effects run after render. Mask a mismatched snapshot synchronously so a
+  // source switch cannot commit prior-organization rows or tooltip content.
+  const stateMatchesSource = state.sourceKey === orgId;
+  const displayedState = stateMatchesSource
+    ? state
+    : { ...initialState, sourceKey: orgId, loading: !!orgId };
+  const activePermission = activePermissionState && activePermissionState.sourceKey === orgId
+    ? activePermissionState.permission
+    : null;
+
   const getTooltipHandlers = (permission: string): TooltipHandlers => ({
     onMouseEnter: (e) => {
-      setActivePermission(permission);
+      setActivePermissionState({ sourceKey: orgId, permission });
       baseHandlers.onMouseEnter(e);
     },
     onMouseLeave: () => {
-      setActivePermission(null);
+      setActivePermissionState(null);
       baseHandlers.onMouseLeave();
     },
     onFocus: (e) => {
-      setActivePermission(permission);
+      setActivePermissionState({ sourceKey: orgId, permission });
       baseHandlers.onFocus(e);
     },
     onBlur: () => {
-      setActivePermission(null);
+      setActivePermissionState(null);
       baseHandlers.onBlur();
     },
   });
 
   return {
-    permissions: state.permissions,
-    descriptions: state.descriptions,
-    loading: state.loading,
-    error: state.error,
+    permissions: displayedState.permissions,
+    descriptions: displayedState.descriptions,
+    loading: displayedState.loading,
+    error: displayedState.error,
     visible,
     refresh,
-    source: state.source,
-    auditStatus: state.auditStatus,
-    descriptionsError: state.descriptionsError,
+    source: displayedState.source,
+    auditStatus: displayedState.auditStatus,
+    descriptionsError: displayedState.descriptionsError,
     activePermission,
     tooltip,
     getTooltipHandlers,

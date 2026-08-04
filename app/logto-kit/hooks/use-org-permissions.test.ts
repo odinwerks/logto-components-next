@@ -23,6 +23,16 @@ const mockScopes: OrgRoleScope[] = [
   { id: 's2', name: 'org:write', description: 'Write access', tenantId: 't1' },
 ];
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('useOrgPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -237,5 +247,51 @@ describe('useOrgPermissions', () => {
     // Prior display rows retained, audit-status is audit-error.
     expect(result.current.auditStatus).toBe('audit-error');
     expect(result.current.error).toBe('GRANT_FAILED');
+  });
+
+  it('clears Org A rows synchronously and ignores its stale refresh when Org B fails (M-023)', async () => {
+    vi.mocked(loadOrganizationPermissions).mockResolvedValueOnce({
+      ok: true,
+      data: ['org-a:read'],
+    } as DataResult<string[]>);
+    vi.mocked(loadOrgPermissionDescriptions).mockResolvedValue({
+      ok: true,
+      data: [],
+    } as DataResult<OrgRoleScope[]>);
+
+    const { result, rerender } = renderHook(
+      ({ orgId }: { orgId: string }) => useOrgPermissions({ orgId }),
+      { initialProps: { orgId: 'org-a' } },
+    );
+
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.permissions).toEqual(['org-a:read']);
+
+    const staleOrgARefresh = deferred<DataResult<string[]>>();
+    const orgBFetch = deferred<DataResult<string[]>>();
+    vi.mocked(loadOrganizationPermissions).mockImplementation((orgId) =>
+      orgId === 'org-a' ? staleOrgARefresh.promise : orgBFetch.promise,
+    );
+
+    act(() => { result.current.refresh(); });
+    rerender({ orgId: 'org-b' });
+
+    expect(result.current.permissions).toEqual([]);
+
+    await act(async () => {
+      staleOrgARefresh.resolve({ ok: true, data: ['org-a:admin'] });
+      await staleOrgARefresh.promise;
+    });
+    expect(result.current.permissions).toEqual([]);
+
+    await act(async () => {
+      orgBFetch.resolve({ ok: false, error: 'ORG_B_FAILED' });
+      await orgBFetch.promise;
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.permissions).toEqual([]);
+    expect(result.current.error).toBe('ORG_B_FAILED');
   });
 });

@@ -38,13 +38,15 @@ interface OrgCardProps {
   mode: 'dark' | 'light';
   tabIndex?: number;
   buttonRef?: (el: HTMLButtonElement | null) => void;
+  onRadioFocus?: (orgId: string) => void;
 }
 
-const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode, tabIndex = 0, buttonRef }: OrgCardProps) => {
+const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode, tabIndex = 0, buttonRef, onRadioFocus }: OrgCardProps) => {
   const c = colors;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoFocused, setIsInfoFocused] = useState(false);
+  const [isRadioFocused, setIsRadioFocused] = useState(false);
   const showTooltip = isHovered || isInfoFocused;
   const tooltipId = useId();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
@@ -116,7 +118,13 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode, 
       <button
         ref={buttonRef}
         tabIndex={tabIndex}
+        data-org-id={org.id}
         onClick={() => handleOrgClick(org.id)}
+        onFocus={() => {
+          setIsRadioFocused(true);
+          onRadioFocus?.(org.id);
+        }}
+        onBlur={() => setIsRadioFocused(false)}
         role="radio"
         aria-checked={isSelected}
         style={{
@@ -131,6 +139,8 @@ const OrgCard = ({ org, isSelected, isLoading, handleOrgClick, colors, t, mode, 
           opacity: isLoading === org.id ? 0.6 : 1,
           transition: 'all 0.15s ease',
           boxShadow: isSelected ? `0 0 0 1px ${c.accentBlue}` : 'none',
+          outline: isRadioFocused ? `2px solid ${c.accentBlue}` : undefined,
+          outlineOffset: isRadioFocused ? '2px' : undefined,
           width: '100%',
           textAlign: 'left',
         }}
@@ -535,6 +545,24 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
   // the existing server-action path.
 
   const organizations = useMemo(() => userData.organizations || [], [userData.organizations]);
+  const hasActiveMembership = activeOrgId
+    ? organizations.some((organization) => organization.id === activeOrgId)
+    : false;
+  const effectiveActiveOrgId = hasActiveMembership ? activeOrgId : null;
+  const staleReconciliationAttemptRef = useRef<string | null>(null);
+
+  // Live memberships are authoritative. Fail closed to personal-mode RBAC
+  // immediately, then reconcile the stale persisted selection. On failure the
+  // existing personal-mode button and alert remain visible for an explicit retry.
+  useEffect(() => {
+    if (!activeOrgId || hasActiveMembership) {
+      staleReconciliationAttemptRef.current = null;
+      return;
+    }
+    if (staleReconciliationAttemptRef.current === activeOrgId) return;
+    staleReconciliationAttemptRef.current = activeOrgId;
+    void switchToSelf();
+  }, [activeOrgId, hasActiveMembership, switchToSelf]);
 
   // ── Roving tabindex ref map & keyboard handler for org radiogroup ────────
   const radioRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
@@ -542,11 +570,23 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
   // Memoize org tab order so the key-down handler is anchored to this render's
   // data snapshot (avoids stale closures when switching).
   const sortedOrgIds = useMemo(() => organizations.map(o => o.id), [organizations]);
+  const [rovingOrgId, setRovingOrgId] = useState<string | null>(
+    () => activeOrgId ?? sortedOrgIds[0] ?? null,
+  );
+  const effectiveRovingOrgId = rovingOrgId && sortedOrgIds.includes(rovingOrgId)
+    ? rovingOrgId
+    : activeOrgId && sortedOrgIds.includes(activeOrgId)
+      ? activeOrgId
+      : sortedOrgIds[0] ?? null;
 
   const handleRadioKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      const currentIndex = sortedOrgIds.indexOf(activeOrgId ?? '');
-      if (currentIndex < 0) return; // no active org — nothing to rove from
+      const target = e.target as HTMLElement;
+      if (target.getAttribute('role') !== 'radio') return;
+
+      const currentOrgId = target.dataset.orgId ?? effectiveRovingOrgId ?? activeOrgId ?? sortedOrgIds[0];
+      const currentIndex = currentOrgId ? sortedOrgIds.indexOf(currentOrgId) : -1;
+      if (currentIndex < 0) return;
 
       let nextIndex = currentIndex;
 
@@ -575,6 +615,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
 
       const nextOrgId = sortedOrgIds[nextIndex];
       if (nextOrgId) {
+        setRovingOrgId(nextOrgId);
         void switchToOrg(nextOrgId);
         // Focus the newly-selected radio button after the render commits
         requestAnimationFrame(() => {
@@ -582,7 +623,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
         });
       }
     },
-    [sortedOrgIds, activeOrgId, switchToOrg],
+    [sortedOrgIds, effectiveRovingOrgId, activeOrgId, switchToOrg],
   );
 
   // ── Styles ──
@@ -621,37 +662,36 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
       {/* Organizations */}
       <p style={sectionLabel}>{t.organizations.orgs}</p>
       <div style={wellStyle}>
+        {activeOrgId && (
+          <button
+            onClick={() => switchToSelf()}
+            style={{
+              padding: '0.5rem 0.75rem',
+              background: c.bgPrimary,
+              border: `1px solid ${c.borderColor}`,
+              borderRadius: '0.25rem',
+              marginBottom: '0.5rem',
+              cursor: switchingOrgId === 'clear' ? 'wait' : 'pointer',
+              opacity: switchingOrgId === 'clear' ? 0.6 : 1,
+              color: c.textSecondary,
+              fontSize: '0.6875rem',
+              fontFamily: FONT_MONO,
+              width: '100%',
+              textAlign: 'left',
+            }}
+          >
+            ← {t.organizations.beYourself}
+          </button>
+        )}
+        {localError && (
+          <div role="alert" style={{ padding: '0.375rem 0.75rem', color: c.accentRed, fontSize: '0.6875rem', fontFamily: FONT_MONO }}>
+            {localError}
+          </div>
+        )}
         {organizations.length === 0 ? (
           <div style={emptyStateStyle}>{t.organizations.noOrganizations}</div>
         ) : (
           <>
-            {/* Be Yourself button */}
-            {activeOrgId && (
-              <button
-                onClick={() => switchToSelf()}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: c.bgPrimary,
-                  border: `1px solid ${c.borderColor}`,
-                  borderRadius: '0.25rem',
-                  marginBottom: '0.5rem',
-                  cursor: switchingOrgId === 'clear' ? 'wait' : 'pointer',
-                  opacity: switchingOrgId === 'clear' ? 0.6 : 1,
-                  color: c.textSecondary,
-                  fontSize: '0.6875rem',
-                  fontFamily: FONT_MONO,
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                ← {t.organizations.beYourself}
-              </button>
-            )}
-            {localError && (
-              <div role="alert" style={{ padding: '0.375rem 0.75rem', color: c.accentRed, fontSize: '0.6875rem', fontFamily: FONT_MONO }}>
-                {localError}
-              </div>
-            )}
             <div
               role="radiogroup"
               aria-label={t.organizations.orgs}
@@ -668,8 +708,9 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
                   colors={colors}
                   t={t}
                   mode={mode}
-                  tabIndex={org.id === activeOrgId ? 0 : -1}
+                  tabIndex={org.id === effectiveRovingOrgId ? 0 : -1}
                   buttonRef={el => { radioRefs.current.set(org.id, el); }}
+                  onRadioFocus={setRovingOrgId}
                 />
               ))}
             </div>
@@ -684,33 +725,45 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
             and doesn't fetch). When an org IS active but the RSC didn't
             pre-fetch (interim / no promise), the stream calls `render(undefined)`
             so the hook fetches on mount. */}
-        <Suspense fallback={(
-          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <p style={{ ...sectionLabel, marginBottom: 0 }}>{t.organizations.orgRoles}</p>
-            </div>
-            <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
-              <div style={emptyStateStyle}>
-                <BouncingDots size={5} gap={3} color={c.textTertiary} ariaLabel="" /> {t.organizations.loadingPermissions}
+        {effectiveActiveOrgId ? (
+          <Suspense fallback={(
+            <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <p style={{ ...sectionLabel, marginBottom: 0 }}>{t.organizations.orgRoles}</p>
+              </div>
+              <div style={{ ...wellStyle, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 0 }}>
+                <div style={emptyStateStyle}>
+                  <BouncingDots size={5} gap={3} color={c.textTertiary} ariaLabel="" /> {t.organizations.loadingPermissions}
+                </div>
               </div>
             </div>
-          </div>
-        )}>
-          <OrgRolesStream
-            render={(initialRoles) => (
-              <OrgRolesList
-                orgId={activeOrgId}
-                initialRoles={initialRoles}
-                colors={colors}
-                t={t}
-                mode={mode}
-                sectionLabel={sectionLabel}
-                wellStyle={wellStyle}
-                emptyStateStyle={emptyStateStyle}
-              />
-            )}
+          )}>
+            <OrgRolesStream
+              render={(initialRoles) => (
+                <OrgRolesList
+                  orgId={effectiveActiveOrgId}
+                  initialRoles={initialRoles}
+                  colors={colors}
+                  t={t}
+                  mode={mode}
+                  sectionLabel={sectionLabel}
+                  wellStyle={wellStyle}
+                  emptyStateStyle={emptyStateStyle}
+                />
+              )}
+            />
+          </Suspense>
+        ) : (
+          <OrgRolesList
+            orgId={null}
+            colors={colors}
+            t={t}
+            mode={mode}
+            sectionLabel={sectionLabel}
+            wellStyle={wellStyle}
+            emptyStateStyle={emptyStateStyle}
           />
-        </Suspense>
+        )}
 
         {/* Org permissions — same streamed promise (instant-fetch).
             The "no active org" case is handled here (outside the stream)
@@ -718,7 +771,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
             an org IS active but no promise is available, the stream calls
             `render(undefined)` so `PermissionsBlock` fetches on mount. */}
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
-          {activeOrgId ? (
+          {effectiveActiveOrgId ? (
             <Suspense fallback={(
               <>
                 <p style={sectionLabel}>{t.organizations.orgPermissions}</p>
@@ -732,7 +785,7 @@ export function OrganizationsTab({ userData, currentOrgId, mode, colors, t, mobm
               <OrgPermissionsStream
                 render={(initialData) => (
                   <PermissionsBlock
-                    activeOrgId={activeOrgId}
+                    activeOrgId={effectiveActiveOrgId}
                     colors={colors}
                     t={t}
                     scrollWell

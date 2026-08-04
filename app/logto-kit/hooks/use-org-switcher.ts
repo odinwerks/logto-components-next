@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import { setActiveOrg } from '../custom-logic/set-active-org';
 import { useOrgMode } from '../components/providers/preferences';
 import { captureMessage } from '../logic/capture-message';
+import { createStorageHelpers } from '../logic/client-storage';
+import { updateUserCustomData } from '../logic/actions/profile';
 import type { OrganizationData } from '../logic/types';
+
+const orgPreferenceStorage = createStorageHelpers<string | null>('org-mode');
+const explicitPersonalStorage = createStorageHelpers<'1'>('org-mode-explicit-personal');
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +55,8 @@ export interface UseOrgSwitcherReturn {
   hasAutoSwitched: boolean;
   /** True while the auto-single switch is in flight (BUG-025 hide-gate). */
   isAutoSwitching: boolean;
+  /** Whether a personal/org preference exists (distinct from no preference). */
+  hasOrgPreference: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -68,6 +75,13 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
   const [error, setError] = useState<string | null>(null);
   const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
   const [isAutoSwitching, setIsAutoSwitching] = useState(false);
+  const [localSelection, setLocalSelection] = useState<{ value: string | null } | null>(null);
+  const [preferenceHint, setPreferenceHint] = useState<string | null | undefined>(() => {
+    if (currentOrgId !== undefined) return currentOrgId;
+    const storedOrg = orgPreferenceStorage.get();
+    if (storedOrg !== null) return storedOrg;
+    return explicitPersonalStorage.get() === '1' ? null : undefined;
+  });
 
   const isSwitching = useRef(false);
   const onSwitchRef = useRef(options.onSwitch);
@@ -82,10 +96,15 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
   // NOTE: explicit null means "be yourself" mode and must NOT fall back to
   // a stale server prop (NEVER-TOUCH rule).
   const activeOrgId: string | null = (() => {
+    if (localSelection) return localSelection.value;
     if (asOrg === null) return null;             // explicit be-yourself
     if (asOrg !== undefined) return asOrg;        // explicit org id
     return currentOrgId ?? null;                  // no preference → server prop fallback
   })();
+  const hasOrgPreference =
+    preferenceHint !== undefined ||
+    currentOrgId !== undefined ||
+    (asOrg !== null && asOrg !== undefined);
 
   // ── Error auto-clear ──
   useEffect(() => {
@@ -121,16 +140,20 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
           onErrorRef.current?.(msg);
           return;
         }
+        await setAsOrg(null);
+        explicitPersonalStorage.set('1');
+        orgPreferenceStorage.remove();
+        setPreferenceHint(null);
+        setLocalSelection({ value: null });
         startTransition(() => {
-          setAsOrg(null);
           router.refresh();
         });
         onSwitchRef.current?.(null);
       } else {
         // to-org / auto-single: setActiveOrg validates membership (live userinfo),
-        // does NOT persist. setAsOrg(orgId) triggers persistOrg — ONE server PATCH.
-        // Await persistOrg before router.refresh() to prevent BUG-018: the RSC
-        // fetch must read the already-persisted customData.asOrg, not the old value.
+        // does NOT persist. Use the checked server action result directly so a
+        // provider rollback cannot be mistaken for success (M-027). The local
+        // selection is committed only after the server confirms persistence.
         // CAN-ACT-010: unwrap DataResult<boolean> — non-ok OR data:false means
         // validation failed or the action errored. The pre-fix `!isValid` check
         // was always false (DataResult objects are truthy), silently swallowing
@@ -142,7 +165,17 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
           onErrorRef.current?.(msg);
           return;
         }
-        await setAsOrg(target);
+        const persisted = await updateUserCustomData({ Preferences: { asOrg: target } });
+        if (!persisted.ok) {
+          const msg = 'Failed to switch organization';
+          setError(msg);
+          onErrorRef.current?.(msg);
+          return;
+        }
+        explicitPersonalStorage.remove();
+        orgPreferenceStorage.set(target);
+        setPreferenceHint(target);
+        setLocalSelection({ value: target });
         startTransition(() => {
           router.refresh();
         });
@@ -174,6 +207,9 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
     if (!autoSwitchSingleOrg) return;
     if (!organizations || organizations.length !== 1) return;
     if (activeOrgId) return;
+    // M-029: null is an explicit personal-mode preference, while undefined
+    // means no preference. Auto-selection is allowed only for the latter.
+    if (hasOrgPreference) return;
     if (isSwitching.current) return;
     if (hasAutoSwitched) return;
 
@@ -184,7 +220,7 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
     switchOrg('auto-single', organizations[0].id).finally(() => {
       setIsAutoSwitching(false);
     });
-  }, [autoSwitchSingleOrg, organizations, activeOrgId, hasAutoSwitched, switchOrg]);
+  }, [autoSwitchSingleOrg, organizations, activeOrgId, hasOrgPreference, hasAutoSwitched, switchOrg]);
 
   return {
     switchingOrgId,
@@ -196,5 +232,6 @@ export function useOrgSwitcher(options: UseOrgSwitcherOptions = {}): UseOrgSwitc
     clearError,
     hasAutoSwitched,
     isAutoSwitching,
+    hasOrgPreference,
   };
 }

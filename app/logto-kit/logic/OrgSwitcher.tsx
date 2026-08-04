@@ -1,12 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { OrganizationData } from './types';
 import type { ThemeColors } from '../themes';
 import { useOrgSwitcher } from '../hooks/use-org-switcher';
 
 interface OrgSwitcherProps {
   organizations: OrganizationData[];
-  currentOrgId?: string;
+  currentOrgId?: string | null;
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t?: {
@@ -24,6 +25,8 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
     switchingOrgId,
     hasAutoSwitched,
     isAutoSwitching,
+    hasOrgPreference,
+    error,
     switchToOrg,
     switchToSelf,
   } = useOrgSwitcher({
@@ -34,15 +37,29 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
 
   const c = colors;
   const isLoading = switchingOrgId !== null;
+  const hasActiveMembership = activeOrgId
+    ? organizations.some((organization) => organization.id === activeOrgId)
+    : false;
 
-  if (organizations.length === 0) {
-    return null;
-  }
+  // M-030: live userinfo is authoritative. If the persisted active org is no
+  // longer present, clear it through the same checked personal-mode path used
+  // by an explicit switch. Keep rendering so a failed automatic clear remains
+  // visible and can be retried from the select.
+  useEffect(() => {
+    if (!activeOrgId || hasActiveMembership) return;
+    void switchToSelf();
+  }, [activeOrgId, hasActiveMembership, switchToSelf]);
 
   // Keep hidden during the in-flight auto-switch (isAutoSwitching) OR before it
   // has even started (pre-effect first render for a single-org user with no
   // active org). This prevents the brief "Be yourself" flash (BUG-025).
-  if (isAutoSwitching || (!hasAutoSwitched && organizations.length === 1 && !activeOrgId && !currentOrgId)) {
+  if (
+    isAutoSwitching ||
+    (!hasAutoSwitched &&
+      organizations.length === 1 &&
+      !activeOrgId &&
+      !hasOrgPreference)
+  ) {
     return null;
   }
 
@@ -61,6 +78,14 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
       <span className="sr-only" aria-live="polite">
         {isLoading ? (t?.organizations?.switchingAnnouncement || 'Switching organization, please wait.') : ''}
       </span>
+      {error && (
+        <div
+          role="alert"
+          style={{ color: c.accentRed, fontSize: '0.6875rem', marginBottom: '0.375rem' }}
+        >
+          {error}
+        </div>
+      )}
       <div style={{ position: 'relative' }}>
         <select
           value={displaySelected}
@@ -84,6 +109,11 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
         }}
         >
           <option value="">{t?.organizations?.beYourself || 'Be yourself (global)'}</option>
+          {activeOrgId && !hasActiveMembership && (
+            <option value={activeOrgId} disabled>
+              Unavailable organization
+            </option>
+          )}
           {organizations.map((org) => (
             <option key={org.id} value={org.id}>
               {org.name}

@@ -13,26 +13,92 @@ import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
 import { fetchAllManagementPages } from './management-request';
 
+interface OrganizationNodeClient {
+  getRefreshToken: () => Promise<string | null>;
+  adapter: {
+    setStorageItem: (key: string, value: string) => Promise<void>;
+  };
+}
+
+interface RefreshCoordinator {
+  /** Latest token produced by any refresh-capable step in this process. */
+  currentRefreshToken: string;
+  /** One authentication/introspection sequence shared by this request wave. */
+  authentication: Promise<boolean> | null;
+  /** Session-wide grant fence: different organizations must not refresh in parallel. */
+  tail: Promise<void>;
+  /** Same-organization callers may safely share the complete result. */
+  inFlightByOrg: Map<string, Promise<DataResult<string[]>>>;
+  /** Digests for the original and any rotated refresh tokens. */
+  aliases: Set<string>;
+}
+
 /**
- * In-flight dedup map for concurrent getOrganizationUserPermissions calls.
+ * Process-local refresh-token coordinators.
  *
- * Without this, multiple org-scoped Protected components mounting together
- * fire concurrent refresh_token grants to /oidc/token with the same session
- * refresh token. Logto rotates refresh tokens one-time-use → the first
- * grant wins and the loser submits a revoked token → invalid_grant → false
- * denial of UI content (BUG-020).
+ * The key is a SHA-256 digest of the session's refresh token, which lets us
+ * install the fence before getTokenForServerAction() performs any
+ * refresh-capable SDK work. Organization IDs deliberately are not part of the
+ * coordinator identity: Logto's rotating refresh token belongs to the whole
+ * session, so different-org grants must be serialized while their results stay
+ * isolated in inFlightByOrg.
  *
- * Keyed by a SHA-256 digest of a length-unambiguous encoding of the
- * introspected session ID and org ID. This prevents cross-session permission
- * leaking (CAN-ACT-003): distinct sessions for the same user requesting the
- * same org use separate promise slots instead of sharing results.
- *
- * The operation is idempotent for the same session + orgId, so concurrent
- * callers safely share the promise.
- * Entries are evicted on settlement (success or failure) so a failed call
- * is retried on the next invocation.
+ * Rotated-token aliases keep already-concurrent requests on the same fence and
+ * currentRefreshToken propagates the winning token instead of rereading a stale
+ * request cookie. This is intentionally single-process coordination; a shared
+ * lease/fencing-token design is still required for multi-instance deployments.
  */
-const inFlightPermissions = new Map<string, Promise<DataResult<string[]>>>();
+const refreshCoordinators = new Map<string, RefreshCoordinator>();
+
+function refreshIdentity(refreshToken: string): string {
+  return crypto.createHash('sha256').update(refreshToken).digest('hex');
+}
+
+function addRefreshAlias(coordinator: RefreshCoordinator, refreshToken: string): void {
+  const alias = refreshIdentity(refreshToken);
+  coordinator.aliases.add(alias);
+  refreshCoordinators.set(alias, coordinator);
+}
+
+function removeRefreshCoordinator(coordinator: RefreshCoordinator): void {
+  for (const alias of coordinator.aliases) {
+    if (refreshCoordinators.get(alias) === coordinator) {
+      refreshCoordinators.delete(alias);
+    }
+  }
+}
+
+async function authenticateRefreshCoordinator(
+  coordinator: RefreshCoordinator,
+  nodeClient: OrganizationNodeClient,
+): Promise<boolean> {
+  try {
+    const sessionToken = await getTokenForServerAction();
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
+    if (!introspection.active || !introspection.sub || !introspection.sid) return false;
+
+    // The SDK call above may itself rotate the refresh token. Read the updated
+    // request-scoped storage while holding the session fence and publish it to
+    // queued callers before any direct organization grant starts.
+    const latestRefreshToken = await nodeClient.getRefreshToken();
+    if (latestRefreshToken && latestRefreshToken !== coordinator.currentRefreshToken) {
+      coordinator.currentRefreshToken = latestRefreshToken;
+      addRefreshAlias(coordinator, latestRefreshToken);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function enqueueRefreshGrant<T>(
+  coordinator: RefreshCoordinator,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const run = coordinator.tail.then(operation, operation);
+  coordinator.tail = run.then(() => undefined, () => undefined);
+  return run;
+}
 
 /**
  * Gets organization-scoped permissions for the current user.
@@ -56,44 +122,44 @@ const inFlightPermissions = new Map<string, Promise<DataResult<string[]>>>();
  * rotation.
  */
 export async function getOrganizationUserPermissions(orgId: string): Promise<DataResult<string[]>> {
-  // Derive a session-scoped dedup key to prevent cross-session permission
-  // leaking (CAN-ACT-003). `sid` is supplied by the server-side token
-  // introspection response; it is never accepted from or logged to the client.
-  let dedupKey: string;
-  try {
-    const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken, { assertAudience: true });
-    if (!introspection.active || !introspection.sub || !introspection.sid) {
-      return { ok: false, error: 'UNAUTHORIZED' };
-    }
-    // JSON preserves field boundaries, unlike concatenation (`ab` + `c`
-    // versus `a` + `bc`). Only the non-reversible digest is retained.
-    dedupKey = crypto
-      .createHash('sha256')
-      .update(JSON.stringify({ sessionId: introspection.sid, orgId }))
-      .digest('hex');
-  } catch {
-    return { ok: false, error: 'UNAUTHORIZED' };
-  }
-
-  // BUG-020: Return in-flight promise if a concurrent call for this session
-  // + org is already running. Without this dedup, multiple Protected
-  // components mounting together would race on the one-time-use refresh
-  // token grant.
-  const existing = inFlightPermissions.get(dedupKey);
-  if (existing) return existing;
-
-  const promise = safeAction(async () => {
+  // Reading the refresh token is storage-only. Do it before any call to
+  // getTokenForServerAction(), then atomically install/find the session fence.
+  const prepared = await safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
-
     const config = getLogtoConfig();
     const logtoClient = new LogtoClient(config);
-    const nodeClient = await logtoClient.createNodeClient();
-
-    // Read the refresh token from the session (read-only, no cookie write)
+    const nodeClient = await logtoClient.createNodeClient() as OrganizationNodeClient;
     const refreshToken = await nodeClient.getRefreshToken();
     if (!refreshToken) {
       warn('[getOrganizationUserPermissions] No refresh token in session');
+      throw plainCode('UNAUTHORIZED');
+    }
+    return { config, nodeClient, refreshToken };
+  });
+  if (!prepared.ok) return prepared;
+
+  const { config, nodeClient, refreshToken } = prepared.data;
+  const identity = refreshIdentity(refreshToken);
+  let coordinator = refreshCoordinators.get(identity);
+  if (!coordinator) {
+    coordinator = {
+      currentRefreshToken: refreshToken,
+      authentication: null,
+      tail: Promise.resolve(),
+      inFlightByOrg: new Map(),
+      aliases: new Set([identity]),
+    };
+    // M-017: publish the coordinator before starting refresh-capable SDK work.
+    refreshCoordinators.set(identity, coordinator);
+    coordinator.authentication = authenticateRefreshCoordinator(coordinator, nodeClient);
+  }
+
+  const existing = coordinator.inFlightByOrg.get(orgId);
+  if (existing) return existing;
+
+  const activeCoordinator = coordinator;
+  const promise = enqueueRefreshGrant(activeCoordinator, () => safeAction(async () => {
+    if (!await activeCoordinator.authentication) {
       throw plainCode('UNAUTHORIZED');
     }
 
@@ -119,7 +185,9 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: config.appId,
-      refresh_token: refreshToken,
+      // Never reread the request cookie here: a prior queued grant may have
+      // rotated it after this request began.
+      refresh_token: activeCoordinator.currentRefreshToken,
       organization_id: orgId,
     });
 
@@ -164,6 +232,8 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     // with the SDK's getOrganizationToken (which would reintroduce the
     // cookie-persisted accessTokenMap cache this function intentionally avoids).
     if (data.refresh_token) {
+      activeCoordinator.currentRefreshToken = data.refresh_token;
+      addRefreshAlias(activeCoordinator, data.refresh_token);
       try {
         await nodeClient.adapter.setStorageItem('refreshToken', data.refresh_token);
       } catch {
@@ -182,11 +252,16 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
 
     debugLog(`[getOrganizationUserPermissions] Parsed permissions for ${orgId}:`, permissions);
     return permissions;
-  });
+  }));
 
-  inFlightPermissions.set(dedupKey, promise);
-  promise.finally(() => {
-    inFlightPermissions.delete(dedupKey);
+  activeCoordinator.inFlightByOrg.set(orgId, promise);
+  void promise.finally(() => {
+    if (activeCoordinator.inFlightByOrg.get(orgId) === promise) {
+      activeCoordinator.inFlightByOrg.delete(orgId);
+    }
+    if (activeCoordinator.inFlightByOrg.size === 0) {
+      removeRefreshCoordinator(activeCoordinator);
+    }
   });
 
   return promise;

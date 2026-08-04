@@ -13,7 +13,7 @@ vi.mock('../custom-logic/set-active-org', () => ({
 }));
 
 const mockSetAsOrg = vi.fn();
-let mockAsOrg: string | null = null;
+let mockAsOrg: string | null | undefined = null;
 
 // We use a factory mock that reads the mutable mockAsOrg variable
 vi.mock('../components/providers/preferences', () => ({
@@ -21,6 +21,11 @@ vi.mock('../components/providers/preferences', () => ({
     get asOrg() { return mockAsOrg; },
     setAsOrg: mockSetAsOrg,
   }),
+}));
+
+const mockUpdateUserCustomData = vi.fn();
+vi.mock('../logic/actions/profile', () => ({
+  updateUserCustomData: (data: Record<string, unknown>) => mockUpdateUserCustomData(data),
 }));
 
 const mockCaptureMessage = vi.fn((err: unknown) =>
@@ -33,7 +38,9 @@ vi.mock('../logic/capture-message', () => ({
 describe('useOrgSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
+    mockUpdateUserCustomData.mockResolvedValue({ ok: true });
     mockAsOrg = null;
   });
 
@@ -58,13 +65,13 @@ describe('useOrgSwitcher', () => {
     });
 
     expect(mockSetActiveOrg).toHaveBeenCalledWith('org-1');
-    // Non-null path: setAsOrg triggers persistOrg (1 server PATCH)
-    // BUG-018: setAsOrg must complete BEFORE router.refresh() to avoid
+    // Non-null path uses a checked server result before signaling success.
+    // The persist must complete BEFORE router.refresh() to avoid
     // reading stale customData.asOrg in the RSC fetch.
-    expect(mockSetAsOrg).toHaveBeenCalledWith('org-1');
+    expect(mockUpdateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: 'org-1' } });
+    expect(mockSetAsOrg).not.toHaveBeenCalled();
     expect(mockRefresh).toHaveBeenCalled();
-    // Ordering: setAsOrg must fire before refresh
-    expect(mockSetAsOrg.mock.invocationCallOrder[0])
+    expect(mockUpdateUserCustomData.mock.invocationCallOrder[0])
       .toBeLessThan(mockRefresh.mock.invocationCallOrder[0]);
     expect(result.current.switchingOrgId).toBeNull();
   });
@@ -80,6 +87,7 @@ describe('useOrgSwitcher', () => {
     expect(result.current.error).toBe('Failed to switch organization');
     // setAsOrg should NOT be called when validation fails
     expect(mockSetAsOrg).not.toHaveBeenCalled();
+    expect(mockUpdateUserCustomData).not.toHaveBeenCalled();
   });
 
   it('switchToOrg sets error when setActiveOrg returns { ok: false } (CAN-ACT-010)', async () => {
@@ -96,6 +104,24 @@ describe('useOrgSwitcher', () => {
 
     expect(result.current.error).toBe('Failed to switch organization');
     expect(mockSetAsOrg).not.toHaveBeenCalled();
+    expect(mockUpdateUserCustomData).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh or report success when organization persistence fails (M-027)', async () => {
+    const onSwitch = vi.fn();
+    const onError = vi.fn();
+    mockUpdateUserCustomData.mockResolvedValueOnce({ ok: false, error: 'UPDATE_FAILED' });
+    const { result } = renderHook(() => useOrgSwitcher({ onSwitch, onError }));
+
+    await act(async () => {
+      await result.current.switchToOrg('org-1');
+    });
+
+    expect(mockSetActiveOrg).toHaveBeenCalledWith('org-1');
+    expect(result.current.error).toBe('Failed to switch organization');
+    expect(onError).toHaveBeenCalledWith('Failed to switch organization');
+    expect(mockRefresh).not.toHaveBeenCalled();
+    expect(onSwitch).not.toHaveBeenCalled();
   });
 
   it('switchToOrg guards against concurrent switches', async () => {
@@ -257,6 +283,39 @@ describe('useOrgSwitcher', () => {
         organizations: orgs,
       }),
     );
+
+    expect(mockSetActiveOrg).not.toHaveBeenCalled();
+  });
+
+  it('auto-single does NOT overwrite an explicit personal preference', () => {
+    mockAsOrg = null;
+    const orgs = [{ id: 'org-1', name: 'Only Org' }];
+
+    renderHook(() =>
+      useOrgSwitcher({
+        currentOrgId: null,
+        autoSwitchSingleOrg: true,
+        organizations: orgs,
+      }),
+    );
+
+    expect(mockSetActiveOrg).not.toHaveBeenCalled();
+  });
+
+  it('preserves personal mode across a switcher remount (M-029)', async () => {
+    mockAsOrg = 'org-1';
+    const orgs = [{ id: 'org-1', name: 'Only Org' }];
+    const first = renderHook(() => useOrgSwitcher());
+
+    await act(async () => {
+      await first.result.current.switchToSelf();
+    });
+    first.unmount();
+    mockAsOrg = null;
+    mockSetActiveOrg.mockClear();
+
+    renderHook(() => useOrgSwitcher({ autoSwitchSingleOrg: true, organizations: orgs }));
+    await act(async () => { await Promise.resolve(); });
 
     expect(mockSetActiveOrg).not.toHaveBeenCalled();
   });

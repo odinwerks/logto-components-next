@@ -89,7 +89,7 @@ function renderOrganizations(options?: { asOrg?: string | null; currentOrgId?: s
   // Wrap in RbacPromisesProvider with no promises so the stream consumers
   // fall back to the no-promise path (the hooks fetch on mount — preserves
   // the pre-instant-fetch behavior the existing tests assert on).
-  render(
+  return render(
     <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
       <OrganizationsTab
         userData={userData}
@@ -149,6 +149,30 @@ describe('OrganizationsTab - BUG-002 clear-org semantics', () => {
       expect(mockSetAsOrg).toHaveBeenCalledWith(null);
       expect(mockRefresh).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('OrganizationsTab - revoked active organization recovery (M-030)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
+  });
+
+  it('renders no org RBAC streams for a stale activeOrgId and exposes retry on failure', async () => {
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: false, error: 'UPDATE_FAILED' });
+
+    renderOrganizations({ asOrg: 'org-revoked', currentOrgId: 'org-revoked' });
+
+    expect(screen.getByText(enUS.organizations.selectOrgForRoles)).toBeInTheDocument();
+    expect(screen.getByText(enUS.organizations.selectOrgForPermissions)).toBeInTheDocument();
+    expect(screen.queryByText('stale-role-name')).toBeNull();
+    expect(mockLoadOrganizationUserRoles).not.toHaveBeenCalled();
+    expect(mockLoadOrganizationPermissions).not.toHaveBeenCalled();
+    expect(mockLoadOrgPermissionDescriptions).not.toHaveBeenCalled();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(enUS.organizations.clearOrgFailed!);
+    expect(screen.getByRole('button', { name: /be yourself/i })).toBeInTheDocument();
   });
 });
 
@@ -507,6 +531,66 @@ describe('OrganizationsTab - BUG-021 organization list container role', () => {
 
     const radiogroup = screen.getByRole('radiogroup', { name: enUS.organizations.orgs });
     expect(radiogroup).toBeInTheDocument();
+  });
+});
+
+describe('OrganizationsTab - organization radio keyboard access', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrgMode.asOrg = null;
+    mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
+    mockSetAsOrg.mockResolvedValue(undefined);
+  });
+
+  it('keeps one radio tabbable in personal mode and shows its focus indicator', () => {
+    renderOrganizations({ asOrg: null });
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1]);
+
+    act(() => radios[0].focus());
+    expect(radios[0]).toHaveFocus();
+    expect(radios[0].style.outline).toContain('solid');
+  });
+
+  it('uses the focused radio to bootstrap Arrow key focus and selection in personal mode', async () => {
+    renderOrganizations({ asOrg: null });
+
+    const [firstRadio, secondRadio] = screen.getAllByRole('radio');
+    fireEvent.focus(firstRadio);
+    fireEvent.keyDown(firstRadio, { key: 'ArrowRight' });
+
+    await waitFor(() => {
+      expect(mockSetActiveOrg).toHaveBeenCalledWith('org-2');
+      expect(secondRadio).toHaveFocus();
+      expect(secondRadio).toHaveAttribute('tabindex', '0');
+      expect(firstRadio).toHaveAttribute('tabindex', '-1');
+    });
+  });
+
+  it('supports End and Home focus plus selection when an organization is active', async () => {
+    const firstRender = renderOrganizations({ asOrg: 'org-1', currentOrgId: 'org-1' });
+
+    const [firstRadio, secondRadio] = screen.getAllByRole('radio');
+    fireEvent.focus(firstRadio);
+    fireEvent.keyDown(firstRadio, { key: 'End' });
+
+    await waitFor(() => {
+      expect(mockSetActiveOrg).toHaveBeenCalledWith('org-2');
+      expect(secondRadio).toHaveFocus();
+    });
+
+    firstRender.unmount();
+    mockSetActiveOrg.mockClear();
+    renderOrganizations({ asOrg: 'org-2', currentOrgId: 'org-2' });
+
+    const [newFirstRadio, newSecondRadio] = screen.getAllByRole('radio');
+    fireEvent.focus(newSecondRadio);
+    fireEvent.keyDown(newSecondRadio, { key: 'Home' });
+    await waitFor(() => {
+      expect(mockSetActiveOrg).toHaveBeenLastCalledWith('org-1');
+      expect(newFirstRadio).toHaveFocus();
+    });
   });
 });
 

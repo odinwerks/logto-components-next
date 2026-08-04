@@ -579,25 +579,42 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT deduplicate concurrent calls for different orgIds (BUG-020)', async () => {
-    // Different orgIds need separate org tokens with different scopes.
-    // The dedup map is keyed by a session-specific digest plus orgId, so these should NOT
-    // share a promise.
+  it('serializes different-org grants for one session and propagates the rotated token (M-017)', async () => {
+    let resolveFirstFetch: (response: Response) => void = () => {};
+    const firstFetch = new Promise<Response>((resolve) => {
+      resolveFirstFetch = resolve;
+    });
     fetchSpy
-      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-1' }))
-      .mockResolvedValueOnce(mockJsonResponse({ access_token: 'org-jwt-2' }));
+      .mockReturnValueOnce(firstFetch)
+      .mockResolvedValueOnce(mockJsonResponse({
+        access_token: 'org-jwt-2',
+        refresh_token: 'rotated-refresh-2',
+      }));
 
     const { getOrganizationUserPermissions } = await import('./organizations');
 
-    const [r1, r2] = await Promise.all([
-      getOrganizationUserPermissions('org-123'),
-      getOrganizationUserPermissions('org-456'),
-    ]);
+    const first = getOrganizationUserPermissions('org-123');
+    const second = getOrganizationUserPermissions('org-456');
+
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    expect(getTokenForServerAction).toHaveBeenCalledTimes(1);
+
+    resolveFirstFetch(mockJsonResponse({
+      access_token: 'org-jwt-1',
+      refresh_token: 'rotated-refresh-1',
+    }));
+    const [r1, r2] = await Promise.all([first, second]);
 
     expect(r1.ok).toBe(true);
     expect(r2.ok).toBe(true);
-    // Two different orgIds → two independent refresh_token grants
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(getTokenForServerAction).toHaveBeenCalledTimes(1);
+    expect(introspectToken).toHaveBeenCalledTimes(1);
+
+    const firstBody = String(fetchSpy.mock.calls[0]?.[1]?.body);
+    const secondBody = String(fetchSpy.mock.calls[1]?.[1]?.body);
+    expect(new URLSearchParams(firstBody).get('refresh_token')).toBe('old-refresh-token');
+    expect(new URLSearchParams(secondBody).get('refresh_token')).toBe('rotated-refresh-1');
   });
 
   // ── Cross-session isolation (CAN-ACT-003) ───────────────────────────────
@@ -610,6 +627,17 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
     // Before the fix, the key used only `sub`, so Session B would receive
     // Session A's decoded scope names during A's pending refresh-token grant
     // — a cross-session permission leak.
+    const sessionOneGetRefreshToken = vi.fn().mockResolvedValue('refresh-session-1');
+    const sessionTwoGetRefreshToken = vi.fn().mockResolvedValue('refresh-session-2');
+    mockCreateNodeClient
+      .mockResolvedValueOnce({
+        getRefreshToken: sessionOneGetRefreshToken,
+        adapter: { setStorageItem: mockSetStorageItem },
+      })
+      .mockResolvedValueOnce({
+        getRefreshToken: sessionTwoGetRefreshToken,
+        adapter: { setStorageItem: mockSetStorageItem },
+      });
     vi.mocked(introspectToken)
       .mockResolvedValueOnce({ active: true, sub: 'user-Alice', sid: 'session-Alice-1' } as never)
       .mockResolvedValueOnce({ active: true, sub: 'user-Alice', sid: 'session-Alice-2' } as never);
@@ -636,9 +664,18 @@ describe('getOrganizationUserPermissions - refresh token rotation (BUG-L01)', ()
     expect(r1).not.toBe(r2);
   });
 
-  it('does NOT collide when session and organization values have ambiguous concatenations', async () => {
-    // `ab` + `c` and `a` + `bc` both produce `abc` when concatenated. The
-    // encoded digest input must preserve field boundaries before hashing.
+  it('does NOT merge coordinators for distinct refresh-token identities', async () => {
+    const sessionOneGetRefreshToken = vi.fn().mockResolvedValue('refresh-session-ab');
+    const sessionTwoGetRefreshToken = vi.fn().mockResolvedValue('refresh-session-a');
+    mockCreateNodeClient
+      .mockResolvedValueOnce({
+        getRefreshToken: sessionOneGetRefreshToken,
+        adapter: { setStorageItem: mockSetStorageItem },
+      })
+      .mockResolvedValueOnce({
+        getRefreshToken: sessionTwoGetRefreshToken,
+        adapter: { setStorageItem: mockSetStorageItem },
+      });
     vi.mocked(introspectToken)
       .mockResolvedValueOnce({ active: true, sub: 'ab', sid: 'session-ab' } as never)
       .mockResolvedValueOnce({ active: true, sub: 'a', sid: 'session-a' } as never);

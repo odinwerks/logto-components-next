@@ -3,10 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
 const mockRefresh = vi.fn();
+const mockRouter = { refresh: mockRefresh };
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    refresh: mockRefresh,
-  }),
+  useRouter: () => mockRouter,
 }));
 
 const mockSetActiveOrg = vi.fn();
@@ -15,7 +14,7 @@ vi.mock('./set-active-org', () => ({
 }));
 
 const mockSetAsOrg = vi.fn();
-let mockAsOrg: string | null = null;
+let mockAsOrg: string | null | undefined = null;
 
 // The OrgSwitcher now consumes useOrgSwitcher which uses useOrgMode
 vi.mock('../components/providers/preferences', () => ({
@@ -23,6 +22,11 @@ vi.mock('../components/providers/preferences', () => ({
     get asOrg() { return mockAsOrg; },
     setAsOrg: mockSetAsOrg,
   }),
+}));
+
+const mockUpdateUserCustomData = vi.fn();
+vi.mock('../logic/actions/profile', () => ({
+  updateUserCustomData: (data: Record<string, unknown>) => mockUpdateUserCustomData(data),
 }));
 
 vi.mock('../logic/capture-message', () => ({
@@ -42,7 +46,9 @@ const defaultColors = {
 describe('OrgSwitcher auto-switching behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
+    mockUpdateUserCustomData.mockResolvedValue({ ok: true });
     mockAsOrg = null;
   });
 
@@ -62,8 +68,7 @@ describe('OrgSwitcher auto-switching behavior', () => {
     // Auto-switch should have fired: validates membership and persists
     await waitFor(() => {
       expect(mockSetActiveOrg).toHaveBeenCalledWith('org_1');
-      // Non-null path: setAsOrg triggers persistOrg (1 server PATCH)
-      expect(mockSetAsOrg).toHaveBeenCalledWith('org_1');
+      expect(mockUpdateUserCustomData).toHaveBeenCalledWith({ Preferences: { asOrg: 'org_1' } });
     });
   });
 
@@ -107,7 +112,7 @@ describe('OrgSwitcher auto-switching behavior', () => {
     });
   });
 
-  it('returns null when there are no organizations', () => {
+  it('keeps personal-mode recovery visible when there are no organizations', () => {
     mockSetActiveOrg.mockResolvedValue({ ok: true, data: true });
     const { container } = render(
       <OrgSwitcher
@@ -118,6 +123,45 @@ describe('OrgSwitcher auto-switching behavior', () => {
       />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).not.toBeNull();
+    expect(screen.getByLabelText('Select access context')).toBeInTheDocument();
+  });
+
+  it('clears a revoked active organization after live memberships refresh (M-030)', async () => {
+    mockAsOrg = 'org_revoked';
+
+    render(
+      <OrgSwitcher
+        organizations={[]}
+        currentOrgId="org_revoked"
+        colors={defaultColors}
+        mode="light"
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockSetActiveOrg).toHaveBeenCalledWith(null);
+      expect(mockSetAsOrg).toHaveBeenCalledWith(null);
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it('surfaces revoked-organization reconciliation failures and keeps retry control', async () => {
+    mockAsOrg = 'org_revoked';
+    mockSetActiveOrg.mockResolvedValueOnce({ ok: false, error: 'UPDATE_FAILED' });
+
+    render(
+      <OrgSwitcher
+        organizations={[]}
+        currentOrgId="org_revoked"
+        colors={defaultColors}
+        mode="light"
+      />
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to switch to personal mode');
+    const select = screen.getByLabelText('Select access context') as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+    expect(select.value).toBe('org_revoked');
   });
 });

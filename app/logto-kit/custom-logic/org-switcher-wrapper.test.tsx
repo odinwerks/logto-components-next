@@ -79,4 +79,22 @@ describe('OrgSwitcherWrapper stale claims gate behavior', () => {
     const { container } = render(wrapperElement);
     expect(container.firstChild).toBeNull();
   });
+
+  it('mounts personal-mode recovery when all live memberships are revoked (M-030)', async () => {
+    mockGetLogtoContext.mockResolvedValue({
+      isAuthenticated: true,
+      claims: { sub: 'user_123' },
+      userInfo: { organization_data: [] },
+    });
+
+    const wrapperElement = await OrgSwitcherWrapper({
+      mode: 'light',
+      colors: {} as unknown as ThemeColors,
+      t: {} as unknown as Translations,
+    });
+
+    render(wrapperElement);
+
+    expect(screen.getByTestId('org-switcher')).toHaveTextContent('Switcher with 0 orgs');
+  });
 });

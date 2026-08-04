@@ -20,10 +20,7 @@ export async function OrgSwitcherWrapper({ mode, colors, t }: OrgSwitcherWrapper
     return null;
   }
 
-  const organizationData = userInfo?.organization_data as OrganizationData[] | undefined;
-  if (!organizationData || organizationData.length === 0) {
-    return null;
-  }
+  const organizationData = (userInfo?.organization_data as OrganizationData[] | undefined) ?? [];
 
   return <OrgSwitcher organizations={organizationData} mode={mode} colors={colors} t={t} />;
 }
