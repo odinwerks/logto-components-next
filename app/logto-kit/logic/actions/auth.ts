@@ -1,10 +1,11 @@
 'use server';
 
 import { signIn, signOut } from '@logto/next/server-actions';
+import { cookies } from 'next/headers';
 import { logtoConfig, getLogtoConfig } from '../../config';
 import { sanitize } from '../errors';
 import { assertSafeRouteTo } from '../assert-safe-route';
-import { clearVerificationCookie } from './verification-cookie';
+import { clearLogtoCookiesFromJar } from '../cookie-utils';
 
 /**
  * Initiates the Logto sign-in flow.
@@ -60,11 +61,8 @@ export async function signInUser(routeTo?: string): Promise<void> {
  */
 export async function signOutUser(): Promise<void> {
   try {
-    // Clear the verification seal BEFORE sign-out so that a stale cookie
-    // (User A's verification) is never left behind for User B on the same
-    // browser (CAN-ACT-002). `clearVerificationCookie()` is best-effort and
-    // internally catches errors, so it won't block the sign-out redirect.
-    await clearVerificationCookie();
+    // Let the SDK read the existing session and attempt server-side token
+    // revocation before local cookies are expired.
     await signOut(getLogtoConfig());
   } catch (err) {
     // NEXT_REDIRECT is a control-flow pseudo-error that Next.js uses to perform
@@ -77,5 +75,15 @@ export async function signOutUser(): Promise<void> {
       throw err;
     }
     throw sanitize(err, { fallback: 'INTERNAL_ERROR' });
+  } finally {
+    // The SDK can fail before it clears its cookie storage (for example while
+    // loading OIDC discovery). Always expire the local session and related
+    // Logto cookies, but never let cleanup mask the SDK error or redirect.
+    try {
+      const cookieStore = await cookies();
+      await clearLogtoCookiesFromJar(cookieStore);
+    } catch {
+      // Best-effort local cleanup; preserve the original control flow.
+    }
   }
 }

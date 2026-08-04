@@ -3,17 +3,29 @@ import { signInUser, signOutUser } from './auth';
 import { assertSafeRouteTo } from '../assert-safe-route';
 import { ValidationError } from '../validation';
 
+const cookieMocks = vi.hoisted(() => {
+  const getAll = vi.fn();
+  const set = vi.fn();
+  const cookieStore = { getAll, set };
+
+  return {
+    getAll,
+    set,
+    cookieStore,
+    cookies: vi.fn(),
+  };
+});
+
 vi.mock('@logto/next/server-actions', () => ({
   signIn: vi.fn(),
   signOut: vi.fn(),
 }));
 
-vi.mock('./verification-cookie', () => ({
-  clearVerificationCookie: vi.fn().mockResolvedValue(undefined),
+vi.mock('next/headers', () => ({
+  cookies: cookieMocks.cookies,
 }));
 
 import { signIn, signOut } from '@logto/next/server-actions';
-import { clearVerificationCookie } from './verification-cookie';
 
 describe('signInUser', () => {
   it('calls signIn without postRedirectUri when routeTo is omitted', async () => {
@@ -114,33 +126,95 @@ describe('signOutUser', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(signOut).mockResolvedValue(undefined);
+    cookieMocks.getAll.mockReturnValue([
+      { name: 'logto_test-app', value: 'encrypted-session' },
+      { name: 'logto-active-org', value: 'org-123' },
+      { name: 'logto-verification-seal', value: 'sealed-verification' },
+      { name: 'theme', value: 'dark' },
+    ]);
+    cookieMocks.set.mockImplementation(() => undefined);
+    cookieMocks.cookies.mockResolvedValue(cookieMocks.cookieStore);
   });
 
   it('completes successfully when signOut resolves', async () => {
     vi.mocked(signOut).mockResolvedValueOnce(undefined);
     await expect(signOutUser()).resolves.toBeUndefined();
+    expect(cookieMocks.set).toHaveBeenCalledWith(
+      'logto_test-app',
+      '',
+      { maxAge: 0, path: '/' },
+    );
+    expect(vi.mocked(signOut).mock.invocationCallOrder[0])
+      .toBeLessThan(cookieMocks.cookies.mock.invocationCallOrder[0]);
   });
 
-  it('clears the verification cookie before calling signOut (CAN-ACT-002)', async () => {
+  it('clears local Logto cookies and reports the SDK error when signOut fails pre-clear', async () => {
+    vi.mocked(signOut).mockRejectedValueOnce(
+      new Error('SDK discovery failed before clearing the session'),
+    );
+
+    await expect(signOutUser()).rejects.toMatchObject({
+      name: 'SanitizedError',
+      message: 'INTERNAL_ERROR',
+    });
+    expect(cookieMocks.set).toHaveBeenCalledWith(
+      'logto_test-app',
+      '',
+      { maxAge: 0, path: '/' },
+    );
+    expect(cookieMocks.set).toHaveBeenCalledWith(
+      'logto-active-org',
+      '',
+      { maxAge: 0, path: '/' },
+    );
+    expect(cookieMocks.set).toHaveBeenCalledWith(
+      'logto-verification-seal',
+      '',
+      { maxAge: 0, path: '/' },
+    );
+    expect(cookieMocks.set).not.toHaveBeenCalledWith(
+      'theme',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('preserves the original signOut failure when local cleanup also fails', async () => {
+    const cleanupErr = new Error('cookie jar unavailable');
+    vi.mocked(signOut).mockRejectedValueOnce(new Error('SDK discovery failed'));
+    cookieMocks.cookies.mockRejectedValueOnce(cleanupErr);
+
+    await expect(signOutUser()).rejects.toSatisfy((err: unknown) => (
+      err instanceof Error &&
+      err !== cleanupErr &&
+      err.name === 'SanitizedError' &&
+      err.message === 'INTERNAL_ERROR'
+    ));
+  });
+
+  it('does not surface local cleanup failure after successful signOut', async () => {
     vi.mocked(signOut).mockResolvedValueOnce(undefined);
-    await signOutUser();
-    expect(clearVerificationCookie).toHaveBeenCalledTimes(1);
-    // clearVerificationCookie must be called BEFORE signOut so the seal is
-    // cleared before the redirect throws.
-    expect(vi.mocked(clearVerificationCookie).mock.invocationCallOrder[0])
-      .toBeLessThan(vi.mocked(signOut).mock.invocationCallOrder[0]);
-  });
+    cookieMocks.cookies.mockRejectedValueOnce(new Error('cookie jar unavailable'));
 
-  it('clears the verification cookie even when signOut throws NEXT_REDIRECT', async () => {
-    const redirectErr = new Error('NEXT_REDIRECT');
-    vi.mocked(signOut).mockRejectedValueOnce(redirectErr);
-    await expect(signOutUser()).rejects.toBe(redirectErr);
-    expect(clearVerificationCookie).toHaveBeenCalledTimes(1);
+    await expect(signOutUser()).resolves.toBeUndefined();
   });
 
   it('re-throws NEXT_REDIRECT errors unchanged (Next.js redirect control-flow)', async () => {
     const redirectErr = new Error('NEXT_REDIRECT');
     vi.mocked(signOut).mockRejectedValueOnce(redirectErr);
+    await expect(signOutUser()).rejects.toBe(redirectErr);
+    expect(cookieMocks.set).toHaveBeenCalledWith(
+      'logto_test-app',
+      '',
+      { maxAge: 0, path: '/' },
+    );
+  });
+
+  it('does not mask NEXT_REDIRECT when local cleanup fails', async () => {
+    const redirectErr = new Error('NEXT_REDIRECT');
+    vi.mocked(signOut).mockRejectedValueOnce(redirectErr);
+    cookieMocks.cookies.mockRejectedValueOnce(new Error('cookie cleanup failed'));
+
     await expect(signOutUser()).rejects.toBe(redirectErr);
   });
 
