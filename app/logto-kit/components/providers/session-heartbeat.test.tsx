@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
-import SessionHeartbeat from './session-heartbeat';
+import { act, render } from '@testing-library/react';
+import SessionHeartbeat, { withSessionActionLock } from './session-heartbeat';
 import { recordHeartbeat } from '../../logic/actions/heartbeat';
 import { readEnv } from '../../logic/env';
 
@@ -16,12 +16,54 @@ vi.mock('../../logic/env', () => ({
 describe('SessionHeartbeat Component (BUG-024)', () => {
   let visibilityState: 'visible' | 'hidden' = 'visible';
   let documentListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
+  let lockHeld = false;
+  let lockWaiters: Array<() => void> = [];
+  let nativeFetch: ReturnType<typeof vi.fn>;
+
+  const installLockManager = () => {
+    const request = vi.fn(async (
+      name: string,
+      optionsOrCallback: LockOptions | ((lock: Lock | null) => unknown),
+      possibleCallback?: (lock: Lock | null) => unknown
+    ) => {
+      const options = typeof optionsOrCallback === 'function' ? {} : optionsOrCallback;
+      const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : possibleCallback;
+      if (!callback) throw new Error('Missing lock callback');
+
+      if (options.ifAvailable && lockHeld) return callback(null);
+      while (lockHeld) {
+        await new Promise<void>((resolve) => lockWaiters.push(resolve));
+      }
+
+      lockHeld = true;
+      try {
+        return await callback({ name, mode: 'exclusive' } as Lock);
+      } finally {
+        lockHeld = false;
+        lockWaiters.shift()?.();
+      }
+    });
+
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    return request;
+  };
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    vi.mocked(recordHeartbeat).mockReset().mockResolvedValue({ ok: true, data: undefined });
     visibilityState = 'visible';
     documentListeners = {};
+    lockHeld = false;
+    lockWaiters = [];
+    nativeFetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', nativeFetch);
+    window.localStorage.clear();
+    installLockManager();
 
     // Mock document.visibilityState
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibilityState);
@@ -43,6 +85,7 @@ describe('SessionHeartbeat Component (BUG-024)', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -172,5 +215,77 @@ describe('SessionHeartbeat Component (BUG-024)', () => {
     // Flush the microtask queue so the .catch() handler runs and the
     // rejected promise does not bubble as an unhandled rejection.
     await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('keeps logout final when an in-flight heartbeat races sign-out (M-001)', async () => {
+    vi.mocked(readEnv).mockReturnValue('blacktop');
+    let finishHeartbeat!: () => void;
+    let sessionState = 'authenticated';
+    vi.mocked(recordHeartbeat).mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishHeartbeat = resolve;
+      });
+      sessionState = 'heartbeat-applied';
+      return { ok: true, data: undefined };
+    });
+
+    render(<SessionHeartbeat />);
+    expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+
+    const signOut = vi.fn(async () => {
+      sessionState = 'signed-out';
+    });
+    const logoutResponse = withSessionActionLock('sign-out', signOut);
+    await act(async () => Promise.resolve());
+
+    // Sign-out must wait so its cookie-clearing result is applied last.
+    expect(signOut).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishHeartbeat();
+      await logoutResponse;
+    });
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(sessionState).toBe('signed-out');
+
+    // A stale tab must not start another heartbeat after completed sign-out.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not serialize an unrelated Server Action behind the heartbeat lock (M-001)', async () => {
+    vi.mocked(readEnv).mockReturnValue('blacktop');
+    let finishHeartbeatResponse!: () => void;
+    nativeFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => {
+      finishHeartbeatResponse = () => resolve(new Response(null, { status: 200 }));
+    }));
+    vi.mocked(recordHeartbeat).mockImplementationOnce(async () => {
+      await window.fetch('/server-action', {
+        method: 'POST',
+        headers: { 'Next-Action': 'heartbeat-action' },
+      });
+      return { ok: true, data: undefined };
+    });
+
+    render(<SessionHeartbeat />);
+    await act(async () => Promise.resolve());
+    expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+    expect(nativeFetch).toHaveBeenCalledTimes(1);
+
+    const unrelatedResponse = window.fetch('/server-action', {
+      method: 'POST',
+      headers: { 'Next-Action': 'unrelated-profile-action' },
+    });
+
+    // A profile/RBAC/MFA action must bypass the session lock entirely.
+    expect(nativeFetch).toHaveBeenCalledTimes(2);
+    await expect(unrelatedResponse).resolves.toBeInstanceOf(Response);
+
+    await act(async () => {
+      finishHeartbeatResponse();
+    });
   });
 });

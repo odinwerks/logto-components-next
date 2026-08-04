@@ -109,73 +109,51 @@ describe('AuthWatcher Component (P-BUG-004)', () => {
     expect(mockRefresh).toHaveBeenCalledTimes(2);
   });
 
-  it('suppresses refresh when window.__LDD_DASHBOARD_OPEN__ is true (D12)', async () => {
-    // Set the dashboard-open flag before rendering
+  it('refreshes on focus while the dashboard remains open (M-010)', async () => {
     window.__LDD_DASHBOARD_OPEN__ = true;
 
     render(<AuthWatcher debounceMs={1000} refreshIntervalMs={0} />);
 
     const visibilityCb = documentListeners['visibilitychange']?.[0];
-    const onlineCb = windowListeners['online']?.[0];
 
     visibilityState = 'visible';
     await act(async () => {
       visibilityCb?.();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+
+    delete window.__LDD_DASHBOARD_OPEN__;
+  });
+
+  it('refreshes on reconnect while the dashboard remains open (M-010)', async () => {
+    window.__LDD_DASHBOARD_OPEN__ = true;
+
+    render(<AuthWatcher debounceMs={1000} refreshIntervalMs={0} />);
+
+    const onlineCb = windowListeners['online']?.[0];
+
+    await act(async () => {
       onlineCb?.();
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    // Must NOT call refresh when dashboard is open
-    expect(mockRefresh).not.toHaveBeenCalled();
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
 
-    // Clean up
     delete window.__LDD_DASHBOARD_OPEN__;
   });
 
-  it('BUG-021: re-checks dashboard-open inside setTimeout callback (flag flips between schedule and execution)', async () => {
-    // Dashboard is closed at schedule time
-    window.__LDD_DASHBOARD_OPEN__ = false;
-
-    render(<AuthWatcher debounceMs={100} refreshIntervalMs={0} />);
-
-    const visibilityCb = documentListeners['visibilitychange']?.[0];
-
-    // Trigger — guard at schedule passes (flag is false)
-    visibilityState = 'visible';
-    await act(async () => {
-      visibilityCb?.();
-    });
-
-    // Flip the flag BEFORE the setTimeout(0) fires — simulating dashboard
-    // opening in the tiny window between schedule and execution
+  it('refreshes on the interval while the dashboard remains open (M-010)', async () => {
     window.__LDD_DASHBOARD_OPEN__ = true;
 
-    // Run the pending setTimeout(0)
+    render(<AuthWatcher debounceMs={1000} refreshIntervalMs={5000} />);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    // Must NOT call refresh — the re-check inside setTimeout caught the flip
-    expect(mockRefresh).not.toHaveBeenCalled();
-
-    delete window.__LDD_DASHBOARD_OPEN__;
-  });
-
-  it('allows refresh when window.__LDD_DASHBOARD_OPEN__ is false', async () => {
-    window.__LDD_DASHBOARD_OPEN__ = false;
-
-    render(<AuthWatcher debounceMs={1000} refreshIntervalMs={0} />);
-
-    const visibilityCb = documentListeners['visibilitychange']?.[0];
-
-    visibilityState = 'visible';
-    await act(async () => {
-      visibilityCb?.();
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(5001);
     });
 
     expect(mockRefresh).toHaveBeenCalledTimes(1);

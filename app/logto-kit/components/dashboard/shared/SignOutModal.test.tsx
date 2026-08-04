@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SignOutModal } from './SignOutModal';
 import type { Translations } from '../../../locales';
 import type { ThemeColors } from '../types';
@@ -19,6 +19,9 @@ vi.mock('../../../logic/env', async () => {
 // Mock signOutUser server action
 vi.mock('../../../logic/actions/auth', () => ({
   signOutUser: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../../logic/actions/heartbeat', () => ({
+  recordHeartbeat: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
 }));
 import { signOutUser } from '../../../logic/actions/auth';
 
@@ -74,6 +77,16 @@ const mockColors = {
 describe('SignOutModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(signOutUser).mockReset().mockResolvedValue(undefined);
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: undefined,
+    });
   });
 
   it('renders when isOpen is true', () => {
@@ -156,6 +169,42 @@ describe('SignOutModal', () => {
 
     expect(signOutUser).toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it('acquires the session lock only around the signOutUser invocation (M-001)', async () => {
+    vi.useFakeTimers();
+    let releaseLock!: () => void;
+    const request = vi.fn(async (
+      _name: string,
+      callback: (lock: Lock) => Promise<unknown>
+    ) => {
+      await new Promise<void>((resolve) => {
+        releaseLock = resolve;
+      });
+      return callback({ name: 'logto-session-action', mode: 'exclusive' } as Lock);
+    });
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    render(<SignOutModal isOpen={true} onAbort={vi.fn()} mode="dark" colors={mockColors} t={mockT} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let me go!' }));
+
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+      await Promise.resolve();
+    });
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(signOutUser).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releaseLock();
+      await Promise.resolve();
+    });
+
+    expect(signOutUser).toHaveBeenCalledTimes(1);
   });
 
   it('accepts custom countdownSeconds', () => {

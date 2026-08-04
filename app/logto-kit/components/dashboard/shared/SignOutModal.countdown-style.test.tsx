@@ -9,6 +9,9 @@ import type { ThemeColors } from '../types';
 vi.mock('../../../logic/actions/auth', () => ({
   signOutUser: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('../../../logic/actions/heartbeat', () => ({
+  recordHeartbeat: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+}));
 
 // Mock unified toast context (required since SignOutModal now uses useToast)
 vi.mock('../../providers/toast-provider', () => ({

@@ -10,6 +10,7 @@ import { signOutUser } from '../../../logic/actions/auth';
 import { useFocusTrap } from './focus-trap';
 import { clientLog } from '../../../logic/client-logger';
 import { useToast } from '../../providers/toast-provider';
+import { withSessionActionLock } from '../../providers/session-heartbeat';
 import { useScrollLock } from '../../../hooks/use-scroll-lock';
 
 interface SignOutModalProps {
@@ -218,7 +219,7 @@ export function SignOutModal({
       // Farewell stage: wait SIGNOUT_REDIRECT_DELAY then call signOutUser server action
       const timer = setTimeout(async () => {
         try {
-          await signOutUser();
+          await withSessionActionLock('sign-out', signOutUser);
         } catch (err) {
           clientLog.error('SignOutModal', 'signOutUser failed:', err);
           showToast('error', t.dashboard.signOutFailed);
