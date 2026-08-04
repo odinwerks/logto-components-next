@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAvatarModal } from './use-avatar-modal';
-import { uploadAvatar } from '../logic/actions';
+import { uploadAvatar } from '../logic/actions/avatar';
 
-vi.mock('../logic/actions', () => ({
+vi.mock('../logic/actions/avatar', () => ({
   uploadAvatar: vi.fn(),
 }));
 

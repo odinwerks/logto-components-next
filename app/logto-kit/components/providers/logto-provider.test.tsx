@@ -5,7 +5,7 @@ import { LogtoProvider, useLogto } from './logto-provider';
 import type { UserData } from '../../logic/types';
 
 // Mock the actions module (network-dependent)
-vi.mock('../../logic/actions', () => ({
+vi.mock('../../logic/actions/profile', () => ({
   updateUserCustomData: vi.fn(),
 }));
 
