@@ -15,6 +15,11 @@ export type RevokeAllSessionsFn = (
 
 export type ReloadSessionsFn = (recordId: string) => Promise<void>;
 
+const VERIFICATION_REJECTION_ERRORS = new Set([
+  'VERIFICATION_EXPIRED',
+  'VERIFICATION_FAILED',
+]);
+
 export interface UseSessionRevocationOptions {
   verificationRecordId: string | null;
   verificationExpiry: number;
@@ -24,6 +29,7 @@ export interface UseSessionRevocationOptions {
   onRevokeSession: RevokeSessionFn;
   onRevokeAllOtherSessions: RevokeAllSessionsFn;
   onReloadSessions: ReloadSessionsFn;
+  onVerificationInvalidated: () => void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -51,6 +57,7 @@ export function useSessionRevocation({
   onRevokeSession,
   onRevokeAllOtherSessions,
   onReloadSessions,
+  onVerificationInvalidated,
   onSuccess,
   onError,
 }: UseSessionRevocationOptions): UseSessionRevocationResult {
@@ -88,6 +95,7 @@ export function useSessionRevocation({
   const onRevokeSessionRef = useRef(onRevokeSession);
   const onRevokeAllOtherSessionsRef = useRef(onRevokeAllOtherSessions);
   const onReloadSessionsRef = useRef(onReloadSessions);
+  const onVerificationInvalidatedRef = useRef(onVerificationInvalidated);
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
   useEffect(() => {
@@ -95,6 +103,7 @@ export function useSessionRevocation({
     onRevokeSessionRef.current = onRevokeSession;
     onRevokeAllOtherSessionsRef.current = onRevokeAllOtherSessions;
     onReloadSessionsRef.current = onReloadSessions;
+    onVerificationInvalidatedRef.current = onVerificationInvalidated;
     onSuccessRef.current = onSuccess;
     onErrorRef.current = onError;
   }, [
@@ -102,6 +111,7 @@ export function useSessionRevocation({
     onRevokeSession,
     onRevokeAllOtherSessions,
     onReloadSessions,
+    onVerificationInvalidated,
     onSuccess,
     onError,
   ]);
@@ -158,6 +168,8 @@ export function useSessionRevocation({
         }
         vid = verifyResult.data.verificationRecordId;
         vts = verifyResult.data.verificationTimestamp;
+        verificationRecordIdRef.current = vid;
+        verificationExpiryRef.current = vts;
       }
 
       if (!target) {
@@ -174,6 +186,11 @@ export function useSessionRevocation({
         const revokeResult = await onRevokeAllOtherSessionsRef.current(vid);
         if (!isActiveAttempt()) return;
         if (!revokeResult.ok) {
+          if (VERIFICATION_REJECTION_ERRORS.has(revokeResult.error)) {
+            verificationRecordIdRef.current = null;
+            verificationExpiryRef.current = 0;
+            onVerificationInvalidatedRef.current();
+          }
           setRevokeError(revokeResult.error);
           return;
         }
@@ -185,6 +202,11 @@ export function useSessionRevocation({
         const revokeResult = await onRevokeSessionRef.current(target.id, vid, 'firstParty');
         if (!isActiveAttempt()) return;
         if (!revokeResult.ok) {
+          if (VERIFICATION_REJECTION_ERRORS.has(revokeResult.error)) {
+            verificationRecordIdRef.current = null;
+            verificationExpiryRef.current = 0;
+            onVerificationInvalidatedRef.current();
+          }
           setRevokeError(revokeResult.error);
           return;
         }

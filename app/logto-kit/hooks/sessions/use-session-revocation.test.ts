@@ -16,6 +16,7 @@ const makeOpts = (overrides?: Partial<UseSessionRevocationOptions>): UseSessionR
   onRevokeSession: vi.fn().mockResolvedValue({ ok: true }),
   onRevokeAllOtherSessions: vi.fn().mockResolvedValue({ ok: true }),
   onReloadSessions: vi.fn().mockResolvedValue(undefined),
+  onVerificationInvalidated: vi.fn(),
   onSuccess: vi.fn(),
   onError: vi.fn(),
   ...overrides,
@@ -641,6 +642,35 @@ describe('useSessionRevocation', () => {
       await cancelledAttempt;
     });
     expect(opts.onSuccess).toHaveBeenCalledTimes(1);
+    expect(result.current.revokeModalStep).toBeNull();
+  });
+
+  it('23. verification rejection forces fresh verification while retaining the revoke target (M-028)', async () => {
+    const opts = makeOpts({
+      onRevokeSession: vi.fn()
+        .mockResolvedValueOnce({ ok: false, error: 'VERIFICATION_EXPIRED' })
+        .mockResolvedValueOnce({ ok: true }),
+    });
+    const { result } = renderHook(() => useSessionRevocation(opts));
+
+    act(() => {
+      result.current.startRevoke('session-target');
+    });
+
+    await act(async () => {
+      await result.current.handleRevokePassword('password');
+    });
+
+    expect(opts.onRevokeSession).toHaveBeenLastCalledWith('session-target', 'vid-1', 'firstParty');
+    expect(opts.onVerificationInvalidated).toHaveBeenCalledTimes(1);
+    expect(result.current.revokeModalStep).toEqual({ kind: 'password' });
+
+    await act(async () => {
+      await result.current.handleRevokePassword('password');
+    });
+
+    expect(opts.onVerifyPassword).toHaveBeenCalledTimes(1);
+    expect(opts.onRevokeSession).toHaveBeenLastCalledWith('session-target', 'vid-fresh', 'firstParty');
     expect(result.current.revokeModalStep).toBeNull();
   });
 });

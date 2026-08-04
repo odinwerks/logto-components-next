@@ -19,6 +19,11 @@ import { readEnv } from '../../../logic/env';
 // ─── Hardcoded design tokens ───
 const DASHBOARD_RADIUS = '0';
 
+const VERIFICATION_REJECTION_ERRORS = new Set([
+  'VERIFICATION_EXPIRED',
+  'VERIFICATION_FAILED',
+]);
+
 interface SessionsTabProps {
   userData: UserData;
   mode: 'dark' | 'light';
@@ -239,7 +244,7 @@ export function SessionsTab({
   }: SessionsTabProps) {
   const isMobile = mobmode === 1;
 
-  const backendType = (readEnv('BACKEND_TYPE') ?? 'blacktop').toLowerCase();
+  const backendType = (readEnv('BACKEND_TYPE') ?? 'upstream').toLowerCase();
   const showLastActive = backendType === 'blacktop';
   // ─── Replaced tk(tc) with direct color references ───
   const c = colors;
@@ -478,9 +483,15 @@ export function SessionsTab({
           setModalError(revokeResult.error);
           setModalLoading(false);
           setRevokingAll(false);
-          if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
+          if (VERIFICATION_REJECTION_ERRORS.has(revokeResult.error)) {
+            // Keep the intended target and revoke modal, but discard the record
+            // the server rejected so the next submit must verify again.
+            setVerificationRecordId(null);
+            setVerificationExpiry(0);
+          } else if (revokeResult.error === 'UNAUTHORIZED') {
             setViewState('unverified');
             setVerificationRecordId(null);
+            setVerificationExpiry(0);
             revokeTargetRef.current = null;
           }
           return;
@@ -492,9 +503,15 @@ export function SessionsTab({
           setModalLoading(false);
           setRevokingId(null);
           setRevokingAll(false);
-          if (revokeResult.error === 'VERIFICATION_FAILED' || revokeResult.error === 'UNAUTHORIZED') {
+          if (VERIFICATION_REJECTION_ERRORS.has(revokeResult.error)) {
+            // Keep the intended target and revoke modal, but discard the record
+            // the server rejected so the next submit must verify again.
+            setVerificationRecordId(null);
+            setVerificationExpiry(0);
+          } else if (revokeResult.error === 'UNAUTHORIZED') {
             setViewState('unverified');
             setVerificationRecordId(null);
+            setVerificationExpiry(0);
             revokeTargetRef.current = null;
           }
           return;

@@ -715,6 +715,75 @@ describe('SessionsTab', () => {
         dateNowSpy.mockRestore();
       }
     });
+
+    it('re-verifies with a new record after the server rejects the cached record as expired (M-028)', async () => {
+      const onVerifyPassword = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          data: { verificationRecordId: 'initial-vid', verificationTimestamp: Date.now() + 600_000 },
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          data: { verificationRecordId: 'fresh-vid', verificationTimestamp: Date.now() + 1_200_000 },
+        });
+      const onGetSessions = vi.fn().mockResolvedValue({ ok: true, data: createdSessions });
+      const onRevokeSession = vi.fn()
+        .mockResolvedValueOnce({ ok: false, error: 'VERIFICATION_EXPIRED' })
+        .mockResolvedValueOnce({ ok: true });
+
+      renderSessionsTab({
+        onVerifyPassword,
+        onGetSessionsWithDeviceMeta: onGetSessions,
+        onRevokeSession,
+      });
+      await verifyAndLoadSessions();
+      await screen.findByText('This device');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+      const revokeDialog = screen.getByRole('dialog', { name: enUS.sessions.revokeSession });
+      fireEvent.change(within(revokeDialog).getByPlaceholderText('Enter password'), {
+        target: { value: 'test-password' },
+      });
+      await act(async () => {
+        fireEvent.click(within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' }));
+      });
+      await within(revokeDialog).findByText('VERIFICATION_EXPIRED');
+
+      fireEvent.change(within(revokeDialog).getByPlaceholderText('Enter password'), {
+        target: { value: 'test-password' },
+      });
+      await act(async () => {
+        fireEvent.click(within(revokeDialog).getByRole('button', { name: 'VERIFY PASS' }));
+      });
+
+      await waitFor(() => expect(onRevokeSession).toHaveBeenCalledTimes(2));
+      expect(onVerifyPassword).toHaveBeenCalledTimes(2);
+      expect(onRevokeSession.mock.calls[0][1]).toBe('initial-vid');
+      expect(onRevokeSession.mock.calls[1][0]).toBe('ses-2');
+      expect(onRevokeSession.mock.calls[1][1]).toBe('fresh-vid');
+    });
+  });
+
+  describe('backend type default', () => {
+    it('defaults to upstream and hides last-active metadata when BACKEND_TYPE is unset (M-036)', async () => {
+      const originalBackendType = process.env.BACKEND_TYPE;
+      const originalPublicBackendType = process.env.NEXT_PUBLIC_BACKEND_TYPE;
+      delete process.env.BACKEND_TYPE;
+      delete process.env.NEXT_PUBLIC_BACKEND_TYPE;
+
+      try {
+        renderSessionsTab({ mobmode: 1 });
+        await verifyAndLoadSessions();
+        await screen.findByRole('button', { name: enUS.sessions.thisDevice });
+
+        expect(screen.queryByText(`${enUS.sessions.lastActive}:`, { exact: false })).toBeNull();
+      } finally {
+        if (originalBackendType === undefined) delete process.env.BACKEND_TYPE;
+        else process.env.BACKEND_TYPE = originalBackendType;
+        if (originalPublicBackendType === undefined) delete process.env.NEXT_PUBLIC_BACKEND_TYPE;
+        else process.env.NEXT_PUBLIC_BACKEND_TYPE = originalPublicBackendType;
+      }
+    });
   });
 
   describe('verification expiry source', () => {
@@ -1439,4 +1508,3 @@ describe('SessionsTab', () => {
       });
     });
   });
-

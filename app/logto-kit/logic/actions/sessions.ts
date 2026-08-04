@@ -117,15 +117,47 @@ export async function getSessionsWithDeviceMeta(
 
     const sessions = await getUserSessionsInternal(verificationRecordId);
 
-    // userId is a display-only metadata field in SessionMeta. Token introspection
-    // was previously used to populate it, but that added an unnecessary sequential
-    // network round-trip (10 s timeout) on every Sessions tab load. The field is
-    // not rendered in any current UI component, so we always set it to ''.
-    // revokeAllOtherSessions still uses introspection (for sid-based current-session
-    // detection), so those imports remain.
+    // userId is a display-only metadata field in SessionMeta and is not rendered.
+    // Reuse the auth-guard introspection result to identify the current session
+    // without adding another network round-trip.
     const userId = '';
+    const currentSessionId = introspection.sid || null;
 
-    const enrichedSessions: LogtoSession[] = sessions.map(session => {
+    const upstreamCurrentIndexes = sessions.flatMap((session, index) =>
+      session.isCurrent === true ? [index] : []
+    );
+    const sidMatchIndexes = currentSessionId
+      ? sessions.flatMap((session, index) =>
+          session.payload.uid === currentSessionId ? [index] : []
+        )
+      : [];
+
+    let resolvedCurrentIndex: number | null = null;
+    let currentSessionUnidentified = false;
+
+    if (currentSessionId) {
+      const sidIsUnique = sidMatchIndexes.length === 1;
+      const upstreamIsConsistent = upstreamCurrentIndexes.length === 0 || (
+        upstreamCurrentIndexes.length === 1 &&
+        upstreamCurrentIndexes[0] === sidMatchIndexes[0]
+      );
+
+      if (sidIsUnique && upstreamIsConsistent) {
+        resolvedCurrentIndex = sidMatchIndexes[0];
+      } else {
+        // A missing/duplicate sid match or disagreement with the upstream flag
+        // cannot safely identify a revocable row. Fail closed for the full list.
+        currentSessionUnidentified = true;
+      }
+    } else if (upstreamCurrentIndexes.length === 1) {
+      resolvedCurrentIndex = upstreamCurrentIndexes[0];
+    } else {
+      // Without a usable sid, exactly one upstream true marker is required.
+      // Explicit false values cannot safely identify which row is current.
+      currentSessionUnidentified = true;
+    }
+
+    const enrichedSessions: LogtoSession[] = sessions.map((session, index) => {
       const signInContext = session.lastSubmission?.signInContext;
       const deviceInfo = parseSignInContext(signInContext?.userAgent || '');
 
@@ -143,9 +175,13 @@ export async function getSessionsWithDeviceMeta(
         // (< 1e12 → seconds) is a safety net in case the unit changes.
         // If Logto ever switches to seconds, update this code and remove the heuristic.
         createdAt: new Date(session.payload.loginTs < 1e12 ? session.payload.loginTs * 1000 : session.payload.loginTs).toISOString(),
-        // TODO(logto#8728-8731): replace false with `session.isCurrent ?? false`
-        // once the isCurrent field lands in the Logto Account API sessions response.
-        isCurrent: session.isCurrent ?? false,
+        // A uniquely resolved current row is authoritative. If the signals are
+        // ambiguous or conflicting, mark every row current so none is revocable.
+        isCurrent: currentSessionUnidentified
+          ? true
+          : resolvedCurrentIndex === null
+            ? (session.isCurrent ?? true)
+            : index === resolvedCurrentIndex,
       };
 
       return { ...session, meta };

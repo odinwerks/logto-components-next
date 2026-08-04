@@ -143,8 +143,8 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data[0].meta?.isCurrent).toBe(true);
   });
 
-  it('sets meta.isCurrent = false when the API omits the isCurrent field (pre-ship Logto)', async () => {
-    // No `isCurrent` property at all - simulates old Logto API
+  it('fails closed as current when both sid and the API isCurrent field are absent (M-035)', async () => {
+    // No `sid` or `isCurrent` signal: the row must not expose revocation controls.
     const session = mockSession('session-b', undefined);
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ sessions: [session] })
@@ -156,13 +156,19 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].meta?.isCurrent).toBe(false);
+    expect(result.data[0].meta?.isCurrent).toBe(true);
   });
 
-  it('sets meta.isCurrent = false when the API explicitly returns isCurrent: false', async () => {
-    const session = mockSession('session-c', false);
+  it('derives the current session by comparing introspected sid to payload.uid (M-035)', async () => {
+    const matchingSession = mockSession('current-session', undefined);
+    const otherSession = mockSession('other-session', undefined);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'current-session',
+    });
     vi.mocked(makeRequest).mockResolvedValue(
-      mockJsonResponse({ sessions: [session] })
+      mockJsonResponse({ sessions: [matchingSession, otherSession] })
     );
 
     const { getSessionsWithDeviceMeta } = await import('./sessions');
@@ -170,8 +176,116 @@ describe('getSessionsWithDeviceMeta', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].meta?.isCurrent).toBe(false);
+    expect(result.data[0].meta?.isCurrent).toBe(true);
+    expect(result.data[1].meta?.isCurrent).toBe(false);
+  });
+
+  it('marks all rows non-revocable when sid matches no returned session (M-035)', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'missing-session',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({
+        sessions: [
+          mockSession('session-a', false),
+          mockSession('session-b', false),
+        ],
+      })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(session => session.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('marks all rows non-revocable when sid matches multiple returned sessions (M-035)', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'duplicate-session',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({
+        sessions: [
+          mockSession('duplicate-session', false),
+          mockSession('duplicate-session', false),
+          mockSession('other-session', false),
+        ],
+      })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(session => session.meta?.isCurrent)).toEqual([true, true, true]);
+  });
+
+  it('marks all rows non-revocable when sid conflicts with upstream isCurrent (M-035)', async () => {
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'sid-current-session',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({
+        sessions: [
+          mockSession('sid-current-session', false),
+          mockSession('upstream-current-session', true),
+          mockSession('other-session', false),
+        ],
+      })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(session => session.meta?.isCurrent)).toEqual([true, true, true]);
+  });
+
+  it('marks all rows non-revocable when sid absent and no upstream isCurrent marker exists (all-false rows)', async () => {
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({
+        sessions: [
+          mockSession('session-c', false),
+          mockSession('session-d', false),
+        ],
+      })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(session => session.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('marks all rows non-revocable when sid absent and upstream markers mix false and absent', async () => {
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({
+        sessions: [
+          mockSession('session-e', false),
+          mockSession('session-f', undefined),
+          mockSession('session-g', false),
+        ],
+      })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(session => session.meta?.isCurrent)).toEqual([true, true, true]);
   });
 
   it('sets meta.userId to empty string without calling introspection for userId population (perf fix)', async () => {
