@@ -807,10 +807,10 @@ describe('Country Gating on Phone Verification Actions', () => {
 
     it('allows allowed country in allow list mode', async () => {
       mockCountryFilter.mode = 'allow';
-      mockCountryFilter.codes = ['380']; // Only Ukraine allowed
+      mockCountryFilter.codes = ['1']; // US/Canada allowed
 
       const { sendPhoneVerificationCode } = await import('./verification');
-      const result = await sendPhoneVerificationCode('+380501234567'); // UA
+      const result = await sendPhoneVerificationCode('+14155552671'); // US
       expect(result.ok).toBe(true);
     });
 
@@ -825,13 +825,16 @@ describe('Country Gating on Phone Verification Actions', () => {
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
     });
 
-    it('allows unmapped country (e.g. Malawi) in block list mode', async () => {
+    it('blocks an unclassifiable number in block list mode', async () => {
       mockCountryFilter.mode = 'block';
       mockCountryFilter.codes = ['380']; // Only Ukraine blocked
 
       const { sendPhoneVerificationCode } = await import('./verification');
-      const result = await sendPhoneVerificationCode('+2651234567'); // MW (unmapped)
-      expect(result.ok).toBe(true);
+      const result = await sendPhoneVerificationCode('+9991234567');
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected failure');
+      expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
     });
 
     it('blocks explicitly blocked country in block list mode', async () => {
@@ -885,13 +888,16 @@ describe('Country Gating on Phone Verification Actions', () => {
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
     });
 
-    it('allows unmapped country (e.g. Malawi) in block list mode', async () => {
+    it('blocks an unclassifiable number in block list mode', async () => {
       mockCountryFilter.mode = 'block';
       mockCountryFilter.codes = ['380']; // Only Ukraine blocked
 
       const { verifyVerificationCode } = await import('./verification');
-      const result = await verifyVerificationCode('phone', '+2651234567', 'ver_id', '123456'); // MW (unmapped)
-      expect(result.ok).toBe(true);
+      const result = await verifyVerificationCode('phone', '+9991234567', 'ver_id', '123456');
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected failure');
+      expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
     });
   });
 
@@ -934,13 +940,16 @@ describe('Country Gating on Phone Verification Actions', () => {
       expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
     });
 
-    it('allows unmapped country (e.g. Malawi) in block list mode', async () => {
+    it('blocks an unclassifiable number in block list mode', async () => {
       mockCountryFilter.mode = 'block';
       mockCountryFilter.codes = ['380']; // Only Ukraine blocked
 
       const { updatePhoneWithVerification } = await import('./verification');
-      const result = await updatePhoneWithVerification('+2651234567', 'id_ver', 'id_ident'); // MW (unmapped)
-      expect(result.ok).toBe(true);
+      const result = await updatePhoneWithVerification('+9991234567', 'id_ver', 'id_ident');
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('Expected failure');
+      expect(result.error).toBe('PHONE_COUNTRY_NOT_ALLOWED');
+      expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
     });
 
     it('blocks explicitly blocked country in block list mode', async () => {

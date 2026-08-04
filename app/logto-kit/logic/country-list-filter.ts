@@ -2,26 +2,37 @@ import { COUNTRY_CODES } from './country-codes';
 import { ValidationError } from './validation';
 
 const SORTED_COUNTRY_CODES = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+const SUPPORTED_CALLING_CODES = new Set(COUNTRY_CODES.map(country => country.code));
 
 /**
  * Parses a comma-separated list of country dial codes.
- * Removes leading/trailing whitespace, strips plus sign prefix, filters out non-numeric entries,
- * and deduplicates the resulting list.
+ * Removes leading/trailing whitespace, strips an optional plus sign prefix,
+ * validates every entry against the canonical calling-code dataset, and deduplicates.
+ * Blank input means no policy; malformed nonblank input is a configuration error.
  */
-export function parseCountryList(val: string | undefined): string[] {
-  if (!val) return [];
+export function parseCountryList(val: string | undefined, configName = 'country policy'): string[] {
+  if (!val?.trim()) return [];
   const parts = val.split(',');
   const result: string[] = [];
   const seen = new Set<string>();
+  const invalid: string[] = [];
 
   for (const part of parts) {
     const cleaned = part.trim().replace(/^\+/, '');
-    if (/^\d+$/.test(cleaned)) {
-      if (!seen.has(cleaned)) {
-        seen.add(cleaned);
-        result.push(cleaned);
-      }
+    if (!cleaned || !/^\d+$/.test(cleaned) || !SUPPORTED_CALLING_CODES.has(cleaned)) {
+      invalid.push(part.trim() || '<empty>');
+      continue;
     }
+    if (!seen.has(cleaned)) {
+      seen.add(cleaned);
+      result.push(cleaned);
+    }
+  }
+
+  if (invalid.length > 0) {
+    throw new Error(
+      `Configuration Error: ${configName} contains invalid or unsupported calling code tokens: ${invalid.join(', ')}`
+    );
   }
 
   return result;
@@ -70,17 +81,19 @@ export function assertPhoneCountryAllowed(
 ): void {
   const digits = phone.replace(/\D/g, '');
   if (!digits) return; // let downstream validation handle empty
+  if (filter.mode === 'none') return;
 
   const ccIso = detectCountryFromE164(digits);
   const cc = ccIso ? COUNTRY_CODES.find(c => c.iso === ccIso)?.code || null : null;
 
   if (filter.mode === 'allow') {
-    // Fail-closed: unmapped country codes are rejected under allowlist mode.
+    // Fail closed: an unclassifiable number cannot be known to be allowed.
     if (!cc || !filter.codes.includes(cc)) {
       throw new ValidationError('PHONE_COUNTRY_NOT_ALLOWED', 'phone');
     }
   } else if (filter.mode === 'block') {
-    if (cc && filter.codes.includes(cc)) {
+    // Fail closed: an unclassifiable number cannot be known to be outside the block list.
+    if (!cc || filter.codes.includes(cc)) {
       throw new ValidationError('PHONE_COUNTRY_NOT_ALLOWED', 'phone');
     }
   }

@@ -117,7 +117,9 @@ export const COUNTRY_CODES: readonly CountryCode[] = Object.freeze([
   { code: '963', iso: 'SY', name: 'Syria' },
   { code: '970', iso: 'PS', name: 'Palestine' },
   { code: '93', iso: 'AF', name: 'Afghanistan' },
+  { code: '98', iso: 'IR', name: 'Iran' },
   { code: '960', iso: 'MV', name: 'Maldives' },
+  { code: '975', iso: 'BT', name: 'Bhutan' },
   { code: '976', iso: 'MN', name: 'Mongolia' },
   { code: '95', iso: 'MM', name: 'Myanmar' },
   { code: '855', iso: 'KH', name: 'Cambodia' },
@@ -147,6 +149,7 @@ export const COUNTRY_CODES: readonly CountryCode[] = Object.freeze([
   { code: '230', iso: 'MU', name: 'Mauritius' },
   { code: '263', iso: 'ZW', name: 'Zimbabwe' },
   { code: '260', iso: 'ZM', name: 'Zambia' },
+  { code: '265', iso: 'MW', name: 'Malawi' },
   { code: '250', iso: 'RW', name: 'Rwanda' }
 ]);
 

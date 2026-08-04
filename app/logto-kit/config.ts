@@ -29,6 +29,35 @@ const PRIVATE_ENV_VARS = new Set([
 
 const IS_NEXT_BUILD = process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE !== undefined;
 
+export type CountryFilter = { mode: 'allow' | 'block' | 'none'; codes: string[] };
+
+function resolveCountryFilter(): CountryFilter {
+  const allow = parseCountryList(
+    process.env.COUNTRY_CODE_ALLOW_LIST,
+    'COUNTRY_CODE_ALLOW_LIST',
+  );
+  const block = parseCountryList(
+    process.env.COUNTRY_CODE_BLOCK_LIST,
+    'COUNTRY_CODE_BLOCK_LIST',
+  );
+
+  if (allow.length > 0 && block.length > 0) {
+    const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
+    if (IS_NEXT_BUILD) {
+      warn(`[Logto Config] ${msg} Falling back to allow list.`);
+      return { mode: 'allow', codes: allow };
+    }
+    throw new Error(`Configuration Error: ${msg}`);
+  }
+  if (allow.length > 0) return { mode: 'allow', codes: allow };
+  if (block.length > 0) return { mode: 'block', codes: block };
+  return { mode: 'none', codes: [] };
+}
+
+// Country policy is startup configuration. Resolve it once so malformed input
+// cannot later collapse into an unrestricted policy on an individual request.
+const configuredCountryFilter = resolveCountryFilter();
+
 function getEnvVar(name: string, required = true): string {
   const allowPublic = !PRIVATE_ENV_VARS.has(name);
   const valueRaw = readEnv(name, allowPublic);
@@ -75,17 +104,6 @@ export const logtoConfig = (() => {
   const baseUrl = getEnvVar('BASE_URL', false);
   const cookieSecret = getEnvVar('COOKIE_SECRET', false);
   const scopeString = getEnvVar('SCOPES', false);
-
-  const allowList = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
-  const blockList = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
-  if (allowList.length > 0 && blockList.length > 0) {
-    const msg = 'COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive.';
-    if (IS_NEXT_BUILD) {
-      warn(`[Logto Config] ${msg} Falling back to allow list.`);
-    } else {
-      throw new Error(`Configuration Error: ${msg}`);
-    }
-  }
 
   if (!appId || !appSecret || !endpoint || !baseUrl || !cookieSecret) {
     warn('[Logto Config] Missing required environment variables. Build will continue but runtime will fail if not configured.');
@@ -443,19 +461,6 @@ export function getAvatarBackend(): AvatarBackend {
   return configured;
 }
 
-export function getCountryFilter(): { mode: 'allow' | 'block' | 'none'; codes: string[] } {
-  const allow = parseCountryList(process.env.COUNTRY_CODE_ALLOW_LIST);
-  const block = parseCountryList(process.env.COUNTRY_CODE_BLOCK_LIST);
-
-  if (allow.length > 0 && block.length > 0) {
-    warn('[config] Both COUNTRY_CODE_ALLOW_LIST and COUNTRY_CODE_BLOCK_LIST are set - they are mutually exclusive. Falling back to allow list.');
-    return { mode: 'allow', codes: allow };
-  }
-  if (allow.length > 0) {
-    return { mode: 'allow', codes: allow };
-  }
-  if (block.length > 0) {
-    return { mode: 'block', codes: block };
-  }
-  return { mode: 'none', codes: [] };
+export function getCountryFilter(): CountryFilter {
+  return { ...configuredCountryFilter, codes: [...configuredCountryFilter.codes] };
 }

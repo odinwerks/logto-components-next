@@ -11,6 +11,8 @@ describe('config resolution', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    delete process.env.COUNTRY_CODE_ALLOW_LIST;
+    delete process.env.COUNTRY_CODE_BLOCK_LIST;
   });
 
   describe('HTTPS validation in production', () => {
@@ -304,6 +306,13 @@ describe('config resolution', () => {
       expect(filter.codes).toEqual([]);
     });
 
+    it('should default to mode none when country lists are truly blank', async () => {
+      process.env.COUNTRY_CODE_ALLOW_LIST = '   ';
+      process.env.COUNTRY_CODE_BLOCK_LIST = '\t';
+      const { getCountryFilter } = await import('./config');
+      expect(getCountryFilter()).toEqual({ mode: 'none', codes: [] });
+    });
+
     it('should parse allow list when COUNTRY_CODE_ALLOW_LIST is provided', async () => {
       process.env.COUNTRY_CODE_ALLOW_LIST = '1, +44, 995';
       delete process.env.COUNTRY_CODE_BLOCK_LIST;
@@ -315,11 +324,11 @@ describe('config resolution', () => {
 
     it('should parse block list when COUNTRY_CODE_BLOCK_LIST is provided', async () => {
       delete process.env.COUNTRY_CODE_ALLOW_LIST;
-      process.env.COUNTRY_CODE_BLOCK_LIST = '380, +995';
+      process.env.COUNTRY_CODE_BLOCK_LIST = '380, +995, 98';
       const { getCountryFilter } = await import('./config');
       const filter = getCountryFilter();
       expect(filter.mode).toBe('block');
-      expect(filter.codes).toEqual(['380', '995']);
+      expect(filter.codes).toEqual(['380', '995', '98']);
     });
 
     it('should throw a descriptive Configuration Error at runtime if both are provided', async () => {
@@ -340,13 +349,28 @@ describe('config resolution', () => {
       expect(filter.codes).toEqual(['1']);
     });
 
-    it('should not throw if both are set but one or both parse to empty lists', async () => {
-      process.env.COUNTRY_CODE_ALLOW_LIST = 'abc'; // empty list of digits
-      process.env.COUNTRY_CODE_BLOCK_LIST = '44';
-      const { getCountryFilter } = await import('./config');
-      const filter = getCountryFilter();
-      expect(filter.mode).toBe('block');
-      expect(filter.codes).toEqual(['44']);
+    it('should reject a malformed nonblank allow list at config startup', async () => {
+      process.env.COUNTRY_CODE_ALLOW_LIST = 'US;CA';
+      delete process.env.COUNTRY_CODE_BLOCK_LIST;
+      await expect(import('./config')).rejects.toThrow(/COUNTRY_CODE_ALLOW_LIST.*US;CA/i);
+    });
+
+    it('should reject a malformed nonblank block list at config startup', async () => {
+      delete process.env.COUNTRY_CODE_ALLOW_LIST;
+      process.env.COUNTRY_CODE_BLOCK_LIST = 'blocked';
+      await expect(import('./config')).rejects.toThrow(/COUNTRY_CODE_BLOCK_LIST.*blocked/i);
+    });
+
+    it('should name every invalid token in a mixed policy', async () => {
+      process.env.COUNTRY_CODE_ALLOW_LIST = '1,abc,+44,12a';
+      delete process.env.COUNTRY_CODE_BLOCK_LIST;
+      await expect(import('./config')).rejects.toThrow(/COUNTRY_CODE_ALLOW_LIST.*abc.*12a/i);
+    });
+
+    it('should reject a configured calling code absent from the canonical dataset', async () => {
+      delete process.env.COUNTRY_CODE_ALLOW_LIST;
+      process.env.COUNTRY_CODE_BLOCK_LIST = '999';
+      await expect(import('./config')).rejects.toThrow(/COUNTRY_CODE_BLOCK_LIST.*999/i);
     });
   });
 });

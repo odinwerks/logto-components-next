@@ -10,8 +10,14 @@ describe('parseCountryList', () => {
     expect(parseCountryList('+1, +44, +995')).toEqual(['1', '44', '995']);
   });
 
-  it('should filter only numeric digit strings', () => {
-    expect(parseCountryList('1, abc, +44, 12a, 995')).toEqual(['1', '44', '995']);
+  it('should reject malformed tokens instead of silently narrowing the policy', () => {
+    expect(() => parseCountryList('1, abc, +44, 12a, 995', 'COUNTRY_CODE_ALLOW_LIST'))
+      .toThrow(/COUNTRY_CODE_ALLOW_LIST.*abc.*12a/i);
+  });
+
+  it('should reject numeric calling codes absent from the canonical dataset', () => {
+    expect(() => parseCountryList('1,999', 'COUNTRY_CODE_BLOCK_LIST'))
+      .toThrow(/COUNTRY_CODE_BLOCK_LIST.*999/i);
   });
 
   it('should deduplicate values', () => {
@@ -22,6 +28,11 @@ describe('parseCountryList', () => {
     expect(parseCountryList(undefined)).toEqual([]);
     expect(parseCountryList('')).toEqual([]);
     expect(parseCountryList('   ')).toEqual([]);
+  });
+
+  it('should reject empty tokens in a nonblank list', () => {
+    expect(() => parseCountryList('1,,44', 'COUNTRY_CODE_ALLOW_LIST'))
+      .toThrow(/COUNTRY_CODE_ALLOW_LIST.*empty/i);
   });
 });
 
@@ -38,6 +49,12 @@ describe('detectCountryFromE164', () => {
     // USA/Canada is code: '1'. Bahamas is code: '1242'.
     expect(detectCountryFromE164('+995599123456')).toBe('GE'); // Georgia (+995) should match before any +9 prefix
     expect(detectCountryFromE164('+12423022000')).toBe('BS'); // Bahamas (+1242) should match before USA (+1)
+  });
+
+  it('should classify calling codes added to canonical coverage', () => {
+    expect(detectCountryFromE164('+989121234567')).toBe('IR');
+    expect(detectCountryFromE164('+97517123456')).toBe('BT');
+    expect(detectCountryFromE164('+265991234567')).toBe('MW');
   });
 
   it('should return null if no country prefix is found or phone is invalid', () => {
@@ -77,6 +94,7 @@ describe('assertPhoneCountryAllowed', () => {
 
   it('should allow phone if mode is allow and country is allowed', () => {
     expect(() => assertPhoneCountryAllowed('+995599123456', { mode: 'allow', codes: ['995'] })).not.toThrow();
+    expect(() => assertPhoneCountryAllowed('+14155552671', { mode: 'allow', codes: ['1'] })).not.toThrow();
   });
 
   it('should throw ValidationError if mode is allow and country is not allowed', () => {
@@ -93,6 +111,11 @@ describe('assertPhoneCountryAllowed', () => {
 
   it('should throw ValidationError if mode is block and country is blocked', () => {
     expect(() => assertPhoneCountryAllowed('+995599123456', { mode: 'block', codes: ['995'] })).toThrow();
+    expect(() => assertPhoneCountryAllowed('+989121234567', { mode: 'block', codes: ['98'] })).toThrow();
+  });
+
+  it('should throw ValidationError if mode is block and country is not detected', () => {
+    expect(() => assertPhoneCountryAllowed('+999123456789', { mode: 'block', codes: ['995'] })).toThrow();
   });
 
   it('should allow any phone if mode is none and codes is empty', () => {
