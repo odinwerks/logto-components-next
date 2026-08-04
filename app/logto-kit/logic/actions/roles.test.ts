@@ -109,7 +109,7 @@ describe('verifyPersonalAccess - fresh introspection (BUG-005 / BUG-061)', () =>
     const result = await verifyPersonalAccess();
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
     expect(getTokenForServerAction).toHaveBeenCalled();
   });
 
@@ -122,7 +122,7 @@ describe('verifyPersonalAccess - fresh introspection (BUG-005 / BUG-061)', () =>
     const result = await verifyPersonalAccess();
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
   });
 
   it('validates expectedPrincipal against the freshly-introspected sub (BUG-005)', async () => {
@@ -137,7 +137,7 @@ describe('verifyPersonalAccess - fresh introspection (BUG-005 / BUG-061)', () =>
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
   });
 
   it('rejects an inactive introspection (fresh, not caller-supplied)', async () => {
@@ -233,7 +233,7 @@ describe('getRoleDetails authorization and IDOR guard', () => {
 
     // Authorization cross-check: user-scoped roles endpoint must be called first
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://auth.example.org/api/users/user-test-123/roles',
+      'https://auth.example.org/api/users/user-test-123/roles?page=1&page_size=20',
       expect.objectContaining({
         method: 'GET',
         headers: { Authorization: 'Bearer mock-m2m-token' },
@@ -250,6 +250,50 @@ describe('getRoleDetails authorization and IDOR guard', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
+  it('authorizes role details when the requested role is assigned on page 2', async () => {
+    const firstPage = Array.from({ length: 20 }, (_, index) =>
+      makeRole(`role-page-1-${index}`, `Page 1 role ${index}`),
+    );
+    const requestedRole = makeRole('role-123', 'Page 2 Admin');
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse(firstPage))
+      .mockResolvedValueOnce(mockJsonResponse([requestedRole]))
+      .mockResolvedValueOnce(mockJsonResponse(requestedRole));
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result).toEqual({ ok: true, data: requestedRole });
+    expect(fetchSpy.mock.calls.map((call: [string, RequestInit?]) => call[0])).toEqual([
+      'https://auth.example.org/api/users/user-test-123/roles?page=1&page_size=20',
+      'https://auth.example.org/api/users/user-test-123/roles?page=2&page_size=20',
+      'https://auth.example.org/api/roles/role-123',
+    ]);
+  });
+
+  it('fails closed when page 2 of the role-assignment check fails', async () => {
+    const firstPage = Array.from({ length: 20 }, (_, index) =>
+      makeRole(`role-page-1-${index}`, `Page 1 role ${index}`),
+    );
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse(firstPage))
+      .mockResolvedValueOnce({
+        status: 503,
+        ok: false,
+        text: async () => 'sensitive upstream details',
+      } as Response);
+
+    const { getRoleDetails } = await import('./roles');
+    const result = await getRoleDetails('role-123');
+
+    expect(result).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      'https://auth.example.org/api/roles/role-123',
+      expect.anything(),
+    );
+  });
+
   it('rejects with UNAUTHORIZED when the requested role is not assigned to the caller', async () => {
     // User roles fetch — does NOT include the requested role
     fetchSpy.mockResolvedValueOnce(mockJsonResponse([makeRole('role-456', 'Viewer')]));
@@ -264,7 +308,7 @@ describe('getRoleDetails authorization and IDOR guard', () => {
     // IDOR prevented: the role details endpoint must never be called
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://auth.example.org/api/users/user-test-123/roles',
+      'https://auth.example.org/api/users/user-test-123/roles?page=1&page_size=20',
       expect.anything()
     );
   });

@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
-import { makeManagementFetch } from './management-request';
+import { fetchAllManagementPages } from './management-request';
 
 /**
  * In-flight dedup map for concurrent getOrganizationUserPermissions calls.
@@ -62,7 +62,7 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
   let dedupKey: string;
   try {
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub || !introspection.sid) {
       return { ok: false, error: 'UNAUTHORIZED' };
     }
@@ -251,7 +251,7 @@ export async function verifyOrgAccess(
     let introspection: OidcIntrospectionResponse;
     try {
       const sessionToken = await getTokenForServerAction();
-      introspection = await introspectToken(sessionToken);
+      introspection = await introspectToken(sessionToken, { assertAudience: true });
     } catch {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -288,9 +288,10 @@ export async function verifyOrgAccess(
     const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[verifyOrgAccess] Fetching org roles: ${rolesUrl}`);
 
-    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
+    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token: m2mToken });
 
-    if (!rolesRes.ok) {
+    if (!rolesResult.ok) {
+      const rolesRes = rolesResult.response;
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyOrgAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
       if (rolesRes.status === 403 || rolesRes.status === 404) {
@@ -299,7 +300,7 @@ export async function verifyOrgAccess(
       throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 
-    const roles = (await rolesRes.json()) as UserRole[];
+    const roles = rolesResult.data;
     debugLog(`[verifyOrgAccess] User ${userId} has ${roles.length} roles in org ${orgId}`);
 
     if (roles.length === 0) {
@@ -311,15 +312,16 @@ export async function verifyOrgAccess(
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
+        const scopesResult = await fetchAllManagementPages<OrgRoleScope>(scopesUrl, { token: m2mToken });
 
-        if (!scopesRes.ok) {
+        if (!scopesResult.ok) {
+          const scopesRes = scopesResult.response;
           const text = await scopesRes.text().catch(() => '');
           warn(`[verifyOrgAccess] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
           throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
         }
 
-        return (await scopesRes.json()) as OrgRoleScope[];
+        return scopesResult.data;
       })
     );
 
@@ -366,7 +368,7 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     assertSafeLogtoId(orgId, 'orgId');
 
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -383,16 +385,17 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[getOrgPermissionsWithDescriptions] Fetching org roles: ${rolesUrl}`);
 
-    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
+    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token: m2mToken });
 
-    if (!rolesRes.ok) {
+    if (!rolesResult.ok) {
+      const rolesRes = rolesResult.response;
       const text = await rolesRes.text().catch(() => '');
       warn(`[getOrgPermissionsWithDescriptions] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
       if (rolesRes.status === 403 || rolesRes.status === 404) return [];
       throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 
-    const roles = (await rolesRes.json()) as UserRole[];
+    const roles = rolesResult.data;
     debugLog(`[getOrgPermissionsWithDescriptions] User has ${roles.length} roles in org ${orgId}`);
 
     if (roles.length === 0) return [];
@@ -401,15 +404,16 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
+        const scopesResult = await fetchAllManagementPages<OrgRoleScope>(scopesUrl, { token: m2mToken });
 
-        if (!scopesRes.ok) {
+        if (!scopesResult.ok) {
+          const scopesRes = scopesResult.response;
           const text = await scopesRes.text().catch(() => '');
           warn(`[getOrgPermissionsWithDescriptions] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
           throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
         }
 
-        return (await scopesRes.json()) as OrgRoleScope[];
+        return scopesResult.data;
       })
     );
 

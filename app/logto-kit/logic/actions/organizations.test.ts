@@ -351,7 +351,7 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     const result = await verifyOrgAccess('org-123');
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
     expect(getTokenForServerAction).toHaveBeenCalled();
   });
 
@@ -364,7 +364,7 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     const result = await verifyOrgAccess('org-123');
 
     expect(result.ok).toBe(true);
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
   });
 
   it('validates expectedPrincipal against the freshly-introspected sub (BUG-005)', async () => {
@@ -380,7 +380,7 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
     // Identity came from a real introspection call, not a skipped path.
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
   });
 
   it('rejects an inactive introspection (fresh, not caller-supplied)', async () => {

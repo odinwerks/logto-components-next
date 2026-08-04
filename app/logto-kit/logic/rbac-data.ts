@@ -47,7 +47,7 @@ import { getCleanEndpoint } from './utils';
 import { assertSafeLogtoId } from './guards';
 import { warn } from './log';
 import { plainCode } from './errors';
-import { makeManagementFetch } from './actions/management-request';
+import { fetchAllManagementPages } from './actions/management-request';
 import type {
   UserRole,
   RoleScope,
@@ -68,8 +68,8 @@ import type {
  * input. Throws on auth/fetch failure so the streamed promise rejects into
  * `<TabErrorBoundary>`.
  *
- * One M2M roles GET + N parallel scopes GETs. No introspection (userId
- * passed in).
+ * One complete paginated M2M roles list + N parallel complete paginated scope
+ * lists. No introspection (userId passed in).
  *
  * Merges the work of `getUserRoles` + `getUserScopes`, eliminating the
  * duplicate roles GET and the duplicate introspection.
@@ -80,11 +80,12 @@ export async function fetchPersonalRbacCore(userId: string): Promise<PersonalRba
   const token = await getManagementApiToken();
   const endpoint = getCleanEndpoint();
 
-  // Step 1: fetch user's personal roles (single GET).
+  // Step 1: fetch all pages of the user's personal roles.
   const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
-  const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
+  const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token });
 
-  if (!rolesRes.ok) {
+  if (!rolesResult.ok) {
+    const rolesRes = rolesResult.response;
     const text = await rolesRes.text().catch(() => '');
     warn(
       `[fetchPersonalRbacCore] Roles endpoint returned ${rolesRes.status} for user ${userId}: ${text.substring(0, 200)}`,
@@ -92,7 +93,7 @@ export async function fetchPersonalRbacCore(userId: string): Promise<PersonalRba
     throw plainCode('FETCH_FAILED');
   }
 
-  const rawRoles = (await rolesRes.json()) as UserRole[];
+  const rawRoles = rolesResult.data;
 
   if (rawRoles.length === 0) {
     return { roles: [], permissions: [] };
@@ -105,9 +106,10 @@ export async function fetchPersonalRbacCore(userId: string): Promise<PersonalRba
   const scopeResults = await Promise.allSettled(
     roles.map(async (role) => {
       const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
-      const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token });
+      const scopesResult = await fetchAllManagementPages<RoleScope>(scopesUrl, { token });
 
-      if (!scopesRes.ok) {
+      if (!scopesResult.ok) {
+        const scopesRes = scopesResult.response;
         // BUG-L12: 404 means the role has no scopes. Treat as
         // empty success rather than a hard fetch failure, so that
         // one role without scopes does not sink the entire batch.
@@ -119,7 +121,7 @@ export async function fetchPersonalRbacCore(userId: string): Promise<PersonalRba
         throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
       }
 
-      return (await scopesRes.json()) as RoleScope[];
+      return scopesResult.data;
     }),
   );
 
@@ -176,8 +178,8 @@ export async function fetchPersonalRbacCore(userId: string): Promise<PersonalRba
  * (from `Preferences.asOrg`). Throws on auth/fetch failure so the streamed
  * promise rejects into `<TabErrorBoundary>`.
  *
- * One M2M org-roles GET + N parallel org-role-scopes GETs. No introspection
- * (userId passed in).
+ * One complete paginated M2M org-roles list + N parallel complete paginated
+ * org-role-scope lists. No introspection (userId passed in).
  *
  * Merges the work of `getOrganizationUserRoles` +
  * `getOrgPermissionsWithDescriptions`, eliminating the duplicate org-roles
@@ -199,11 +201,12 @@ export async function fetchOrgRbacCore(userId: string, orgId: string): Promise<O
   const token = await getManagementApiToken();
   const endpoint = getCleanEndpoint();
 
-  // Step 1: fetch user's org roles (single GET — also acts as membership check).
+  // Step 1: fetch all pages of the user's org roles (also acts as membership check).
   const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
-  const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
+  const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token });
 
-  if (!rolesRes.ok) {
+  if (!rolesResult.ok) {
+    const rolesRes = rolesResult.response;
     const text = await rolesRes.text().catch(() => '');
     warn(
       `[fetchOrgRbacCore] Roles endpoint returned ${rolesRes.status} for user ${userId} in org ${orgId}: ${text.substring(0, 200)}`,
@@ -217,7 +220,7 @@ export async function fetchOrgRbacCore(userId: string, orgId: string): Promise<O
     throw plainCode('FETCH_FAILED');
   }
 
-  const rawRoles = (await rolesRes.json()) as UserRole[];
+  const rawRoles = rolesResult.data;
 
   if (rawRoles.length === 0) {
     return { roles: [], permissions: [] };
@@ -230,9 +233,10 @@ export async function fetchOrgRbacCore(userId: string, orgId: string): Promise<O
   const scopeResults = await Promise.allSettled(
     roles.map(async (role) => {
       const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-      const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token });
+      const scopesResult = await fetchAllManagementPages<OrgRoleScope>(scopesUrl, { token });
 
-      if (!scopesRes.ok) {
+      if (!scopesResult.ok) {
+        const scopesRes = scopesResult.response;
         // BUG-L12: 404 means the role has no scopes. Treat as
         // empty success rather than a hard fetch failure, so that
         // one role without scopes does not sink the entire batch.
@@ -244,7 +248,7 @@ export async function fetchOrgRbacCore(userId: string, orgId: string): Promise<O
         throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
       }
 
-      return (await scopesRes.json()) as OrgRoleScope[];
+      return scopesResult.data;
     }),
   );
 

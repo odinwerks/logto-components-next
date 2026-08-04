@@ -29,9 +29,20 @@ vi.mock('./errors', () => ({
   }),
 }));
 
-vi.mock('./actions/management-request', () => ({
-  makeManagementFetch: vi.fn(),
-}));
+const managementRequestMocks = vi.hoisted(() => {
+  const makeManagementFetch = vi.fn();
+  const fetchAllManagementPages = vi.fn(
+    async (url: string, options: { token: string; signal?: AbortSignal; deadlineAt?: number }) => {
+      const response = await makeManagementFetch(url, { method: 'GET', ...options });
+      if (!response.ok) return { ok: false as const, response };
+      return { ok: true as const, data: await response.json() };
+    },
+  );
+
+  return { makeManagementFetch, fetchAllManagementPages };
+});
+
+vi.mock('./actions/management-request', () => managementRequestMocks);
 
 import { getManagementApiToken } from '../config';
 import { getCleanEndpoint } from './utils';

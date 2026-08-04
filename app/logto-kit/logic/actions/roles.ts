@@ -9,7 +9,7 @@ import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult, Oid
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize, plainCode } from '../errors';
-import { makeManagementFetch } from './management-request';
+import { fetchAllManagementPages, makeManagementFetch } from './management-request';
 
 interface ExpectedPrincipal {
   sub: string;
@@ -27,7 +27,7 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
 
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -49,9 +49,10 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
     const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[getRoleDetails] Fetching assigned roles for user ${userId} to authorize role ${roleId}`);
 
-    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
+    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token });
 
-    if (!rolesRes.ok) {
+    if (!rolesResult.ok) {
+      const rolesRes = rolesResult.response;
       // Fail closed: if we cannot verify the caller's role assignments we
       // must not proceed to fetch the requested role. Deny access rather
       // than risk leaking unassigned role metadata.
@@ -60,7 +61,7 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
 
-    const assignedRoles = (await rolesRes.json()) as UserRole[];
+    const assignedRoles = rolesResult.data;
     const isAssigned = assignedRoles.some((role) => role.id === roleId);
     if (!isAssigned) {
       warn(`[getRoleDetails] User ${userId} attempted to access unassigned role ${roleId}`);
@@ -95,7 +96,7 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
     assertSafeLogtoId(orgId, 'orgId');
 
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -111,9 +112,10 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
 
     debugLog(`[getOrganizationUserRoles] Fetching roles for user ${userId} in org ${orgId}`);
 
-    const res = await makeManagementFetch(url, { method: 'GET', token });
+    const rolesResult = await fetchAllManagementPages<UserRole>(url, { token });
 
-    if (!res.ok) {
+    if (!rolesResult.ok) {
+      const res = rolesResult.response;
       const text = await res.text().catch(() => '');
       warn(`[getOrganizationUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
       if (res.status === 403 || res.status === 404) {
@@ -122,7 +124,7 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
       throw new Error(`Management API returned ${res.status}`);
     }
 
-    const data = (await res.json()) as UserRole[];
+    const data = rolesResult.data;
     debugLog(`[getOrganizationUserRoles] Parsed ${data.length} roles for user ${userId} in org ${orgId}`);
     return data;
   });
@@ -132,7 +134,7 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
   return safeAction(async () => {
     // Derive userId server-side from session (never trust the client)
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -148,15 +150,16 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
 
     debugLog(`[getUserRoles] Fetching roles for user ${userId} from ${url}`);
 
-    const res = await makeManagementFetch(url, { method: 'GET', token });
+    const rolesResult = await fetchAllManagementPages<UserRole>(url, { token });
 
-    if (!res.ok) {
+    if (!rolesResult.ok) {
+      const res = rolesResult.response;
       const text = await res.text().catch(() => '');
       warn(`[getUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
       throw new Error(`Management API returned ${res.status}`);
     }
 
-    const data = (await res.json()) as UserRole[];
+    const data = rolesResult.data;
     debugLog(`[getUserRoles] Parsed ${data.length} roles for user ${userId}`);
     return data;
   });
@@ -201,7 +204,7 @@ export async function verifyPersonalAccess(
     let introspection: OidcIntrospectionResponse;
     try {
       const sessionToken = await getTokenForServerAction();
-      introspection = await introspectToken(sessionToken);
+      introspection = await introspectToken(sessionToken, { assertAudience: true });
     } catch (err) {
       throw sanitize(err, { fallback: 'UNAUTHORIZED' });
     }
@@ -238,15 +241,16 @@ export async function verifyPersonalAccess(
     const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[verifyPersonalAccess] Fetching personal roles: ${rolesUrl}`);
 
-    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token: m2mToken });
+    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token: m2mToken });
 
-    if (!rolesRes.ok) {
+    if (!rolesResult.ok) {
+      const rolesRes = rolesResult.response;
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyPersonalAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
       throw plainCode('UNAUTHORIZED');
     }
 
-    const roles = (await rolesRes.json()) as UserRole[];
+    const roles = rolesResult.data;
     debugLog(`[verifyPersonalAccess] User ${userId} has ${roles.length} personal roles`);
 
     if (roles.length === 0) {
@@ -257,15 +261,16 @@ export async function verifyPersonalAccess(
     const scopeResults = await Promise.allSettled(
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token: m2mToken });
+        const scopesResult = await fetchAllManagementPages<RoleScope>(scopesUrl, { token: m2mToken });
 
-        if (!scopesRes.ok) {
+        if (!scopesResult.ok) {
+          const scopesRes = scopesResult.response;
           const text = await scopesRes.text().catch(() => '');
           warn(`[verifyPersonalAccess] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
           throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
         }
 
-        return (await scopesRes.json()) as RoleScope[];
+        return scopesResult.data;
       })
     );
 
@@ -300,7 +305,7 @@ export async function verifyPersonalAccess(
 export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>> {
   return safeAction(async () => {
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
@@ -317,15 +322,16 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
     const rolesUrl = `${endpoint}/api/users/${encodeURIComponent(userId)}/roles`;
     debugLog(`[getUserScopes] Fetching roles for user ${userId}`);
 
-    const rolesRes = await makeManagementFetch(rolesUrl, { method: 'GET', token });
+    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token });
 
-    if (!rolesRes.ok) {
+    if (!rolesResult.ok) {
+      const rolesRes = rolesResult.response;
       const text = await rolesRes.text().catch(() => '');
       warn(`[getUserScopes] Roles fetch returned ${rolesRes.status}: ${text.substring(0, 300)}`);
       throw new Error(`Management API returned ${rolesRes.status}`);
     }
 
-    const roles = (await rolesRes.json()) as UserRole[];
+    const roles = rolesResult.data;
     debugLog(`[getUserScopes] Got ${roles.length} roles for user ${userId}`);
 
     if (roles.length === 0) return [];
@@ -335,21 +341,16 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
       roles.map(async (role) => {
         const scopesUrl = `${endpoint}/api/roles/${encodeURIComponent(role.id)}/scopes`;
 
-        const scopesRes = await makeManagementFetch(scopesUrl, { method: 'GET', token });
+        const scopesResult = await fetchAllManagementPages<RoleScope>(scopesUrl, { token });
 
-        if (!scopesRes.ok) {
+        if (!scopesResult.ok) {
+          const scopesRes = scopesResult.response;
           const text = await scopesRes.text().catch(() => '');
           warn(`[getUserScopes] Management API returned ${scopesRes.status} for role ${role.id} scopes: ${text.substring(0, 200)}`);
           throw new Error(`Management API returned ${scopesRes.status}`);
         }
 
-        try {
-          return (await scopesRes.json()) as RoleScope[];
-        } catch {
-          const text = await scopesRes.text().catch(() => '');
-          warn(`[getUserScopes] Management API returned non-JSON for role ${role.id} scopes: ${text.substring(0, 200)}`);
-          throw new Error('Management API returned non-JSON');
-        }
+        return scopesResult.data;
       })
     );
 

@@ -6,7 +6,20 @@
  * content-type automatically for all Management API calls.
  */
 
+import { plainCode } from '../errors';
+
 export const MANAGEMENT_REQUEST_TIMEOUT_MS = 15_000;
+
+/** Logto's documented default page size for Management API list endpoints. */
+export const MANAGEMENT_LIST_PAGE_SIZE = 20;
+
+/**
+ * Fail-closed admin-dashboard safety caps. Five hundred pages / 10,000 items
+ * are well above expected RBAC collections while bounding upstream requests
+ * and aggregate memory if a buggy or malicious endpoint never exhausts.
+ */
+export const MANAGEMENT_LIST_MAX_PAGES = 500;
+export const MANAGEMENT_LIST_MAX_ITEMS = 10_000;
 
 /** Raised before starting a request that would exceed a caller's shared deadline. */
 export class ManagementRequestDeadlineExceededError extends Error {
@@ -98,4 +111,75 @@ export async function makeManagementFetch(
     cache: 'no-store',
     signal: requestSignal,
   });
+}
+
+export type ManagementPaginatedResult<T> =
+  | { ok: true; data: T[] }
+  | { ok: false; response: Response };
+
+/** Raised when a successful Management API list response is not a JSON array. */
+export class ManagementPaginationInvalidResponseError extends Error {
+  constructor(page: number) {
+    super(`Management API pagination page ${page} returned a non-array response`);
+    this.name = 'ManagementPaginationInvalidResponseError';
+  }
+}
+
+/**
+ * Fetches a complete Management API collection using Logto's documented
+ * one-based `page` / `page_size` contract.
+ *
+ * The four RBAC list operations do not document a total-count or Link response
+ * header, so a short page is the authoritative exhaustion signal. A collection
+ * whose size is an exact multiple of the page size therefore performs one final
+ * empty-page request. Every successful body is validated as an array.
+ *
+ * HTTP failures return the failing Response without any accumulated data. This
+ * lets each caller preserve its existing status-to-error mapping while making
+ * later-page failures fail closed instead of silently authorizing from a
+ * partial collection. Network, timeout, and JSON/shape failures reject.
+ */
+export async function fetchAllManagementPages<T>(
+  url: string,
+  options: {
+    token: string;
+    signal?: AbortSignal;
+    /** Absolute Date.now() deadline shared by a lock-held request sequence. */
+    deadlineAt?: number;
+  },
+): Promise<ManagementPaginatedResult<T>> {
+  const data: T[] = [];
+
+  for (let page = 1; ; page++) {
+    if (page > MANAGEMENT_LIST_MAX_PAGES) {
+      throw plainCode('FETCH_FAILED');
+    }
+
+    const pageUrl = new URL(url);
+    pageUrl.searchParams.set('page', String(page));
+    pageUrl.searchParams.set('page_size', String(MANAGEMENT_LIST_PAGE_SIZE));
+
+    const response = await makeManagementFetch(pageUrl.toString(), {
+      method: 'GET',
+      ...options,
+    });
+
+    if (!response.ok) {
+      return { ok: false, response };
+    }
+
+    const pageData = await parseManagementResponseJson<unknown>(response, options.deadlineAt);
+    if (!Array.isArray(pageData)) {
+      throw new ManagementPaginationInvalidResponseError(page);
+    }
+
+    if (data.length + pageData.length > MANAGEMENT_LIST_MAX_ITEMS) {
+      throw plainCode('FETCH_FAILED');
+    }
+
+    data.push(...(pageData as T[]));
+    if (pageData.length < MANAGEMENT_LIST_PAGE_SIZE) {
+      return { ok: true, data };
+    }
+  }
 }
