@@ -348,6 +348,39 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     });
   });
 
+  it('returns to password verification on expiration and retains the intended contact value', async () => {
+    const props = buildDefaults();
+    (props.onVerifyPassword as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true, data: { verificationRecordId: 'vr-expired', verificationTimestamp: Date.now() + 600000 },
+      } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>)
+      .mockResolvedValueOnce({
+        ok: true, data: { verificationRecordId: 'vr-fresh', verificationTimestamp: Date.now() + 600000 },
+      } satisfies DataResult<{ verificationRecordId: string; verificationTimestamp: number }>);
+    (props.onSendVerification as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, data: { verificationId: 'vid-old' } })
+      .mockResolvedValueOnce({ ok: true, data: { verificationId: 'vid-new' } });
+    (props.onVerifyCodeAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false, error: 'VERIFICATION_EXPIRED',
+    } satisfies ActionResult);
+
+    render(<ContactRow {...props} />);
+    openEditModal();
+    setEmailInput('retained@example.com');
+    await act(async () => flowModalHandlers.onValueSubmit!());
+    await act(async () => flowModalHandlers.onPasswordSubmit!('old-password'));
+    await waitFor(() => { expect(flowModalStep).toBe('code'); });
+
+    await act(async () => flowModalHandlers.onCodeSubmit!('123456'));
+    expect(props.onError).toHaveBeenCalledWith('VERIFICATION_EXPIRED');
+    expect(flowModalStep).toBe('password');
+
+    await act(async () => flowModalHandlers.onPasswordSubmit!('fresh-password'));
+    await waitFor(() => { expect(flowModalStep).toBe('code'); });
+    expect(props.onSendVerification).toHaveBeenLastCalledWith('retained@example.com');
+    expect(flowModalStep).toBe('code');
+  });
+
   it('ignores stale code verification completion after close/reopen', async () => {
     const props = buildDefaults();
     const verifyCodeDeferred = deferred<ActionResult>();

@@ -78,4 +78,59 @@ describe('useAvatarUpload', () => {
 
     expect(result.current.isUploading).toBe(false);
   });
+
+  it('stays locked until the async success callback finishes', async () => {
+    vi.mocked(uploadAvatar).mockResolvedValue({
+      ok: true,
+      data: { url: 'https://avatar.url/image.png' },
+    });
+    let finishPersistence: () => void = () => {};
+    const persistence = new Promise<void>((resolve) => { finishPersistence = resolve; });
+    const onSuccess = vi.fn(() => persistence);
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
+    const file = new File([''], 'avatar.png', { type: 'image/png' });
+
+    let firstUpload!: Promise<string | null>;
+    act(() => { firstUpload = result.current.upload(file); });
+
+    await act(async () => { await Promise.resolve(); });
+    expect(onSuccess).toHaveBeenCalledWith('https://avatar.url/image.png');
+    expect(result.current.isUploading).toBe(true);
+
+    let overlappingResult: string | null = 'not-null';
+    await act(async () => {
+      overlappingResult = await result.current.upload(file);
+    });
+    expect(overlappingResult).toBeNull();
+    expect(uploadAvatar).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishPersistence();
+      await firstUpload;
+    });
+    expect(result.current.isUploading).toBe(false);
+  });
+
+  it('reports an async success-callback rejection once and returns null', async () => {
+    vi.mocked(uploadAvatar).mockResolvedValue({
+      ok: true,
+      data: { url: 'https://avatar.url/image.png' },
+    });
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAvatarUpload({
+      onSuccess: async () => { throw new Error('UPDATE_FAILED'); },
+      onError,
+    }));
+    const file = new File([''], 'avatar.png', { type: 'image/png' });
+
+    let uploadedUrl: string | null = 'pending';
+    await act(async () => {
+      uploadedUrl = await result.current.upload(file);
+    });
+
+    expect(uploadedUrl).toBeNull();
+    expect(result.current.error).toBe('UPDATE_FAILED');
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith('UPDATE_FAILED');
+  });
 });

@@ -379,10 +379,7 @@ describe('useNameForm', () => {
     expect(refreshData).toHaveBeenCalled();
   });
 
-  // BUG-H01: null original values are restored as '' (a "clear" sentinel)
-  // instead of being skipped. Previously null fields were omitted from the
-  // rollback, leaving cleared values persisted after a failed profile update.
-  it('rollback in full mode restores null fields as "" (clear sentinel)', async () => {
+  it('full-mode rollback restores an absent name with "" and a present username with its prior value', async () => {
     // userData.name=undefined, userData.username='jdoe' - rollback should
     // restore name to '' (original was null) and username to 'jdoe'.
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
@@ -403,10 +400,7 @@ describe('useNameForm', () => {
     expect(rollbackCall[0]).toEqual({ name: '', username: 'jdoe' });
   });
 
-  // BUG-H01: when BOTH original name and username were null, the rollback
-  // restores both as '' so the server clears them back to their original
-  // (empty) state.
-  it('rollback in full mode restores both name and username as "" when both originals are null', async () => {
+  it('full-mode rollback restores an absent name with "" and an absent username with null', async () => {
     const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
     const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile failed' });
     const opts = makeOptions({
@@ -421,7 +415,7 @@ describe('useNameForm', () => {
     await act(async () => { await result.current.save(); });
 
     const rollbackCall = onUpdateBasicInfo.mock.calls[1];
-    expect(rollbackCall[0]).toEqual({ name: '', username: '' });
+    expect(rollbackCall[0]).toEqual({ name: '', username: null });
   });
 
   // Regression for BUG-PR-002: clearing both given and family name in full mode
@@ -470,6 +464,84 @@ describe('useNameForm', () => {
       await savePromise!;
     });
 
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it.each(['given_family', 'full'] as const)(
+    'rolls back a committed basic update when the profile transport rejects in %s mode',
+    async (nameType) => {
+      const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+      const onUpdateProfile = vi.fn().mockRejectedValue(new Error('network detail'));
+      const onError = vi.fn();
+      const refreshData = vi.fn();
+      const opts = makeOptions({ nameType, onUpdateBasicInfo, onUpdateProfile, onError, refreshData });
+      const { result } = renderHook(() => useNameForm(opts));
+
+      act(() => { result.current.setGivenName('Alice'); });
+      await act(async () => { await result.current.save(); });
+
+      expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2);
+      expect(onUpdateBasicInfo.mock.calls[1]?.[0]).toEqual(
+        nameType === 'full'
+          ? { name: 'John Doe', username: 'jdoe' }
+          : { name: 'John Doe' },
+      );
+      expect(onError).toHaveBeenCalledWith('UPDATE_FAILED');
+      expect(refreshData).toHaveBeenCalledTimes(1);
+      expect(result.current.isLoading).toBe(false);
+    },
+  );
+
+  it('restores an absent username with null when the full-mode profile transport rejects', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockRejectedValue(new Error('network detail'));
+    const onError = vi.fn();
+    const opts = makeOptions({
+      nameType: 'full',
+      onUpdateBasicInfo,
+      onUpdateProfile,
+      onError,
+      userData: makeUserData({ username: undefined }),
+    });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => { result.current.setGivenName('Alice'); });
+    await act(async () => { await result.current.save(); });
+
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2);
+    expect(onUpdateBasicInfo.mock.calls[1]?.[0]).toEqual({
+      name: 'John Doe',
+      username: null,
+    });
+    expect(onError).toHaveBeenCalledWith('UPDATE_FAILED');
+  });
+
+  it('keeps the first save locked until completion and ignores an overlapping invocation', async () => {
+    let resolveBasic: (value: { ok: true }) => void = () => {};
+    const pendingBasic = new Promise<{ ok: true }>((resolve) => { resolveBasic = resolve; });
+    const onUpdateBasicInfo = vi.fn().mockReturnValue(pendingBasic);
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: true });
+    const opts = makeOptions({ onUpdateBasicInfo, onUpdateProfile });
+    const { result } = renderHook(() => useNameForm(opts));
+
+    act(() => { result.current.setGivenName('Alice'); });
+    let firstSave!: Promise<void>;
+    let overlappingSave!: Promise<void>;
+    act(() => {
+      firstSave = result.current.save();
+      overlappingSave = result.current.save();
+    });
+
+    await overlappingSave;
+    expect(onUpdateBasicInfo).toHaveBeenCalledTimes(1);
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      resolveBasic({ ok: true });
+      await firstSave;
+    });
+
+    expect(onUpdateProfile).toHaveBeenCalledTimes(1);
     expect(result.current.isLoading).toBe(false);
   });
 });

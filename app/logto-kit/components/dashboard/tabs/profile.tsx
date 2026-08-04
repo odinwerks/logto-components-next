@@ -316,7 +316,10 @@ interface ProfileTabProps {
   countryFilter?: { mode: 'allow' | 'block' | 'none'; codes: string[] };
   mobmode?: number;
   nameType?: string;
-  onUpdateBasicInfo: (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onUpdateBasicInfo(
+    updates: { name?: string; username?: string | null },
+    identityVerificationRecordId?: string,
+  ): Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile:   (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
   onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
@@ -404,8 +407,7 @@ export function ProfileTab({
         if (!profileResult.ok) {
           // Attempt rollback of name update since profile update failed
           try {
-            const rollbackUpdates: { name?: string } = {};
-            if (userData.name != null) rollbackUpdates.name = userData.name;
+            const rollbackUpdates = { name: userData.name ?? '' };
             const rollbackResult = await onUpdateBasicInfo(rollbackUpdates);
             if (!rollbackResult.ok) {
               console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
@@ -441,9 +443,12 @@ export function ProfileTab({
           if (!profileResult.ok) {
             // Attempt rollback of name/username update since profile update failed
             try {
-              const rollbackUpdates: { name?: string; username?: string } = {};
-              if (userData.name != null) rollbackUpdates.name = userData.name;
-              if (userData.username != null) rollbackUpdates.username = userData.username;
+              const rollbackUpdates = {
+                name: userData.name ?? '',
+                // Logto requires null (not an invalid empty string) to restore
+                // an originally absent username.
+                username: userData.username ?? null,
+              };
               const rollbackResult = await onUpdateBasicInfo(rollbackUpdates, verificationRecordId);
               if (!rollbackResult.ok) {
                 console.warn('[ProfileTab] Rollback failed:', rollbackResult.error);
@@ -569,7 +574,7 @@ export function ProfileTab({
     userId: userData.id,
     onSuccess: async (url: string) => {
       const result = await onUpdateAvatarUrl(url);
-      if (!result.ok) { onError(result.error); return; }
+      if (!result.ok) throw new Error(result.error);
       onSuccess(t.profile.avatarUpdated);
       refreshData();
       setAvatarModalOpen(false);

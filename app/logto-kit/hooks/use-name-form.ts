@@ -1,6 +1,6 @@
 'use client';
 
-  import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { UserData } from '../logic/types';
 import type { ActionResult } from '../logic/actions/safe';
 
@@ -10,7 +10,7 @@ const noopSetUsername = (_value: string) => {};
 export interface UseNameFormOptions {
   userData: UserData;
   nameType: 'given_family' | 'username' | 'full';
-  onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
+  onUpdateBasicInfo: (updates: { name?: string; username?: string | null }) => Promise<ActionResult>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -55,6 +55,7 @@ export function useNameForm({
   const [familyName, setFamilyName] = useState(userData.profile?.familyName ?? '');
   const [username, setUsername] = useState(userData.username ?? '');
   const [isLoading, setIsLoading] = useState(false);
+  const saveInProgressRef = useRef(false);
 
   /**
    * Sync server data to local form state.
@@ -98,7 +99,20 @@ export function useNameForm({
          familyName !== (userData.profile?.familyName ?? ''));
 
   const save = useCallback(async () => {
+    if (saveInProgressRef.current) return;
+    saveInProgressRef.current = true;
     setIsLoading(true);
+    let rollbackBasicInfo: { name?: string; username?: string | null } | null = null;
+
+    const rollback = async () => {
+      if (!rollbackBasicInfo) return;
+      try {
+        await onUpdateBasicInfo(rollbackBasicInfo);
+      } catch {
+        // Rollback is best-effort; authoritative refresh below reconciles state.
+      }
+    };
+
     try {
       if (nameType === 'given_family') {
         const name = `${givenName} ${familyName}`.trim();
@@ -107,21 +121,15 @@ export function useNameForm({
         // the name stale when both given and family names were emptied.
         const basicResult = await onUpdateBasicInfo({ name: name || '' });
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
+        rollbackBasicInfo = { name: userData.name ?? '' };
         const profileResult = await onUpdateProfile({ givenName, familyName });
         if (!profileResult.ok) {
-          // Attempt rollback of name update since profile update failed.
-          // BUG-H01: always restore the original name, using `''` when the
-          // original was null so the server clears it (Logto treats `''` as a
-          // "clear" sentinel). The previous null-guard skipped the rollback
-          // call entirely when userData.name was null, leaving the cleared
-          // name persisted after a failed profile update.
-          try {
-            await onUpdateBasicInfo({ name: userData.name ?? '' });
-          } catch { /* rollback best-effort */ }
+          await rollback();
           onError(profileResult.error);
           refreshData();
           return;
         }
+        rollbackBasicInfo = null;
       } else if (nameType === 'username') {
         const result = await onUpdateBasicInfo({ username });
         if (!result.ok) { onError(result.error); refreshData(); return; }
@@ -137,29 +145,30 @@ export function useNameForm({
         const basicResult = await onUpdateBasicInfo(basicUpdates);
         if (!basicResult.ok) { onError(basicResult.error); refreshData(); return; }
         if (nameFieldsChanged) {
+          rollbackBasicInfo = {
+            name: userData.name ?? '',
+            // Logto clears an absent username with null; unlike other name
+            // fields, an empty string is not a valid username clear sentinel.
+            username: userData.username ?? null,
+          };
           const profileResult = await onUpdateProfile({ givenName, familyName });
           if (!profileResult.ok) {
-            // Attempt rollback of name/username update since profile update
-            // failed. BUG-H01: always restore the original values, using `''`
-            // when an original was null so the server clears it (Logto treats
-            // `''` as a "clear" sentinel). The previous null-guard skipped
-            // null fields, leaving cleared values persisted after a failed
-            // profile update.
-            try {
-              await onUpdateBasicInfo({
-                name: userData.name ?? '',
-                username: userData.username ?? '',
-              });
-            } catch { /* rollback best-effort */ }
+            await rollback();
             onError(profileResult.error);
             refreshData();
             return;
           }
+          rollbackBasicInfo = null;
         }
       }
       onSuccess(successMessage);
       refreshData();
+    } catch {
+      await rollback();
+      onError('UPDATE_FAILED');
+      refreshData();
     } finally {
+      saveInProgressRef.current = false;
       setIsLoading(false);
     }
   }, [nameType, givenName, familyName, username, userData, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, successMessage]);

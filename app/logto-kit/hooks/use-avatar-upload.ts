@@ -10,7 +10,7 @@ export interface UseAvatarUploadOptions {
    * Kept in the API for backwards compatibility but ignored.
    */
   userId?: string
-  onSuccess?: (url: string) => void
+  onSuccess?: (url: string) => void | Promise<void>
   onError?: (message: string) => void
 }
 
@@ -65,7 +65,7 @@ export function useAvatarUpload({
           throw new Error('UPLOAD_FAILED')
         }
 
-        onSuccessRef.current?.(url)
+        await onSuccessRef.current?.(url)
         return url
       } catch (err) {
         const message = captureMessage(err)

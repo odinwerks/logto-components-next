@@ -238,6 +238,11 @@ export function ContactRow({
     if (!r.ok) {
       onError(r.error);
       setLoading(false);
+      if (r.error === 'VERIFICATION_EXPIRED') {
+        // Keep the intended destination in newValueRef, but discard the stale
+        // identity-verification record and require a fresh password check.
+        setStep({ kind: 'password' });
+      }
       return;
     }
     onSuccess(type === 'email' ? t.profile.emailUpdated : t.profile.phoneUpdated);

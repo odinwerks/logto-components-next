@@ -102,7 +102,7 @@ const defaultUserData: UserData = {
 
 interface RenderProfileOptions {
   userData?: UserData;
-  onUpdateBasicInfo?: (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
+  onUpdateBasicInfo?: (updates: { name?: string; username?: string | null }, identityVerificationRecordId?: string) => Promise<ActionResult>;
   onUpdateProfile?: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 }
 
@@ -117,7 +117,7 @@ function renderProfile(
     return undefined;
   });
 
-  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (updates: { name?: string; username?: string }, identityVerificationRecordId?: string) => Promise<ActionResult>;
+  const basicInfoFn = (onUpdateBasicInfo ?? vi.fn<(updates: { name?: string; username?: string | null }, identityVerificationRecordId?: string) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (updates: { name?: string; username?: string | null }, identityVerificationRecordId?: string) => Promise<ActionResult>;
   const profileFn   = (onUpdateProfile   ?? vi.fn<(profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>>().mockResolvedValue({ ok: true })) as (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
 
   const result = render(
@@ -551,6 +551,50 @@ describe('ProfileTab - behavioral', () => {
     expect(refreshData).toHaveBeenCalled();
   });
 
+  it('given_family rollback clears a newly-created name when the original name was absent', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
+    const userData = { ...defaultUserData, name: undefined };
+    renderProfile('given_family', { userData, onUpdateBasicInfo, onUpdateProfile });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]!);
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Changed' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /modify/i })); });
+
+    await waitFor(() => { expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2); });
+    expect(onUpdateBasicInfo.mock.calls[1]?.[0]).toEqual({ name: '' });
+  });
+
+  it('full rollback clears a newly-created username when the original username was absent', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
+    const userData = { ...defaultUserData, username: undefined };
+    renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]!);
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Changed' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /modify/i })); });
+    await completeNameVerification();
+
+    await waitFor(() => { expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2); });
+    expect(onUpdateBasicInfo.mock.calls[1]?.[0]).toEqual({ name: 'Test User', username: null });
+  });
+
+  it('full rollback clears both newly-created basic fields when both were absent', async () => {
+    const onUpdateBasicInfo = vi.fn().mockResolvedValue({ ok: true });
+    const onUpdateProfile = vi.fn().mockResolvedValue({ ok: false, error: 'Profile update failed' } as ActionResult);
+    const userData = { ...defaultUserData, name: undefined, username: undefined };
+    renderProfile('full', { userData, onUpdateBasicInfo, onUpdateProfile });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]!);
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Changed' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /modify/i })); });
+    await completeNameVerification();
+
+    await waitFor(() => { expect(onUpdateBasicInfo).toHaveBeenCalledTimes(2); });
+    expect(onUpdateBasicInfo.mock.calls[1]?.[0]).toEqual({ name: '', username: null });
+  });
+
   it('PersonalPermissionsBlock - re-fetches permissions on refresh (BUG-002)', async () => {
     mockLoadPersonalPermissions.mockClear();
     mockLoadPersonalPermissions.mockResolvedValue({
@@ -629,6 +673,45 @@ describe('ProfileTab - behavioral', () => {
     expect(onUpdateAvatarUrl).toHaveBeenCalledWith('https://s3.example.com/user123/you.png?v=1');
     expect(onSuccess).toHaveBeenCalled();
     expect(refreshData).toHaveBeenCalled();
+  });
+
+  it('rejects the avatar success callback when profile URL persistence fails', async () => {
+    const onUpdateAvatarUrl = vi.fn().mockResolvedValue({
+      ok: false,
+      error: 'UPDATE_FAILED',
+    } as ActionResult);
+    const onError = vi.fn();
+
+    render(
+      <RbacPromisesProvider personalRbacPromise={undefined} orgRbacPromise={null}>
+        <ProfileTab
+          userData={defaultUserData}
+          mode="dark"
+          colors={DARK_COLORS}
+          t={enUS}
+          nameType="given_family"
+          onUpdateBasicInfo={resolvedActionResult}
+          onUpdateAvatarUrl={onUpdateAvatarUrl}
+          onUpdateProfile={resolvedActionResult}
+          onVerifyPassword={resolvedVerifyPassword}
+          onSendEmailVerification={resolvedSendVerification}
+          onSendPhoneVerification={resolvedSendVerification}
+          onVerifyCode={resolvedVerifyCode}
+          onUpdateEmail={resolvedActionResult}
+          onUpdatePhone={resolvedActionResult}
+          onRemoveEmail={resolvedActionResult}
+          onRemovePhone={resolvedActionResult}
+          onSuccess={noop}
+          onError={onError}
+          refreshData={noop}
+        />
+      </RbacPromisesProvider>,
+    );
+
+    const onAvatarUploadSuccess = getLastAvatarUploadOnSuccess();
+    await expect(onAvatarUploadSuccess?.('https://s3.example.com/avatar.png'))
+      .rejects.toThrow('UPDATE_FAILED');
+    expect(onError).not.toHaveBeenCalled();
   });
 
   describe('Avatar Modal Accessibility and Focus Management', () => {

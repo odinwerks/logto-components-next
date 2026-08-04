@@ -137,7 +137,8 @@ import { getManagementApiToken } from '../../config';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
 import { requireVerifiedIdentity } from './verification-cookie';
-import { warn } from '../log';
+import { warn, logEvent } from '../log';
+import { auditSafe } from './helpers';
 
 // ============================================================================
 // Helpers
@@ -321,6 +322,7 @@ describe('updateUserCustomData', () => {
     const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
 
     expect(result.ok).toBe(false);
+    expect(auditSafe).not.toHaveBeenCalled();
 
     vi.unstubAllGlobals();
   });
@@ -800,6 +802,12 @@ describe('updateUserCustomData', () => {
 
     expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
     expect(fetch).toHaveBeenCalledTimes(2);  // GET + PATCH (rejected)
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'custom_data.update_ambiguous',
+      'user-test-123',
+      { keys: ['theme'] },
+    );
 
     vi.unstubAllGlobals();
   });
@@ -822,6 +830,7 @@ describe('updateUserCustomData', () => {
 
     expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(auditSafe).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
       '[updateUserCustomData] GET custom-data body parse failed:',
       'UPDATE_FAILED',
@@ -877,6 +886,40 @@ describe('updateUserCustomData', () => {
     // after the GET has consumed the lock-held budget.
     expect(result).toEqual({ ok: false, error: 'UPDATE_FAILED' });
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(auditSafe).not.toHaveBeenCalled();
+
+    now.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('reports success and audits when the deadline expires after an OK PATCH', async () => {
+    const { updateUserCustomData } = await import('./profile');
+    const now = vi.spyOn(Date, 'now')
+      .mockReturnValueOnce(0) // lock deadline
+      .mockReturnValueOnce(0) // GET timeout calculation
+      .mockReturnValueOnce(0) // GET body deadline calculation
+      .mockReturnValueOnce(0) // PATCH timeout calculation
+      .mockReturnValue(25_000); // any post-commit work sees an expired budget
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(mockOkResponse({}))
+      .mockResolvedValueOnce(mockOkResponse({}))
+    );
+
+    const result = await updateUserCustomData({ Preferences: { theme: 'dark' } });
+
+    expect(result).toEqual({ ok: true });
+    expect(auditSafe).toHaveBeenCalledWith(
+      'user-test-123',
+      'custom_data.update',
+      'user-test-123',
+      { keys: ['theme'] },
+    );
+    expect(logEvent.info).toHaveBeenCalledWith(
+      expect.any(String),
+      'Custom data updated',
+      { keys: ['theme'] },
+    );
 
     now.mockRestore();
     vi.unstubAllGlobals();
@@ -1034,7 +1077,7 @@ describe('updateUserProfile', () => {
 });
 
 // ============================================================================
-// updateUserBasicInfo — BUG-H01: empty-string forwarding for name/username
+// updateUserBasicInfo — field-specific clear serialization
 // ============================================================================
 
 describe('updateUserBasicInfo', () => {
@@ -1056,7 +1099,7 @@ describe('updateUserBasicInfo', () => {
     expect(patchMyAccount).toHaveBeenCalledWith({ name: '' }, 'Basic info update failed', undefined);
   });
 
-  it('forwards username: "" to patchMyAccount so Logto can clear the username', async () => {
+  it('serializes username: "" as null so Logto can clear the username', async () => {
     const { updateUserBasicInfo } = await import('./profile');
     const { patchMyAccount } = await import('./shared');
 
@@ -1066,7 +1109,21 @@ describe('updateUserBasicInfo', () => {
     expect(result).toEqual({ ok: true });
     expect(patchMyAccount).toHaveBeenCalledTimes(1);
     expect(patchMyAccount).toHaveBeenCalledWith(
-      { username: '' },
+      { username: null },
+      'Basic info update failed',
+      { 'logto-verification-id': 'verification-record-id' },
+    );
+  });
+
+  it('forwards username: null to patchMyAccount without collapsing it to an empty string', async () => {
+    const { updateUserBasicInfo } = await import('./profile');
+    const { patchMyAccount } = await import('./shared');
+
+    const result = await updateUserBasicInfo({ username: null }, 'verification-record-id');
+
+    expect(result).toEqual({ ok: true });
+    expect(patchMyAccount).toHaveBeenCalledWith(
+      { username: null },
       'Basic info update failed',
       { 'logto-verification-id': 'verification-record-id' },
     );

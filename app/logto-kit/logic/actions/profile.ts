@@ -13,9 +13,9 @@ import {
 import { safeAction, type ActionResult } from './safe';
 import { getManagementApiToken } from '../../config';
 import {
+  ManagementRequestDeadlineExceededError,
   makeManagementFetch,
   parseManagementResponseJson,
-  throwIfManagementDeadlineExceeded,
 } from './management-request';
 import { getCleanEndpoint, introspectToken } from '../utils';
 import { warn, logEvent } from '../log';
@@ -34,7 +34,7 @@ function warnCustomDataFailure(message: string): void {
 }
 
 export async function updateUserBasicInfo(
-  updates: { name?: string; username?: string; avatar?: string },
+  updates: { name?: string; username?: string | null; avatar?: string },
   identityVerificationRecordId?: string,
 ): Promise<ActionResult> {
   return safeAction(async () => {
@@ -72,18 +72,18 @@ export async function updateUserBasicInfo(
     // straight to PATCH /api/my-account, full-replacing customData and
     // bypassing pickPreferences(). Picking declared keys closes the hole.
     //
-    // BUG-H01: `''` is a valid "clear" sentinel for name/username on Logto's
-    // Account API — it MUST flow through to PATCH /api/my-account so that
-    // clearing a name field actually persists. The previous filter also
-    // dropped `''`, so a clear returned { ok: true } without ever calling
-    // Logto. Only `undefined` (field omitted by the caller) is dropped now.
+    // BUG-H01: `''` is a valid clear sentinel for `name`, so it MUST flow
+    // through to PATCH /api/my-account. Username is different: Logto requires
+    // `null` to clear it and rejects `''`, so normalize only that field while
+    // preserving the null-vs-empty-string contract for all other fields.
+    // Only `undefined` (field omitted by the caller) is dropped.
     // Avatar is the exception: clearing the avatar uses `null` via the
     // dedicated `updateAvatarUrl` path, so an empty avatar string is still
     // stripped to avoid an unintended write.
     const cleanUpdates = Object.fromEntries(
       Object.entries({
         name: updates.name,
-        username: updates.username,
+        username: updates.username === '' ? null : updates.username,
         avatar: updates.avatar,
       }).filter(([k, v]) => v !== undefined && !(k === 'avatar' && v === ''))
     );
@@ -205,6 +205,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
 
     const releaseLock = await customDataLockManager.acquire(userId);
     const lockDeadlineAt = Date.now() + CUSTOM_DATA_LOCK_BUDGET_MS;
+    let patchCommitted = false;
 
     try {
       // GET current Preferences via Management API.
@@ -258,7 +259,17 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
             deadlineAt: lockDeadlineAt,
           },
         );
-      } catch {
+      } catch (error) {
+        // A transport failure has an ambiguous outcome: the Management API may
+        // have committed the PATCH before the response was lost. Keep the
+        // public result fail-closed, but record that ambiguity for operators.
+        // A pre-request shared-deadline rejection is not ambiguous because no
+        // PATCH was sent.
+        if (!(error instanceof ManagementRequestDeadlineExceededError)) {
+          auditSafe(userId, 'custom_data.update_ambiguous', userId, {
+            keys: Object.keys(safePrefs),
+          });
+        }
         warnCustomDataFailure('[updateUserCustomData] PATCH custom-data fetch failed:');
         throw plainCode('UPDATE_FAILED');
       }
@@ -268,24 +279,24 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
         throw plainCode('UPDATE_FAILED');
       }
 
-      // Do not begin post-PATCH work once the lock-held budget is exhausted.
-      // This leaves the release cleanup margin intact even when PATCH resolves
-      // at the deadline.
+      // An OK PATCH is the commit boundary. Deadline expiry or lock-release
+      // cleanup after this point must not turn a persisted update into a
+      // reported failure or skip its audit trail.
+      patchCommitted = true;
+      auditSafe(userId, 'custom_data.update', userId, { keys: Object.keys(safePrefs) });
       try {
-        throwIfManagementDeadlineExceeded(lockDeadlineAt);
+        logEvent.info(LOG_EVENTS.USER_CUSTOM_DATA_UPDATE, 'Custom data updated', { keys: Object.keys(safePrefs) });
       } catch {
-        warnCustomDataFailure('[updateUserCustomData] PATCH custom-data deadline exceeded:');
-        throw plainCode('UPDATE_FAILED');
+        // Structured logging is best-effort after a confirmed commit.
       }
     } finally {
-      await releaseLock();
+      try {
+        await releaseLock();
+      } catch (error) {
+        warnCustomDataFailure('[updateUserCustomData] Lock release failed:');
+        if (!patchCommitted) throw error;
+      }
     }
-
-    // Audit/logging are not part of the read-modify-write critical section.
-    // Releasing first keeps the lock-held path strictly bounded; auditSafe is
-    // already best-effort and does not await its persistence work.
-    auditSafe(userId, 'custom_data.update', userId, { keys: Object.keys(safePrefs) });
-    logEvent.info(LOG_EVENTS.USER_CUSTOM_DATA_UPDATE, 'Custom data updated', { keys: Object.keys(safePrefs) });
   });
 }
 
