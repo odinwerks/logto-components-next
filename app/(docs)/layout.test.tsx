@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
+import { enUS } from '../logto-kit/locales/en-US';
 
 // --- Mocks ---
 
@@ -67,7 +68,8 @@ describe('DocsLayout', () => {
       render(jsx as React.ReactElement);
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText('access_denied')).toBeInTheDocument();
+      expect(screen.getByText(enUS.errors.access_denied)).toBeInTheDocument();
+      expect(screen.queryByText('access_denied')).not.toBeInTheDocument();
       expect(screen.getByText(/Authentication error:/)).toBeInTheDocument();
     });
 
@@ -109,7 +111,8 @@ describe('DocsLayout', () => {
       render(jsx as React.ReactElement);
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText('login_required')).toBeInTheDocument();
+      expect(screen.getByText(enUS.errors.login_required)).toBeInTheDocument();
+      expect(screen.queryByText('login_required')).not.toBeInTheDocument();
     });
 
     it('renders children content in the authenticated branch', async () => {

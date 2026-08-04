@@ -110,6 +110,51 @@ describe('PhoneCountrySelect', () => {
     expect(screen.queryByText('Germany')).not.toBeInTheDocument();
   });
 
+  it('disables the selector when allow mode has no countries', () => {
+    render(
+      <PhoneCountrySelect
+        {...defaultProps}
+        countryFilter={{ mode: 'allow', codes: [] }}
+      />
+    );
+
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
+    expect(trigger).toBeDisabled();
+    expect(screen.getByText(enUS.security.noCountryFound)).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('Georgia')).not.toBeInTheDocument();
+  });
+
+  it('does not broaden an allow list containing only unknown codes', () => {
+    render(
+      <PhoneCountrySelect
+        {...defaultProps}
+        countryFilter={{ mode: 'allow', codes: ['999999'] }}
+      />
+    );
+
+    const trigger = screen.getByRole('combobox', { name: /country calling code/i });
+    expect(trigger).toBeDisabled();
+    expect(screen.getByText(enUS.security.noCountryFound)).toBeInTheDocument();
+    expect(screen.queryByText('+995')).not.toBeInTheDocument();
+  });
+
+  it('preserves all countries for explicit none mode', () => {
+    render(
+      <PhoneCountrySelect
+        {...defaultProps}
+        countryFilter={{ mode: 'none', codes: [] }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: /country calling code/i }));
+
+    expect(screen.getByText('Georgia')).toBeInTheDocument();
+    expect(screen.getByText('Germany')).toBeInTheDocument();
+  });
+
   it('supports countryFilter block list', () => {
     render(
       <PhoneCountrySelect

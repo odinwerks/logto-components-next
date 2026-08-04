@@ -1,7 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { enUS } from '../en-US';
 import { ukUA } from '../uk-UA';
 import { kaGE } from '../ka-GE';
+import {
+  getAllTranslations,
+  getAvailableLocales,
+  getTranslations,
+  isLocaleAvailable,
+  type LocaleCode,
+  type Translations,
+} from '..';
 
 // The full expected set of `errors` keys — must match across all three locales.
 // These are the code values the client can receive, matching the ERROR_CODES registry.
@@ -87,5 +95,62 @@ describe('Locale error-keys parity', () => {
     for (const [key, value] of Object.entries(kaGE.errors)) {
       expect(value, `kaGE.errors.${key} should be a non-empty string`).toMatch(/.+/);
     }
+  });
+});
+
+describe('Locale registry lookups', () => {
+  const inheritedNames = ['constructor', 'toString', '__proto__'];
+
+  it.each(inheritedNames)('rejects inherited property name %s', (name) => {
+    const allTranslations = getAllTranslations();
+
+    expect(isLocaleAvailable(name)).toBe(false);
+    expect(getTranslations(name as LocaleCode)).toBe(enUS);
+    expect(allTranslations[name]).toBeUndefined();
+    expect(Object.getPrototypeOf(allTranslations)).toBe(Object.prototype);
+  });
+
+  it('filters inherited names out of LANG_AVAILABLE', () => {
+    vi.stubEnv('LANG_AVAILABLE', 'constructor,toString,__proto__,en-US');
+
+    expect(getAvailableLocales()).toEqual(['en-US']);
+
+    vi.unstubAllEnvs();
+  });
+
+  it('guards a post-Flight registry while resolving an own locale', () => {
+    // Flight drops the registry's enumerable `undefined` shadow properties.
+    const postFlightRegistry = JSON.parse(JSON.stringify(getAllTranslations())) as Record<string, Translations>;
+    const inheritedTranslations = { ...kaGE };
+    const pollutedPrototype = Object.create(null) as Record<string, Translations>;
+    for (const name of inheritedNames) {
+      Object.defineProperty(pollutedPrototype, name, {
+        value: inheritedTranslations,
+        enumerable: true,
+      });
+    }
+    Object.setPrototypeOf(postFlightRegistry, pollutedPrototype);
+
+    const ownTranslations = {
+      ...kaGE,
+      dashboard: { ...kaGE.dashboard, account: 'Own post-Flight locale' },
+    };
+    postFlightRegistry['ka-GE'] = ownTranslations;
+
+    for (const name of inheritedNames) {
+      expect(getTranslations(name, postFlightRegistry, enUS)).toBe(enUS);
+    }
+    expect(getTranslations('ka-GE', postFlightRegistry, enUS)).toBe(ownTranslations);
+  });
+
+  it('rejects an own locale whose translation namespace is inherited', () => {
+    const { dashboard: inheritedDashboard, ...ownNamespaces } = enUS;
+    const pollutedTranslations = Object.assign(
+      Object.create({ dashboard: inheritedDashboard }) as Record<string, unknown>,
+      ownNamespaces,
+    ) as unknown as Translations;
+    const registry = { 'en-US': pollutedTranslations };
+
+    expect(getTranslations('en-US', registry, kaGE)).toBe(kaGE);
   });
 });

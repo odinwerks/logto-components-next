@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IBM_Plex_Mono } from 'next/font/google';
 import type { DashboardData, TabId, MfaVerificationPayload, ThemeColors, PersonalRbacResult, OrgRbacResult } from './types';
-import type { Translations } from '../../locales';
+import { getTranslations, type Translations } from '../../locales';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
 import { RbacPromisesProvider } from '../providers/rbac-stream-context';
@@ -139,7 +139,7 @@ export function DashboardClient({
   // ── Language ───────────────────────────────────────────────────────────────
   const { lang } = useLangMode();
   const t = useMemo<Translations>(
-    () => allTranslations[lang] ?? serverTranslations,
+    () => getTranslations(lang, allTranslations, serverTranslations),
     [lang, allTranslations, serverTranslations]
   );
 

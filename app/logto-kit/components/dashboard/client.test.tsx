@@ -10,9 +10,11 @@ import type { MfaVerification, LogtoSession } from '../../logic/types';
 const {
   mockUserBadge,
   shouldThrowProfileTab,
+  currentLang,
 } = vi.hoisted(() => ({
   mockUserBadge: vi.fn<(props: Record<string, unknown>) => null>(() => null),
   shouldThrowProfileTab: { value: false },
+  currentLang: { value: 'en' },
 }));
 
 vi.mock('next/navigation', () => ({
@@ -42,7 +44,7 @@ vi.mock('../providers/preferences', () => ({
       success: '#22c55e',
     },
   }),
-  useLangMode: () => ({ lang: 'en' }),
+  useLangMode: () => ({ lang: currentLang.value }),
 }));
 
 vi.mock('../providers/user-data-context', () => ({
@@ -171,6 +173,7 @@ const requiredProps = {
 
 afterEach(() => {
   vi.useRealTimers();
+  currentLang.value = 'en';
 });
 
 describe('DashboardClient - userShape prop', () => {
@@ -216,6 +219,23 @@ describe('DashboardClient - userShape prop', () => {
     // Animations are now driven by Framer Motion (CrossFade). Verify the
     // component renders without errors.
     expect(container.firstChild).not.toBeNull();
+  });
+
+  it('rejects an inherited post-Flight locale and uses server translations', () => {
+    currentLang.value = 'constructor';
+    const inheritedTranslations = {
+      ...stubTranslations,
+      tabs: { ...stubTranslations.tabs, profile: 'Inherited profile' },
+    };
+    const allTranslations = Object.assign(
+      Object.create({ constructor: inheritedTranslations }) as Record<string, Translations>,
+      { en: stubTranslations },
+    );
+
+    render(<DashboardClient {...requiredProps} allTranslations={allTranslations} />);
+
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Inherited profile' })).toBeNull();
   });
 
   it('does not remount the tabpanel wrapper when switching tabs (BUG-010)', () => {

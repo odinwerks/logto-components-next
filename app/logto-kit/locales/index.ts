@@ -564,6 +564,63 @@ const locales: Record<LocaleCode, Translations> = {
   'uk-UA': ukUA,
 };
 
+// The registry crosses the React Server Component boundary, so it must remain
+// a plain object (null-prototype objects are not serializable by React). Shadow
+// every Object.prototype name with undefined as defense in depth for direct,
+// same-runtime consumers. React Flight drops undefined properties, so every
+// lookup must still use getTranslations(), which checks ownership at access
+// time after the registry has crossed the server/client boundary.
+for (const inheritedName of Object.getOwnPropertyNames(Object.prototype)) {
+  Object.defineProperty(locales, inheritedName, {
+    value: undefined,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  });
+}
+
+export type TranslationRegistry = Readonly<Record<string, Translations>>;
+
+const TRANSLATION_NAMESPACES = [
+  'dashboard',
+  'tabs',
+  'security',
+  'profile',
+  'verification',
+  'validation',
+  'identities',
+  'organizations',
+  'rbac',
+  'mfa',
+  'sessions',
+  'common',
+  'auth',
+  'signout',
+  'errors',
+] as const satisfies readonly (keyof Translations)[];
+
+function getOwnTranslations(
+  locale: string,
+  registry: TranslationRegistry,
+): Translations | undefined {
+  if (!Object.hasOwn(registry, locale)) return undefined;
+
+  const candidate: unknown = registry[locale];
+  if (typeof candidate !== 'object' || candidate === null) return undefined;
+
+  // A polluted prototype must not be able to supply a translation namespace
+  // for an otherwise own locale entry.
+  if (!TRANSLATION_NAMESPACES.every((namespace) => Object.hasOwn(candidate, namespace))) {
+    return undefined;
+  }
+
+  return candidate as Translations;
+}
+
+function hasOwnLocale(locale: string): locale is LocaleCode {
+  return getOwnTranslations(locale, locales) !== undefined;
+}
+
 /**
  * Get main locale from environment
  * Uses getDefaultLang from logic/i18n as single source of truth
@@ -583,14 +640,22 @@ export function getAvailableLocales(): LocaleCode[] {
   const codes = available.split(',').map(l => l.trim() as LocaleCode);
 
   // Filter to only valid locales
-  return codes.filter(code => locales[code]);
+  return codes.filter(hasOwnLocale);
 }
 
 /**
- * Get translations for a locale
+ * Get translations for a locale using own properties only.
+ *
+ * A registry supplied by a Client Component may have crossed React Flight,
+ * which strips undefined shadow properties. The lookup therefore checks the
+ * registry and translation dictionary at use time rather than trusting shape.
  */
-export function getTranslations(locale: LocaleCode): Translations {
-  return locales[locale] || locales['en-US'];
+export function getTranslations(
+  locale: string,
+  registry: TranslationRegistry = locales,
+  fallback: Translations = enUS,
+): Translations {
+  return getOwnTranslations(locale, registry) ?? fallback;
 }
 
 /**
@@ -604,7 +669,7 @@ export function getAllTranslations(): Record<string, Translations> {
  * Check if a locale is available
  */
 export function isLocaleAvailable(locale: string): boolean {
-  return locale in locales;
+  return hasOwnLocale(locale);
 }
 
 // Export individual locales

@@ -27,7 +27,7 @@ export function PhoneCountrySelect({
   countryFilter,
   mode: _mode,
   colors,
-  t: _t,
+  t,
   disabled = false,
 }: PhoneCountrySelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,9 +52,11 @@ export function PhoneCountrySelect({
 
   const activeCountries = useMemo(() => {
     const filter = countryFilter ?? { mode: 'none' as const, codes: [] };
-    const filtered = COUNTRY_CODES.filter((c) => isCountryAllowed(c.code, filter));
-    return filtered.length > 0 ? filtered : [...COUNTRY_CODES];
+    if (filter.mode === 'none') return [...COUNTRY_CODES];
+    return COUNTRY_CODES.filter((c) => isCountryAllowed(c.code, filter));
   }, [countryFilter]);
+
+  const selectorDisabled = disabled || activeCountries.length === 0;
 
   const selectedCountry = useMemo(() => {
     return activeCountries.find((c) => c.code === value);
@@ -214,7 +216,7 @@ export function PhoneCountrySelect({
   }, [highlightedIndex]);
 
   const handleToggle = () => {
-    if (disabled) return;
+    if (selectorDisabled) return;
     setSearchQuery('');
     if (!isOpen) {
       updateCoords();
@@ -223,11 +225,11 @@ export function PhoneCountrySelect({
   };
 
   const openDropdown = useCallback(() => {
-    if (disabled) return;
+    if (selectorDisabled) return;
     setSearchQuery('');
     updateCoords();
     setIsOpen(true);
-  }, [disabled, updateCoords]);
+  }, [selectorDisabled, updateCoords]);
 
   const selectCountry = (country: typeof COUNTRY_CODES[number]) => {
     onChange(country.code);
@@ -235,7 +237,7 @@ export function PhoneCountrySelect({
   };
 
   const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (disabled) return;
+    if (selectorDisabled) return;
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -292,8 +294,8 @@ export function PhoneCountrySelect({
     color: colors.textPrimary,
     fontSize: '0.8125rem',
     borderRadius: '0.25rem',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.6 : 1,
+    cursor: selectorDisabled ? 'not-allowed' : 'pointer',
+    opacity: selectorDisabled ? 0.6 : 1,
     boxSizing: 'border-box',
     fontFamily: "'DM Sans', system-ui, sans-serif",
     height: '100%',
@@ -360,6 +362,7 @@ export function PhoneCountrySelect({
 
   const flag = selectedCountry ? getFlagEmoji(selectedCountry.iso) : '🌐';
   const displayValue = value ? `+${value}` : '+';
+  const hasAvailableCountries = activeCountries.length > 0;
 
   return (
     <>
@@ -367,19 +370,24 @@ export function PhoneCountrySelect({
         type="button"
         id={triggerId}
         ref={triggerRef}
-        disabled={disabled}
+        disabled={selectorDisabled}
         onClick={handleToggle}
         onKeyDown={handleTriggerKeyDown}
         role="combobox"
         aria-label="Country calling code"
         aria-haspopup="listbox"
-        aria-controls={isOpen ? listboxId : undefined}
-        aria-expanded={isOpen}
-        aria-activedescendant={isOpen ? activeOptionId : undefined}
+        aria-controls={isOpen && !selectorDisabled ? listboxId : undefined}
+        aria-expanded={isOpen && !selectorDisabled}
+        aria-activedescendant={isOpen && !selectorDisabled ? activeOptionId : undefined}
         style={triggerStyle}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          {selectedCountry ? (
+          {!hasAvailableCountries ? (
+            <>
+              <Globe size={14} style={{ color: colors.textTertiary, flexShrink: 0 }} />
+              <span>{t.security.noCountryFound}</span>
+            </>
+          ) : selectedCountry ? (
             <>
               <span>{flag}</span>
               <span>{displayValue}</span>
@@ -394,7 +402,7 @@ export function PhoneCountrySelect({
         <ChevronDown size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
       </button>
 
-      {isOpen &&
+      {isOpen && !selectorDisabled &&
         // eslint-disable-next-line react-hooks/refs -- Portal gate: one-way hydration guard, never reverts, no reactive dependency
         mountedRef.current &&
         typeof document !== 'undefined' &&

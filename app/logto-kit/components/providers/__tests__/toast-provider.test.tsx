@@ -10,11 +10,14 @@ import { DARK_COLORS } from '../../../themes';
 const allTranslations = { 'en-US': enUS };
 const fallbackTranslations = enUS;
 
-function createWrapper(lang = 'en-US') {
+function createWrapper(
+  lang = 'en-US',
+  translations: Record<string, typeof enUS> = allTranslations,
+) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <ToastProvider
-        allTranslations={allTranslations}
+        allTranslations={translations}
         lang={lang}
         fallbackTranslations={fallbackTranslations}
         mode="dark"
@@ -53,6 +56,22 @@ describe('ToastProvider / useToast', () => {
 
   it('mapErrorToast returns i18n message for known code', () => {
     const { result } = renderHook(() => useToast(), { wrapper: createWrapper() });
+
+    expect(result.current.mapErrorToast('ROLE_DENIED')).toBe(enUS.errors.ROLE_DENIED);
+  });
+
+  it('rejects an inherited post-Flight locale and maps with fallback translations', () => {
+    const inheritedTranslations = {
+      ...enUS,
+      errors: { ...enUS.errors, ROLE_DENIED: 'Inherited role denial' },
+    };
+    const postFlightRegistry = Object.assign(
+      Object.create({ constructor: inheritedTranslations }) as Record<string, typeof enUS>,
+      { 'en-US': enUS },
+    );
+    const { result } = renderHook(() => useToast(), {
+      wrapper: createWrapper('constructor', postFlightRegistry),
+    });
 
     expect(result.current.mapErrorToast('ROLE_DENIED')).toBe(enUS.errors.ROLE_DENIED);
   });

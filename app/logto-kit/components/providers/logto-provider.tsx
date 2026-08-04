@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useCallback, useRef, useMemo, useE
 import type { UserData } from '../../logic/types';
 import type { ThemeColors } from '../../themes';
 import type { ActionResult } from '../../logic/actions/safe';
-import type { Translations } from '../../locales';
+import { getTranslations, type Translations } from '../../locales';
 import { updateUserCustomData } from '../../logic/actions/profile';
 import { PreferencesProvider, useThemeMode, useLangMode, useOrgMode } from './preferences';
 import { UserDataProvider } from './user-data-context';
@@ -154,7 +154,7 @@ function LogtoProviderContent({
         <ToastProvider
           allTranslations={allTranslations ?? {}}
           lang={lang}
-          fallbackTranslations={fallbackTranslations ?? allTranslations?.['en-US'] ?? {} as Translations}
+          fallbackTranslations={fallbackTranslations ?? getTranslations('en-US', allTranslations ?? {})}
           mode={mode}
           colors={colors}
         >

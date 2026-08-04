@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react';
-import type { Translations } from '../../locales';
+import { getTranslations, type Translations } from '../../locales';
 import type { ToastMessage } from '../dashboard/types';
 import { ToastContainer } from '../dashboard/shared/Toast';
 import type { ThemeColors } from '../../themes';
@@ -95,7 +95,7 @@ export function ToastProvider({
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const suppressRef = useRef(false);
 
-  const t: Translations = allTranslations[lang] ?? fallbackTranslations;
+  const t = getTranslations(lang, allTranslations, fallbackTranslations);
 
   const setSuppressAll = useCallback((value: boolean) => {
     suppressRef.current = value;

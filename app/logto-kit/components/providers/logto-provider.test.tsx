@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { LogtoProvider, useLogto } from './logto-provider';
+import { useToast } from './toast-provider';
 import type { UserData } from '../../logic/types';
+import { enUS } from '../../locales/en-US';
+import type { Translations } from '../../locales';
 
 // Mock the actions module (network-dependent)
 vi.mock('../../logic/actions/profile', () => ({
@@ -140,6 +143,32 @@ describe('LogtoProvider contextValue memoization (LOG-002)', () => {
     // If memoized, contextValues should still have length 1 because the effect did not re-run
     expect(contextValues).toHaveLength(1);
     expect(contextValues[0]).toBe(firstContextValue);
+  });
+});
+
+describe('LogtoProvider locale fallback', () => {
+  it('rejects an inherited en-US fallback after the Flight round-trip', () => {
+    const inheritedTranslations = {
+      ...enUS,
+      errors: { ...enUS.errors, ROLE_DENIED: 'Inherited role denial' },
+    };
+    const postFlightRegistry = Object.create({
+      'en-US': inheritedTranslations,
+    }) as Record<string, Translations>;
+
+    function ErrorMessage() {
+      const { mapErrorToast } = useToast();
+      return <span>{mapErrorToast('ROLE_DENIED')}</span>;
+    }
+
+    render(
+      <LogtoProvider initialLang="missing" allTranslations={postFlightRegistry}>
+        <ErrorMessage />
+      </LogtoProvider>,
+    );
+
+    expect(screen.getByText(enUS.errors.ROLE_DENIED)).toBeInTheDocument();
+    expect(screen.queryByText('Inherited role denial')).toBeNull();
   });
 });
 

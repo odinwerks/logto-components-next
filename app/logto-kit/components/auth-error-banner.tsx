@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, X } from 'lucide-react';
+import { getTranslations, type LocaleCode, type Translations } from '../locales';
+import { useLangMode } from './providers/preferences';
 
 /**
- * Known OAuth2/OIDC error codes that are safe to display verbatim.
- * Any error not in this set is replaced with a generic fallback to prevent
+ * Known OAuth2/OIDC error codes that have localized messages.
+ * Any error not in this set uses a generic fallback to prevent
  * social engineering attacks that inject attacker-controlled messages via
  * the auth_error query parameter.
  */
-const KNOWN_OAUTH_ERRORS = new Set([
+const KNOWN_OAUTH_ERROR_CODES = [
   'access_denied',
   'login_required',
   'interaction_required',
@@ -21,23 +23,31 @@ const KNOWN_OAUTH_ERRORS = new Set([
   'invalid_scope',
   'server_error',
   'temporarily_unavailable',
-]);
+] as const satisfies readonly (keyof Translations['errors'])[];
+
+type KnownOAuthErrorCode = (typeof KNOWN_OAUTH_ERROR_CODES)[number];
+type CapturedAuthError = KnownOAuthErrorCode | 'OAUTH_UNKNOWN_ERROR';
+
+const KNOWN_OAUTH_ERRORS: ReadonlySet<string> = new Set(KNOWN_OAUTH_ERROR_CODES);
 
 /**
  * Displays an OAuth authentication error banner when `auth_error` is present in the URL.
  *
  * OAuth2 error codes are standardized enum values (e.g., access_denied, login_required,
- * interaction_required) and are safe to display. The error_description is intentionally
- * NOT shown to avoid reflecting user-controlled content from the IdP.
+ * interaction_required) and are mapped to localized messages. The error_description is
+ * intentionally NOT shown to avoid reflecting user-controlled content from the IdP.
  */
 export function AuthErrorBanner() {
   const searchParams = useSearchParams();
   // Capture the error from searchParams during the initial render, BEFORE
   // AuthErrorBannerInner can clean up the URL. This prevents the banner from
   // unmounting when the query parameter is removed.
-  const [capturedError] = useState<string | null>(() => {
+  const [capturedError] = useState<CapturedAuthError | null>(() => {
     const raw = searchParams.get('auth_error');
-    return raw ? (KNOWN_OAUTH_ERRORS.has(raw) ? raw : 'authentication_error') : null;
+    if (!raw) return null;
+    return KNOWN_OAUTH_ERRORS.has(raw)
+      ? (raw as KnownOAuthErrorCode)
+      : 'OAUTH_UNKNOWN_ERROR';
   });
 
   if (!capturedError) {
@@ -56,11 +66,13 @@ export function AuthErrorBanner() {
 function AuthErrorBannerInner({
   authError,
 }: {
-  authError: string;
+  authError: CapturedAuthError;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { lang } = useLangMode();
+  const t = getTranslations(lang as LocaleCode);
 
   useEffect(() => {
     // Automatically clear auth_error parameter from URL after display
@@ -103,7 +115,7 @@ function AuthErrorBannerInner({
         aria-hidden="true"
       />
       <span style={{ flex: 1 }}>
-        Authentication error: <strong>{authError}</strong>
+        Authentication error: <strong>{t.errors[authError]}</strong>
       </span>
       <button
         onClick={handleDismiss}
