@@ -14,7 +14,7 @@
  * - `scrubArgs` — scrubs string/Error args and redacts plain-object args (for
  *   the console path where Node's util.inspect would otherwise print sensitive
  *   fields verbatim)
- * - `redactSensitive` — recursively redacts sensitive keys in plain objects
+ * - `redactSensitive` — recursively redacts sensitive keys in serializable objects
  *   (also imported by logger.ts for the webhook transport path)
  * - `SENSITIVE_KEYS` — regex identifying sensitive key names (camelCase +
  *   snake_case OAuth/OIDC variants)
@@ -33,46 +33,139 @@
  * without creating a circular import.
  */
 export const SENSITIVE_KEYS =
-  /^(token|password|secret|key|authorization|apiKey|api_key|accessToken|refreshToken|idToken|m2mToken|access_token|refresh_token|id_token|client_secret|code|state)$/i;
+  /^(token|password|secret|key|authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|m2m[_-]?token|client[_-]?secret|code|state|cred|credentials?|token[_-]?value|verification(?:[_-]?record)?[_-]?id|stack|error)$/i;
+
+const SENSITIVE_NORMALIZED_KEYS = new Set([
+  'token',
+  'password',
+  'secret',
+  'key',
+  'authorization',
+  'apikey',
+  'accesstoken',
+  'refreshtoken',
+  'idtoken',
+  'm2mtoken',
+  'clientsecret',
+  'code',
+  'state',
+  'cred',
+  'credential',
+  'credentials',
+  'tokenvalue',
+  'verificationid',
+  'verificationrecordid',
+  'stack',
+  'error',
+]);
+
+function normalizeKey(key: string): string {
+  return key.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+}
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEYS.test(key) || SENSITIVE_NORMALIZED_KEYS.has(normalizeKey(key));
+}
+
+function truncateCodePoints(value: string, maximum: number): string {
+  let codePoints = 0;
+  let end = 0;
+  for (const codePoint of value) {
+    if (codePoints === maximum) return value.slice(0, end);
+    end += codePoint.length;
+    codePoints++;
+  }
+  return value;
+}
 
 /**
  * Recursively redacts sensitive keys in an object before serialization.
  * Returns a new object with matching keys replaced by '[REDACTED]'; the input
  * is never mutated.
  *
- * Only recurses into plain objects (prototype is `Object.prototype` or `null`)
- * and arrays. Exotic objects (Date, Map, Set, RegExp, class instances, etc.)
- * are returned as-is so their runtime semantics are preserved — `Object.entries`
- * would otherwise mangle them (e.g. a Date has no own enumerable props and
- * would collapse to `{}`).
+ * Traverses own enumerable properties on plain objects and class instances,
+ * and redacts the result of custom `toJSON` methods. This mirrors the paths a
+ * JSON logger can serialize while preventing class/custom-serialization
+ * bypasses. Built-ins with no enumerable state (for example Date, Map, Set,
+ * and RegExp) remain intact.
  *
  * @param obj - value to redact (objects, arrays, primitives all accepted)
- * @returns a redacted copy for plain objects/arrays; primitives and exotic
- *          objects pass through unchanged
+ * @returns a redacted serialization-safe copy; primitives and built-ins with
+ *          no enumerable state pass through unchanged
  */
 export function redactSensitive(obj: unknown): unknown {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) return obj.map(redactSensitive);
-  if (typeof obj === 'object') {
-    const proto = Object.getPrototypeOf(obj);
-    // Only recurse into plain objects; pass exotic objects through unchanged
-    // to preserve their runtime state (Date, Map, Set, class instances, ...).
-    if (proto !== null && proto !== Object.prototype) {
-      return obj;
+  const seen = new WeakMap<object, unknown>();
+
+  const visit = (value: unknown): unknown => {
+    if (typeof value === 'string') return scrubLogString(value);
+    if (value === null || value === undefined || typeof value !== 'object') return value;
+
+    if (seen.has(value)) return seen.get(value);
+
+    if (Array.isArray(value)) {
+      const result: unknown[] = [];
+      seen.set(value, result);
+      for (const item of value) result.push(visit(item));
+      return result;
     }
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      if (SENSITIVE_KEYS.test(key)) {
-        result[key] = '[REDACTED]';
-      } else if (typeof value === 'object' && value !== null) {
-        result[key] = redactSensitive(value);
-      } else {
-        result[key] = value;
+
+    let toJSON: unknown;
+    try {
+      toJSON = Reflect.get(value, 'toJSON');
+    } catch {
+      // A hostile getter must not make best-effort logging crash. Fall back to
+      // own-enumerable traversal, which replaces throwing values below.
+    }
+
+    // Preserve an ordinary Date as a Date. An overridden Date serializer is
+    // still treated as custom serialization and scrubbed below.
+    if (value instanceof Date && toJSON === Date.prototype.toJSON) return value;
+
+    if (typeof toJSON === 'function') {
+      const placeholder: Record<string, unknown> = {};
+      seen.set(value, placeholder);
+      try {
+        const serialized = Reflect.apply(toJSON, value, []);
+        if (serialized !== value) {
+          const redacted = visit(serialized);
+          seen.set(value, redacted);
+          return redacted;
+        }
+      } catch {
+        // If custom serialization fails, redact own enumerable properties
+        // rather than returning the original object unsanitized.
       }
+      seen.delete(value);
+    }
+
+    const keys = Object.keys(value);
+    if (keys.length === 0) return value;
+
+    const proto = Object.getPrototypeOf(value);
+    const result = Object.create(proto === null ? null : Object.prototype) as Record<string, unknown>;
+    seen.set(value, result);
+    for (const key of keys) {
+      let child: unknown;
+      try {
+        child = Reflect.get(value, key);
+      } catch {
+        child = '[UNSERIALIZABLE]';
+      }
+      Object.defineProperty(result, key, {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: isSensitiveKey(key)
+          ? '[REDACTED]'
+          : normalizeKey(key) === 'msg' && typeof child === 'string'
+            ? scrubLogString(child)
+            : visit(child),
+      });
     }
     return result;
-  }
-  return obj;
+  };
+
+  return visit(obj);
 }
 
 // ============================================================================
@@ -87,9 +180,7 @@ export function scrubLogString(s: string): string {
   // Guard against polynomial ReDoS: if the string is excessively long, truncate
   // it before running regex. This is a log scrubber — an input >10k chars is
   // almost certainly not a real log line that needs regex-level scrubbing.
-  if (s.length > 10000) {
-    s = s.substring(0, 10000);
-  }
+  s = truncateCodePoints(s, 10000);
   let result = s;
 
   // JWT tokens: eyJ...header.eyJ...payload.signature
@@ -148,7 +239,12 @@ export function scrubLogString(s: string): string {
     'password=[REDACTED]',
   );
 
-  return result;
+  // Prevent attacker-controlled values from creating forged adjacent records
+  // after console output or webhook JSON is decoded by a receiver.
+  result = result.replace(/(?:\r\n|[\n\r\u0085\u2028\u2029])/gu, ' ');
+
+  // Keep every log message bounded without splitting UTF-16 surrogate pairs.
+  return truncateCodePoints(result, 200);
 }
 
 /**
@@ -156,11 +252,11 @@ export function scrubLogString(s: string): string {
  *
  * - `string` args → `scrubLogString` (regex scrub of credential patterns)
  * - `Error` args → a new Error with scrubbed message/stack (original untouched)
- * - plain-object args → `redactSensitive` (sensitive keys replaced with
- *   '[REDACTED]'); returns a NEW object so the original is never mutated and
- *   Node's `util.inspect` cannot print unredacted credential fields
- * - arrays, numbers, booleans, null, undefined, and exotic objects (Date, Map,
- *   Set, class instances, ...) pass through unchanged
+ * - object args → `redactSensitive` (sensitive keys replaced with
+ *   '[REDACTED]'); traversable objects are copied so the original is never
+ *   mutated and serialization cannot print unredacted credential fields
+ * - arrays are traversed; numbers, booleans, null, undefined, and built-ins
+ *   without enumerable serialization state pass through unchanged
  *
  * Without the object branch, the console path (active when
  * `LOG_BACKEND=both`/`console`, which is the default) would emit sensitive
@@ -184,9 +280,8 @@ export function scrubArgs(args: unknown[]): unknown[] {
       }
       return scrubbed;
     }
-    // Plain objects (and objects with null prototype) are redacted recursively.
-    // redactSensitive passes exotic objects (Date, Map, Set, ...) through
-    // unchanged, so they keep their runtime semantics.
+    // Objects are redacted recursively across own enumerable and custom
+    // serialization paths; inert built-ins retain their runtime semantics.
     if (arg !== null && typeof arg === 'object') {
       return redactSensitive(arg);
     }

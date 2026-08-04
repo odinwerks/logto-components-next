@@ -56,8 +56,7 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
       // Fail closed: if we cannot verify the caller's role assignments we
       // must not proceed to fetch the requested role. Deny access rather
       // than risk leaking unassigned role metadata.
-      const text = await rolesRes.text().catch(() => '');
-      warn(`[getRoleDetails] User roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
+      warn(`[getRoleDetails] User roles endpoint returned ${rolesRes.status}`);
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
     }
 
@@ -75,8 +74,7 @@ export async function getRoleDetails(roleId: string): Promise<DataResult<UserRol
     const res = await makeManagementFetch(url, { method: 'GET', token });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      warn(`[getRoleDetails] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      warn(`[getRoleDetails] Management API returned ${res.status}`);
       throw new Error(`Management API returned ${res.status}`);
     }
 
@@ -116,8 +114,7 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
 
     if (!rolesResult.ok) {
       const res = rolesResult.response;
-      const text = await res.text().catch(() => '');
-      warn(`[getOrganizationUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      warn(`[getOrganizationUserRoles] Management API returned ${res.status}`);
       if (res.status === 403 || res.status === 404) {
         throw plainCode('ORG_NOT_MEMBER');
       }
@@ -154,8 +151,7 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
 
     if (!rolesResult.ok) {
       const res = rolesResult.response;
-      const text = await res.text().catch(() => '');
-      warn(`[getUserRoles] Management API returned ${res.status}: ${text.substring(0, 300)}`);
+      warn(`[getUserRoles] Management API returned ${res.status}`);
       throw new Error(`Management API returned ${res.status}`);
     }
 
@@ -245,8 +241,7 @@ export async function verifyPersonalAccess(
 
     if (!rolesResult.ok) {
       const rolesRes = rolesResult.response;
-      const text = await rolesRes.text().catch(() => '');
-      warn(`[verifyPersonalAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
+      warn(`[verifyPersonalAccess] Roles endpoint returned ${rolesRes.status}`);
       throw plainCode('UNAUTHORIZED');
     }
 
@@ -265,9 +260,8 @@ export async function verifyPersonalAccess(
 
         if (!scopesResult.ok) {
           const scopesRes = scopesResult.response;
-          const text = await scopesRes.text().catch(() => '');
-          warn(`[verifyPersonalAccess] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
-          throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
+          warn(`[verifyPersonalAccess] Scopes endpoint returned ${scopesRes.status}`);
+          throw new Error(`Scopes fetch failed: ${scopesRes.status}`);
         }
 
         return scopesResult.data;
@@ -326,8 +320,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
 
     if (!rolesResult.ok) {
       const rolesRes = rolesResult.response;
-      const text = await rolesRes.text().catch(() => '');
-      warn(`[getUserScopes] Roles fetch returned ${rolesRes.status}: ${text.substring(0, 300)}`);
+      warn(`[getUserScopes] Roles fetch returned ${rolesRes.status}`);
       throw new Error(`Management API returned ${rolesRes.status}`);
     }
 
@@ -345,8 +338,7 @@ export async function getUserScopes(): Promise<DataResult<PersonalPermission[]>>
 
         if (!scopesResult.ok) {
           const scopesRes = scopesResult.response;
-          const text = await scopesRes.text().catch(() => '');
-          warn(`[getUserScopes] Management API returned ${scopesRes.status} for role ${role.id} scopes: ${text.substring(0, 200)}`);
+          warn(`[getUserScopes] Management API scopes request returned ${scopesRes.status}`);
           throw new Error(`Management API returned ${scopesRes.status}`);
         }
 

@@ -326,11 +326,12 @@ describe('getRoleDetails authorization and IDOR guard', () => {
   });
 
   it('fails closed with UNAUTHORIZED when the user roles fetch itself fails', async () => {
+    const text = vi.fn().mockResolvedValue('Internal Server Error with alice@example.com');
     fetchSpy.mockResolvedValueOnce({
       status: 500,
       ok: false,
-      text: async () => 'Internal Server Error',
-    } as Response);
+      text,
+    } as unknown as Response);
 
     const { getRoleDetails } = await import('./roles');
     const result = await getRoleDetails('role-123');
@@ -338,6 +339,8 @@ describe('getRoleDetails authorization and IDOR guard', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('UNAUTHORIZED');
+    expect(text).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith('[getRoleDetails] User roles endpoint returned 500');
 
     // Must not proceed to fetch role details when authorization cannot be verified
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -360,17 +363,18 @@ describe('getUserScopes error handling', () => {
     fetchSpy.mockRestore();
   });
 
-  it('warns with raw details but throws a clean status-only error when scopes fetch fails', async () => {
+  it('logs only operation and status when a scopes response contains sensitive details', async () => {
     // 1. Roles fetch returns one role
     fetchSpy.mockResolvedValueOnce(mockJsonResponse([makeRole('role-123', 'Admin')]));
     // 2. Scopes fetch returns 500 with secret/raw details
+    const text = vi.fn().mockResolvedValue('Super Secret Raw Backend Error Details');
     fetchSpy.mockResolvedValueOnce({
       status: 500,
       ok: false,
-      text: async () => 'Super Secret Raw Backend Error Details',
-    } as Response);
+      text,
+    } as unknown as Response);
 
-        const { getUserScopes } = await import('./roles');
+    const { getUserScopes } = await import('./roles');
     const result = await getUserScopes();
 
     // Since all parallel scope fetches failed, it throws an error and returns ok: false
@@ -378,8 +382,8 @@ describe('getUserScopes error handling', () => {
     if (result.ok) throw new Error('Expected failure');
     expect(result.error).toBe('FETCH_FAILED');
 
-    // The raw details MUST be logged via warn
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Super Secret Raw Backend Error Details'));
+    expect(text).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Super Secret Raw Backend Error Details'));
 
     // But the rejected promise's error message (which was logged or used) must NOT embed the raw details
     // It should be a clean status-only message: "Management API returned 500"

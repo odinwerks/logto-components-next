@@ -210,37 +210,49 @@ export const logEvent: TypedLogger = {
     }
   },
   child(bindings: Record<string, unknown>) {
-    const pinoChild = getPinoLogger().child(bindings);
+    // Console-only mode must not construct Pino (or validate/create webhook
+    // state) merely because a scoped logger is requested.
+    const pinoChild = usePino ? getPinoLogger().child(bindings) : null;
     // Return a new logEvent-like object with bound context
     return {
       info(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
           try { console.log(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.info(event, msg, { ...getRequestBindings(), ...bindings, ...context });
+        if (pinoChild) pinoChild.info(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       warn(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
           try { console.warn(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.warn(event, msg, { ...getRequestBindings(), ...bindings, ...context });
+        if (pinoChild) pinoChild.warn(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       error(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
           try { console.error(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.error(event, msg, { ...getRequestBindings(), ...bindings, ...context });
+        if (pinoChild) pinoChild.error(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       debug(event: LogEvent, msg: string, context: Record<string, unknown> = {}) {
         if (useConsole) {
           try { console.debug(...scrubArgs([`[${event}]`, msg, { ...getRequestBindings(), ...bindings, ...context }])); } catch { /* best-effort */ }
         }
-        if (usePino) pinoChild.debug(event, msg, { ...getRequestBindings(), ...bindings, ...context });
+        if (pinoChild) pinoChild.debug(event, msg, { ...getRequestBindings(), ...bindings, ...context });
       },
       child: (childBindings: Record<string, unknown>) =>
         logEvent.child({ ...bindings, ...childBindings }),
-      raw: pinoChild.raw,
+      get raw() {
+        if (!pinoChild) {
+          throw new Error('logEvent.raw is unavailable when LOG_BACKEND=console');
+        }
+        return pinoChild.raw;
+      },
     };
   },
-  raw: getPinoLogger().raw,
+  get raw() {
+    if (!usePino) {
+      throw new Error('logEvent.raw is unavailable when LOG_BACKEND=console');
+    }
+    return getPinoLogger().raw;
+  },
 };

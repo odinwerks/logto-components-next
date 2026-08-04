@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrubLogString, scrubArgs } from './scrub-log-string';
+import { scrubLogString, scrubArgs, redactSensitive } from './scrub-log-string';
 
 describe('scrubLogString', () => {
   it('returns unchanged string when no sensitive patterns present', () => {
@@ -136,6 +136,100 @@ describe('scrubLogString', () => {
     const result = scrubLogString('{"username":"alice","password":"verylongpassword123"}');
     expect(result).toContain('password=[REDACTED]');
     expect(result).not.toContain('verylongpassword123');
+  });
+
+  it('normalizes every unsafe log record separator', () => {
+    const result = scrubLogString('first\nsecond\rthird\u0085fourth\u2028fifth\u2029sixth');
+
+    expect(result).toBe('first second third fourth fifth sixth');
+    expect(result).not.toMatch(/[\n\r\u0085\u2028\u2029]/u);
+  });
+
+  it('caps output at 200 Unicode code points without splitting a surrogate pair', () => {
+    const result = scrubLogString(`${'a'.repeat(199)}😀trailing`);
+
+    expect([...result]).toHaveLength(200);
+    expect(result.endsWith('😀')).toBe(true);
+    expect(result).not.toContain('\uFFFD');
+  });
+
+  it('applies the final cap after replacing credentials', () => {
+    const result = scrubLogString(`Bearer ${'x'.repeat(400)} ${'y'.repeat(400)}`);
+
+    expect(result).toContain('Bearer [REDACTED]');
+    expect([...result].length).toBeLessThanOrEqual(200);
+    expect(result).not.toContain('x'.repeat(20));
+  });
+});
+
+describe('redactSensitive', () => {
+  it('redacts deep, case-varied, and aliased credential keys', () => {
+    const input = {
+      outer: {
+        middle: {
+          Authorization: 'Bearer top-secret',
+          CRED: 'aliased-secret',
+          tokenValue: 'token-value-secret',
+          verification_id: 'verification-secret',
+        },
+      },
+      list: [{ Credential: 'array-secret' }],
+    };
+
+    expect(redactSensitive(input)).toEqual({
+      outer: {
+        middle: {
+          Authorization: '[REDACTED]',
+          CRED: '[REDACTED]',
+          tokenValue: '[REDACTED]',
+          verification_id: '[REDACTED]',
+        },
+      },
+      list: [{ Credential: '[REDACTED]' }],
+    });
+    expect(input.outer.middle.CRED).toBe('aliased-secret');
+  });
+
+  it('is cycle-safe and preserves cycles in the immutable copy', () => {
+    const input: Record<string, unknown> = { safe: 'value', TOKEN: 'secret' };
+    input.self = input;
+
+    const result = redactSensitive(input) as Record<string, unknown>;
+
+    expect(result).not.toBe(input);
+    expect(result.TOKEN).toBe('[REDACTED]');
+    expect(result.self).toBe(result);
+    expect(input.TOKEN).toBe('secret');
+    expect(input.self).toBe(input);
+  });
+
+  it('M-012 redacts non-plain own properties and custom toJSON output', () => {
+    class EnumerableAttack {
+      Authorization = 'class-authorization-secret';
+      tokenValue = 'class-token-secret';
+    }
+    class ToJsonAttack {
+      toJSON() {
+        return {
+          Authorization: 'tojson-authorization-secret',
+          tokenValue: 'tojson-token-secret',
+        };
+      }
+    }
+
+    expect(redactSensitive({
+      enumerable: new EnumerableAttack(),
+      serialized: new ToJsonAttack(),
+    })).toEqual({
+      enumerable: {
+        Authorization: '[REDACTED]',
+        tokenValue: '[REDACTED]',
+      },
+      serialized: {
+        Authorization: '[REDACTED]',
+        tokenValue: '[REDACTED]',
+      },
+    });
   });
 });
 

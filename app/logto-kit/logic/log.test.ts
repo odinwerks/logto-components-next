@@ -165,6 +165,22 @@ describe('logEvent console path scrubbing', () => {
     expect(loggedOutput).not.toContain('warntoken99');
     expect(loggedOutput).toContain('access_token=[REDACTED]');
   });
+
+  it('does not construct Pino or webhook state on import or child creation', async () => {
+    const createLogger = vi.fn(() => {
+      throw new Error('Pino must remain lazy in console mode');
+    });
+    vi.doMock('../../lib/logger', () => ({ createLogger }));
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOGGING_WEBHOOK_URL', 'http://external-webhook.example.com/log');
+
+    const { logEvent } = await import('./log');
+    const child = logEvent.child({ requestId: 'console-only' });
+    child.info('GENERIC_LOG' as never, 'console child');
+
+    expect(createLogger).not.toHaveBeenCalled();
+    expect(consoleSpy.log).toHaveBeenCalled();
+  });
 });
 
 describe('log.ts — Pino path scrubbing (BUG-M-001)', () => {
