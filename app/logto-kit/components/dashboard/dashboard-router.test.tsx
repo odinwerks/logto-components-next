@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { DashboardRouter, useIsPortrait } from './dashboard-router';
 
@@ -92,8 +92,7 @@ describe('DashboardRouter', () => {
     expect(screen.getByText('desktop-dashboard')).toBeInTheDocument();
   });
 
-  it('renders only the active branch after hydration (BUG-009)', () => {
-    // Portrait match → mobile should be the ONLY branch in the DOM after mount.
+  it('keeps the inactive desktop branch mounted but hidden in portrait', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -115,12 +114,15 @@ describe('DashboardRouter', () => {
       />,
     );
 
-    // After hydration effect runs, only the mobile branch is mounted.
+    // Activity preserves the desktop shell while removing its effects and
+    // keeping it out of the accessibility tree.
     expect(screen.getByTestId('mobile')).toBeInTheDocument();
-    expect(screen.queryByTestId('desktop')).not.toBeInTheDocument();
+    expect(screen.getByTestId('desktop')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-dashboard-shell')).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByTestId('desktop-dashboard-shell')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('renders only the desktop branch when not portrait after hydration (BUG-009)', () => {
+  it('keeps the inactive mobile branch mounted but hidden in landscape', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -143,7 +145,51 @@ describe('DashboardRouter', () => {
     );
 
     expect(screen.getByTestId('desktop')).toBeInTheDocument();
-    expect(screen.queryByTestId('mobile')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mobile')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-dashboard-shell')).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByTestId('mobile-dashboard-shell')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('preserves each shell state across orientation round-trips', () => {
+    let portrait = false;
+    const listeners = new Set<() => void>();
+
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        get matches() {
+          return query === '(orientation: portrait)' && portrait;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_event: string, callback: () => void) => listeners.add(callback),
+        removeEventListener: (_event: string, callback: () => void) => listeners.delete(callback),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(
+      <DashboardRouter
+        desktop={<input aria-label="desktop draft" />}
+        mobile={<input aria-label="mobile draft" />}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('desktop draft'), { target: { value: 'desktop value' } });
+    act(() => {
+      portrait = true;
+      listeners.forEach((listener) => listener());
+    });
+    fireEvent.change(screen.getByLabelText('mobile draft'), { target: { value: 'mobile value' } });
+    act(() => {
+      portrait = false;
+      listeners.forEach((listener) => listener());
+    });
+
+    expect(screen.getByLabelText('desktop draft')).toHaveValue('desktop value');
+    expect(screen.getByLabelText('mobile draft')).toHaveValue('mobile value');
   });
 
   it('renders a neutral placeholder before the mount effect runs (BUG-2 no branch flash)', () => {
@@ -180,7 +226,7 @@ describe('DashboardRouter', () => {
     // After effects flush (RTL default), the mobile branch is shown — the
     // placeholder was replaced by the real branch.
     expect(screen.getByTestId('mobile')).toBeInTheDocument();
-    expect(screen.queryByTestId('desktop')).not.toBeInTheDocument();
+    expect(screen.getByTestId('desktop')).toBeInTheDocument();
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
   });
 

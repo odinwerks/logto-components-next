@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Activity, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 const subscribeIsPortrait = (callback: () => void) => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
@@ -37,17 +37,16 @@ export function useIsPortrait(): boolean {
  * returning false), which is what the client must render on its first pass to
  * avoid a hydration mismatch.
  *
- * BUG-009 fix: after hydration, render ONLY the active layout instead of both.
- * The previous implementation always rendered both `desktop` and `mobile` slots
- * (hiding one with CSS), which caused both RSC parents to call
- * `fetchDashboardData` and doubled the per-open Management-API load. We now
- * defer the orientation-aware branch selection until after mount:
+ * Defer the orientation-aware layout until after mount:
  *   - Before `mounted` flips true, render a NEUTRAL placeholder (BUG-2 fix).
  *     Previously the desktop branch leaked through here, flashing the desktop
  *     profile tab ("personal") on portrait devices for one frame.
- *   - After hydration, render whichever branch matches the live media query.
- * This cuts the rendered subtree in half post-hydration with no mismatch and
- * no branch flash during the gate.
+ *   - After hydration, keep both layout instances stable while an Activity
+ *     boundary hides the inactive one. React preserves its state and DOM, but
+ *     cleans up its effects while hidden so duplicate subscriptions and lazy
+ *     work do not remain active.
+ * This prevents orientation round-trips from destroying drafts, visited tabs,
+ * and scroll state without reintroducing active duplicate work.
  */
 export function DashboardRouter({
   desktop,
@@ -82,6 +81,28 @@ export function DashboardRouter({
     return <div aria-busy="true" style={{ minHeight: '100dvh' }} />;
   }
 
-  // Post-hydration: render only the active layout.
-  return isPortrait ? <>{mobile}</> : <>{desktop}</>;
+  return (
+    <>
+      <Activity name="desktop-dashboard-shell" mode={isPortrait ? 'hidden' : 'visible'}>
+        <div
+          data-testid="desktop-dashboard-shell"
+          aria-hidden={isPortrait ? true : undefined}
+          inert={isPortrait}
+          style={{ width: '100%' }}
+        >
+          {desktop}
+        </div>
+      </Activity>
+      <Activity name="mobile-dashboard-shell" mode={isPortrait ? 'visible' : 'hidden'}>
+        <div
+          data-testid="mobile-dashboard-shell"
+          aria-hidden={isPortrait ? undefined : true}
+          inert={!isPortrait}
+          style={{ width: '100%' }}
+        >
+          {mobile}
+        </div>
+      </Activity>
+    </>
+  );
 }

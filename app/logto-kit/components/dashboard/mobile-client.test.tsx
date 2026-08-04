@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import type { MfaVerification, LogtoSession } from '../../logic/types';
+
+const { currentLang } = vi.hoisted(() => ({
+  currentLang: { value: 'en' },
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
@@ -24,7 +28,7 @@ vi.mock('../providers/preferences', () => ({
       success: '#22c55e',
     },
   }),
-  useLangMode: () => ({ lang: 'en' }),
+  useLangMode: () => ({ lang: currentLang.value }),
 }));
 
 vi.mock('../providers/user-data-context', () => ({
@@ -44,7 +48,7 @@ vi.mock('./tabs/profile', () => ({
     if (shouldThrowProfileTab.value) {
       throw new Error('mobile profile crash');
     }
-    return null;
+    return <input aria-label="Profile draft" />;
   },
 }));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
@@ -159,6 +163,7 @@ beforeAll(() => {
 describe('MobileClient menu layout', () => {
   beforeEach(() => {
     shouldThrowProfileTab.value = false;
+    currentLang.value = 'en';
   });
 
   it('renders sign-out in a separate dock container from the centered tab stack', () => {
@@ -194,6 +199,23 @@ describe('MobileClient menu layout', () => {
     expect(parent).toHaveStyle({ overflowY: 'auto' });
   });
 
+  it('rejects an inherited post-Flight locale and uses server translations', () => {
+    currentLang.value = 'constructor';
+    const inheritedTranslations = {
+      ...stubTranslations,
+      tabs: { ...stubTranslations.tabs, profile: 'Inherited profile' },
+    };
+    const allTranslations = Object.assign(
+      Object.create({ constructor: inheritedTranslations }) as Record<string, Translations>,
+      { en: stubTranslations },
+    );
+
+    render(<MobileClient {...requiredProps} allTranslations={allTranslations} />);
+
+    expect(screen.getByRole('button', { name: 'Profile' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inherited profile' })).toBeNull();
+  });
+
   it('isolates crashing tab content with a fallback in tab view', async () => {
     shouldThrowProfileTab.value = true;
 
@@ -203,5 +225,20 @@ describe('MobileClient menu layout', () => {
     expect(await screen.findByText(stubTranslations.dashboard.error)).toBeInTheDocument();
 
     shouldThrowProfileTab.value = false;
+  });
+
+  it('preserves active tab content across a tab-menu-tab round-trip', async () => {
+    render(<MobileClient {...requiredProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+    const draft = screen.getByLabelText('Profile draft');
+    fireEvent.change(draft, { target: { value: 'unsaved mobile edit' } });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to menu' }));
+    expect(screen.getByTestId('mobile-tab-view')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(await screen.findByRole('button', { name: 'Profile' }));
+
+    expect(screen.getByLabelText('Profile draft')).toBe(draft);
+    expect(screen.getByLabelText('Profile draft')).toHaveValue('unsaved mobile edit');
   });
 });

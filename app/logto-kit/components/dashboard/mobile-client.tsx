@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useSyncExternalStore, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TabId } from './types';
-import type { Translations } from '../../locales';
+import { getTranslations, type Translations } from '../../locales';
 import { FONT_MONO, type ThemeColors } from '../../themes';
 import { useThemeMode, useLangMode } from '../providers/preferences';
 import { useUserDataContext } from '../providers/user-data-context';
@@ -130,7 +130,7 @@ export function MobileClient({
   const { mode, colors } = useThemeMode();
   const { lang } = useLangMode();
   const t = useMemo<Translations>(
-    () => allTranslations[lang] ?? serverTranslations,
+    () => getTranslations(lang, allTranslations, serverTranslations),
     [lang, allTranslations, serverTranslations]
   );
 
@@ -217,9 +217,10 @@ export function MobileClient({
   }, [setSuppressAll]);
 
   // ── Render ──────────────────────────────────────────────────────────────
-  // Both views are always mounted so that the CrossFade in the tab view
-  // retains its state across menu ↔ tab round-trips. Only the active view is
-  // visible; the inactive view hides via `display: none`.
+  // Both views stay mounted so that the CrossFade in the tab view retains its
+  // state across menu ↔ tab round-trips. Motion fades the outgoing shell before
+  // hiding it with `display: none`; aria-hidden/inert immediately keep the
+  // inactive shell out of the accessibility and interaction trees.
 
   // Security tab pins its danger zone to the bottom (M6/D11). Other tabs keep
   // their existing vertically-centered, min-height-grows-with-content layout.
@@ -228,18 +229,23 @@ export function MobileClient({
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        {view === 'menu' ? (
+      <div
+        data-testid="mobile-view-stack"
+        style={{ display: 'grid', minHeight: '100dvh' }}
+      >
           <motion.div
-            key="mobile-menu"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
+            data-testid="mobile-menu-view"
+            initial={{ opacity: 0, display: 'flex' }}
+            animate={view === 'menu'
+              ? { opacity: 1, display: 'flex' }
+              : { opacity: 0, transitionEnd: { display: 'none' } }}
+            transition={{ duration: 0.12, delay: view === 'menu' ? 0.12 : 0 }}
+            aria-hidden={view === 'menu' ? undefined : true}
+            inert={view !== 'menu'}
             style={{
+              gridArea: '1 / 1',
               width: '100%',
               minHeight: '100dvh',
-              display: 'flex',
               flexDirection: 'column',
 
               alignItems: 'center',
@@ -348,14 +354,18 @@ export function MobileClient({
               <ArrowLeft size={18} />
             </button>
           </motion.div>
-        ) : (
+
           <motion.div
-            key="mobile-tab"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
+            data-testid="mobile-tab-view"
+            initial={{ opacity: 0, display: 'none' }}
+            animate={view === 'tab'
+              ? { opacity: 1, display: 'block' }
+              : { opacity: 0, transitionEnd: { display: 'none' } }}
+            transition={{ duration: 0.12, delay: view === 'tab' ? 0.12 : 0 }}
+            aria-hidden={view === 'tab' ? undefined : true}
+            inert={view !== 'tab'}
             style={{
+              gridArea: '1 / 1',
               width: '100%',
               minHeight: '100dvh',
               background: colors.bgPage,
@@ -556,8 +566,7 @@ export function MobileClient({
               <ArrowLeft size={18} />
             </button>
           </motion.div>
-        )}
-      </AnimatePresence>
+      </div>
 
       {/* ── Shared overlays ──────────────────────────────────────────────── */}
       <AnimatePresence>
