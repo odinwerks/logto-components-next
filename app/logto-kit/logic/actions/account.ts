@@ -71,7 +71,7 @@ export async function deleteUserAccount(
 
     // ── Derive token + userId server-side (never trust the client) ─────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
 
     if (!introspection.active) {
       throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });

@@ -90,7 +90,7 @@ export async function getUserSessions(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -110,7 +110,7 @@ export async function getSessionsWithDeviceMeta(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -231,7 +231,7 @@ export async function revokeUserSession(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -266,7 +266,7 @@ export async function revokeAllOtherSessions(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -364,7 +364,7 @@ export async function getUserGrants(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -393,7 +393,7 @@ export async function revokeUserGrant(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }

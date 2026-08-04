@@ -293,7 +293,7 @@ export async function uploadAvatar(
   return safeAction(async () => {
   // ── Derive token + userId server-side ────────────────────────────────
   const sessionToken = await getTokenForServerAction();
-  const introspection = await introspectToken(sessionToken);
+  const introspection = await introspectToken(sessionToken, { assertAudience: true });
 
   if (!introspection.active) {
     throw plainCode('UNAUTHORIZED');

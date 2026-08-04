@@ -112,6 +112,13 @@ describe('scrubLogString', () => {
     expect(scrubLogString('')).toBe('');
   });
 
+  it('redacts JWTs with segments longer than 200 characters', () => {
+    const longPayload = 'eyJ' + 'a'.repeat(500);
+    const jwt = `eyJhbGciOiJSUzI1NiJ9.${longPayload}.signature123`;
+    expect(scrubLogString(`token: ${jwt}`)).not.toContain(longPayload);
+    expect(scrubLogString(`token: ${jwt}`)).toContain('[JWT_REDACTED]');
+  });
+
   // BUG-M-011: client_secret= and password= redaction
   it('redacts client_secret= in form-encoded body', () => {
     const result = scrubLogString('grant_type=client_credentials&client_secret=abc123secret');
@@ -199,10 +206,10 @@ describe('scrubArgs', () => {
     expect((result.expiresAt as Date).toISOString()).toBe('2025-01-02T00:00:00.000Z');
   });
 
-  it('preserves arrays in args (passed through by reference)', () => {
+  it('recursively redacts arrays in args (LIB-002 fix)', () => {
     const arr = [1, 2, 3];
     const [result] = scrubArgs([arr]);
-    expect(result).toBe(arr);
+    expect(result).toEqual(arr);
   });
 
   it('does not redact non-sensitive plain objects', () => {
@@ -248,5 +255,12 @@ describe('scrubArgs', () => {
 
   it('returns empty array for empty input', () => {
     expect(scrubArgs([])).toEqual([]);
+  });
+
+  it('redacts sensitive keys inside arrays', () => {
+    const result = scrubArgs([[ { password: 'secret123', name: 'Alice' } ]]);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('secret123');
+    expect(serialized).toContain('Alice');
   });
 });

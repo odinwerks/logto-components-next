@@ -96,7 +96,7 @@ export function scrubLogString(s: string): string {
   // Bounded quantifiers {1,200} prevent polynomial backtracking — a single
   // JWT base64url segment is at most ~200 chars (JWT max 4KB per RFC 7519).
   result = result.replace(
-    /eyJ[A-Za-z0-9_-]{1,200}\.eyJ[A-Za-z0-9_-]{1,200}(?:\.[A-Za-z0-9_-]{1,200})?/g,
+    /eyJ[A-Za-z0-9_-]{1,8192}\.eyJ[A-Za-z0-9_-]{1,8192}(?:\.[A-Za-z0-9_-]{1,8192})?/g,
     '[JWT_REDACTED]',
   );
 
@@ -187,7 +187,7 @@ export function scrubArgs(args: unknown[]): unknown[] {
     // Plain objects (and objects with null prototype) are redacted recursively.
     // redactSensitive passes exotic objects (Date, Map, Set, ...) through
     // unchanged, so they keep their runtime semantics.
-    if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
+    if (arg !== null && typeof arg === 'object') {
       return redactSensitive(arg);
     }
     return arg;

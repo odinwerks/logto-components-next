@@ -40,7 +40,7 @@ export async function updateUserBasicInfo(
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -107,7 +107,7 @@ export async function updateUserProfile(profile: {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -191,7 +191,7 @@ export async function updateUserCustomData(customData: Record<string, unknown>):
     // BUG-M04: Use live token introspection (same pattern as updateUserBasicInfo)
     // instead of stale getLogtoContext, to prevent IDOR via stale session claims.
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -293,7 +293,7 @@ export async function updateAvatarUrl(avatarUrl: string): Promise<ActionResult> 
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
-    const introspection = await introspectToken(sessionToken);
+    const introspection = await introspectToken(sessionToken, { assertAudience: true });
     if (!introspection.active || !introspection.sub) {
       throw plainCode('UNAUTHENTICATED');
     }

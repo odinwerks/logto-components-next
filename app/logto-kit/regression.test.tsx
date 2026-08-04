@@ -271,7 +271,7 @@ describe('H2 – profile.ts: updateUserCustomData with introspectToken (the new 
 
     console.log('[H2 evidence] result with active introspection:', result);
     expect(result.ok).toBe(true);
-    expect(introspectToken).toHaveBeenCalledWith('mock-access-token');
+    expect(introspectToken).toHaveBeenCalledWith('mock-access-token', { assertAudience: true });
   });
 
   /**

@@ -33,7 +33,7 @@ export async function getMfaVerifications(): Promise<DataResult<MfaVerification[
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const token = await getTokenForServerAction();
-    const intro = await introspectToken(token);
+    const intro = await introspectToken(token, { assertAudience: true });
     if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
 
     const res = await makeRequest('/api/my-account/mfa-verifications');
@@ -61,7 +61,7 @@ export async function generateTotpSecret(): Promise<DataResult<{ secret: string 
   return safeAction(async () => {
     // ── Explicit auth check (live token introspection) ──────────────────
     const token = await getTokenForServerAction();
-    const intro = await introspectToken(token);
+    const intro = await introspectToken(token, { assertAudience: true });
     if (!intro.active || !intro.sub) {
       throw plainCode('UNAUTHENTICATED');
     }
@@ -102,7 +102,7 @@ export async function addMfaVerification(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
-    const intro = await introspectToken(token);
+    const intro = await introspectToken(token, { assertAudience: true });
     if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
@@ -225,7 +225,7 @@ export async function deleteMfaVerification(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
-    const intro = await introspectToken(token);
+    const intro = await introspectToken(token, { assertAudience: true });
     if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
@@ -421,7 +421,7 @@ export async function replaceTotpVerification(
 ): Promise<ActionResult> {
   return safeAction(async () => {
     const token = await getTokenForServerAction();
-    const intro = await introspectToken(token);
+    const intro = await introspectToken(token, { assertAudience: true });
     if (!intro.active || !intro.sub) throw plainCode('UNAUTHENTICATED');
     const userId = intro.sub;
 
