@@ -23,6 +23,7 @@ import { usePersonalRoles } from '../../../hooks/use-personal-roles';
 import { usePersonalPermissions } from '../../../hooks/use-personal-permissions';
 import { useFocusTrap } from '../shared/focus-trap';
 import { PersonalRolesStream, PersonalPermissionsStream } from '../shared/rbac-streams';
+import { getNameFieldValidationError, getUsernameValidationError } from '../../../logic/guards';
 
 interface AvatarModalWrapperProps {
   children: (ref: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
@@ -326,7 +327,7 @@ interface ProfileTabProps {
   onSendEmailVerification: (email: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdateEmail: (email: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
@@ -387,12 +388,39 @@ export function ProfileTab({
   const [nameVerifyError, setNameVerifyError] = useState('');
   const [nameVerifyLoading, setNameVerifyLoading] = useState(false);
 
+  const givenNameError = getNameFieldValidationError(givenName);
+  const familyNameError = getNameFieldValidationError(familyName);
+  const usernameError = getUsernameValidationError(username);
+  const nameFormInvalid = givenNameError !== null || familyNameError !== null || usernameError !== null;
+  const nameFormDirty = nameType === 'username'
+    ? username !== (userData.username ?? '')
+    : nameType === 'full'
+      ? username !== (userData.username ?? '') ||
+        givenName !== (userData.profile?.givenName ?? '') ||
+        familyName !== (userData.profile?.familyName ?? '')
+      : givenName !== (userData.profile?.givenName ?? '') ||
+        familyName !== (userData.profile?.familyName ?? '');
+
+  const profileFieldErrorText = (error: ReturnType<typeof getNameFieldValidationError>, field: 'name' | 'username') => {
+    if (!error) return null;
+    if (field === 'username') {
+      if (error === 'too_short') return t.validation.usernameTooShort;
+      if (error === 'too_long') return t.validation.usernameTooLong;
+      return t.validation.usernameInvalidCharacters;
+    }
+    if (error === 'too_long') return 'Name is too long (maximum 128 characters)';
+    return 'Name contains invalid characters';
+  };
+
   // Note: `usePersonalRoles` is NOT called at the top of `ProfileTab` anymore.
   // It now lives inside `PersonalRolesList` (extracted), which is wrapped by
   // `<PersonalRolesStream>` so the streamed `personalRbacPromise` seeds the
   // hook's `initialData` and skips the mount-effect fetch (instant-fetch).
 
   const handleSaveName = useCallback(async (verificationRecordId?: string) => {
+    // Keep this guard even though the buttons are disabled: keyboard handlers
+    // and callers can still invoke the callback while a render is in flight.
+    if (!nameFormDirty || nameFormInvalid) return;
     setNameLoading(true);
     try {
       if (nameType === 'given_family') {
@@ -469,12 +497,13 @@ export function ProfileTab({
     } finally {
       setNameLoading(false);
     }
-  }, [nameType, givenName, familyName, username, userData, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
+  }, [nameType, givenName, familyName, username, userData, nameFormDirty, nameFormInvalid, onUpdateBasicInfo, onUpdateProfile, onSuccess, onError, refreshData, t]);
 
   // MCP-001c: Gate the save action behind password verification when the name
   // type includes a username field. 'given_family' does NOT send username and
   // therefore skips the verification modal entirely.
   const handleNameSaveClick = useCallback(() => {
+    if (!nameFormDirty || nameFormInvalid || nameLoading) return;
     if (nameType === 'username' || nameType === 'full') {
       setNameVerifyStep({ kind: 'password' });
       setNameVerifyError('');
@@ -482,7 +511,7 @@ export function ProfileTab({
     } else {
       void handleSaveName(undefined);
     }
-  }, [nameType, handleSaveName]);
+  }, [nameType, handleSaveName, nameFormDirty, nameFormInvalid, nameLoading]);
 
   const handleNameVerifyPassword = useCallback(async (password: string) => {
     setNameVerifyLoading(true);
@@ -1031,8 +1060,10 @@ export function ProfileTab({
                           readOnly={!isEditing}
                           placeholder={t.profile.usernamePlaceholder}
                           mode={mode} colors={colors}
+                          maxLength={32} hasError={!!usernameError} describedby={usernameError ? `${usernameId}-error` : undefined}
                           style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                         />
+                        {usernameError && <p id={`${usernameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(usernameError, 'username')}</p>}
                       </div>
                     </motion.div>
 
@@ -1042,7 +1073,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                           <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading || !nameFormDirty || nameFormInvalid} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1078,8 +1109,10 @@ export function ProfileTab({
                           readOnly={!isEditing}
                           placeholder={t.profile.firstNamePlaceholder}
                           mode={mode} colors={colors}
+                          maxLength={128} hasError={!!givenNameError} describedby={givenNameError ? `${firstNameId}-error` : undefined}
                           style={{ padding: '0.375rem 0.75rem' }}
                         />
+                        {givenNameError && <p id={`${firstNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(givenNameError, 'name')}</p>}
                         <Input
                           id={lastNameId}
                           value={familyName}
@@ -1087,8 +1120,10 @@ export function ProfileTab({
                           readOnly={!isEditing}
                           placeholder={t.profile.lastNamePlaceholder}
                           mode={mode} colors={colors}
+                          maxLength={128} hasError={!!familyNameError} describedby={familyNameError ? `${lastNameId}-error` : undefined}
                           style={{ padding: '0.375rem 0.75rem' }}
                         />
+                        {familyNameError && <p id={`${lastNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(familyNameError, 'name')}</p>}
                       </div>
                     </motion.div>
 
@@ -1098,7 +1133,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                           <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading || !nameFormDirty || nameFormInvalid} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1135,8 +1170,10 @@ export function ProfileTab({
                             readOnly={!isEditing}
                             placeholder={t.profile.usernamePlaceholder}
                             mode={mode} colors={colors}
+                            maxLength={32} hasError={!!usernameError} describedby={usernameError ? `${usernameId}-error` : undefined}
                             style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                           />
+                          {usernameError && <p id={`${usernameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(usernameError, 'username')}</p>}
                         </div>
 
                         {/* Given/family grid */}
@@ -1150,8 +1187,10 @@ export function ProfileTab({
                             readOnly={!isEditing}
                             placeholder={t.profile.firstNamePlaceholder}
                             mode={mode} colors={colors}
+                            maxLength={128} hasError={!!givenNameError} describedby={givenNameError ? `${firstNameId}-error` : undefined}
                             style={{ padding: '0.375rem 0.75rem' }}
                           />
+                          {givenNameError && <p id={`${firstNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(givenNameError, 'name')}</p>}
                           <Input
                             id={lastNameId}
                             value={familyName}
@@ -1159,8 +1198,10 @@ export function ProfileTab({
                             readOnly={!isEditing}
                             placeholder={t.profile.lastNamePlaceholder}
                             mode={mode} colors={colors}
+                            maxLength={128} hasError={!!familyNameError} describedby={familyNameError ? `${lastNameId}-error` : undefined}
                             style={{ padding: '0.375rem 0.75rem' }}
                           />
+                          {familyNameError && <p id={`${lastNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(familyNameError, 'name')}</p>}
                         </div>
                       </div>
                     </motion.div>
@@ -1171,7 +1212,7 @@ export function ProfileTab({
                           <Button variant="secondary" onClick={handleDiscardName} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem' }}>
                             {t.profile.discard}
                           </Button>
-                          <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
+                           <Button variant="primary" onClick={handleNameSaveClick} disabled={nameLoading || !nameFormDirty || nameFormInvalid} mode={mode} colors={colors} style={{ padding: '0.375rem 0.875rem', position: 'relative' }}>
                             <span style={{ visibility: nameLoading ? 'hidden' : 'visible' }}>{t.profile.modify}</span>
                             {nameLoading && (
                               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1195,16 +1236,20 @@ export function ProfileTab({
                 {/* Fields column — always takes remaining space */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(nameType === 'username' || nameType === 'full') && (
-                    <Input
-                      id={usernameId}
-                      value={username}
-                      onChange={e => setUsername(e.target.value)}
-                      readOnly={!isEditing}
-                      placeholder={t.profile.usernamePlaceholder}
-                      mode={mode} colors={colors}
-                      aria-label={t.profile.username}
-                      style={{ padding: '0.375rem 0.75rem', width: '100%' }}
-                    />
+                    <>
+                      <Input
+                        id={usernameId}
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        readOnly={!isEditing}
+                        placeholder={t.profile.usernamePlaceholder}
+                        mode={mode} colors={colors}
+                        aria-label={t.profile.username}
+                        maxLength={32} hasError={!!usernameError} describedby={usernameError ? `${usernameId}-error` : undefined}
+                        style={{ padding: '0.375rem 0.75rem', width: '100%' }}
+                      />
+                      {usernameError && <p id={`${usernameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(usernameError, 'username')}</p>}
+                    </>
                   )}
                   {(nameType === 'given_family' || nameType === 'full') && (
                     <>
@@ -1216,8 +1261,10 @@ export function ProfileTab({
                         placeholder={t.profile.firstNamePlaceholder}
                         mode={mode} colors={colors}
                         aria-label={t.profile.firstName}
+                        maxLength={128} hasError={!!givenNameError} describedby={givenNameError ? `${firstNameId}-error` : undefined}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                       />
+                      {givenNameError && <p id={`${firstNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(givenNameError, 'name')}</p>}
                       <Input
                         id={lastNameId}
                         value={familyName}
@@ -1226,8 +1273,10 @@ export function ProfileTab({
                         placeholder={t.profile.lastNamePlaceholder}
                         mode={mode} colors={colors}
                         aria-label={t.profile.lastName}
+                        maxLength={128} hasError={!!familyNameError} describedby={familyNameError ? `${lastNameId}-error` : undefined}
                         style={{ padding: '0.375rem 0.75rem', width: '100%' }}
                       />
+                      {familyNameError && <p id={`${lastNameId}-error`} role="alert" style={{ ...cs.text.mutedMono, color: c.accentRed, margin: '0.25rem 0 0' }}>{profileFieldErrorText(familyNameError, 'name')}</p>}
                     </>
                   )}
                 </div>
@@ -1239,7 +1288,7 @@ export function ProfileTab({
                     <button
                       type="button"
                       onClick={handleDiscardName}
-                      disabled={nameLoading}
+                       disabled={nameLoading || !nameFormDirty || nameFormInvalid}
                       aria-label={t.profile.discard}
                       style={{
                         width: '2rem', height: '2rem',

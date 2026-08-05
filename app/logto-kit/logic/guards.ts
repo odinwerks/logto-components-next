@@ -301,13 +301,29 @@ export function safeUrl(
 // Length / content guards for profile fields
 // ============================================================================
 
-const MAX_NAME_LEN = 128;
-const MAX_USERNAME_LEN = 32;
+export const MAX_NAME_LEN = 128;
+export const MAX_USERNAME_LEN = 32;
 const MAX_URL_LEN = 2048;
 
 function stripControlChars(s: string): string {
   // strip all ASCII control chars (including TAB, LF, CR)
   return s.replace(/[\x00-\x1F\x7F]/g, '');
+}
+
+export type ProfileFieldValidationError = 'too_short' | 'too_long' | 'invalid_chars' | null;
+
+/** Pure validation shared by profile clients and the server action policy. */
+export function getNameFieldValidationError(value: string): ProfileFieldValidationError {
+  if (value.length > MAX_NAME_LEN) return 'too_long';
+  return value !== stripControlChars(value) ? 'invalid_chars' : null;
+}
+
+/** Empty is the intentional UI representation of an unset username. */
+export function getUsernameValidationError(value: string): ProfileFieldValidationError {
+  if (value === '') return null;
+  if (value.length < 3) return 'too_short';
+  if (value.length > MAX_USERNAME_LEN) return 'too_long';
+  return /^[a-zA-Z0-9_-]+$/.test(value) ? null : 'invalid_chars';
 }
 
 export function assertPasskeyName(value: unknown): asserts value is string {
@@ -330,10 +346,10 @@ export function assertNameField(
   if (typeof value !== 'string') {
     throw new ValidationError('INVALID_FIELD_TYPE', field);
   }
-  if (value.length > MAX_NAME_LEN) {
+  if (getNameFieldValidationError(value) === 'too_long') {
     throw new ValidationError('FIELD_TOO_LONG', field);
   }
-  if (value !== stripControlChars(value)) {
+  if (getNameFieldValidationError(value) === 'invalid_chars') {
     throw new ValidationError('INVALID_CHARS', field);
   }
 }
@@ -343,13 +359,14 @@ export function assertUsername(value: unknown): asserts value is string | null |
   if (typeof value !== 'string') {
     throw new ValidationError('INVALID_FIELD_TYPE', 'username');
   }
-  if (value.length < 3) {
+  const validationError = getUsernameValidationError(value);
+  if (validationError === 'too_short') {
     throw new ValidationError('FIELD_TOO_SHORT', 'username');
   }
-  if (value.length > MAX_USERNAME_LEN) {
+  if (validationError === 'too_long') {
     throw new ValidationError('FIELD_TOO_LONG', 'username');
   }
-  if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+  if (validationError === 'invalid_chars') {
     throw new ValidationError('INVALID_CHARS', 'username');
   }
 }

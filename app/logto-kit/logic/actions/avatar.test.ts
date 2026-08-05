@@ -57,7 +57,7 @@ vi.mock('../audit', () => ({
   audit: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { mockPutObject, MockMinioClient } = vi.hoisted(() => {
+const { mockPutObject, mockRemoveObject, MockMinioClient } = vi.hoisted(() => {
   const putObject = vi.fn().mockResolvedValue(undefined);
   const removeObject = vi.fn().mockResolvedValue(undefined);
   class Client {
@@ -334,5 +334,30 @@ describe('uploadAvatar — audit failure does not surface as upload error', () =
     expect(result.ok).toBe(true);
     // auditSafe should have been called once
     expect(auditSafe).toHaveBeenCalledWith(expect.any(String), 'avatar.upload', expect.any(String));
+  });
+});
+
+describe('uploadAvatar — old avatar cleanup failures are not reported as success', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockConfig.avatarBackend = 's3';
+    process.env.S3_BUCKET_NAME = 'test-bucket';
+    process.env.S3_PUBLIC_URL = 'https://s3.example.com';
+    process.env.S3_ACCESS_KEY_ID = 'access-key';
+    process.env.S3_SECRET_ACCESS_KEY = 'secret';
+    process.env.S3_ENDPOINT = 'https://s3.example.com';
+    mockRemoveObject.mockRejectedValueOnce(new Error('storage unavailable'));
+  });
+
+  it('returns failure and does not audit complete upload when cleanup fails', async () => {
+    const { auditSafe } = await import('./helpers');
+    const formData = new FormData();
+    formData.append('file', createFakeImageFile());
+
+    const result = await uploadAvatar(formData);
+
+    expect(result).toEqual({ ok: false, error: 'UPLOAD_FAILED' });
+    expect(mockPutObject).toHaveBeenCalled();
+    expect(auditSafe).not.toHaveBeenCalled();
   });
 });

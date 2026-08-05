@@ -13,8 +13,26 @@ import {
   assertHttpUrl,
   assertVerificationCode,
   assertPasskeyName,
+  getNameFieldValidationError,
+  getUsernameValidationError,
 } from './guards';
 import { ValidationError } from './validation';
+
+describe('profile client/server validation policy', () => {
+  it('shares name bounds and control-character policy', () => {
+    expect(getNameFieldValidationError('a'.repeat(128))).toBeNull();
+    expect(getNameFieldValidationError('a'.repeat(129))).toBe('too_long');
+    expect(getNameFieldValidationError('valid\nname')).toBe('invalid_chars');
+  });
+
+  it('shares username bounds and preserves empty-as-unset behavior', () => {
+    expect(getUsernameValidationError('')).toBeNull();
+    expect(getUsernameValidationError('ab')).toBe('too_short');
+    expect(getUsernameValidationError('a'.repeat(33))).toBe('too_long');
+    expect(getUsernameValidationError('bad.name')).toBe('invalid_chars');
+    expect(getUsernameValidationError('valid_name-1')).toBeNull();
+  });
+});
 
 // ============================================================================
 // assertSafeUserId / assertSafeLogtoId

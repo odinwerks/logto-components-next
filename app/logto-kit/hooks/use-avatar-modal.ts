@@ -90,6 +90,15 @@ export function useAvatarModal({
   const cropPreviewUrlRef = useRef<string | null>(null);
   useEffect(() => { cropPreviewUrlRef.current = cropPreviewUrl; }, [cropPreviewUrl]);
 
+  // A modal can be removed without going through close() (for example when a
+  // parent switches tabs). Keep blob memory bounded in that case as well.
+  useEffect(() => () => {
+    if (cropPreviewUrlRef.current) {
+      URL.revokeObjectURL(cropPreviewUrlRef.current);
+      cropPreviewUrlRef.current = null;
+    }
+  }, []);
+
   const { upload, isUploading, clearError } = useAvatarUpload({
     onSuccess: async (url: string) => {
       const result = await onUpdateAvatarUrl(url);

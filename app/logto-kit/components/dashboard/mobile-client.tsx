@@ -52,7 +52,7 @@ interface MobileClientProps {
   onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdateEmail: (email: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;

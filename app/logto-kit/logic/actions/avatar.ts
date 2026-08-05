@@ -148,6 +148,7 @@ async function deleteFromSupabase(bucket: string, key: string): Promise<void> {
   });
   if (!res.ok && res.status !== 404) {
     warn(`[deleteFromSupabase] Failed to delete ${key}: HTTP ${res.status}`);
+    throw plainCode('UPLOAD_FAILED', new Error(`Avatar cleanup failed: HTTP ${res.status}`));
   }
 }
 
@@ -216,6 +217,7 @@ async function deleteFromMinio(bucket: string, key: string): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes('Not Found') && !msg.includes('NoSuchKey') && !msg.includes('404')) {
       warn(`[deleteFromMinio] Failed to delete ${key}: ${msg}`);
+      throw plainCode('UPLOAD_FAILED', err instanceof Error ? err : new Error(msg));
     }
   }
 }

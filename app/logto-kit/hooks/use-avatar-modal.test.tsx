@@ -76,6 +76,17 @@ describe('useAvatarModal', () => {
     expect(result.current.cropPreviewUrl).toBeNull();
   });
 
+  it('revokes an active preview when the hook unmounts', () => {
+    const { result, unmount } = renderHook(() => useAvatarModal(makeOptions()));
+    act(() => {
+      result.current.handleFileSelected(new File(['data'], 'test.png', { type: 'image/png' }));
+    });
+
+    unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(mockObjectUrl);
+  });
+
   // ─── Drag state ───────────────────────────────────────────────────────────
 
   it('starts with isDragging false', () => {

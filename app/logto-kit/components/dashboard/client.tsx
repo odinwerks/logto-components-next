@@ -70,7 +70,7 @@ interface DashboardClientProps {
   onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
-  onUpdateEmail: (email: string | null, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
+  onUpdateEmail: (email: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onUpdatePhone: (phone: string, newIdentifierVerificationRecordId: string, identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemoveEmail: (identityVerificationRecordId: string) => Promise<ActionResult>;
   onRemovePhone: (identityVerificationRecordId: string) => Promise<ActionResult>;
@@ -534,10 +534,15 @@ export function DashboardClient({
                     isActive={activeTab === 'sessions'}
                     onVerificationDismissed={() => {
                       const fallbackTab = lastNonSessionsTabRef.current
-                        ?? loadedTabs.find((id) => id !== 'sessions')
+                        && loadedTabs.includes(lastNonSessionsTabRef.current)
+                        ? lastNonSessionsTabRef.current
+                        : loadedTabs.find((id) => id !== 'sessions')
                         ?? loadedTabs[0]
                         ?? 'profile';
-                      setActiveTab(fallbackTab);
+                      // The sessions content may be hidden during CrossFade;
+                      // return focus to the visible navigation control, not to
+                      // the dismissed (and potentially hidden) panel.
+                      focusAndActivateTab(fallbackTab);
                     }}
                   />
                 )}

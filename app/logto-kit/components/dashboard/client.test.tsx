@@ -75,7 +75,13 @@ vi.mock('./tabs/profile', () => ({
 }));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
 vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
-vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
+vi.mock('./tabs/sessions', () => ({
+  SessionsTab: ({ onVerificationDismissed }: { onVerificationDismissed?: () => void }) => (
+    <button type="button" data-testid="dismiss-verification" onClick={onVerificationDismissed}>
+      Dismiss verification
+    </button>
+  ),
+}));
 vi.mock('./tabs/identities', () => ({ IdentitiesTab: () => null }));
 vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
 vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
@@ -371,6 +377,21 @@ describe('DashboardClient - userShape prop', () => {
     const profileAfter = panel.querySelector('[data-tab="profile"]') as HTMLElement;
     expect(profileAfter).not.toBeNull();
     expect(profileAfter).toHaveStyle({ display: 'none' });
+  });
+
+  it('focuses the visible fallback tab after verification dismissal', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'sessions']}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Sessions' }));
+    fireEvent.click(screen.getByTestId('dismiss-verification'));
+
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {

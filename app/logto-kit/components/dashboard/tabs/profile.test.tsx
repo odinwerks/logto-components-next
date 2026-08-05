@@ -206,6 +206,18 @@ describe('ProfileTab - behavioral', () => {
     mockReadEnv.mockClear();
   });
 
+  it('disables clean saves and rejects invalid username input client-side', async () => {
+    renderProfile('username', { userData: { ...defaultUserData, username: 'olduser' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]!);
+    const saveBtn = await screen.findByRole('button', { name: /modify/i });
+    expect(saveBtn).toBeDisabled();
+
+    const usernameInput = screen.getByPlaceholderText('Enter username (optional)');
+    fireEvent.change(usernameInput, { target: { value: 'no spaces' } });
+    expect(saveBtn).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(enUS.validation.usernameInvalidCharacters);
+  });
+
   it('username mode - save calls onUpdateBasicInfo with username only, not onUpdateProfile', async () => {
     const userData: UserData = {
       ...defaultUserData,
