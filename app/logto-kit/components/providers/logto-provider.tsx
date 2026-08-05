@@ -32,6 +32,18 @@ interface LogtoContextValue {
 
 const LogtoContext = createContext<LogtoContextValue | null>(null);
 
+// Dashboard visibility is consumed outside React by AuthWatcher. Keep an
+// ownership set rather than a boolean per provider: unmounting/closing one of
+// several providers must not announce that another provider's dashboard is
+// closed.
+const dashboardOwners = new Set<symbol>();
+
+function syncDashboardOpenFlag(): void {
+  if (typeof window !== 'undefined') {
+    window.__LDD_DASHBOARD_OPEN__ = dashboardOwners.size > 0;
+  }
+}
+
 export function useLogto(): LogtoContextValue {
   const context = useContext(LogtoContext);
   if (!context) {
@@ -95,6 +107,7 @@ function LogtoProviderContent({
   const [dashboardState, setDashboardState] = useState<{ isOpen: boolean; routeTo?: string; mode?: 'optional' | 'mandatory' }>({
     isOpen: false,
   });
+  const [dashboardOwner] = useState(() => Symbol('dashboard-provider'));
 
   const { mode, colors, setMode, toggleMode } = useThemeMode();
   const { lang, setLang } = useLangMode();
@@ -105,15 +118,14 @@ function LogtoProviderContent({
   // ── Keep AuthWatcher's router.refresh() from firing while dashboard overlay
   //     is open. See auth-watcher.tsx for the read-side gate.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.__LDD_DASHBOARD_OPEN__ = dashboardState.isOpen;
-    }
+    if (dashboardState.isOpen) dashboardOwners.add(dashboardOwner);
+    else dashboardOwners.delete(dashboardOwner);
+    syncDashboardOpenFlag();
     return () => {
-      if (typeof window !== 'undefined') {
-        window.__LDD_DASHBOARD_OPEN__ = false;
-      }
+      dashboardOwners.delete(dashboardOwner);
+      syncDashboardOpenFlag();
     };
-  }, [dashboardState.isOpen]);
+  }, [dashboardOwner, dashboardState.isOpen]);
 
   const openDashboard = useCallback((opts?: { routeTo?: string; mode?: 'optional' | 'mandatory' }) => {
     setDashboardState({ isOpen: true, routeTo: opts?.routeTo, mode: opts?.mode });

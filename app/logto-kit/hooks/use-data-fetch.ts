@@ -94,10 +94,17 @@ export function useDataFetch<T>(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void execute();
     }
+    // Toggling autoFetch off is a lifecycle transition, not merely a change in
+    // whether the next effect starts work. Invalidate the previous generation
+    // so a request started while auto-fetching cannot settle into state after
+    // it has been disabled.
+    if (!autoFetch) {
+      setIsLoading(false);
+    }
     // Bump the guard on cleanup so any in-flight fetch for the old deps
     // is treated as stale when the new fetch starts.
     return () => { guardBump(); };
-  }, deps);
+  }, [...deps, autoFetch]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   return { data, isLoading, error, refresh: execute };

@@ -166,4 +166,24 @@ describe('useDataFetch', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.data).toEqual({ id: 2 });
   });
+
+  it('invalidates an in-flight auto-fetch when autoFetch is disabled', async () => {
+    let resolveFetch!: (value: { value: number }) => void;
+    const fetcher = vi.fn(() => new Promise<{ value: number }>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    let autoFetch = true;
+    const { result, rerender } = renderHook(() => useDataFetch({ fetcher, autoFetch }));
+
+    expect(result.current.isLoading).toBe(true);
+    autoFetch = false;
+    rerender();
+
+    expect(result.current.isLoading).toBe(false);
+    resolveFetch({ value: 99 });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.data).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
 });

@@ -585,4 +585,37 @@ describe('LogtoProvider dashboard flag cleanup', () => {
 
     expect(window.__LDD_DASHBOARD_OPEN__).toBe(false);
   });
+
+  it('keeps the dashboard flag open while another provider still owns it', async () => {
+    let closeFirst: (() => void) | null = null;
+    let closeSecond: (() => void) | null = null;
+
+    function Opener({ onClose }: { onClose: (close: () => void) => void }) {
+      const ctx = useLogto();
+      useEffect(() => {
+        ctx.openDashboard();
+        onClose(ctx.closeDashboard);
+      }, [ctx, onClose]);
+      return null;
+    }
+
+    const first = vi.fn((close: () => void) => { closeFirst = close; });
+    const second = vi.fn((close: () => void) => { closeSecond = close; });
+    render(
+      <>
+        <LogtoProvider userData={mockUserData}>
+          <Opener onClose={first} />
+        </LogtoProvider>
+        <LogtoProvider userData={mockUserData}>
+          <Opener onClose={second} />
+        </LogtoProvider>
+      </>,
+    );
+
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(true);
+    await act(async () => { closeFirst?.(); });
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(true);
+    await act(async () => { closeSecond?.(); });
+    expect(window.__LDD_DASHBOARD_OPEN__).toBe(false);
+  });
 });
