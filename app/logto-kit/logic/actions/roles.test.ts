@@ -347,6 +347,35 @@ describe('getRoleDetails authorization and IDOR guard', () => {
   });
 });
 
+describe('getOrganizationUserRoles organization membership errors', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getCleanEndpoint).mockReturnValue('https://auth.example.org');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('maps confirmed organization non-membership 422 to ORG_NOT_MEMBER', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ...mockJsonResponse({ code: 'organization.user_not_member' }, 422),
+      text: vi.fn().mockResolvedValue('{"code":"organization.user_not_member"}'),
+    } as Response);
+
+    const { getOrganizationUserRoles } = await import('./roles');
+    const result = await getOrganizationUserRoles('org-123');
+
+    expect(result).toEqual({ ok: false, error: 'ORG_NOT_MEMBER' });
+  });
+});
+
 describe('getUserScopes error handling', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 

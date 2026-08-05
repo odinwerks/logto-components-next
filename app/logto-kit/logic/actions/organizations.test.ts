@@ -444,6 +444,44 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     if (result.ok) throw new Error('Expected error');
     expect(result.error).toBe('FETCH_FAILED');
   });
+
+  it('maps an explicit organization non-membership 422 to ORG_NOT_MEMBER', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ...mockJsonResponse({ code: 'organization.user_not_exists' }, 422),
+      text: vi.fn().mockResolvedValue('{"code":"organization.user_not_exists"}'),
+    } as Response);
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123');
+
+    expect(result).toEqual({ ok: false, error: 'ORG_NOT_MEMBER' });
+  });
+
+  it('does not misclassify an unrelated 422 as organization non-membership', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ...mockJsonResponse({ code: 'validation_error' }, 422),
+      text: vi.fn().mockResolvedValue('{"code":"validation_error"}'),
+    } as Response);
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).not.toBe('ORG_NOT_MEMBER');
+  });
+
+  it('maps confirmed non-membership 422 to ORG_NOT_MEMBER instead of returning []', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ...mockJsonResponse({ code: 'organization.user_not_exists' }, 422),
+      text: vi.fn().mockResolvedValue('{"code":"organization.user_not_exists"}'),
+    } as Response);
+
+    const { getOrgPermissionsWithDescriptions } = await import('./organizations');
+    const result = await getOrgPermissionsWithDescriptions('org-123');
+
+    expect(result).toEqual({ ok: false, error: 'ORG_NOT_MEMBER' });
+  });
 });
 
 // ============================================================================

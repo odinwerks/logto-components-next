@@ -108,6 +108,18 @@ describe('fetchGeo', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['::ffff:7f00:1', '127.0.0.1'],
+    ['::ffff:0a00:1', '10.0.0.1'],
+    ['::ffff:ac10:1', '172.16.0.1'],
+    ['::ffff:a9fe:1', '169.254.0.1'],
+    ['::ffff:6440:1', '100.64.0.1'],
+  ])('blocks hexadecimal IPv4-mapped private address %s (%s)', async (mappedIp) => {
+    const result = await fetchGeo(mappedIp);
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('blocks 10.x.x.x (RFC-1918)', async () => {
     const result = await fetchGeo('10.0.0.1');
     expect(result).toBeNull();

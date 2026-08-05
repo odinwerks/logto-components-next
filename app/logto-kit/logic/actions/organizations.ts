@@ -100,6 +100,23 @@ function enqueueRefreshGrant<T>(
   return run;
 }
 
+/** Only explicit provider non-membership codes may turn a 422 into this code. */
+function isConfirmedOrganizationNonMembership(status: number, body: string): boolean {
+  if (status !== 422) return false;
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const code = typeof parsed.code === 'string'
+      ? parsed.code
+      : typeof parsed.error === 'string' ? parsed.error : undefined;
+    return code === 'organization.user_not_exists' ||
+      code === 'organization.user_not_member' ||
+      code === 'organization_not_member' ||
+      code === 'user_not_in_organization';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Gets organization-scoped permissions for the current user.
  * 
@@ -204,6 +221,9 @@ export async function getOrganizationUserPermissions(orgId: string): Promise<Dat
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       warn(`[getOrganizationUserPermissions] Token endpoint returned ${res.status}: ${errText.substring(0, 200)}`);
+      if (isConfirmedOrganizationNonMembership(res.status, errText)) {
+        throw plainCode('ORG_NOT_MEMBER');
+      }
       throw plainCode('UNAUTHORIZED');
     }
 
@@ -369,9 +389,9 @@ export async function verifyOrgAccess(
       const rolesRes = rolesResult.response;
       const text = await rolesRes.text().catch(() => '');
       warn(`[verifyOrgAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
-      if (rolesRes.status === 403 || rolesRes.status === 404) {
-        throw plainCode('ORG_NOT_MEMBER');
-      }
+       if ((rolesRes.status === 403 || rolesRes.status === 404) || isConfirmedOrganizationNonMembership(rolesRes.status, text)) {
+         throw plainCode('ORG_NOT_MEMBER');
+       }
       throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 
@@ -467,6 +487,9 @@ export async function getOrgPermissionsWithDescriptions(orgId: string): Promise<
       const text = await rolesRes.text().catch(() => '');
       warn(`[getOrgPermissionsWithDescriptions] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
       if (rolesRes.status === 403 || rolesRes.status === 404) return [];
+      if (isConfirmedOrganizationNonMembership(rolesRes.status, text)) {
+        throw plainCode('ORG_NOT_MEMBER');
+      }
       throw new Error(`Management API error: HTTP ${rolesRes.status}`);
     }
 

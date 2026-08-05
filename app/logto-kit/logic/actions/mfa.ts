@@ -384,6 +384,8 @@ export async function generateBackupCodes(
         if (signal.aborted) throw plainCode('BACKUP_CODES_FAILED');
 
         for (const factor of factors) {
+          // Provider-returned IDs are validated again at the URL boundary.
+          assertSafeLogtoId(factor.id, 'verificationId');
           const removeRes = await withinBackupCodesLockBudget(
             signal,
             () => makeRequest(`/api/my-account/mfa-verifications/${encodeURIComponent(factor.id)}`, {

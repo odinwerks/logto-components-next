@@ -16,6 +16,23 @@ interface ExpectedPrincipal {
   sid?: string;
 }
 
+/** Only explicit provider non-membership codes may turn a 422 into this code. */
+function isConfirmedOrganizationNonMembership(status: number, body: string): boolean {
+  if (status !== 422) return false;
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const code = typeof parsed.code === 'string'
+      ? parsed.code
+      : typeof parsed.error === 'string' ? parsed.error : undefined;
+    return code === 'organization.user_not_exists' ||
+      code === 'organization.user_not_member' ||
+      code === 'organization_not_member' ||
+      code === 'user_not_in_organization';
+  } catch {
+    return false;
+  }
+}
+
 export async function getRoleDetails(roleId: string): Promise<DataResult<UserRole>> {
   return safeAction(async () => {
     assertSafeLogtoId(roleId, 'roleId');
@@ -116,6 +133,10 @@ export async function getOrganizationUserRoles(orgId: string): Promise<DataResul
       const res = rolesResult.response;
       warn(`[getOrganizationUserRoles] Management API returned ${res.status}`);
       if (res.status === 403 || res.status === 404) {
+        throw plainCode('ORG_NOT_MEMBER');
+      }
+      const text = await res.text().catch(() => '');
+      if (isConfirmedOrganizationNonMembership(res.status, text)) {
         throw plainCode('ORG_NOT_MEMBER');
       }
       throw new Error(`Management API returned ${res.status}`);

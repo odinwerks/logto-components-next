@@ -110,27 +110,43 @@ function isPrivateOrLoopbackIp(ip: string): boolean {
   return false;
 }
 
+/** Normalize hexadecimal IPv4-mapped IPv6 to its embedded IPv4 address. */
+function normalizeMappedIpv4(ip: string): string {
+  const halves = ip.split('::');
+  if (halves.length > 2) return ip;
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const groups = [...left, ...right];
+  if (halves.length === 2) groups.splice(left.length, 0, ...Array(8 - groups.length).fill('0'));
+  if (groups.length !== 8 || groups.slice(0, 5).some(group => group !== '0') || groups[5].toLowerCase() !== 'ffff') return ip;
+  const high = Number.parseInt(groups[6], 16);
+  const low = Number.parseInt(groups[7], 16);
+  if (!Number.isInteger(high) || !Number.isInteger(low)) return ip;
+  return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`;
+}
+
 export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
   if (typeof window === 'undefined') return null;
   if (!ip) return null;
 
   // Validate IP format before interpolating into the URL (SSRF / path-traversal guard)
   if (!isValidIp(ip)) return null;
+  const normalizedIp = normalizeMappedIpv4(ip);
 
   // Block cloud metadata / infrastructure IPs from being sent to external geo APIs
-  if (BLOCKED_GEO_IPS.has(ip)) return null;
+  if (BLOCKED_GEO_IPS.has(normalizedIp)) return null;
 
   // Block private/loopback IPs: do not send internal addresses to external geo API
-  if (isPrivateOrLoopbackIp(ip)) return null;
+  if (isPrivateOrLoopbackIp(normalizedIp)) return null;
 
-  const cached = getCachedGeo(ip);
+  const cached = getCachedGeo(normalizedIp);
   if (cached) return cached;
 
-  if (inFlight.has(ip)) return inFlight.get(ip)!;
+  if (inFlight.has(normalizedIp)) return inFlight.get(normalizedIp)!;
 
   const promise = (async () => {
     try {
-      const res = await fetch(`https://ipapi.co/${ip}/json/`, {
+      const res = await fetch(`https://ipapi.co/${normalizedIp}/json/`, {
         signal: AbortSignal.timeout(5000), // 5-second timeout (LOGIC-BUG-001)
       });
       if (!res.ok) return null;
@@ -144,15 +160,15 @@ export async function fetchGeo(ip: string): Promise<GeoLocation | null> {
         region: data.region || '',
       };
       if (typeof geo.lat !== 'number' || typeof geo.lon !== 'number') return null;
-      setCachedGeo(ip, geo);
+      setCachedGeo(normalizedIp, geo);
       return geo;
     } catch {
       return null;
     } finally {
-      inFlight.delete(ip);
+      inFlight.delete(normalizedIp);
     }
   })();
 
-  inFlight.set(ip, promise);
+  inFlight.set(normalizedIp, promise);
   return promise;
 }

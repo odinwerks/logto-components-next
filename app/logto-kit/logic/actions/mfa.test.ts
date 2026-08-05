@@ -780,6 +780,21 @@ describe('generateBackupCodes', () => {
     );
   });
 
+  it('rejects a provider-returned malformed factor ID before issuing DELETE', async () => {
+    vi.mocked(makeRequest)
+      .mockResolvedValueOnce(mockOkResponse([{
+        id: '../unexpected',
+        type: 'BackupCode',
+      }]))
+      .mockResolvedValueOnce(mockOkResponse({ codes: ['A1'] }))
+      .mockResolvedValueOnce(mockOkResponse());
+
+    const result = await generateBackupCodes(validIdentityVrecId);
+
+    expect(result.ok).toBe(false);
+    expect(vi.mocked(makeRequest).mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
+  });
+
   it('M-007 audits and compensates a resolved 500 after enrollment committed server-side', async () => {
     vi.mocked(throwOnApiError).mockImplementation(async (res: Response) => {
       if (!res.ok) {
