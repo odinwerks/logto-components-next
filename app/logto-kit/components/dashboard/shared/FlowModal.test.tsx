@@ -108,6 +108,92 @@ describe('FlowModal - localization', () => {
     expect(changePasswordElements.length).toBe(2);
   });
 
+  it('keeps invalid new passwords local and exposes an accessible validation error', () => {
+    const onNewPasswordSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Change password"
+        subtitle="Enter new password"
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        onPasswordSubmit={() => {}}
+        onNewPasswordSubmit={onNewPasswordSubmit}
+        onClose={() => {}}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+    const input = screen.getByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(input, { target: { value: 'short' } });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('8–256');
+    expect(screen.getByRole('button', { name: enUS.security.changePassword })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: enUS.profile.cancel }));
+    expect(onNewPasswordSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does not submit an invalid new password when Enter is pressed', () => {
+    const onNewPasswordSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Change password"
+        subtitle="Enter new password"
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        onPasswordSubmit={() => {}}
+        onNewPasswordSubmit={onNewPasswordSubmit}
+        onClose={() => {}}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(input, { target: { value: 'short' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onNewPasswordSubmit).not.toHaveBeenCalled();
+  });
+
+  it('submits a valid new password through both click and Enter', () => {
+    const onNewPasswordSubmit = vi.fn();
+    const { unmount } = render(
+      <FlowModal
+        title="Change password"
+        subtitle="Enter new password"
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        onPasswordSubmit={() => {}}
+        onNewPasswordSubmit={onNewPasswordSubmit}
+        onClose={() => {}}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+    const input = screen.getByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(input, { target: { value: 'valid-password' } });
+    fireEvent.click(screen.getByRole('button', { name: enUS.security.changePassword }));
+    expect(onNewPasswordSubmit).toHaveBeenCalledWith('valid-password', 'vr1');
+
+    unmount();
+    render(
+      <FlowModal
+        title="Change password"
+        subtitle="Enter new password"
+        step={{ kind: 'new-password', verificationRecordId: 'vr1' }}
+        onPasswordSubmit={() => {}}
+        onNewPasswordSubmit={onNewPasswordSubmit}
+        onClose={() => {}}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+    const enterInput = screen.getByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(enterInput, { target: { value: 'valid-password' } });
+    fireEvent.keyDown(enterInput, { key: 'Enter' });
+    expect(onNewPasswordSubmit).toHaveBeenCalledTimes(2);
+  });
+
   it('exposes dialog semantics and labels icon-only controls', () => {
     render(
       <FlowModal

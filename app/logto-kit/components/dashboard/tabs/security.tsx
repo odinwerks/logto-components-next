@@ -530,10 +530,14 @@ export function SecurityTab({
             setPwChangeLoading(false);
             if (result.ok) {
               onSuccess(t.security.passwordChanged);
+              setPwStep(null);
+            } else if (result.error === 'VERIFICATION_EXPIRED') {
+              onError(result.error);
+              setPwStep(null);
             } else {
+              setPwChangeErr(result.error);
               onError(result.error);
             }
-            setPwStep(null);
           }}
           onClose={() => { pwChangeGenRef.current++; setPwStep(null); setPwChangeLoading(false); }}
           hideFooterClose

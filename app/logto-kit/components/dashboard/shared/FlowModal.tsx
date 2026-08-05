@@ -288,8 +288,20 @@ export function FlowModal({
   const totpInputId = useId();
   const newPwInputId = useId();
   const renameInputId = useId();
+  const newPasswordErrorId = useId();
+
+  const newPasswordError = newPw.length > 0 && newPw.length < 8
+    ? `${t.validation.passwordRequired} (8–256 characters)`
+    : newPw.length > 256
+      ? t.validation.passwordTooLong
+      : undefined;
 
   const dangerColor = c.accentRed;
+
+  const submitNewPassword = (verificationRecordId: string) => {
+    if (!newPw || newPasswordError || loading) return;
+    void Promise.resolve(onNewPasswordSubmit?.(newPw, verificationRecordId)).catch(() => {});
+  };
 
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, onClose);
@@ -552,12 +564,15 @@ onChange={(e) => {
               <Input
                 id={newPwInputId}
                 type={showNewPw ? 'text' : 'password'}
-                value={newPw}
-                onChange={(e) => setNewPw(e.target.value)}
+                 value={newPw}
+                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder={t.security.enterNewPassword}
-                onKeyDown={(e) => { if (e.key === 'Enter' && newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }}
-                mode={mode} colors={colors}
-                disabled={loading}
+                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitNewPassword(step.verificationRecordId); } }}
+                 mode={mode} colors={colors}
+                 disabled={loading}
+                 hasError={!!(newPasswordError || passwordError)}
+                 aria-invalid={newPasswordError || passwordError ? 'true' : undefined}
+                 describedby={newPasswordError || passwordError ? newPasswordErrorId : undefined}
                 suffix={
                   <button
                     aria-label={showNewPw ? 'Hide password' : 'Show password'}
@@ -568,17 +583,17 @@ onChange={(e) => {
                     {showNewPw ? <EyeOff size={'0.875rem'} color={T.muted} strokeWidth={1.5} /> : <Eye size={'0.875rem'} color={T.muted} strokeWidth={1.5} />}
                   </button>
                 }
-              />
-              {passwordError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
-                  <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {passwordError}
-                </div>
-              )}
+               />
+               {(newPasswordError || passwordError) && (
+                 <div id={newPasswordErrorId} role="alert" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: T.font, fontSize: '0.75rem', color: T.redText }}>
+                   <AlertTriangle size={'0.8125rem'} color={T.redText} strokeWidth={1.5} /> {newPasswordError || passwordError}
+                 </div>
+               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.125rem' }}>
                 {!hideFooterClose && (
                   <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.profile.cancel}</Button>
                 )}
-            <Button variant={danger ? 'danger' : 'primary'} onClick={() => { if (newPw) { void Promise.resolve(onNewPasswordSubmit?.(newPw, step.verificationRecordId)).catch(() => {}); } }} disabled={!newPw || loading} mode={mode} colors={colors} style={{ minWidth: '7.5rem', position: 'relative' }}>
+            <Button variant={danger ? 'danger' : 'primary'} onClick={() => submitNewPassword(step.verificationRecordId)} disabled={!newPw || !!newPasswordError || loading} mode={mode} colors={colors} style={{ minWidth: '7.5rem', position: 'relative' }}>
               <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
                 {danger ? t.security.deleteAccount : t.security.changePassword} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
               </StableButtonContent>

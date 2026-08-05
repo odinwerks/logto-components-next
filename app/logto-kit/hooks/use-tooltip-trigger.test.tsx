@@ -52,7 +52,7 @@ describe('useTooltipTrigger', () => {
     expect(typeof result.current.tooltip.y).toBe('number');
   });
 
-  it('onMouseLeave hides the tooltip', () => {
+  it('onMouseLeave hides the tooltip when it is not focused', () => {
     const { result } = renderHook(() => useTooltipTrigger());
 
     act(() => {
@@ -66,6 +66,18 @@ describe('useTooltipTrigger', () => {
     expect(result.current.tooltip.visible).toBe(false);
   });
 
+  it('keeps the tooltip visible while focus remains after mouse leave', () => {
+    const { result } = renderHook(() => useTooltipTrigger());
+    act(() => {
+      result.current.handlers.onFocus(makeMockFocusEvent(50, 80));
+      result.current.handlers.onMouseEnter(makeMockMouseEvent(50, 80));
+      result.current.handlers.onMouseLeave();
+    });
+    expect(result.current.tooltip.visible).toBe(true);
+    act(() => result.current.handlers.onBlur());
+    expect(result.current.tooltip.visible).toBe(false);
+  });
+
   it('onFocus shows the tooltip', () => {
     const { result } = renderHook(() => useTooltipTrigger());
 
@@ -76,7 +88,7 @@ describe('useTooltipTrigger', () => {
     expect(result.current.tooltip.visible).toBe(true);
   });
 
-  it('onBlur hides the tooltip', () => {
+  it('onBlur hides the tooltip when it is not hovered', () => {
     const { result } = renderHook(() => useTooltipTrigger());
 
     act(() => {
@@ -86,6 +98,28 @@ describe('useTooltipTrigger', () => {
       result.current.handlers.onBlur();
     });
 
+    expect(result.current.tooltip.visible).toBe(false);
+  });
+
+  it('keeps the tooltip visible while hover remains after blur', () => {
+    const { result } = renderHook(() => useTooltipTrigger());
+    act(() => {
+      result.current.handlers.onMouseEnter(makeMockMouseEvent(50, 80));
+      result.current.handlers.onFocus(makeMockFocusEvent(50, 80));
+      result.current.handlers.onBlur();
+    });
+    expect(result.current.tooltip.visible).toBe(true);
+    act(() => result.current.handlers.onMouseLeave());
+    expect(result.current.tooltip.visible).toBe(false);
+  });
+
+  it('dismisses both modalities with Escape', () => {
+    const { result } = renderHook(() => useTooltipTrigger());
+    act(() => {
+      result.current.handlers.onMouseEnter(makeMockMouseEvent(50, 80));
+      result.current.handlers.onFocus(makeMockFocusEvent(50, 80));
+      result.current.handlers.onKeyDown?.({ key: 'Escape' } as React.KeyboardEvent);
+    });
     expect(result.current.tooltip.visible).toBe(false);
   });
 
@@ -101,5 +135,6 @@ describe('useTooltipTrigger', () => {
     expect(handlers1.onMouseLeave).toBe(handlers2.onMouseLeave);
     expect(handlers1.onFocus).toBe(handlers2.onFocus);
     expect(handlers1.onBlur).toBe(handlers2.onBlur);
+    expect(handlers1.onKeyDown).toBe(handlers2.onKeyDown);
   });
 });

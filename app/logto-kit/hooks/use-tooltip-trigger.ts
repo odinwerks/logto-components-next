@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getClampedTooltipPosition } from '../components/dashboard/shared/tooltip-position';
 
 /**
@@ -20,6 +20,7 @@ export interface TooltipHandlers {
   onMouseLeave: () => void;
   onFocus: (e: React.FocusEvent) => void;
   onBlur: () => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 /** Default estimated tooltip dimensions used for viewport clamping. */
@@ -59,6 +60,8 @@ export function useTooltipTrigger(options?: UseTooltipTriggerOptions) {
   const tooltipHeight = options?.height ?? DEFAULT_TOOLTIP_HEIGHT;
 
   const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0 });
+  const hovered = useRef(false);
+  const focused = useRef(false);
 
   const show = useCallback((e: React.MouseEvent | React.FocusEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -73,15 +76,41 @@ export function useTooltipTrigger(options?: UseTooltipTriggerOptions) {
     setTooltip({ visible: true, x: left, y: top });
   }, [tooltipWidth, tooltipHeight]);
 
-  const hide = useCallback(() => {
+  const hideIfInactive = useCallback(() => {
+    if (!hovered.current && !focused.current) {
+      setTooltip(t => ({ ...t, visible: false }));
+    }
+  }, []);
+
+  const onMouseEnter = useCallback((e: React.MouseEvent) => {
+    hovered.current = true;
+    show(e);
+  }, [show]);
+  const onMouseLeave = useCallback(() => {
+    hovered.current = false;
+    hideIfInactive();
+  }, [hideIfInactive]);
+  const onFocus = useCallback((e: React.FocusEvent) => {
+    focused.current = true;
+    show(e);
+  }, [show]);
+  const onBlur = useCallback(() => {
+    focused.current = false;
+    hideIfInactive();
+  }, [hideIfInactive]);
+  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    hovered.current = false;
+    focused.current = false;
     setTooltip(t => ({ ...t, visible: false }));
   }, []);
 
   const handlers: TooltipHandlers = {
-    onMouseEnter: show,
-    onMouseLeave: hide,
-    onFocus: show,
-    onBlur: hide,
+    onMouseEnter,
+    onMouseLeave,
+    onFocus,
+    onBlur,
+    onKeyDown,
   };
 
   return { tooltip, handlers };

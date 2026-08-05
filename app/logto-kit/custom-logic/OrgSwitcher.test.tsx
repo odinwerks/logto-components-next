@@ -159,7 +159,8 @@ describe('OrgSwitcher auto-switching behavior', () => {
       />
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to switch to personal mode');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to return to personal mode.');
+    expect(screen.queryByText('UPDATE_FAILED')).not.toBeInTheDocument();
     const select = screen.getByLabelText('Select access context') as HTMLSelectElement;
     expect(select.disabled).toBe(false);
     expect(select.value).toBe('org_revoked');

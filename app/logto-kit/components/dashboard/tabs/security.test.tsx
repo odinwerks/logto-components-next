@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import type { UserData, MfaVerification } from '../../../logic/types';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { DARK_COLORS } from '../../../themes';
@@ -58,6 +58,7 @@ type RenderOptions = {
   onGenerateTotpSecret?: () => Promise<DataResult<{ secret: string }>>;
   onAddMfaVerification?: React.ComponentProps<typeof SecurityTab>['onAddMfaVerification'];
   onGenerateBackupCodes?: (verificationRecordId: string) => Promise<DataResult<{ codes: string[] }>>;
+  onUpdatePassword?: (newPassword: string, verificationRecordId: string) => Promise<ActionResult>;
   mobmode?: number;
 };
 
@@ -88,7 +89,7 @@ function renderSecurity(options: RenderOptions = {}) {
       onDeleteMfaVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onReplaceTotpVerification={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onGenerateBackupCodes={onGenerateBackupCodes}
-      onUpdatePassword={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
+       onUpdatePassword={options.onUpdatePassword ?? vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onDeleteAccount={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
       onRequestWebAuthnRegistration={vi.fn().mockResolvedValue({ ok: true, data: { registrationOptions: {}, verificationRecordId: 'wa-1' } })}
       onVerifyAndLinkWebAuthn={vi.fn().mockResolvedValue({ ok: true } satisfies ActionResult)}
@@ -162,6 +163,40 @@ describe('SecurityTab', () => {
     });
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('keeps the password flow open and preserves the new password after ordinary server rejection', async () => {
+    const onUpdatePassword = vi.fn().mockResolvedValue({ ok: false, error: 'PASSWORD_UPDATE_FAILED' } satisfies ActionResult);
+    const { onError } = renderSecurity({ onUpdatePassword });
+
+    await screen.findByText(enUS.security.dangerZone);
+    fireEvent.click(screen.getAllByRole('button', { name: enUS.security.changePassword })[0]);
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), { target: { value: 'current-password' } });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+
+    const newPassword = await screen.findByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(newPassword, { target: { value: 'new-password' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: enUS.security.changePassword }));
+
+    await waitFor(() => expect(onUpdatePassword).toHaveBeenCalledWith('new-password', 'vid-1'));
+    expect(screen.getByPlaceholderText(enUS.security.enterNewPassword)).toHaveValue('new-password');
+    expect(screen.getByRole('alert')).toHaveTextContent('PASSWORD_UPDATE_FAILED');
+    expect(onError).toHaveBeenCalledWith('PASSWORD_UPDATE_FAILED');
+  });
+
+  it('closes the password flow when the verification has expired', async () => {
+    const onUpdatePassword = vi.fn().mockResolvedValue({ ok: false, error: 'VERIFICATION_EXPIRED' } satisfies ActionResult);
+    renderSecurity({ onUpdatePassword });
+
+    await screen.findByText(enUS.security.dangerZone);
+    fireEvent.click(screen.getAllByRole('button', { name: enUS.security.changePassword })[0]);
+    fireEvent.change(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), { target: { value: 'current-password' } });
+    fireEvent.click(screen.getByRole('button', { name: enUS.verification.verifyPassword }));
+    const newPassword = await screen.findByPlaceholderText(enUS.security.enterNewPassword);
+    fireEvent.change(newPassword, { target: { value: 'new-password' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: enUS.security.changePassword }));
+
+    await waitFor(() => expect(screen.queryByPlaceholderText(enUS.security.enterNewPassword)).not.toBeInTheDocument());
   });
 
   it('keeps mobile passkey edit action button square', async () => {

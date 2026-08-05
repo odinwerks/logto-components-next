@@ -15,6 +15,8 @@ interface OrgSwitcherProps {
       beYourself?: string;
       switchingAnnouncement?: string;
       selectTriggerAriaLabel?: string;
+      switchFailed?: string;
+      clearOrgFailed?: string;
     };
   };
 }
@@ -64,6 +66,9 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
   }
 
   const displaySelected = activeOrgId ?? '';
+  const localizedError = error === 'Failed to switch to personal mode'
+    ? (t?.organizations?.clearOrgFailed || 'Unable to return to personal mode.')
+    : (t?.organizations?.switchFailed || 'Unable to switch organization.');
 
   const handleChange = async (value: string) => {
     if (value === '') {
@@ -83,7 +88,7 @@ export function OrgSwitcher({ organizations, currentOrgId, colors, t }: OrgSwitc
           role="alert"
           style={{ color: c.accentRed, fontSize: '0.6875rem', marginBottom: '0.375rem' }}
         >
-          {error}
+          {localizedError}
         </div>
       )}
       <div style={{ position: 'relative' }}>
