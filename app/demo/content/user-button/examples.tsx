@@ -163,10 +163,10 @@ export default function UserButtonExamples() {
         label="do - open URL"
         subLabel="window.open in a new tab"
         code={`const url = 'https://github.com/odinwerks/logto';
-<UserButton Size="72px" do={() => window.open(url, '_blank')} />`}
+<UserButton Size="72px" do={() => window.open(url, '_blank', 'noopener,noreferrer')} />`}
         isMobile={isMobile}
       >
-        <UserButton Size="72px" do={() => window.open('https://github.com/odinwerks/logto', '_blank')} />
+        <UserButton Size="72px" do={() => window.open('https://github.com/odinwerks/logto', '_blank', 'noopener,noreferrer')} />
       </ExampleCard>
     </div>
   );

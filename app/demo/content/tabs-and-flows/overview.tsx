@@ -140,9 +140,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           The <code style={styles.codeStyle}>DashboardClient</code> acts as the primary layout controller on the client side. It manages tab selection and conditional rendering using a centralized state pipeline.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Active Tab Routing State
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The state variable <code style={styles.codeStyle}>activeTab</code> is initialized to the first valid tab returned in the <code style={styles.codeStyle}>loadedTabs</code> array (falling back to <code style={styles.codeSmStyle}>&apos;profile&apos;</code> if none are available):
         </p>
@@ -154,9 +154,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           When a user interacts with the sidebar navigation, the component triggers the state transition by calling <code style={styles.codeSmStyle}>setActiveTab(tabId)</code>. Since state transitions occur locally, there are no full-page reloads, preserving client-side context.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           The Tab Gating Pipeline
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Tab gating operates through a strict multi-tier verification process:
         </p>
@@ -176,9 +176,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           The tab configuration is declared via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. The helper function <code style={styles.codeStyle}>getLoadedTabs()</code> parses this variable on the server side or client side (with <code style={styles.codeSmStyle}>NEXT_PUBLIC_LOAD_TABS</code> as a fallback) using the following pipeline:
         </p>
         
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Parsing and Resolution Sequence
-        </h4>
+        </h3>
         <ol style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'decimal' }}>
           <li style={{ marginBottom: '8px' }}>
             <strong>Comma-Separated Tokenization:</strong> Splits the raw configuration string using commas as delimiters.
@@ -299,9 +299,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           Tabs use this flag to reduce spacing and move dense rows into stacked layouts.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           1. Spacing and Structural Adaptation
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Layout changes are simple:
         </p>
@@ -314,9 +314,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           2. Form Rows and Input Flex Alignment
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Form rows switch by viewport:
         </p>
@@ -329,9 +329,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           3. Typography and Button Sizing
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Typography and buttons scale down on smaller screens:
         </p>
@@ -344,9 +344,9 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           4. Interactive and Action Adapters
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Some workflows also switch to touch-friendly controls:
         </p>

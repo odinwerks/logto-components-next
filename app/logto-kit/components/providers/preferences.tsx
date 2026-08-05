@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, useId, type ReactNode } from 'react';
 import { type ThemeColors, DARK_COLORS, LIGHT_COLORS } from '../../themes';
 import { getDefaultLang, type LocaleCode } from '../../logic/i18n';
 import { createStorageHelpers } from '../../logic/client-storage';
@@ -11,6 +11,32 @@ export type { ThemeColors, LocaleCode };
 const THEME_STORAGE_KEY = 'theme-mode';
 const LANG_STORAGE_KEY = 'lang-mode';
 const ORG_STORAGE_KEY = 'org-mode';
+const PREFERENCES_CHANNEL_NAME = 'logto-dash-preferences';
+const PREFERENCES_SIGNAL_KEY = 'logto-dash-preferences-signal';
+
+type PreferenceMessage = {
+  source: string;
+  timestamp: number;
+  theme?: 'dark' | 'light';
+  lang?: string;
+  asOrg?: string | null;
+};
+
+function readSharedMessage(raw: string | null): PreferenceMessage | null {
+  if (!raw) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') return null;
+    const message = value as Partial<PreferenceMessage>;
+    if (typeof message.source !== 'string' || typeof message.timestamp !== 'number') return null;
+    if (message.theme !== undefined && message.theme !== 'dark' && message.theme !== 'light') return null;
+    if (message.lang !== undefined && typeof message.lang !== 'string') return null;
+    if (message.asOrg !== undefined && message.asOrg !== null && typeof message.asOrg !== 'string') return null;
+    return message as PreferenceMessage;
+  } catch {
+    return null;
+  }
+}
 
 // Shared `SecurityError`-safe sessionStorage helpers (Phase 6). Extracted
 // from this file into `client-storage.ts` so every client storage consumer
@@ -140,6 +166,38 @@ export function PreferencesProvider({
   const onPersistErrorRef = useRef(onPersistError);
   // Ref to onLangChange so setLang has a stable callback reference (BUG-084)
   const onLangChangeRef = useRef(onLangChange);
+  const instanceId = useId();
+  const sharedSourceRef = useRef(`preferences-${instanceId}`);
+  const sharedTimestampRef = useRef(0);
+  const sharedChannelRef = useRef<BroadcastChannel | null>(null);
+
+  // Authoritative values supersede older local persistence attempts. Advancing
+  // the per-field sequence makes late failures (and successes) stale, while
+  // updating the confirmed baseline for any later rollback.
+  const applyAuthoritativeTheme = useCallback((value: 'dark' | 'light') => {
+    const seq = ++themePersistMutationSeqRef.current;
+    lastConfirmedThemeSeqRef.current = seq;
+    lastConfirmedThemeRef.current = value;
+    themeRef.current = value;
+    setStoredTheme(value);
+    setThemeState(value);
+  }, []);
+  const applyAuthoritativeLang = useCallback((value: string) => {
+    const seq = ++langPersistMutationSeqRef.current;
+    lastConfirmedLangSeqRef.current = seq;
+    lastConfirmedLangRef.current = value;
+    langRef.current = value;
+    setStoredLang(value);
+    setLangState(value);
+  }, []);
+  const applyAuthoritativeOrg = useCallback((value: string | null) => {
+    const seq = ++asOrgPersistMutationSeqRef.current;
+    lastConfirmedOrgSeqRef.current = seq;
+    lastConfirmedOrgRef.current = value;
+    asOrgRef.current = value;
+    setStoredOrg(value);
+    setAsOrgState(value);
+  }, []);
 
   const didSyncFromStorage = useRef(false);
   useEffect(() => {
@@ -169,26 +227,22 @@ export function PreferencesProvider({
     // the pre-existing string-divergence path; `setAsOrg` remains the only
     // null writer that triggers persist coordination (BUG-L06).
     if (didSyncFromStorage.current) {
+      // A new server render is authoritative. This is the revalidation path
+      // for changes made on another device; unlike a local/channel update it
+      // never writes back to the API, so refreshes cannot form a persistence
+      // loop.
+      if (initialTheme !== undefined) {
+        applyAuthoritativeTheme(initialTheme);
+      }
+      if (initialLang !== undefined) {
+        applyAuthoritativeLang(initialLang);
+      }
       if (initialOrgId !== undefined) {
         // A defined server value is authoritative even when it happens to
         // equal the current optimistic state/storage. Always advance the
         // sequence and baseline so a pending older request cannot later fail
         // and roll the server-confirmed value back.
-        const seq = ++asOrgPersistMutationSeqRef.current;
-        if (seq > lastConfirmedOrgSeqRef.current) {
-          lastConfirmedOrgSeqRef.current = seq;
-          lastConfirmedOrgRef.current = initialOrgId;
-        }
-
-        const storedOrg = getStoredOrg();
-        const stateChanged = asOrgRef.current !== initialOrgId;
-        const storageChanged = storedOrg !== initialOrgId;
-        if (stateChanged) {
-          asOrgRef.current = initialOrgId;
-          setAsOrgState(initialOrgId);
-        }
-        if (storageChanged) setStoredOrg(initialOrgId);
-        if (stateChanged || storageChanged) didSyncFromStorage.current = false;
+        applyAuthoritativeOrg(initialOrgId);
       }
       return;
     }
@@ -234,7 +288,7 @@ export function PreferencesProvider({
       setStoredOrg(initialOrgId);
       setAsOrgState(initialOrgId);
     }
-  }, [initialTheme, initialLang, initialOrgId]);
+  }, [initialTheme, initialLang, initialOrgId, applyAuthoritativeTheme, applyAuthoritativeLang, applyAuthoritativeOrg]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -282,6 +336,50 @@ export function PreferencesProvider({
       window.removeEventListener('preferences-changed', handlePreferencesChange);
     };
   }, []);
+
+  // BroadcastChannel is the primary cross-tab transport. The localStorage
+  // signal is an intentionally small fallback for browsers without it; the
+  // preference values remain in the existing per-tab sessionStorage and are
+  // validated before being applied. Incoming values are local-only updates:
+  // they never call a persister or rebroadcast, preventing event loops.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const channel = typeof BroadcastChannel !== 'undefined'
+      ? new BroadcastChannel(PREFERENCES_CHANNEL_NAME)
+      : null;
+    sharedChannelRef.current = channel;
+
+    const applyMessage = (message: PreferenceMessage | null) => {
+      if (!message || message.source === sharedSourceRef.current || message.timestamp <= sharedTimestampRef.current) return;
+      sharedTimestampRef.current = message.timestamp;
+      if (message.theme !== undefined) applyAuthoritativeTheme(message.theme);
+      if (message.lang !== undefined) applyAuthoritativeLang(message.lang);
+      if (message.asOrg !== undefined) applyAuthoritativeOrg(message.asOrg);
+    };
+
+    const handleChannelMessage = (event: MessageEvent<PreferenceMessage>) => {
+      let message: PreferenceMessage | null = null;
+      try {
+        message = readSharedMessage(JSON.stringify(event.data));
+      } catch {
+        // Ignore malformed structured-clone payloads.
+      }
+      applyMessage(message);
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === PREFERENCES_SIGNAL_KEY) applyMessage(readSharedMessage(event.newValue));
+    };
+
+    channel?.addEventListener('message', handleChannelMessage);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      channel?.removeEventListener('message', handleChannelMessage);
+      channel?.close();
+      sharedChannelRef.current = null;
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [applyAuthoritativeTheme, applyAuthoritativeLang, applyAuthoritativeOrg]);
 
   useEffect(() => {
     const handleThemeChange = () => {
@@ -477,13 +575,42 @@ export function PreferencesProvider({
     }
   }, []);
 
+  const publishPreference = useCallback((change: Omit<PreferenceMessage, 'source' | 'timestamp'>) => {
+    const timestamp = Math.max(Date.now(), sharedTimestampRef.current + 1);
+    sharedTimestampRef.current = timestamp;
+    const message: PreferenceMessage = {
+      ...change,
+      source: sharedSourceRef.current,
+      timestamp,
+    };
+    try {
+      if (sharedChannelRef.current) {
+        sharedChannelRef.current.postMessage(message);
+      } else if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel(PREFERENCES_CHANNEL_NAME);
+        channel.postMessage(message);
+        // Keep this short-lived fallback alive for the task queue to deliver
+        // the message; normal mounted providers use sharedChannelRef above.
+        window.setTimeout(() => channel.close(), 0);
+      }
+    } catch {
+      // Some privacy modes expose BroadcastChannel but reject construction.
+    }
+    try {
+      window.localStorage.setItem(PREFERENCES_SIGNAL_KEY, JSON.stringify(message));
+    } catch {
+      // Storage access is optional; the in-document event still works.
+    }
+  }, []);
+
   const setMode = useCallback((newTheme: 'dark' | 'light') => {
     themeRef.current = newTheme;
     setStoredTheme(newTheme);
     setThemeState(newTheme);
     persistTheme(newTheme);
     window.dispatchEvent(new Event('theme-changed'));
-  }, [persistTheme]);
+    publishPreference({ theme: newTheme });
+  }, [persistTheme, publishPreference]);
 
   const toggleMode = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -497,14 +624,16 @@ export function PreferencesProvider({
     persistLang(newLang);
     window.dispatchEvent(new CustomEvent('preferences-changed', { detail: { lang: newLang } }));
     onLangChangeRef.current?.();
-  }, [persistLang]);
+    publishPreference({ lang: newLang });
+  }, [persistLang, publishPreference]);
 
   const setAsOrg = useCallback(async (newOrgId: string | null) => {
     asOrgRef.current = newOrgId;
     setStoredOrg(newOrgId);
     setAsOrgState(newOrgId);
+    publishPreference({ asOrg: newOrgId });
     await persistOrg(newOrgId);
-  }, [persistOrg]);
+  }, [persistOrg, publishPreference]);
 
   const themeValue = useMemo(
     () => ({ mode: theme, colors, setMode, toggleMode }),

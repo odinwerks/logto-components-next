@@ -118,9 +118,9 @@ export default function OrganizationsSection() {
           </tbody>
         </table>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Organization-Level Context Swapping
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           When a user selects an organization, the application executes a stateful context transition that synchronizes client memory with server-side persistence:
         </p>
@@ -221,9 +221,9 @@ startTransition(() => {
           </tbody>
         </table>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Switcher Behaviors and Visibility Rules
-        </h4>
+        </h3>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc', marginBottom: '0.75rem' }}>
           <li style={{ marginBottom: '6px' }}>
             <strong>Auto-fetching and Server Resolution:</strong> The parent server component retrieves the list of user organizations from the OIDC userinfo payload (using <code style={styles.codeSmStyle}>userInfo.organization_data</code> if populated, falling back to <code style={styles.codeSmStyle}>userInfo.organizations</code> strings) and passes the array directly to the switcher.
@@ -256,16 +256,16 @@ useEffect(() => {
           The Organizations Tab divides user context display into distinct roles and permissions columns, backed by parallel server action loaders and M2M resolution APIs.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           1. Security-First Role Exposure
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Organization roles are fetched server-side via the M2M Management API through the <code style={styles.codeSmStyle}>useOrgRoles</code> hook, not filtered from client-side OIDC claims. The <code style={styles.codeSmStyle}>loadOrganizationUserRoles(orgId)</code> server action calls <code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code> with an M2M token to retrieve role objects with UUIDs and descriptions. If no organization is selected (global personal mode), no role fetch is initiated and the roles section is empty.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           2. Batch Role Resolution via Machine-to-Machine API
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Standard OIDC claims only return plain role string arrays formatted as <code style={styles.codeStyle}>org_id:role_name</code>. They lack role UUIDs and description strings. The tab resolves these in a multi-tiered sequence:
         </p>
@@ -278,9 +278,9 @@ useEffect(() => {
           </li>
         </ol>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           3. Live Permission Fetches & Direct Token Audits
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>PermissionsBlock</code> component displays the current organization-level permissions. It implements the following logic:
         </p>

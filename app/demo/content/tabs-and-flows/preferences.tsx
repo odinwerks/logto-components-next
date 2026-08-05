@@ -112,9 +112,9 @@ export default function PreferencesSection() {
           </tbody>
         </table>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Component Visual Architecture
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The component manages layout interactions via two primary modules:
         </p>
@@ -145,9 +145,9 @@ export default function PreferencesSection() {
           The <code style={styles.codeStyle}>PreferencesProvider</code> is placed at the outermost root of the provider tree (wrapping <code style={styles.codeStyle}>LogtoProvider</code>, which wraps <code style={styles.codeStyle}>UserDataProvider</code>). This nesting ensures that display preferences remain mounted and fully active during session transitions, logins, and logouts.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Initial React State Resolution Sequence
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           During initialization, state is parsed according to specific rules to prevent React hydration conflicts and provide stable initialization:
         </p>
@@ -169,9 +169,9 @@ export default function PreferencesSection() {
           </li>
         </ol>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Provider Side-Effects and Listeners
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           After state resolution, the provider configures active listeners:
         </p>
@@ -203,9 +203,9 @@ export default function PreferencesSection() {
           User configurations utilize a dual-tier persistence strategy: local caching for immediate response, and remote API synchronization with Logto custom data profiles for cross-device consistency.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Client-Side Storage Keys
-        </h4>
+        </h3>
         <table style={customTableStyle}>
           <thead>
             <tr>
@@ -233,9 +233,9 @@ export default function PreferencesSection() {
           </tbody>
         </table>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Remote Database Persistence
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Changes are asynchronously written to Logto custom data profiles via the <code style={styles.codeStyle}>onUpdateCustomData</code> callback. Saved properties use the <code style={styles.codeSmStyle}>Preferences</code> namespace:
         </p>
@@ -251,9 +251,9 @@ export default function PreferencesSection() {
 }`}
         />
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           API Error Handling & Rollback Safety
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           To avoid desynchronization between sessionStorage and the actual Logto profile state, write routines enforce safety checks:
         </p>
@@ -273,9 +273,9 @@ export default function PreferencesSection() {
           Separate user-interface sections (such as the main dashboard wrapper and isolated modal layers) operate in distinct React provider trees. Synchronization is managed through custom DOM events and state references.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Custom DOM Event Dispatchers
-        </h4>
+        </h3>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
           <li style={{ marginBottom: '8px' }}>
             <strong>theme-changed:</strong> Dispatched on the <code style={styles.codeSmStyle}>window</code> object when <code style={styles.codeSmStyle}>setMode()</code> is invoked. Other active provider instances capture this event, read sessionStorage, and synchronize their theme states to match.
@@ -285,9 +285,9 @@ export default function PreferencesSection() {
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           State References
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Asynchronous API operations are protected from race conditions and stale closure loops by keeping current state values stored in mutable references (<code style={styles.codeSmStyle}>themeRef</code>, <code style={styles.codeSmStyle}>langRef</code>, <code style={styles.codeSmStyle}>asOrgRef</code>) that synchronize with each state render.
         </p>

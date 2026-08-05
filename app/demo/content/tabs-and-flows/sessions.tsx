@@ -179,9 +179,9 @@ export default function SessionsSection() {
           Active sessions contain sensitive metadata (including IP addresses and device browser strings). Access to the sessions list is locked behind password identity confirmation.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Verification Records and TTL Policy
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           On successful password challenge, the system generates a secure <code style={styles.codeSmStyle}>verificationRecordId</code>. This token remains valid for exactly 10 minutes (600,000ms) before the server-sealed cookie expires and the session view resets.
         </p>
@@ -189,9 +189,9 @@ export default function SessionsSection() {
           An active client-side <code style={styles.codeSmStyle}>useEffect</code> hook monitors the remaining validity period. When the countdown completes, it automatically purges the token and resets the view state back to <code style={styles.codeSmStyle}>unverified</code>, forcing a re-verification.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           State Isolation Guards
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The component implements guards to prevent half-authenticated layouts or broken interactions:
         </p>
@@ -231,9 +231,9 @@ useEffect(() => {
           The system ensures session operations target correct contexts by parsing claims and identifying active sessions.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           OIDC Session UID vs JWT ID (Critical Mapping)
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           A user session record contains multiple identifiers, specifically the token ID (<code style={styles.codeSmStyle}>payload.jti</code>) and the OIDC Session UID (<code style={styles.codeSmStyle}>payload.uid</code>). 
         </p>
@@ -241,9 +241,9 @@ useEffect(() => {
           When calling Logto&apos;s Account API endpoints to view or delete a session, the **OIDC Session UID (<code style={styles.codeSmStyle}>payload.uid</code>) must be passed as the sessionId parameter inside the URL path**, not the JWT token ID (<code style={styles.codeSmStyle}>payload.jti</code>). This is because the Logto Account API resolves session resources by their OIDC session identifier. Passing the JTI will cause API errors.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Server Token Introspection Safety
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The server action <code style={styles.codeSmStyle}>getSessionsWithDeviceMeta</code> queries user token properties via <code style={styles.codeSmStyle} >introspectToken</code> to identify the subject (<code style={styles.codeSmStyle}>sub</code> claim). 
         </p>
@@ -251,9 +251,9 @@ useEffect(() => {
           If token introspection fails (for example, if the <code style={styles.codeSmStyle}>LOGTO_INTROSPECTION_URL</code> is not configured), the server action throws an <code style={styles.codeSmStyle}>UNAUTHENTICATED</code> error and blocks the Sessions tab from rendering.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Active Session Identification
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           To execute multi-device revocations safely, the system must identify the caller&apos;s active session. The server action resolves this in <code style={styles.codeSmStyle}>revokeAllOtherSessions</code>:
         </p>
@@ -298,23 +298,23 @@ const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.pay
           The dashboard supports both individual session termination and bulk multi-device revocation.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Single Session Termination
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Revoking a single session triggers <code style={styles.codeSmStyle}>onRevokeSession(sessionId, verificationRecordId, &apos;firstParty&apos;)</code>. The revoke target parameter defaults to <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code> to revoke first-party application grants. Pass <code style={styles.codeSmStyle}>&apos;all&apos;</code> to revoke every OAuth grant (access tokens and refresh tokens) associated with the session. Bulk revocation via <code style={styles.codeSmStyle}>onRevokeAllOtherSessions</code> also uses <code style={styles.codeSmStyle}>&apos;firstParty&apos;</code>.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Sequential Revocation and Rate-Limiting
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Executing multi-device revocation concurrently can trigger Logto API rate-limiting (HTTP 429). To prevent this, the server action revokes other sessions sequentially, introducing a throttle delay of <code style={styles.codeSmStyle}>100ms</code> between consecutive requests.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Timeout Guards and Error Aggregation
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           To prevent a hanging connection from stalling the entire queue, each sequential revocation call is wrapped in a <code style={styles.codeSmStyle}>Promise.race</code> timeout guard set to 10 seconds (<code style={styles.codeSmStyle}>10_000ms</code>).
         </p>
@@ -352,9 +352,9 @@ for (const s of othersToRevoke) {
           Active sessions extract connection parameters from user login metadata, parsing the user agent string and querying IP geolocation coordinates.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           User Agent and OS Mapping
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The user agent string inside the session context is parsed on the server via <code style={styles.codeSmStyle}>ua-parser-js</code>. Operating system strings are mapped to specific graphical icons. The mapping logic includes matching constraints to handle different OS name labels:
         </p>
@@ -366,9 +366,9 @@ for (const s of othersToRevoke) {
           <li style={{ marginBottom: '6px' }}><code style={styles.codeSmStyle}>&apos;Android&apos;</code> maps to <code style={styles.codeSmStyle}>/os-icons/Android.svg</code></li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Client-Side Caching and Concurrency Deduplication
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           IP addresses are geolocated using client-side requests to <code style={styles.codeSmStyle}>https://ipapi.co/&#123;ip&#125;/json/</code>. To prevent rate limits, the module implements client-side caching and fetch deduplication:
         </p>
@@ -381,16 +381,16 @@ for (const s of othersToRevoke) {
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Offline Graceful Fallback
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           If a geolocation query fails due to a network disconnect, private IP address ranges (such as localhost), or third-party rate limiting, the fetch routine catches the exception and returns <code style={styles.codeSmStyle}>null</code> silently. The UI handles this gracefully without throwing errors or blocking page rendering, hiding the geolocation interactive MapPin button.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Production Recommendations (Offline MaxMind Databases)
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Client-side APIs like <code style={styles.codeSmStyle}>ipapi.co</code> are subject to daily rate limits (e.g., 1,000 queries per day), network latency, and browser Content Security Policy (CSP) blocking.
         </p>

@@ -111,9 +111,9 @@ export default function IdentitiesSection() {
           </tbody>
         </table>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           UI Elements & Presentation layer
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The component UI is structured into three main visual blocks:
         </p>
@@ -129,9 +129,9 @@ export default function IdentitiesSection() {
           </li>
         </ul>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Visual Connection Badges & Icon mapping
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Each connected account entry displays a visualization of its social source:
         </p>
@@ -154,9 +154,9 @@ export default function IdentitiesSection() {
           Logto integrates with social identity providers (IDPs) utilizing the OpenID Connect (OIDC) or OAuth 2.0 standards. Connected account attributes are parsed and formatted into consistent profile structures.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Profile Synchronization and Detail parsing
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           During a successful social login handshake, Logto retrieves user claims and populates the details envelope. The UI parses this information using the <code style={styles.codeSmStyle}>identityDetail</code> helper, checking fields in a prioritized order:
         </p>
@@ -178,16 +178,16 @@ export default function IdentitiesSection() {
           </li>
         </ol>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Social User ID Mapping
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           The <code style={styles.codeStyle}>userId</code> field inside each connection entry represents the persistent, unique ID provided by the external identity provider (IdP). This ID is mapped to the user profile under Logto database fields. This unique identifier remains unchanged, guaranteeing that even if the user updates their email or username on the social provider platform, the link to their Logto account is retained.
         </p>
 
-        <h4 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+        <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           OIDC Claims Syncing & Timestamps
-        </h4>
+        </h3>
         <p style={styles.textStyle}>
           Logto connector configurations allow administrative settings to sync social user profiles automatically on every login. During the OAuth callback loop:
         </p>

@@ -131,6 +131,162 @@ describe('PreferencesProvider & useThemeMode (BUG-001)', () => {
     expect(renderedOrg).toBe('org_1');
   });
 
+  it('applies newer cross-tab preference messages without persisting or rebroadcasting', () => {
+    const onUpdateCustomData = vi.fn(async () => ({ ok: true as const }));
+    let rendered: { theme?: string; lang?: string; org?: string | null } = {};
+
+    function TestComponent() {
+      rendered = {
+        theme: useThemeMode().mode,
+        lang: useLangMode().lang,
+        org: useOrgMode().asOrg,
+      };
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en"
+        initialOrgId="org_1"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'logto-dash-preferences-signal',
+        newValue: JSON.stringify({
+          source: 'another-tab',
+          timestamp: Date.now() + 1000,
+          theme: 'light',
+          lang: 'fr',
+          asOrg: 'org_2',
+        }),
+      }));
+    });
+
+    expect(rendered).toEqual({ theme: 'light', lang: 'fr', org: 'org_2' });
+    expect(onUpdateCustomData).not.toHaveBeenCalled();
+  });
+
+  it('does not let an old theme or language failure roll back a cross-tab update', async () => {
+    const pending: { resolve: (result: ActionResult) => void }[] = [];
+    const onUpdateCustomData = vi.fn((_customData: Record<string, unknown>) =>
+      new Promise<ActionResult>((resolve) => pending.push({ resolve }))
+    );
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+    let setLang: ((value: string) => void) | null = null;
+    let rendered = { theme: 'dark', lang: 'en' };
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      const lang = useLangMode();
+      setMode = theme.setMode;
+      setLang = lang.setLang;
+      rendered = { theme: theme.mode, lang: lang.lang };
+      return null;
+    }
+
+    render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    act(() => {
+      setMode?.('light');
+      setLang?.('fr');
+    });
+    expect(pending).toHaveLength(2);
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'logto-dash-preferences-signal',
+        newValue: JSON.stringify({
+          source: 'another-tab',
+          timestamp: Date.now() + 1000,
+          theme: 'dark',
+          lang: 'de',
+        }),
+      }));
+    });
+    expect(rendered).toEqual({ theme: 'dark', lang: 'de' });
+    expect(sessionStorage.getItem('theme-mode')).toBe('dark');
+    expect(sessionStorage.getItem('lang-mode')).toBe('de');
+
+    await act(async () => {
+      pending[0].resolve({ ok: false, error: 'network_error' });
+      pending[1].resolve({ ok: false, error: 'network_error' });
+      await Promise.resolve();
+    });
+
+    expect(rendered).toEqual({ theme: 'dark', lang: 'de' });
+    expect(sessionStorage.getItem('theme-mode')).toBe('dark');
+    expect(sessionStorage.getItem('lang-mode')).toBe('de');
+  });
+
+  it('does not let an old failure roll back newer server theme and language values', async () => {
+    const pending: { resolve: (result: ActionResult) => void }[] = [];
+    const onUpdateCustomData = vi.fn((_customData: Record<string, unknown>) =>
+      new Promise<ActionResult>((resolve) => pending.push({ resolve }))
+    );
+    let setMode: ((mode: 'dark' | 'light') => void) | null = null;
+    let setLang: ((value: string) => void) | null = null;
+    let rendered = { theme: 'dark', lang: 'en' };
+
+    function TestComponent() {
+      const theme = useThemeMode();
+      const lang = useLangMode();
+      setMode = theme.setMode;
+      setLang = lang.setLang;
+      rendered = { theme: theme.mode, lang: lang.lang };
+      return null;
+    }
+
+    const { rerender } = render(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="en"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+
+    act(() => {
+      setMode?.('light');
+      setLang?.('fr');
+    });
+
+    rerender(
+      <PreferencesProvider
+        initialTheme="dark"
+        initialLang="de"
+        onUpdateCustomData={onUpdateCustomData}
+      >
+        <TestComponent />
+      </PreferencesProvider>
+    );
+    expect(rendered).toEqual({ theme: 'dark', lang: 'de' });
+
+    await act(async () => {
+      pending[0].resolve({ ok: false, error: 'network_error' });
+      pending[1].resolve({ ok: false, error: 'network_error' });
+      await Promise.resolve();
+    });
+
+    expect(rendered).toEqual({ theme: 'dark', lang: 'de' });
+    expect(sessionStorage.getItem('theme-mode')).toBe('dark');
+    expect(sessionStorage.getItem('lang-mode')).toBe('de');
+  });
+
   it('keeps newest org selection when older persistence fails out of order', async () => {
     const { onUpdateCustomData, pending } = createOrgPersistMock();
     let setAsOrg: ((orgId: string | null) => void) | null = null;
