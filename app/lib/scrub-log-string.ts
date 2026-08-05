@@ -191,9 +191,14 @@ export function scrubLogString(s: string): string {
     '[JWT_REDACTED]',
   );
 
-  // Bearer token in Authorization header values or inline strings
+  // Bearer token in Authorization header values or inline strings. RFC 6750
+  // also permits `~`, `+`, `/`, and `%`; a `%` counts as a value character only
+  // when it starts a valid URL-encoded octet (`%` + 2 hex digits) so printf
+  // placeholders such as `Bearer %s` are not mistaken for credentials. A
+  // boundary is required to avoid scrubbing a valid-looking prefix while
+  // leaving a suffix visible.
   result = result.replace(
-    /Bearer\s+[A-Za-z0-9\-_=.]+/gi,
+    /Bearer[ \t]+(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+=*(?=$|[^%A-Za-z0-9._~+\/-=])/gi,
     'Bearer [REDACTED]',
   );
 
@@ -205,31 +210,34 @@ export function scrubLogString(s: string): string {
 
   // access_token=<value> (URL param or JSON field)
   result = result.replace(
-    /access[_-]?token["'\s]*[:=]["'\s]*[A-Za-z0-9\-_=.%+]+/gi,
+    /access[_-]?token["'\s]*[:=]["'\s]*(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+={0,}(?![A-Za-z0-9._~+\/-=%])/gi,
     'access_token=[REDACTED]',
   );
 
   // refresh_token=<value>
   result = result.replace(
-    /refresh[_-]?token["'\s]*[:=]["'\s]*[A-Za-z0-9\-_=.%+]+/gi,
+    /refresh[_-]?token["'\s]*[:=]["'\s]*(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+={0,}(?![A-Za-z0-9._~+\/-=%])/gi,
     'refresh_token=[REDACTED]',
   );
 
   // id_token=<value>
   result = result.replace(
-    /id[_-]?token["'\s]*[:=]["'\s]*[A-Za-z0-9\-_=.%+]+/gi,
+    /id[_-]?token["'\s]*[:=]["'\s]*(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+={0,}(?![A-Za-z0-9._~+\/-=%])/gi,
     'id_token=[REDACTED]',
   );
 
-  // code=<value> (OAuth authorization code — only redact if reasonably long to avoid matching e.g. "code=200")
+  // code=<value> (OAuth authorization code — only redact if reasonably long to
+  // avoid matching e.g. "code=200"; a percent-encoded octet counts as one
+  // repetition but represents three characters, so mixed values are accepted
+  // from 7 repetitions to keep the ~8 real-character floor)
   result = result.replace(
-    /\bcode=([A-Za-z0-9\-_=.%+]{8,})/g,
+    /\bcode=((?:[A-Za-z0-9._~+\/-]{8,}|(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2}){7,})={0,})(?![A-Za-z0-9._~+\/-=%])/g,
     'code=[REDACTED]',
   );
 
   // client_secret=<value> (OAuth form-encoded bodies or JSON)
   result = result.replace(
-    /client[_-]?secret["'\s]*[:=]["'\s]*[A-Za-z0-9\-_=.%+]+/gi,
+    /client[_-]?secret["'\s]*[:=]["'\s]*(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+={0,}(?![A-Za-z0-9._~+\/-=%])/gi,
     'client_secret=[REDACTED]',
   );
 

@@ -25,6 +25,30 @@ describe('scrubLogString', () => {
     expect(result).toContain('Bearer [REDACTED]');
   });
 
+  it('redacts the complete RFC 6750 Bearer alphabet at a delimiter', () => {
+    const token = '/super+secret~token==';
+    const result = scrubLogString(`request Bearer ${token}, next`);
+
+    expect(result).toContain('Bearer [REDACTED]');
+    expect(result).not.toContain(token);
+  });
+
+  it('redacts the full Bearer value containing percent-encoded octets (L-001)', () => {
+    const token = 'abc%2Fdef';
+    const result = scrubLogString(`Bearer ${token}`);
+
+    expect(result).toContain('Bearer [REDACTED]');
+    expect(result).not.toContain(token);
+    expect(result).not.toContain('%2F');
+  });
+
+  it('does not scrub a partial prefix of an invalid Bearer token', () => {
+    const token = 'prefix=leaked';
+    const result = scrubLogString(`Bearer ${token}`);
+
+    expect(result).toContain(`Bearer ${token}`);
+  });
+
   it('redacts access_token in query string', () => {
     const input = 'Error fetching /api?access_token=supersecretvalue123&foo=bar';
     const result = scrubLogString(input);
@@ -38,6 +62,50 @@ describe('scrubLogString', () => {
     expect(result).not.toContain('abc123xyz');
     expect(result).toContain('access_token=[REDACTED]');
   });
+
+  it.each([
+    ['access_token', 'access~token/with~suffix'],
+    ['refresh_token', 'refresh~token/with~suffix'],
+    ['id_token', 'id~token/with~suffix'],
+    ['client_secret', 'secret~value/with~suffix'],
+    ['code', 'oauth~code/value'],
+  ])('redacts RFC 6750 characters and the complete named %s value', (name, value) => {
+    const result = scrubLogString(`${name}=${value}&next=visible`);
+
+    expect(result).toContain(`${name}=[REDACTED]`);
+    expect(result).not.toContain(value);
+  });
+
+  it.each([
+    ['access_token', 'supersecret123%2Fxyz%2Fmore'],
+    ['access_token', 'abc%2Fdef'],
+    ['refresh_token', 'abc%2Fdef'],
+    ['id_token', 'abc%2Fdef'],
+    ['client_secret', 'abc%2Fdef'],
+    ['code', 'abc%2Fdef'],
+  ])('redacts the complete named %s value with percent-encoded octets (L-001)', (name, value) => {
+    const result = scrubLogString(`${name}=${value}&x=1`);
+
+    expect(result).toContain(`${name}=[REDACTED]&x=1`);
+    expect(result).not.toContain(value);
+    expect(result).not.toContain('%2F');
+  });
+
+  it('redacts the full access_token value ending at end-of-string (L-001)', () => {
+    const result = scrubLogString('access_token=supersecret123%2Fxyz%2Fmore');
+
+    expect(result).toBe('access_token=[REDACTED]');
+  });
+
+  it.each(['access_token', 'refresh_token', 'id_token', 'client_secret', 'code'])(
+    'does not redact a named %s value with internal padding',
+    (name) => {
+      const value = 'valid=internal';
+      const result = scrubLogString(`${name}=${value}`);
+
+      expect(result).toContain(`${name}=${value}`);
+    },
+  );
 
   it('redacts refresh_token', () => {
     const input = 'refresh_token=myRefreshTokenValue99';
