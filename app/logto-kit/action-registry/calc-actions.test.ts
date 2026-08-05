@@ -279,6 +279,17 @@ describe('valid finite answers still work', () => {
     expect(result).toEqual({ answer: 120 });
   });
 
+  it('rejects fractional factorial operands instead of rounding', async () => {
+    await expect(callHandler(getCalcFact, { n: 5.5 })).rejects.toThrow('INVALID_PAYLOAD');
+  });
+
+  it('supports factorial boundaries and rejects values outside them', async () => {
+    expect(await callHandler(getCalcFact, { n: 0 })).toEqual({ answer: 1 });
+    expect(await callHandler(getCalcFact, { n: 170 })).toEqual({ answer: expect.any(Number) });
+    await expect(callHandler(getCalcFact, { n: -1 })).rejects.toThrow('INVALID_PAYLOAD');
+    await expect(callHandler(getCalcFact, { n: 171 })).rejects.toThrow('INVALID_PAYLOAD');
+  });
+
   it('abs', async () => {
     const result = await callHandler(getCalcAbs, { n: -42 });
     expect(result).toEqual({ answer: 42 });

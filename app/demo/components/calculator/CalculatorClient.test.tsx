@@ -157,6 +157,30 @@ describe('CalculatorClient', () => {
     });
   });
 
+  it('falls back and removes poisoned calculator state', async () => {
+    window.sessionStorage.setItem(
+      'demo:calc-state',
+      JSON.stringify({ expr: {}, curToken: '9', openParens: 0 }),
+    );
+
+    render(<CalculatorClient />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    });
+    expect(JSON.parse(window.sessionStorage.getItem('demo:calc-state')!)).toEqual({
+      expr: '',
+      curToken: '',
+      isRad: false,
+      invOn: false,
+      justEvaled: false,
+      openParens: 0,
+      lastWasOp: true,
+      lastWasClose: false,
+      isCalculating: false,
+    });
+  });
+
   it('avoids double-firing backspace on mobile touch events', async () => {
     render(<CalculatorClient />);
 

@@ -249,10 +249,10 @@ export async function getCalcSqrt(): Promise<ActionConfig> {
 export async function getCalcFact(): Promise<ActionConfig> {
   return calcConfig(CALC_SCI_PERM, async ({ payload }) => {
     const { n } = getUnaryPayload(payload);
-    const rounded = Math.round(n);
-    if (rounded < 0 || rounded > 170) throw new Error('INVALID_PAYLOAD: factorial out of range');
+    if (!Number.isInteger(n)) throw new Error('INVALID_PAYLOAD: factorial requires an integer');
+    if (n < 0 || n > 170) throw new Error('INVALID_PAYLOAD: factorial out of range');
     let r = 1;
-    for (let j = 2; j <= rounded; j++) r *= j;
+    for (let j = 2; j <= n; j++) r *= j;
     return { answer: r };
   });
 }

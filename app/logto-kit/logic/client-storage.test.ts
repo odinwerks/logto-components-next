@@ -163,6 +163,21 @@ describe('createJsonStorageHelpers', () => {
     expect(storage.get()).toEqual(DEFAULT);
   });
 
+  it('falls back and removes valid JSON with an invalid runtime shape', () => {
+    sessionStorageMock.store.set('demo:calc-state', JSON.stringify({ expr: {}, isRad: false }));
+    const storage = createJsonStorageHelpers<CalcState>(
+      'demo:calc-state',
+      DEFAULT,
+      (value): value is CalcState => {
+        if (typeof value !== 'object' || value === null) return false;
+        const state = value as Record<string, unknown>;
+        return typeof state.expr === 'string' && typeof state.isRad === 'boolean';
+      },
+    );
+    expect(storage.get()).toEqual(DEFAULT);
+    expect(sessionStorageMock.mock.removeItem).toHaveBeenCalledWith('demo:calc-state');
+  });
+
   it('returns the fallback during SSR (typeof window undefined)', () => {
     vi.unstubAllGlobals();
     const storage = createJsonStorageHelpers<CalcState>('demo:calc-state', DEFAULT);

@@ -17,10 +17,10 @@
  *   - `createStorageHelpers<T>(key)` — get/set/remove with `String(value)`.
  *     Mirrors the previous `preferences.tsx` helper exactly so the existing
  *     theme/lang/org preferences work unchanged.
- *   - `createJsonStorageHelpers<T>(key, fallback)` — get/set for JSON-typed
- *     object state (used by the calculator). `get` returns the `fallback`
- *     when storage is empty or the stored value fails to parse, so callers
- *     never have to re-implement the try/catch.
+ *   - `createJsonStorageHelpers<T>(key, fallback, isValid)` — get/set for
+ *     JSON-typed object state (used by the calculator). `get` returns the
+ *     `fallback` when storage is empty, malformed, or fails validation, and
+ *     removes poisoned entries.
  */
 
 /**
@@ -75,7 +75,11 @@ export function createStorageHelpers<T>(key: string) {
  * calculator never needs to drop its state — `set(DEFAULT_STATE)` is the
  * canonical "reset").
  */
-export function createJsonStorageHelpers<T>(key: string, fallback: T) {
+export function createJsonStorageHelpers<T>(
+  key: string,
+  fallback: T,
+  isValid: (value: unknown) => value is T = (_value: unknown): _value is T => true,
+) {
   return {
     get: (): T => {
       if (typeof window === 'undefined') return fallback;
@@ -83,7 +87,13 @@ export function createJsonStorageHelpers<T>(key: string, fallback: T) {
         const stored = sessionStorage.getItem(key);
         if (stored === null) return fallback;
         try {
-          return JSON.parse(stored) as T;
+          const parsed: unknown = JSON.parse(stored);
+          if (!isValid(parsed)) {
+            // Do not repeatedly re-install a poisoned value on every mount.
+            sessionStorage.removeItem(key);
+            return fallback;
+          }
+          return parsed;
         } catch {
           // Corrupted entry — fall back rather than crash the UI.
           return fallback;

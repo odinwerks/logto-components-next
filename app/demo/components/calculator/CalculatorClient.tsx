@@ -19,6 +19,27 @@ interface CalcState {
   isCalculating: boolean;
 }
 
+const MAX_EXPRESSION_LENGTH = 10_000;
+const MAX_TOKEN_LENGTH = 16;
+const MAX_OPEN_PARENS = 10_000;
+
+function isCalcState(value: unknown): value is CalcState {
+  if (typeof value !== 'object' || value === null) return false;
+  const state = value as Record<string, unknown>;
+  return (
+    typeof state.expr === 'string' && state.expr.length <= MAX_EXPRESSION_LENGTH &&
+    typeof state.curToken === 'string' && state.curToken.length <= MAX_TOKEN_LENGTH &&
+    typeof state.isRad === 'boolean' &&
+    typeof state.invOn === 'boolean' &&
+    typeof state.justEvaled === 'boolean' &&
+    typeof state.openParens === 'number' && Number.isInteger(state.openParens) &&
+    state.openParens >= 0 && state.openParens <= MAX_OPEN_PARENS &&
+    typeof state.lastWasOp === 'boolean' &&
+    typeof state.lastWasClose === 'boolean' &&
+    typeof state.isCalculating === 'boolean'
+  );
+}
+
 // Phase 6: namespaced key (`calc-state` → `demo:calc-state`) to avoid
 // collisions with future demo features. Existing users lose their saved
 // calculator state on upgrade — acceptable for a demo feature. The storage
@@ -38,7 +59,7 @@ const DEFAULT_STATE: CalcState = {
   isCalculating: false,
 };
 
-const calcStorage = createJsonStorageHelpers<CalcState>(STORAGE_KEY, DEFAULT_STATE);
+const calcStorage = createJsonStorageHelpers<CalcState>(STORAGE_KEY, DEFAULT_STATE, isCalcState);
 
 function fmtNum(n: number): string {
   if (!isFinite(n)) return isNaN(n) ? 'Error' : n > 0 ? 'Infinity' : '-Infinity';
