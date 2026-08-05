@@ -12,6 +12,18 @@ import { warn } from './log';
 export const AVAILABLE_LOCALES = ['en-US', 'ka-GE', 'uk-UA'] as const;
 export type LocaleCode = (typeof AVAILABLE_LOCALES)[number];
 
+function getRecognizedConfiguredLangs(): LocaleCode[] {
+  const raw = (readEnv('LANG_AVAILABLE') || '').trim();
+  if (!raw) return [];
+  const recognized: LocaleCode[] = [];
+  for (const code of raw.split(',').map((s) => s.trim())) {
+    if ((AVAILABLE_LOCALES as readonly string[]).includes(code) && !recognized.includes(code as LocaleCode)) {
+      recognized.push(code as LocaleCode);
+    }
+  }
+  return recognized;
+}
+
 /**
  * Returns the ordered list of supported language codes.
  *
@@ -30,16 +42,10 @@ export function getSupportedLangs(): string[] {
     return [getDefaultLang()];
   }
 
-  const parsed = raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const valid = parsed.filter((code) =>
-    (AVAILABLE_LOCALES as readonly string[]).includes(code)
-  );
+  const valid = getRecognizedConfiguredLangs();
 
   if (valid.length === 0) {
+    if (!raw.trim()) return [getDefaultLang()];
     warn(
       `[i18n] LANG_AVAILABLE="${raw}" contained no recognized locale codes. ` +
         `Recognized: ${AVAILABLE_LOCALES.join(', ')}. Falling back to default.`
@@ -61,17 +67,12 @@ export function getSupportedLangs(): string[] {
  */
 export function getDefaultLang(): string {
   const raw = (readEnv('LANG_MAIN') || '').trim();
-  const rawAvail = (readEnv('LANG_AVAILABLE') || '').trim();
-  const availCodes = rawAvail
-    ? rawAvail
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : null;
+  const configuredLangs = getRecognizedConfiguredLangs();
+  const hasConfiguredList = Boolean((readEnv('LANG_AVAILABLE') || '').trim());
 
   // LANG_MAIN must be in AVAILABLE_LOCALES AND (if LANG_AVAILABLE is set) in LANG_AVAILABLE
   if (raw && (AVAILABLE_LOCALES as readonly string[]).includes(raw)) {
-    if (!availCodes || availCodes.includes(raw)) {
+    if (!hasConfiguredList || configuredLangs.includes(raw as LocaleCode)) {
       return raw;
     }
     // LANG_MAIN is valid per AVAILABLE_LOCALES but excluded by LANG_AVAILABLE.
@@ -80,11 +81,8 @@ export function getDefaultLang(): string {
   }
 
   // Fall back to first lang in LANG_AVAILABLE (if set and has a recognized entry)
-  if (availCodes && availCodes.length > 0) {
-    const first = availCodes[0];
-    if (first && (AVAILABLE_LOCALES as readonly string[]).includes(first)) {
-      return first;
-    }
+  if (configuredLangs.length > 0) {
+    return configuredLangs[0];
   }
 
   // Ultimate fallback: first entry in AVAILABLE_LOCALES (always a member of itself)

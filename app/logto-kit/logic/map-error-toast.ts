@@ -25,6 +25,7 @@ import {
   type Verbosity,
   getClientVerbosity,
 } from './error-codes';
+import { isSilentClientCode } from './verbosity';
 
 /**
  * Pure function (no React dependency). Maps an error code to a human-readable
@@ -41,6 +42,10 @@ export function createMapErrorToast(
   t: Translations,
   verbosity?: Verbosity,
 ): string {
+  // ERROR is the deliberate server-to-client suppression signal emitted by
+  // ERROR_VERBOSITY=silent. It must work even when the public env is unset.
+  if (isSilentClientCode(code)) return '';
+
   const v = verbosity ?? getClientVerbosity();
 
   // ── Tier 1: silent verbosity → suppress toast ──────────────────────────

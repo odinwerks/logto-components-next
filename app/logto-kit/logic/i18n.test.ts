@@ -34,6 +34,20 @@ describe('getSupportedLangs', () => {
     expect(getSupportedLangs()).toEqual(['ka-GE', 'en-US', 'uk-UA']);
   });
 
+  it('deduplicates recognized languages while preserving first-seen order', async () => {
+    vi.stubEnv('LANG_AVAILABLE', 'ka-GE,en-US,ka-GE,unknown,en-US');
+    const { getSupportedLangs } = await import('./i18n');
+    expect(getSupportedLangs()).toEqual(['ka-GE', 'en-US']);
+  });
+
+  it('derives the default from the same recognized list as supported languages', async () => {
+    vi.stubEnv('LANG_MAIN', 'de-DE');
+    vi.stubEnv('LANG_AVAILABLE', 'de-DE,ka-GE,ka-GE');
+    const { getDefaultLang, getSupportedLangs } = await import('./i18n');
+    expect(getSupportedLangs()).toEqual(['ka-GE']);
+    expect(getDefaultLang()).toBe('ka-GE');
+  });
+
   it('falls back to default when no LANG_AVAILABLE codes are valid', async () => {
     vi.stubEnv('LANG_AVAILABLE', 'de-DE,fr-FR');
     vi.stubEnv('LANG_MAIN', 'en-US');

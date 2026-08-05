@@ -96,6 +96,11 @@ describe('createMapErrorToast', () => {
     expect(createMapErrorToast('ROLE_DENIED', t, 'silent')).toBe('');
   });
 
+  it('suppresses the deliberate server silent code without public verbosity', () => {
+    vi.stubEnv('NEXT_PUBLIC_ERROR_VERBOSITY', '');
+    expect(createMapErrorToast('ERROR', t)).toBe('');
+  });
+
   it('returns empty string at silent verbosity for any code', () => {
     expect(createMapErrorToast('access_denied', t, 'silent')).toBe('');
     expect(createMapErrorToast('INTERNAL_ERROR', t, 'silent')).toBe('');

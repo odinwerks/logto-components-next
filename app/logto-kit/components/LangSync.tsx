@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { createStorageHelpers } from '../logic/client-storage';
+import { isValidLang, resolveLang } from '../logic/i18n';
 
 export interface LangSyncProps {
   defaultLang?: string;
@@ -40,10 +41,9 @@ export function LangSync({ defaultLang }: LangSyncProps = {}) {
       // READ-ONLY: never call `sessionStorage.setItem` from here.
       // `PreferencesProvider` owns all `lang-mode` writes.
       const stored = langStorage.get();
-      const effective = stored || defaultLang || document.documentElement.lang || 'en';
-      if (effective) {
-        document.documentElement.lang = effective;
-      }
+       const candidates = [stored, defaultLang, document.documentElement.lang];
+       const effective = candidates.find((candidate) => candidate && isValidLang(candidate));
+       document.documentElement.lang = effective || resolveLang(undefined);
     };
     sync();
     window.addEventListener('preferences-changed', sync);

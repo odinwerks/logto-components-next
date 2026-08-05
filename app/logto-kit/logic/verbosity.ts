@@ -46,6 +46,15 @@ export function getGlobalVerbosity(): Verbosity | undefined {
 }
 
 /**
+ * Identifies the explicit code used to carry server-side silent verbosity to
+ * the browser. Keeping this signal separate from the public env setting makes
+ * server-only `ERROR_VERBOSITY=silent` effective without exposing details.
+ */
+export function isSilentClientCode(code: string | undefined): boolean {
+  return code === SILENT_CODE;
+}
+
+/**
  * Resolves the registry entry for a code that may be either a registry KEY
  * (e.g. `'UNAUTHORIZED'`) or a code VALUE (e.g. `'access_denied'`,
  * `'session.invalid_credentials'`).

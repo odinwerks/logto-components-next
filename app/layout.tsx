@@ -12,7 +12,8 @@ import { MobileDashboard } from './logto-kit/components/dashboard/mobile-page';
 import { fetchDashboardDataCached } from './logto-kit/logic/cached-dashboard';
 import { getDefaultThemeMode } from './logto-kit/themes';
 import { getPreferencesFromUserData } from './logto-kit/logic/preferences';
-import { getMainLocale, getAllTranslations } from './logto-kit/locales';
+import { getAllTranslations } from './logto-kit/locales';
+import { resolveLang } from './logto-kit/logic/i18n';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -56,10 +57,9 @@ export default async function RootLayout({
   const result = await fetchDashboardDataCached(true);
   const userData = result.success ? result.userData : null;
   const defaultThemeMode = getDefaultThemeMode();
-  const defaultLocale = getMainLocale();
   const userPrefs = userData ? getPreferencesFromUserData(userData) : null;
   const resolvedTheme = userPrefs?.theme ?? defaultThemeMode;
-  const resolvedLang  = userPrefs?.lang  ?? defaultLocale;
+  const resolvedLang = resolveLang(userPrefs?.lang);
   // CAN-STATE-001: preserve the three-way distinction — `string` (active org),
   // `null` (authoritative personal mode / "be yourself"), `undefined` (server
   // value unavailable, e.g. unauthenticated or no Preferences key). Do NOT
@@ -79,7 +79,7 @@ export default async function RootLayout({
     process.env.NEXT_PUBLIC_FORCE_ANIMATIONS === 'true' ? 'ldd-force-animations' : '';
 
   return (
-    <html lang="en" data-theme="dark" className={forceAnimationsClass} suppressHydrationWarning>
+    <html lang={resolvedLang} data-theme="dark" className={forceAnimationsClass} suppressHydrationWarning>
       <head>
         {/*
           Theme flash prevention: reads theme from sessionStorage and applies it
@@ -128,7 +128,7 @@ export default async function RootLayout({
             <AuthWatcher />
             <SessionHeartbeat />
             {children}
-            <LangSync />
+            <LangSync defaultLang={resolvedLang} />
           </LogtoProvider>
         </MotionConfigProvider>
       </body>

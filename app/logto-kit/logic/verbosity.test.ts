@@ -3,6 +3,7 @@ import {
   getGlobalVerbosity,
   resolveClientCode,
   resolveClientMessage,
+  isSilentClientCode,
 } from './verbosity';
 import { ERROR_CODES, CATEGORY_GENERIC_CODE, SILENT_CODE } from './error-codes';
 
@@ -38,6 +39,14 @@ describe('getGlobalVerbosity', () => {
   it('returns undefined for invalid values', () => {
     vi.stubEnv('ERROR_VERBOSITY', 'verbose');
     expect(getGlobalVerbosity()).toBeUndefined();
+  });
+});
+
+describe('isSilentClientCode', () => {
+  it('recognizes the deliberate server suppression signal', () => {
+    expect(isSilentClientCode(SILENT_CODE)).toBe(true);
+    expect(isSilentClientCode('INTERNAL_ERROR')).toBe(false);
+    expect(isSilentClientCode(undefined)).toBe(false);
   });
 });
 

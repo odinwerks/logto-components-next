@@ -4,6 +4,7 @@ import { LangSync } from './LangSync';
 
 describe('LangSync', () => {
   beforeEach(() => {
+    vi.stubEnv('LANG_AVAILABLE', 'en-US,ka-GE,uk-UA');
     // Reset document.documentElement.lang
     document.documentElement.lang = 'en';
     // Clear and mock sessionStorage
@@ -19,11 +20,11 @@ describe('LangSync', () => {
   });
 
   it('syncs lang-mode from sessionStorage to document.documentElement.lang', () => {
-    vi.mocked(sessionStorage.getItem).mockReturnValue('uk');
+    vi.mocked(sessionStorage.getItem).mockReturnValue('uk-UA');
 
     render(<LangSync />);
 
-    expect(document.documentElement.lang).toBe('uk');
+    expect(document.documentElement.lang).toBe('uk-UA');
     expect(sessionStorage.getItem).toHaveBeenCalledWith('lang-mode');
   });
 
@@ -37,9 +38,9 @@ describe('LangSync', () => {
     // clobber the server-derived default with a DOM-derived one.
     vi.mocked(sessionStorage.getItem).mockReturnValue(null);
 
-    render(<LangSync defaultLang="ka" />);
+    render(<LangSync defaultLang="ka-GE" />);
 
-    expect(document.documentElement.lang).toBe('ka');
+    expect(document.documentElement.lang).toBe('ka-GE');
     expect(sessionStorage.getItem).toHaveBeenCalledWith('lang-mode');
     // The key behavior change: setItem is NOT called.
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
@@ -49,49 +50,49 @@ describe('LangSync', () => {
     // When neither a stored lang nor a defaultLang prop is provided, the
     // component falls back to the existing DOM attribute — again WITHOUT
     // persisting. `PreferencesProvider` owns the write.
-    document.documentElement.lang = 'uk';
+    document.documentElement.lang = 'uk-UA';
     vi.mocked(sessionStorage.getItem).mockReturnValue(null);
 
     render(<LangSync />);
 
-    expect(document.documentElement.lang).toBe('uk');
+    expect(document.documentElement.lang).toBe('uk-UA');
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
   });
 
   it('handles preferences-changed events', () => {
-    let mockLang = 'uk';
+    let mockLang = 'uk-UA';
     vi.mocked(sessionStorage.getItem).mockImplementation(() => mockLang);
 
     render(<LangSync />);
-    expect(document.documentElement.lang).toBe('uk');
+    expect(document.documentElement.lang).toBe('uk-UA');
 
     // Trigger event with updated storage
-    mockLang = 'ka';
+    mockLang = 'ka-GE';
     act(() => {
       window.dispatchEvent(new Event('preferences-changed'));
     });
 
-    expect(document.documentElement.lang).toBe('ka');
+    expect(document.documentElement.lang).toBe('ka-GE');
   });
 
   it('falls back when stored lang is an empty string', () => {
     vi.mocked(sessionStorage.getItem).mockReturnValue('');
 
-    render(<LangSync defaultLang="ja" />);
+    render(<LangSync defaultLang="ka-GE" />);
 
     // Empty string stored → fall through to defaultLang
-    expect(document.documentElement.lang).toBe('ja');
+    expect(document.documentElement.lang).toBe('ka-GE');
   });
 
   it('falls back when defaultLang is an empty string', () => {
     vi.mocked(sessionStorage.getItem).mockReturnValue(null);
 
     // Set DOM lang to a known value before render
-    document.documentElement.lang = 'fr';
+    document.documentElement.lang = 'uk-UA';
     render(<LangSync defaultLang="" />);
 
     // Empty defaultLang → fall through to document.documentElement.lang
-    expect(document.documentElement.lang).toBe('fr');
+    expect(document.documentElement.lang).toBe('uk-UA');
   });
 
   it('falls back to en when document.documentElement.lang is an empty string', () => {
@@ -101,7 +102,7 @@ describe('LangSync', () => {
     render(<LangSync />);
 
     // All sources empty/absent → fall back to 'en'
-    expect(document.documentElement.lang).toBe('en');
+    expect(document.documentElement.lang).toBe('en-US');
   });
 
   it('does not crash when sessionStorage throws SecurityError', () => {
@@ -122,14 +123,21 @@ describe('LangSync', () => {
     });
 
     expect(() => {
-      render(<LangSync defaultLang="ka" />);
+      render(<LangSync defaultLang="ka-GE" />);
     }).not.toThrow();
 
     // Storage threw → helper returned null → component fell back to
     // `defaultLang='ka'` and applied it to the DOM attribute. The
     // important guarantee is that the render did not crash.
-    expect(document.documentElement.lang).toBe('ka');
+    expect(document.documentElement.lang).toBe('ka-GE');
     // And the component never attempted to write (read-only contract).
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported stored, default, and DOM locales', () => {
+    vi.mocked(sessionStorage.getItem).mockReturnValue('not-a-locale');
+    document.documentElement.lang = 'also-invalid';
+    render(<LangSync defaultLang="invalid" />);
+    expect(document.documentElement.lang).toBe('en-US');
   });
 });
