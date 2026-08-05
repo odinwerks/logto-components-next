@@ -267,8 +267,11 @@ export async function verifyVerificationCode(
 // Contact Information Updates (Require Verification)
 // ============================================================================
 
+// Email updates are strictly non-nullable: clearing the primary email is the
+// sole responsibility of removeUserEmail() (DELETE /api/my-account/email), so
+// null is intentionally absent from this POST action's public contract.
 export async function updateEmailWithVerification(
-  email: string | null,
+  email: string,
   newIdentifierVerificationRecordId: string,
   identityVerificationRecordId: string,
 ): Promise<ActionResult> {
@@ -283,12 +286,11 @@ export async function updateEmailWithVerification(
     assertSafeLogtoId(newIdentifierVerificationRecordId, 'newIdentifierVerificationRecordId');
     assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
 
-    // Validate email format when setting (null means remove, which is allowed)
-    if (email !== null) {
-      if (typeof email !== 'string' || email.length === 0 || email.length > 128
-          || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new ValidationError('INVALID_INPUT', 'email');
-      }
+    // Runtime defense: never forward a nullable value to the POST contract,
+    // even if a caller bypasses the type system at runtime.
+    if (typeof email !== 'string' || email.length === 0 || email.length > 128
+        || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new ValidationError('INVALID_INPUT', 'email');
     }
 
     // ── Staleness check (defense in depth) ────────────────────────────────

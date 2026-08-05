@@ -114,4 +114,12 @@ describe('updateUserPassword', () => {
     expect(res.error).toBe('VERIFICATION_EXPIRED');
     expect(makeRequest).not.toHaveBeenCalled();
   });
+
+  it.each(['\x00', '\x1f', '\x7f'])('rejects ASCII control character %j', async (control) => {
+    const res = await updateUserPassword(`valid-${control}-password`, 'vrec-123');
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('Expected failure');
+    expect(res.error).toBe('INVALID_INPUT');
+    expect(makeRequest).not.toHaveBeenCalled();
+  });
 });

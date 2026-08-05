@@ -49,6 +49,7 @@ export const VERIFICATION_COOKIE_MAX_AGE_SECONDS = 15 * 60;
 
 /** Domain-separation prefix for the HMAC message (key reuse safety). */
 const SIGNING_DOMAIN = 'logto-verification-cookie-v2';
+const MAX_VERIFICATION_SEALS = 4;
 
 export interface SealedVerification {
   /** The `verificationRecordId` returned by `verifyPasswordForIdentity`. */
@@ -71,7 +72,7 @@ export interface SealedVerification {
 function getSigningKey(): Buffer {
   const explicit = process.env.LOGTO_VERIFICATION_COOKIE_SECRET;
   const cookieSecret = process.env.COOKIE_SECRET;
-  const raw = explicit ?? cookieSecret;
+  const raw = explicit || cookieSecret;
   if (raw && raw.length >= 16) {
     return Buffer.from(raw, 'utf8');
   }
@@ -115,7 +116,15 @@ export async function sealVerificationCookie(
     throw plainCode('VERIFICATION_FAILED');
   }
   const key = getSigningKey();
-  const payload = JSON.stringify({ r: recordId, e: expiresAt, s: sub });
+  // Keep a small bounded set so a second verification in another tab does not
+  // invalidate the first legitimate operation. Each entry remains covered by
+  // the same HMAC, user binding, and server-authoritative expiry check.
+  const existing = await readVerificationEntries();
+  const entries = [
+    { r: recordId, e: expiresAt, s: sub },
+    ...existing.filter((entry) => entry.r !== recordId),
+  ].slice(0, MAX_VERIFICATION_SEALS);
+  const payload = JSON.stringify({ v: 2, seals: entries });
   const b64 = base64url(payload);
   const sig = sign(key, b64);
   const cookieStore = await cookies();
@@ -136,19 +145,27 @@ export async function sealVerificationCookie(
  *   cookies — callers decide how to surface the failure.
  */
 export async function readVerificationCookie(): Promise<SealedVerification | null> {
+  const entries = await readVerificationEntries();
+  const entry = entries[0];
+  return entry ? { recordId: entry.r, expiresAt: entry.e, sub: entry.s } : null;
+}
+
+type SealedEntry = { r: string; e: number; s: string };
+
+async function readVerificationEntries(): Promise<SealedEntry[]> {
   let value: string | undefined;
   try {
     const cookieStore = await cookies();
     value = cookieStore.get(VERIFICATION_COOKIE_NAME)?.value;
   } catch {
-    return null;
+    return [];
   }
-  if (!value || typeof value !== 'string') return null;
+  if (!value || typeof value !== 'string') return [];
 
   // Split on the LAST '.' so a payload containing '.' (base64url never does,
   // but be defensive) is handled correctly.
   const dotIndex = value.lastIndexOf('.');
-  if (dotIndex <= 0 || dotIndex === value.length - 1) return null;
+  if (dotIndex <= 0 || dotIndex === value.length - 1) return [];
   const b64 = value.slice(0, dotIndex);
   const sig = value.slice(dotIndex + 1);
 
@@ -157,7 +174,7 @@ export async function readVerificationCookie(): Promise<SealedVerification | nul
     key = getSigningKey();
   } catch {
     // No signing key configured (production misconfig) → treat as no cookie.
-    return null;
+    return [];
   }
 
   const expected = sign(key, b64);
@@ -165,23 +182,28 @@ export async function readVerificationCookie(): Promise<SealedVerification | nul
   const b = Buffer.from(expected);
   // Length check before timingSafeEqual (it throws on mismatched lengths).
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return null;
+    return [];
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
   } catch {
-    return null;
+    return [];
   }
-  if (typeof payload !== 'object' || payload === null) return null;
-  const r = (payload as Record<string, unknown>).r;
-  const e = (payload as Record<string, unknown>).e;
-  const s = (payload as Record<string, unknown>).s;
-  if (typeof r !== 'string' || r.length === 0 || typeof e !== 'number' || !Number.isFinite(e) || typeof s !== 'string' || s.length === 0) {
-    return null;
-  }
-  return { recordId: r, expiresAt: e, sub: s };
+  if (typeof payload !== 'object' || payload === null) return [];
+  const object = payload as Record<string, unknown>;
+  const rawEntries = Array.isArray(object.seals)
+    ? object.seals
+    : [object]; // accept cookies issued before the bounded multi-seal format
+  return rawEntries.filter((entry): entry is Record<string, unknown> => {
+    if (typeof entry !== 'object' || entry === null) return false;
+    const r = entry.r;
+    const e = entry.e;
+    const s = entry.s;
+    return typeof r === 'string' && r.length > 0 && typeof e === 'number'
+      && Number.isFinite(e) && typeof s === 'string' && s.length > 0;
+  }).map((entry) => ({ r: entry.r as string, e: entry.e as number, s: entry.s as string }));
 }
 
 /**
@@ -227,22 +249,20 @@ export async function requireVerifiedIdentity(
     throw plainCode('VERIFICATION_EXPIRED');
   }
 
-  const sealed = await readVerificationCookie();
+  const sealed = (await readVerificationEntries())
+    .find((entry) => entry.r === identityVerificationRecordId);
   if (!sealed) {
     throw plainCode('VERIFICATION_EXPIRED');
   }
   // Bind the seal's sub to the live session sub (CAN-ACT-002).
   // If User A verified their password and User B tries to use the seal,
   // this throws because the sub values differ.
-  if (sealed.sub !== introspection.sub) {
+  if (sealed.s !== introspection.sub) {
     throw plainCode('VERIFICATION_EXPIRED');
   }
   // Validate the client-supplied ID format before comparing (defense in depth).
   assertSafeLogtoId(identityVerificationRecordId, 'identityVerificationRecordId');
   // Bind the sealed record to the record the caller is presenting to Logto.
-  if (sealed.recordId !== identityVerificationRecordId) {
-    throw plainCode('VERIFICATION_EXPIRED');
-  }
   // Staleness check against the server-sealed expiry (not client-supplied).
-  assertVerificationNotExpired(sealed.expiresAt);
+  assertVerificationNotExpired(sealed.e);
 }

@@ -64,7 +64,11 @@ function getEnvVar(name: string, required = true): string {
 
   const isBuildTime = (IS_NEXT_BUILD && process.env.NODE_ENV === 'production' && !valueRaw);
   if (required && !valueRaw && !isBuildTime) {
-    throw new Error(`Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`);
+    throw new Error(
+      allowPublic
+        ? `Missing required environment variable: ${name} (or NEXT_PUBLIC_${name})`
+        : `Missing required environment variable: ${name}`,
+    );
   }
 
   // AGGRESSIVE trim: remove ALL whitespace, newlines, tabs (unless name is 'SCOPES')
@@ -87,7 +91,7 @@ function parseScopes(scopeString: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean)
     .map((s) => {
-      const mapped = SCOPE_MAP[s];
+      const mapped = Object.hasOwn(SCOPE_MAP, s) ? SCOPE_MAP[s] : undefined;
       // Custom scopes (e.g., calc:basic) pass through unchanged — they are
       // valid resource-specific scopes defined in Logto Console.
       return mapped || s;
@@ -122,7 +126,9 @@ export const logtoConfig = (() => {
     appId: appId || 'build-placeholder',
     appSecret: appSecret || 'build-placeholder',
     endpoint: endpoint || 'https://placeholder.logto.app',
-    baseUrl: baseUrl || 'http://localhost:3000',
+    // The SDK derives `${baseUrl}/callback`; keep that concatenation from
+    // producing a double slash when operators include a trailing slash.
+    baseUrl: (baseUrl || 'http://localhost:3000').replace(/\/+$/, ''),
     cookieSecret: cookieSecret || 'build-placeholder',
     cookieSecure: nodeEnv === 'production',
     resources,
@@ -318,7 +324,7 @@ export async function getManagementApiToken(): Promise<string> {
       await new Promise<void>((resolve) => setTimeout(resolve, delay));
     }
 
-    const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
+    const cleanEndpoint = getLogtoConfig().endpoint.replace(/\/+$/, '');
     const resource = process.env.LOGTO_M2M_RESOURCE || 'https://default.logto.app/api';
     const tokenEndpoint = `${cleanEndpoint}/oidc/token`;
 

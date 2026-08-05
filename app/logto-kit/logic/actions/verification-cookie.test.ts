@@ -167,6 +167,18 @@ describe('verification-cookie round-trip', () => {
     expect(sealed).toEqual({ recordId: 'rec_roundtrip', expiresAt, sub: 'user-A-123' });
   });
 
+  it('keeps earlier valid seals available when another flow verifies later', async () => {
+    const expiresA = Date.now() + 600_000;
+    const expiresB = Date.now() + 700_000;
+    await sealVerificationCookie('rec_A', expiresA, 'user-A-123');
+    await sealVerificationCookie('rec_B', expiresB, 'user-A-123');
+
+    await expect(requireVerifiedIdentity('rec_A')).resolves.toBeUndefined();
+    expect(assertVerificationNotExpired).toHaveBeenCalledWith(expiresA);
+    await expect(requireVerifiedIdentity('rec_B')).resolves.toBeUndefined();
+    expect(assertVerificationNotExpired).toHaveBeenCalledWith(expiresB);
+  });
+
   it('returns null when no cookie is present', async () => {
     const sealed = await readVerificationCookie();
     expect(sealed).toBeNull();

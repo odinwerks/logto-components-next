@@ -323,21 +323,20 @@ describe('updateEmailWithVerification', () => {
     expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
 
-  it('accepts null email (for removal)', async () => {
+  it('rejects null email before the POST contract is called', async () => {
     const { updateEmailWithVerification } = await import('./verification');
+    // The POST update action accepts only an email string; removal is handled
+    // separately by removeUserEmail().
     const result = await updateEmailWithVerification(
+      // @ts-expect-error null is not accepted by the action contract.
       null,
       'vr_identifier',
       'vr_identity',
     );
-    expect(result.ok).toBe(true);
-    expect(vi.mocked(makeRequest)).toHaveBeenCalledWith(
-      '/api/my-account/primary-email',
-      expect.objectContaining({
-        method: 'POST',
-        body: { email: null, newIdentifierVerificationRecordId: 'vr_identifier' },
-      })
-    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('INVALID_INPUT');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
   });
 });
 

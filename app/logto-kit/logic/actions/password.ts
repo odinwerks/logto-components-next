@@ -38,6 +38,9 @@ export async function updateUserPassword(
     if (typeof newPassword !== 'string' || newPassword.length > 256 || newPassword.length < 8) {
       throw new ValidationError('INVALID_INPUT', 'newPassword');
     }
+    if (/[\x00-\x1F\x7F]/.test(newPassword)) {
+      throw new ValidationError('INVALID_INPUT', 'newPassword');
+    }
 
     const res = await makeRequest('/api/my-account/password', {
       method: 'POST',

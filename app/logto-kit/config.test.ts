@@ -273,6 +273,35 @@ describe('config resolution', () => {
     });
   });
 
+  it('normalizes trailing slashes from BASE_URL for callback construction', async () => {
+    process.env.APP_ID = 'client-id-123';
+    process.env.ENDPOINT = 'https://logto.example.com';
+    process.env.BASE_URL = 'https://app.example.com///';
+    process.env.COOKIE_SECRET = 'cookie-secret';
+    const { getLogtoConfig } = await import('./config');
+    expect(getLogtoConfig().baseUrl).toBe('https://app.example.com');
+  });
+
+  it('passes custom scopes through without resolving inherited object properties', async () => {
+    process.env.APP_ID = 'client-id-123';
+    process.env.ENDPOINT = 'https://logto.example.com';
+    process.env.BASE_URL = 'https://app.example.com';
+    process.env.COOKIE_SECRET = 'cookie-secret';
+    process.env.SCOPES = 'calc:basic constructor toString';
+    const { getLogtoConfig } = await import('./config');
+    expect(getLogtoConfig().scopes).toEqual(['calc:basic', 'constructor', 'toString']);
+  });
+
+  it('does not suggest a public variable for a missing APP_SECRET', async () => {
+    delete process.env.APP_SECRET;
+    process.env.APP_ID = 'client-id-123';
+    process.env.ENDPOINT = 'https://logto.example.com';
+    process.env.BASE_URL = 'https://app.example.com';
+    process.env.COOKIE_SECRET = 'cookie-secret';
+    await expect(import('./config')).rejects.toThrow('Missing required environment variable: APP_SECRET');
+    await expect(import('./config')).rejects.not.toThrow('NEXT_PUBLIC_APP_SECRET');
+  });
+
   describe('avatarBackend', () => {
     it('uses logto when BACKEND_TYPE=blacktop and PFP_BACKEND=logto', async () => {
       process.env.BACKEND_TYPE = 'blacktop';
