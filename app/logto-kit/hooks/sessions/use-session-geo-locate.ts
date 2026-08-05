@@ -34,6 +34,7 @@ export function useSessionGeoLocate({
     // Including [guard] would cause the effect to re-run on every render
     // (useAsyncGuard returns a new object each time), which bumps the
     // generation counter and makes all in-flight locate calls go stale.
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       guard.bump();
@@ -45,10 +46,14 @@ export function useSessionGeoLocate({
     async (ip: string): Promise<void> => {
       if (!ip) return;
 
+      // A cache selection supersedes any earlier network lookup.
+      guard.bump();
+
       // Check cache first — no network request needed
       const cached = getCachedGeo(ip);
       if (cached) {
         if (!isMountedRef.current) return;
+        setLocatingIp(null);
         setMapModalGeo(cached);
         setMapModalIp(ip);
         return;
@@ -80,13 +85,17 @@ export function useSessionGeoLocate({
   );
 
   const closeMapModal = useCallback(() => {
+    guard.bump();
+    setLocatingIp(null);
     setMapModalGeo(null);
     setMapModalIp('');
-  }, []);
+  }, [guard]);
 
   const clearCache = useCallback(() => {
+    guard.bump();
+    setLocatingIp(null);
     clearGeoCache();
-  }, []);
+  }, [guard]);
 
   return {
     locatingIp,

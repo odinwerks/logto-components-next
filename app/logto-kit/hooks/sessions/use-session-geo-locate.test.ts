@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { useSessionGeoLocate } from './use-session-geo-locate';
 
 vi.mock('../../logic/geo-cache', () => ({
@@ -70,6 +71,21 @@ describe('useSessionGeoLocate', () => {
     });
 
     expect(result.current.locatingIp).toBeNull();
+    expect(result.current.mapModalGeo).toEqual(GEO_RESULT);
+    expect(result.current.mapModalIp).toBe('1.2.3.4');
+  });
+
+  it('restores mounted state after StrictMode effect replay', async () => {
+    mockFetchGeo.mockResolvedValue(GEO_RESULT);
+
+    const { result } = renderHook(() => useSessionGeoLocate({}), {
+      wrapper: StrictMode,
+    });
+
+    await act(async () => {
+      await result.current.locate('1.2.3.4');
+    });
+
     expect(result.current.mapModalGeo).toEqual(GEO_RESULT);
     expect(result.current.mapModalIp).toBe('1.2.3.4');
   });
@@ -223,6 +239,68 @@ describe('useSessionGeoLocate', () => {
     expect(onError).not.toHaveBeenCalled();
     // Modal should still show the fast fetch result
     expect(result.current.mapModalGeo).toEqual(GEO_RESULT);
+  });
+
+  it('discards a pending network result after selecting cached geo', async () => {
+    let resolveFetch!: (value: typeof GEO_RESULT) => void;
+    const fetchPromise = new Promise<typeof GEO_RESULT>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const cachedGeo = { ...GEO_RESULT, city: 'Cached city' };
+
+    mockGetCachedGeo.mockReturnValue(null);
+    mockFetchGeo.mockReturnValue(fetchPromise);
+    const { result } = renderHook(() => useSessionGeoLocate({}));
+
+    let locatePromise!: Promise<void>;
+    act(() => {
+      locatePromise = result.current.locate('1.1.1.1');
+    });
+
+    mockGetCachedGeo.mockReturnValue(cachedGeo);
+    await act(async () => {
+      await result.current.locate('2.2.2.2');
+    });
+    expect(result.current.mapModalGeo).toEqual(cachedGeo);
+    expect(result.current.mapModalIp).toBe('2.2.2.2');
+
+    await act(async () => {
+      resolveFetch(GEO_RESULT);
+      await locatePromise;
+    });
+
+    expect(result.current.mapModalGeo).toEqual(cachedGeo);
+    expect(result.current.mapModalIp).toBe('2.2.2.2');
+    expect(result.current.locatingIp).toBeNull();
+  });
+
+  it('discards a pending network result after closing the modal', async () => {
+    let resolveFetch!: (value: typeof GEO_RESULT) => void;
+    const fetchPromise = new Promise<typeof GEO_RESULT>((resolve) => {
+      resolveFetch = resolve;
+    });
+    mockGetCachedGeo.mockReturnValue(null);
+    mockFetchGeo.mockReturnValue(fetchPromise);
+    const { result } = renderHook(() => useSessionGeoLocate({}));
+
+    let locatePromise!: Promise<void>;
+    act(() => {
+      locatePromise = result.current.locate('1.1.1.1');
+    });
+    expect(result.current.locatingIp).toBe('1.1.1.1');
+
+    act(() => {
+      result.current.closeMapModal();
+    });
+    expect(result.current.locatingIp).toBeNull();
+
+    await act(async () => {
+      resolveFetch(GEO_RESULT);
+      await locatePromise;
+    });
+
+    expect(result.current.mapModalGeo).toBeNull();
+    expect(result.current.mapModalIp).toBe('');
   });
 
   it('BUG-029: setState does not fire on unmounted component', async () => {
