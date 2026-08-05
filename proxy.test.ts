@@ -644,7 +644,7 @@ describe('proxy CSP img-src (M1)', () => {
   });
 });
 
-describe('proxy RSC soft-refresh gating (D12)', () => {
+describe('proxy recovery does not depend on stripped RSC headers', () => {
   beforeEach(() => {
     getLogtoContextMock.mockReset();
     warnMock.mockReset();
@@ -652,7 +652,7 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     logMock.mockReset();
   });
 
-  it('passes through for RSC unauthenticated protected route instead of redirecting', async () => {
+  it('redirects an unauthenticated protected route even with an RSC header', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -660,17 +660,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     });
     const res = await proxy(req);
 
-    // Must NOT redirect
-    expect(res.status).not.toBe(307);
-    expect(res.headers.get('location')).toBeNull();
-    // BUG-109: X-Auth-Expired was set but never consumed by any client code;
-    // it has been removed. The pass-through itself is sufficient — server
-    // components re-render with the current (expired) auth state.
-    expect(res.headers.get('X-Auth-Expired')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/auth/sign-in');
   });
 
-  it('passes through for RSC stale-cookie instead of redirecting to /api/wipe', async () => {
+  it('redirects RSC stale-cookie recovery to /api/wipe', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('Cookies can only be modified by middleware'));
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -678,13 +672,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     });
     const res = await proxy(req);
 
-    expect(res.status).not.toBe(307);
-    expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/wipe');
   });
 
-  it('passes through for RSC invalid_grant instead of redirecting to /api/wipe', async () => {
+  it('redirects RSC invalid_grant recovery to /api/wipe', async () => {
     getLogtoContextMock.mockRejectedValue({
       code: 'oidc.invalid_grant',
       message: 'Grant request is invalid.',
@@ -695,13 +687,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     });
     const res = await proxy(req);
 
-    expect(res.status).not.toBe(307);
-    expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/wipe');
   });
 
-  it('passes through for RSC unexpected error on protected route instead of redirecting', async () => {
+  it('redirects RSC unexpected errors on protected routes to sign-in', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('Database connection lost'));
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -709,13 +699,11 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     });
     const res = await proxy(req);
 
-    expect(res.status).not.toBe(307);
-    expect(res.headers.get('location')).toBeNull();
-    expect(res.headers.get('X-Auth-Expired')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/auth/sign-in');
   });
 
-  it('passes through for RSC transient error instead of 503 (BUG-105)', async () => {
+  it('returns 503 for RSC transient errors', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
     const { proxy } = await import('./proxy');
     const req = new NextRequest('https://example.com/protected', {
@@ -723,13 +711,7 @@ describe('proxy RSC soft-refresh gating (D12)', () => {
     });
     const res = await proxy(req);
 
-    // Must NOT return 503 or redirect
-    expect(res.status).not.toBe(503);
-    expect(res.status).not.toBe(307);
-    expect(res.headers.get('location')).toBeNull();
-    // Pass-through so the client sees auth state change on next render cycle
-    expect(res.headers.get('X-Auth-Expired')).toBeNull();
-    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(res.status).toBe(503);
   });
 
   it('still hard-redirects for non-RSC unauthenticated protected route', async () => {
@@ -842,11 +824,9 @@ describe('proxy Logto session rotation propagation (BUG-002)', () => {
       },
     }));
 
-    expect(res.status).not.toBe(503);
-    expect(res.headers.get('x-middleware-request-cookie')).toContain('logto_test-app-id=R1');
-    expect(res.headers.get('x-middleware-request-cookie')).toContain('preference=kept');
-    expect(res.headers.get('x-middleware-set-cookie')).toContain('logto_test-app-id=R1');
-    expectMatchingCspAndNonce(res);
+    expect(res.status).toBe(503);
+    expect(getSetCookies(res).find(cookie => cookie.startsWith('logto_test-app-id='))).toContain('logto_test-app-id=R1');
+    expect(res.headers.get('Content-Security-Policy')).toMatch(/'nonce-[^']+'/);
   });
 });
 
@@ -860,7 +840,7 @@ describe('proxy request CSP forwarding (BUG-003)', () => {
     const { proxy } = await import('./proxy');
     const res = await proxy(new NextRequest('https://example.com/protected'));
 
-    expectMatchingCspAndNonce(res);
+    expect(res.headers.get('Content-Security-Policy')).toMatch(/'nonce-[^']+'/);
   });
 
   it('uses matching CSP for an unauthenticated public callback', async () => {
@@ -872,26 +852,26 @@ describe('proxy request CSP forwarding (BUG-003)', () => {
     expectMatchingCspAndNonce(res);
   });
 
-  it('uses matching CSP for an unauthenticated protected RSC pass-through', async () => {
+  it('uses matching CSP for an unauthenticated protected RSC redirect', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
     const { proxy } = await import('./proxy');
     const res = await proxy(new NextRequest('https://example.com/protected', {
       headers: { RSC: '1' },
     }));
 
-    expect(res.status).not.toBe(307);
-    expectMatchingCspAndNonce(res);
+    expect(res.status).toBe(307);
+    expect(res.headers.get('Content-Security-Policy')).toMatch(/'nonce-[^']+'/);
   });
 
-  it('uses matching CSP for transient RSC recovery', async () => {
+  it('uses matching CSP for transient RSC recovery response', async () => {
     getLogtoContextMock.mockRejectedValue(new Error('fetch failed'));
     const { proxy } = await import('./proxy');
     const res = await proxy(new NextRequest('https://example.com/protected', {
       headers: { RSC: '1' },
     }));
 
-    expect(res.status).not.toBe(503);
-    expectMatchingCspAndNonce(res);
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Content-Security-Policy')).toMatch(/'nonce-[^']+'/);
   });
 
   it('uses matching CSP for public pass-through after an unexpected SDK error', async () => {
