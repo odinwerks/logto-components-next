@@ -27,6 +27,9 @@ type IoredisMockState = {
   setImpl: (...args: unknown[]) => Promise<unknown>;
   setMock: ReturnType<typeof vi.fn>;
   delMock: ReturnType<typeof vi.fn>;
+  // `get` is used by RedisBackend.sessionGet and tokenGet.
+  getImpl: (...args: unknown[]) => Promise<unknown>;
+  getMock: ReturnType<typeof vi.fn>;
 };
 
 const g = globalThis as unknown as Record<string, IoredisMockState | undefined>;
@@ -48,6 +51,12 @@ vi.mock('ioredis', () => {
   const connectMock = vi.fn().mockResolvedValue(undefined);
   const pingMock = vi.fn().mockResolvedValue('PONG');
   const delMock = vi.fn().mockResolvedValue(1);
+  const getMock = vi.fn().mockImplementation((...args: unknown[]) => {
+    const state = g[MOCK_KEY];
+    if (state?.getImpl) return state.getImpl(...args);
+    // Default: cache/session miss.
+    return Promise.resolve(null);
+  });
 
   const mockClient = {
     connect: connectMock,
@@ -55,6 +64,7 @@ vi.mock('ioredis', () => {
     eval: evalMock,
     set: setMock,
     del: delMock,
+    get: getMock,
   };
 
   // Store refs on globalThis so tests can access them after vi.resetModules()
@@ -66,6 +76,8 @@ vi.mock('ioredis', () => {
     setImpl: () => Promise.resolve('OK'),
     setMock,
     delMock,
+    getImpl: () => Promise.resolve(null),
+    getMock,
   };
 
   return { default: vi.fn().mockImplementation(function() { return mockClient; }) };
@@ -1309,4 +1321,166 @@ describe('CAN-STATE-006 — bounded retry after Redis init failure', () => {
       expect(g[MOCK_KEY]!.connectMock).toHaveBeenCalledTimes(2);
     },
   );
+});
+
+// ============================================================================
+// sessionStore (Logto OIDC session data)
+// ============================================================================
+
+describe('sessionStore (in-memory backend)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('set → get round-trips a serialized session', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.set('sess-rt', '{"idToken":"abc","refreshToken":"def"}', 3600);
+    expect(await sessionStore.get('sess-rt')).toBe('{"idToken":"abc","refreshToken":"def"}');
+  });
+
+  it('returns null for unknown session IDs', async () => {
+    const { sessionStore } = await import('./distributed-state');
+    expect(await sessionStore.get('sess-unknown')).toBeNull();
+  });
+
+  it('clear removes the session', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.set('sess-clear', '{"idToken":"x"}', 3600);
+    expect(await sessionStore.get('sess-clear')).toBe('{"idToken":"x"}');
+
+    await sessionStore.clear('sess-clear');
+    expect(await sessionStore.get('sess-clear')).toBeNull();
+  });
+
+  it('treats ttlSeconds=0 as immediately expired', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.set('sess-expired', '{"idToken":"x"}', 0);
+    expect(await sessionStore.get('sess-expired')).toBeNull();
+  });
+
+  it('expires sessions after the TTL elapses (fake timers)', async () => {
+    vi.useFakeTimers();
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.set('sess-ttl', '{"idToken":"x"}', 60);
+    expect(await sessionStore.get('sess-ttl')).toBe('{"idToken":"x"}');
+
+    vi.advanceTimersByTime(61_000);
+    expect(await sessionStore.get('sess-ttl')).toBeNull();
+  });
+
+  it('at capacity, evicts the oldest-written key but NOT a just-refreshed (re-set) key', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    // Fill the store to MAX_SESSION_ENTRIES (10_000).
+    for (let i = 0; i < 10_000; i++) {
+      await sessionStore.set(`sess-cap-${i}`, `"v${i}"`, 3600);
+    }
+
+    // LRU touch: re-setting sess-cap-0 moves it to the end of the insertion
+    // order, so the oldest-written key is now sess-cap-1.
+    await sessionStore.set('sess-cap-0', '"v0-refreshed"', 3600);
+
+    // Inserting a NEW key at capacity evicts sess-cap-1, not the refreshed key.
+    await sessionStore.set('sess-cap-new', '"new"', 3600);
+
+    expect(await sessionStore.get('sess-cap-0')).toBe('"v0-refreshed"');
+    expect(await sessionStore.get('sess-cap-1')).toBeNull();
+    expect(await sessionStore.get('sess-cap-new')).toBe('"new"');
+  });
+});
+
+describe('sessionStore (Redis backend)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    delete process.env.REDIS_RETRY_INTERVAL_MS;
+    if (g[MOCK_KEY]) {
+      g[MOCK_KEY]!.connectMock.mockReset();
+      g[MOCK_KEY]!.pingMock.mockReset();
+      g[MOCK_KEY]!.connectMock.mockResolvedValue(undefined);
+      g[MOCK_KEY]!.pingMock.mockResolvedValue('PONG');
+      g[MOCK_KEY]!.setImpl = () => Promise.resolve('OK');
+      g[MOCK_KEY]!.setMock.mockClear();
+      g[MOCK_KEY]!.getImpl = () => Promise.resolve(null);
+      g[MOCK_KEY]!.getMock.mockClear();
+      g[MOCK_KEY]!.delMock.mockReset();
+      g[MOCK_KEY]!.delMock.mockResolvedValue(1);
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+  });
+
+  it('set writes with the sess: prefix and EX ttl in seconds', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.set('sid-1', '{"idToken":"t"}', 120);
+
+    expect(g[MOCK_KEY]!.setMock).toHaveBeenCalledWith(
+      'sess:sid-1',
+      '{"idToken":"t"}',
+      'EX',
+      120,
+    );
+  });
+
+  it('get returns the stored string, or null on a miss', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    g[MOCK_KEY]!.getImpl = () => Promise.resolve('{"idToken":"t"}');
+    expect(await sessionStore.get('sid-2')).toBe('{"idToken":"t"}');
+    expect(g[MOCK_KEY]!.getMock).toHaveBeenCalledWith('sess:sid-2');
+
+    g[MOCK_KEY]!.getImpl = () => Promise.resolve(null);
+    expect(await sessionStore.get('sid-miss')).toBeNull();
+  });
+
+  it('clear deletes the sess:-prefixed key', async () => {
+    const { sessionStore } = await import('./distributed-state');
+
+    await sessionStore.clear('sid-3');
+
+    expect(g[MOCK_KEY]!.delMock).toHaveBeenCalledWith('sess:sid-3');
+  });
+
+  it('fails open when the backend throws: get returns null, set/clear do not throw', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { sessionStore } = await import('./distributed-state');
+
+    g[MOCK_KEY]!.getImpl = () => Promise.reject(new Error('ECONNREFUSED'));
+    g[MOCK_KEY]!.setImpl = () => Promise.reject(new Error('ECONNREFUSED'));
+    g[MOCK_KEY]!.delMock.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    expect(await sessionStore.get('sid-x')).toBeNull();
+    await expect(sessionStore.set('sid-x', '{}', 60)).resolves.toBeUndefined();
+    await expect(sessionStore.clear('sid-x')).resolves.toBeUndefined();
+  });
+
+  it('fails open when Redis initialization fails: get returns null, set/clear do not throw', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    g[MOCK_KEY]!.connectMock.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const { sessionStore } = await import('./distributed-state');
+
+    expect(await sessionStore.get('sid-y')).toBeNull();
+    await expect(sessionStore.set('sid-y', '{}', 60)).resolves.toBeUndefined();
+    await expect(sessionStore.clear('sid-y')).resolves.toBeUndefined();
+  });
 });

@@ -15,15 +15,17 @@
  *                                   "logged out in another tab" instantly)
  *   2. online                       Network reconnects (catches expired sessions
  *                                   that built up while offline)
- *   3. Interval (default: 60s)     Periodic check for long-lived sessions where
- *                                   the account is deleted while idle on the page
+ *   3. Interval (default: 30s)     Periodic check for long-lived sessions where
+ *                                   the account is deleted while idle on the page.
+ *                                   30s keeps access-token refreshes well ahead of
+ *                                   expiry instead of letting sessions drift idle.
  */
 
 import { useEffect, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface AuthWatcherProps {
-  /** How often (in ms) to proactively refresh auth state. Default: 60000 (60s).
+  /** How often (in ms) to proactively refresh auth state. Default: 30000 (30s).
    *  Set to 0 to disable interval polling and rely only on tab-focus + online triggers. */
   refreshIntervalMs?: number;
   /** Minimum ms between refreshes - prevents a flood of calls if triggers fire
@@ -32,7 +34,7 @@ interface AuthWatcherProps {
 }
 
 export default function AuthWatcher({
-  refreshIntervalMs = 60_000,
+  refreshIntervalMs = 30_000,
   debounceMs = 1_000,
 }: AuthWatcherProps) {
   const router = useRouter();

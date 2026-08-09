@@ -82,20 +82,30 @@ Use the event `id` field as an idempotency key.
 
 ## Known Security Characteristics
 
-### Geo-Consent Forgeability (Accepted Risk)
+### On-Demand IP Geolocation (Client-Initiated, No Consent Gate)
 
-The geo-consent flag (`sessionStorage.getItem('geo-consent')`) is stored in the
-user's browser sessionStorage. It can be forged by code with JavaScript execution
-in the user's browser context (e.g., via browser DevTools or a browser extension).
+There is **no geo-consent flag** — no code reads or writes a `geo-consent`
+sessionStorage entry. IP geolocation is **on-demand and user-initiated**: the
+Sessions tab renders a map-pin button next to each session IP
+(`app/logto-kit/components/dashboard/tabs/sessions.tsx`), and clicking it calls
+`locate(ip)` (`app/logto-kit/hooks/sessions/use-session-geo-locate.ts`), which
+invokes `fetchGeo(ip)`.
 
-**Why this is acceptable:** The only consequence of forging consent is that the
-user's browser makes an HTTP request to `ipapi.co` to resolve a session IP address.
-This is a network request **from the user's own browser**, not a server-side data
-leak. There is no server-side data accessible or modifiable via this consent flag.
+`fetchGeo()` (`app/logto-kit/logic/geo-cache.ts`) runs entirely in the user's
+browser (`'use client'`) and, before any network request:
+- Validates the IP is a well-formed IPv4/IPv6 address (SSRF / path-traversal guard).
+- Blocks well-known cloud metadata / infrastructure IPs (`169.254.169.254`,
+  `100.100.100.200`, `192.0.0.192` — `BLOCKED_GEO_IPS`).
+- Blocks RFC-1918 private, loopback, link-local, CGNAT, and ULA addresses.
+- Serves from a 5-minute in-memory cache when a previous lookup exists.
 
-**For government deployments requiring strict consent tracking**, consider:
+Only then does it fetch `https://ipapi.co/<ip>/json/` (5-second timeout) from the
+**user's own browser**. The only consequence of a lookup is a request from the
+user's browser to `ipapi.co` — no server-side data is accessible or modifiable.
+
+**For government deployments requiring strict controls**, consider:
 1. Disabling the geo-lookup feature entirely (remove the 'sessions' tab map button), or
-2. Persisting consent to `customData` via a dedicated server-side consent action
+2. Gating lookups behind a server-side consent flow stored in `customData`
    (requires designing a new server action and UI flow).
 
 ### Cloud Metadata IP Blocklist
@@ -126,7 +136,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 - **includeSubDomains**: Extends HSTS enforcement to all subdomains of the current domain.
 - **preload**: Signals readiness for inclusion in browser HSTS preload lists (e.g., Chromium's HSTS preload list). Once submitted and accepted, browsers will enforce HTTPS on the first visit before any HSTS header is ever seen.
 
-This header is only active when the connection is HTTPS (production deployments). Browsers ignore HSTS headers received over plain HTTP, so local development is unaffected.
+This header is emitted **unconditionally** for every route (`/:path*` in `next.config.ts`), in every environment — it is not gated on production. Browsers ignore HSTS headers received over plain HTTP, so local development is unaffected; HSTS only takes effect once the browser has observed the header over an HTTPS connection.
 
 ### Additional Security Headers
 
@@ -136,7 +146,7 @@ The `next.config.ts` `headers()` function sets the following headers on all resp
 |--------|-------|---------|
 | `X-Content-Type-Options` | `nosniff` | Prevents MIME type sniffing. Browsers must respect the server's `Content-Type` header rather than guessing from content. |
 | `X-Frame-Options` | `DENY` | Prevents the application from being embedded in `<iframe>`, `<frame>`, or `<object>` elements. Mitigates clickjacking attacks. |
-| `X-XSS-Protection` | `1; mode=block` | Enables the browser's built-in reflective XSS filter. When an attack is detected, the browser blocks the page rather than attempting to sanitize it. |
+| `X-XSS-Protection` | `0` | Disables the legacy reflective XSS filter. The header is sent with the value `0` (explicitly off); the legacy filter is never used to block pages. |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Sends the full URL as the `Referer` header for same-origin requests but only the origin for cross-origin requests. No referrer is sent when downgrading from HTTPS to HTTP. |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), interest-cohort=()` | Disables the Camera, Microphone, and Geolocation browser APIs site-wide. Also disables FLoC (Federated Learning of Cohorts) tracking by setting `interest-cohort=()`. |
 
@@ -161,13 +171,15 @@ The full per-request CSP policy:
 | `script-src` | `'self' 'nonce-<value>' 'strict-dynamic'` (plus `'unsafe-eval'` in development for Next.js HMR) |
 | `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` |
 | `font-src` | `'self' https://fonts.gstatic.com` |
-| `img-src` | `'self' data: blob: https:` |
-| `connect-src` | `'self' <logto-origin> https://ipapi.co https://*.basemaps.cartocdn.com https://*.supabase.co` |
+| `img-src` | `'self' data: blob: <app-origin> <logto-origin>` (+ `<img-origin>` when `IMG_ORIGIN` is set; **no `https:` wildcard**) |
+| `connect-src` | `'self' <logto-origin> https://ipapi.co https://*.basemaps.cartocdn.com` (+ `<supabase-origin>` when `NEXT_PUBLIC_SUPABASE_URL` is set; **no `https://*.supabase.co` wildcard**) |
 | `frame-ancestors` | `'none'` |
 | `base-uri` | `'self'` |
 | `form-action` | `'self'` |
 
 The `connect-src` Logto origin is derived from the `ENDPOINT` (or `NEXT_PUBLIC_ENDPOINT`) environment variable, not a hardcoded domain. When neither is set, it falls back to `https://*.logto.app`. In development mode, `ws://localhost:*` and `wss://localhost:*` are also added to `connect-src` for Next.js hot module replacement WebSocket connections.
+
+`img-src` is built by `buildImgSrc()` in `proxy.ts`: it always allows `'self'`, `data:`, `blob:`, the app origin (from `BASE_URL` / `APP_URL` / `PUBLIC_BASE_URL`), and the Logto origin (from `ENDPOINT`); the optional `IMG_ORIGIN` adds exactly its parsed origin. There is no `https:` wildcard. Supabase is similarly pinned by `buildConnectSrc()`: when `NEXT_PUBLIC_SUPABASE_URL` is set, only that URL's exact origin is added to `connect-src` (BUG-016 — the `https://*.supabase.co` wildcard was removed because anyone can register a `<project-ref>.supabase.co` subdomain); when it is unset, Supabase is omitted from `connect-src` entirely.
 
 CSP is skipped for Next.js internal paths (`/_next/*` and `/favicon*`) since static assets do not execute inline scripts.
 
@@ -221,16 +233,31 @@ For high-assurance or government deployments:
 5. **Separate Redis instance** — Use a dedicated Redis instance for this application,
    not one shared with other workloads.
 
-### Auth failure behavior in the application
+### Redis failure behavior in the application
 
-`app/lib/distributed-state.ts` logs a warning when Redis is unavailable and falls
-back to per-instance in-memory rate limiting (degraded mode, not fail-closed).
-An authentication failure (`WRONGPASS` / `NOAUTH`) will also trigger this fallback.
+Behavior differs by subsystem (`app/lib/distributed-state.ts`):
 
-For government or security-critical deployments where the in-memory fallback is
-unacceptable (e.g., you require distributed rate limiting), patch `initRedisBackend`
-to re-throw auth errors rather than falling back. The error message will contain
-`WRONGPASS` or `NOAUTH` to help operators diagnose misconfiguration quickly.
+- **Startup readiness:** when `REDIS_URL` is configured, a Redis connect/PING
+  failure makes `initDistributedState()` reject; `register()` in
+  `instrumentation.ts` awaits it during Node startup, so the server does **not**
+  become ready.
+- **Distributed locks — FAIL CLOSED:** `createLockManager()` never falls back.
+  On Redis init failure (including `WRONGPASS` / `NOAUTH`),
+  `getSettledBackendForLock()` propagates the recorded init error and **no lock
+  is granted**, so profile/MFA critical sections cannot split ownership across
+  backends. After `REDIS_RETRY_INTERVAL_MS` (default 5s) elapses, a
+  reinitialization attempt is made automatically; locks stay fail-closed between
+  attempts.
+- **Rate limiting — bounded degradation:** only `createRateLimiter()` degrades,
+  falling back to a retained per-instance in-memory quota with a warning log
+  (not fail-closed). Authentication failures (`WRONGPASS` / `NOAUTH`) take the
+  same path.
+
+For government or security-critical deployments where even the rate-limiter
+in-memory fallback is unacceptable (e.g., you require distributed rate limiting),
+patch `initRedisBackend` to re-throw auth errors rather than falling back. The
+error message will contain `WRONGPASS` or `NOAUTH` to help operators diagnose
+misconfiguration quickly.
 
 ---
 
@@ -256,13 +283,13 @@ The proxy also handles:
 - **Transient errors**: Logto client fetch failures return HTTP 503.
 - **Per-request CSP nonce**: a unique base64url nonce is generated per request and injected as the `x-nonce` header for use by the layout's inline script.
 
-If the Logto client throws an unknown error (network/config), the request is **allowed through** rather than blocked — this prevents Logto misconfiguration from locking out all users. The page/route handler is responsible for re-checking auth in this case.
+If the Logto client throws an unknown error (network/config), **protected paths fail closed**: the request is redirected to `/api/auth/sign-in` (proxy.ts). Only **public paths** (docs, `/`, `/demo`) pass through — a Logto misconfiguration cannot lock out all users, while protected data remains unreachable.
 
 ### Protected Server Actions (Inner Boundary)
 
 Protected Server Actions explicitly reject unauthenticated callers with the `UNAUTHENTICATED` error code. This is the **second security layer** inside the proxy choke point.
 
-All destructive mutations (profile updates, account deletion, session revocation, MFA enrollment, etc.) are implemented as Server Actions wrapped with `safeAction`. The first thing each action does is introspect the session cookie and extract the authenticated `sub`. If no valid session exists, the action returns `{ ok: false, error: 'UNAUTHENTICATED' }` before any mutation occurs.
+All destructive mutations (profile updates, account deletion, session revocation, MFA enrollment, etc.) are implemented as Server Actions wrapped with `safeAction`. Authentication via session-token introspection happens **before any mutation**: the action introspects the token and extracts the authenticated `sub`; if no valid session exists, it returns `{ ok: false, error: 'UNAUTHENTICATED' }` before any mutation occurs. Introspection is not always the *first* operation — input validation (`assertSafeLogtoId`) and verification-cookie checks (`requireVerifiedIdentity`) precede it in several actions (`account.ts`, `profile.ts`, `mfa.ts`) — but no mutation ever happens without it.
 
 **Key invariants:**
 - User ID is **always** derived from session token introspection, never from client input (IDOR prevention).

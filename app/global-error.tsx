@@ -53,6 +53,26 @@ export default function GlobalError({
     console.error('[GlobalError] Crash inside root layout:', error);
   }, [error]);
 
+  // Self-healing: this boundary replaces the ENTIRE root layout when a crash
+  // occurs — which unmounts AuthWatcher and every other retry mechanism, so
+  // without this the page would be stuck on the error screen until a manual
+  // reload. Retry on an interval and on connectivity / visibility recovery so
+  // the app heals itself once the underlying issue resolves.
+  useEffect(() => {
+    const RETRY_INTERVAL_MS = 30_000;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') reset();
+    };
+    const intervalId = setInterval(reset, RETRY_INTERVAL_MS);
+    window.addEventListener('online', reset);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('online', reset);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [reset]);
+
   useEffect(() => {
     if (!copied) return;
     const t = setTimeout(() => setCopied(false), 1500);
@@ -167,6 +187,14 @@ export default function GlobalError({
               >
                 Try again
               </button>
+            </div>
+
+            <div style={{
+              marginTop: '0.75rem',
+              fontSize: '0.7rem',
+              color: 'var(--ldd-text-tertiary, #90959e)',
+            }}>
+              Retrying automatically every 30 seconds…
             </div>
           </div>
         </div>

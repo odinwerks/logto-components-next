@@ -54,6 +54,25 @@ interface TokenCacheInstance {
   clear(key: string): void;
 }
 
+/**
+ * Session store for Logto OIDC session data (idToken, refreshToken,
+ * accessTokenMap). Values are opaque JSON strings keyed by session ID.
+ *
+ * Used by the Logto sessionWrapper (app/logto-kit/logic/session-wrapper.ts)
+ * so session data lives in external storage and the browser cookie holds only
+ * a stable session ID. This is the fix for the RSC cookie-write limitation:
+ * React Server Components cannot write cookies, but they CAN write to Redis,
+ * so refreshed tokens persist instead of being discarded.
+ */
+interface SessionStoreInstance {
+  /** Returns the serialized session JSON for a session ID, or null. */
+  get(sessionId: string): Promise<string | null>;
+  /** Stores serialized session JSON with a TTL (seconds). */
+  set(sessionId: string, data: string, ttlSeconds: number): Promise<void>;
+  /** Deletes the session. */
+  clear(sessionId: string): Promise<void>;
+}
+
 interface RateLimiterOptions {
   /** Namespace key, e.g. "protected-route", "avatar-upload". */
   name: string;
@@ -80,6 +99,11 @@ interface Backend {
   tokenGet(key: string): Promise<string | null>;
   tokenSet(key: string, token: string, expiresAt: number): void;
   tokenClear(key: string): void;
+
+  // Session store (Logto OIDC session data)
+  sessionGet(sessionId: string): Promise<string | null>;
+  sessionSet(sessionId: string, data: string, ttlSeconds: number): Promise<void>;
+  sessionDelete(sessionId: string): Promise<void>;
 }
 
 // ============================================================================
@@ -231,6 +255,40 @@ class InMemoryBackend implements Backend {
 
   tokenClear(key: string): void {
     this.tokens.delete(key);
+  }
+
+  // ── Session store ────────────────────────────────────────────────────────
+  private readonly sessions = new Map<string, { value: string; expiresAt: number }>();
+  /** Maximum session entries before oldest-first eviction. */
+  private readonly MAX_SESSION_ENTRIES = 10_000;
+
+  async sessionGet(sessionId: string): Promise<string | null> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) return null;
+    if (Date.now() >= entry.expiresAt) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+    return entry.value;
+  }
+
+  async sessionSet(sessionId: string, data: string, ttlSeconds: number): Promise<void> {
+    // Evict oldest entry only when inserting a NEW key at capacity — refreshes
+    // of existing sessions must never evict themselves.
+    if (!this.sessions.has(sessionId) && this.sessions.size >= this.MAX_SESSION_ENTRIES) {
+      const oldestKey = this.sessions.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.sessions.delete(oldestKey);
+      }
+    }
+    // LRU touch: delete+set re-inserts at the end so capacity eviction drops
+    // the least-recently-written session, not an actively refreshed one.
+    this.sessions.delete(sessionId);
+    this.sessions.set(sessionId, { value: data, expiresAt: Date.now() + ttlSeconds * 1000 });
+  }
+
+  async sessionDelete(sessionId: string): Promise<void> {
+    this.sessions.delete(sessionId);
   }
 }
 
@@ -455,6 +513,23 @@ class RedisBackend implements Backend {
   tokenClear(key: string): void {
     this._tokenShadow.delete(key);
     void this.client.del(`token:${key}`).catch(() => {});
+  }
+
+  // ── Session store ────────────────────────────────────────────────────────
+  // Keys are namespaced under `sess:` to avoid collision with rate limits,
+  // locks, and token cache entries sharing the same Redis database.
+
+  async sessionGet(sessionId: string): Promise<string | null> {
+    const value: unknown = await this.client.get(`sess:${sessionId}`);
+    return typeof value === 'string' && value.length > 0 ? value : null;
+  }
+
+  async sessionSet(sessionId: string, data: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(`sess:${sessionId}`, data, 'EX', ttlSeconds);
+  }
+
+  async sessionDelete(sessionId: string): Promise<void> {
+    await this.client.del(`sess:${sessionId}`);
   }
 }
 
@@ -810,6 +885,77 @@ export const tokenCache: TokenCacheInstance = {
       getBackend().tokenClear(key);
     } catch {
       // Backend unavailable — silently skip clear (fail-open).
+    }
+  },
+};
+
+// ============================================================================
+// Session Store (Logto OIDC sessions)
+// ============================================================================
+
+/**
+ * Returns the active backend, awaiting any in-flight Redis initialization so
+ * session reads on the request hot path do not observe an empty store during
+ * the boot window. Returns null when the backend is permanently unavailable
+ * (e.g. REDIS_URL set but Redis is down between bounded retries).
+ */
+async function getSettledBackendForSession(): Promise<Backend | null> {
+  for (;;) {
+    try {
+      return getBackend();
+    } catch {
+      const pendingInit = _pendingBackendInit;
+      if (!pendingInit) {
+        return null;
+      }
+      // The latch never rejects; a failed attempt records _backendInitError
+      // and the next loop iteration either returns the recovered backend or
+      // exits null when no retry is in flight.
+      await pendingInit;
+    }
+  }
+}
+
+/**
+ * Singleton session store for Logto OIDC session data.
+ *
+ * Fail-open semantics: a backend outage surfaces as an empty session (user
+ * re-authenticates once) rather than a crashed page. Writes that fail are
+ * logged and dropped — the next request re-reads the last persisted state.
+ */
+export const sessionStore: SessionStoreInstance = {
+  async get(sessionId: string): Promise<string | null> {
+    const backend = await getSettledBackendForSession();
+    if (!backend) return null;
+    try {
+      return await backend.sessionGet(sessionId);
+    } catch (err) {
+      console.warn(
+        `[SessionStore] Read failed for session: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  },
+  async set(sessionId: string, data: string, ttlSeconds: number): Promise<void> {
+    const backend = await getSettledBackendForSession();
+    if (!backend) return;
+    try {
+      await backend.sessionSet(sessionId, data, ttlSeconds);
+    } catch (err) {
+      console.warn(
+        `[SessionStore] Write failed for session: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  },
+  async clear(sessionId: string): Promise<void> {
+    const backend = await getSettledBackendForSession();
+    if (!backend) return;
+    try {
+      await backend.sessionDelete(sessionId);
+    } catch (err) {
+      console.warn(
+        `[SessionStore] Delete failed for session: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   },
 };

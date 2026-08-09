@@ -16,6 +16,26 @@ export default function ErrorPage({
     console.error('[ErrorPage] RSC render error:', error);
   }, [error]);
 
+  // Self-healing: when the RSC fetch fails (e.g. a transient auth/upstream
+  // error), this boundary replaces the page tree — which also unmounts
+  // AuthWatcher, so without this nothing would ever retry and the page would
+  // show the error forever. Retry on an interval and on connectivity /
+  // visibility recovery so the page heals itself once the issue resolves.
+  useEffect(() => {
+    const RETRY_INTERVAL_MS = 30_000;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') reset();
+    };
+    const intervalId = setInterval(reset, RETRY_INTERVAL_MS);
+    window.addEventListener('online', reset);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('online', reset);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [reset]);
+
   useEffect(() => {
     if (!copied) return;
     const t = setTimeout(() => setCopied(false), 1500);
@@ -115,6 +135,14 @@ export default function ErrorPage({
           >
             Try again
           </button>
+        </div>
+
+        <div style={{
+          marginTop: '0.75rem',
+          fontSize: '0.7rem',
+          color: 'var(--ldd-text-tertiary, #90959e)',
+        }}>
+          Retrying automatically every 30 seconds…
         </div>
       </div>
     </div>

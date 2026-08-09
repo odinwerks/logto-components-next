@@ -103,11 +103,20 @@ vi.mock('@logto/next/server-actions', () => ({
   signOut: signOutMockFn,
 }));
 
+// Mock the session-wrapper — the wipe route calls deleteSessionByCookieValue
+// to destroy the server-side session stored via the external session store.
+const deleteSessionByCookieValueMock = vi.hoisted(() => vi.fn(async () => {}));
+
+vi.mock('../../logto-kit/logic/session-wrapper', () => ({
+  deleteSessionByCookieValue: deleteSessionByCookieValueMock,
+}));
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   process.env.BASE_URL = 'http://localhost:3000';
   signOutMockFn.mockReset();
+  deleteSessionByCookieValueMock.mockClear();
 });
 
 describe('POST /api/wipe', () => {
@@ -233,5 +242,68 @@ describe('GET /api/wipe', () => {
     const req = makeWipeRequest('GET', true);
     const res = await GET(req);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('server-side session cleanup (deleteSessionByCookieValue)', () => {
+  it('GET (nonce-validated) deletes the stored session for the logto_<appId> cookie value', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false, undefined, 'nonce-123', 'nonce-123');
+    req.cookies.set('logto_test-app-id', 'session-cookie-value');
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(deleteSessionByCookieValueMock).toHaveBeenCalledTimes(1);
+    expect(deleteSessionByCookieValueMock).toHaveBeenCalledWith('session-cookie-value');
+  });
+
+  it('GET passes undefined when the session cookie is absent', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false, undefined, 'nonce-123', 'nonce-123');
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(deleteSessionByCookieValueMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it('POST deletes the stored session for the logto_<appId> cookie value', async () => {
+    const { POST } = await import('./route');
+    const req = makeWipeRequest('POST', false, 'http://localhost:3000');
+    req.cookies.set('logto_test-app-id', 'post-session-value');
+    const res = await POST(req);
+
+    expect(res.status).toBe(307);
+    expect(deleteSessionByCookieValueMock).toHaveBeenCalledTimes(1);
+    expect(deleteSessionByCookieValueMock).toHaveBeenCalledWith('post-session-value');
+  });
+
+  it('does NOT delete the session when the GET nonce check fails', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false, undefined, 'nonce-123', 'wrong-nonce');
+    req.cookies.set('logto_test-app-id', 'session-cookie-value');
+    const res = await GET(req);
+
+    expect(res.status).toBe(403);
+    expect(deleteSessionByCookieValueMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT delete the session when the GET nonce is missing entirely', async () => {
+    const { GET } = await import('./route');
+    const req = makeWipeRequest('GET', false);
+    req.cookies.set('logto_test-app-id', 'session-cookie-value');
+    const res = await GET(req);
+
+    expect(res.status).toBe(403);
+    expect(deleteSessionByCookieValueMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT delete the session on a cross-origin POST', async () => {
+    const { POST } = await import('./route');
+    const req = makeWipeRequest('POST', false, 'https://evil.com');
+    req.cookies.set('logto_test-app-id', 'session-cookie-value');
+    const res = await POST(req);
+
+    expect(res.status).toBe(403);
+    expect(deleteSessionByCookieValueMock).not.toHaveBeenCalled();
   });
 });

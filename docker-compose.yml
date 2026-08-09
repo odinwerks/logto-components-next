@@ -115,16 +115,23 @@ services:
     container_name: logto-dash-redis
     # Read the password from a mounted Compose secret rather than embedding it
     # in Config.Cmd. The shell only passes the generated config over stdin.
-    command: ["sh", "-c", "printf 'requirepass %s\\n' \"$$(cat /run/secrets/redis_password)\" | exec redis-server -"]
+    # appendonly+dir: AOF persistence so Logto session data (sess:* keys) and
+    # rate-limit/lock state survive container and host restarts. Without this,
+    # a Redis restart silently logs out every user (sessions moved out of the
+    # cookie into Redis by the sessionWrapper).
+    command: ["sh", "-c", "printf 'requirepass %s\\nappendonly yes\\nappendfsync everysec\\ndir /data\\n' \"$$(cat /run/secrets/redis_password)\" | exec redis-server -"]
     networks:
       - dash-net
     secrets:
       - redis_password
+    volumes:
+      - redis-data:/data
     ports:
       - "127.0.0.1:2998:6379"
     restart: unless-stopped
 
-volumes: {}
+volumes:
+  redis-data:
 
 networks:
   dash-net:

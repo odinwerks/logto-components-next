@@ -3,6 +3,7 @@ import { signOut } from '@logto/next/server-actions';
 import { getLogtoConfig } from '../../logto-kit/config';
 import { checkSameOrigin } from '../../logto-kit/logic/origin-guard';
 import { clearLogtoCookiesFromResponse } from '../../logto-kit/logic/cookie-utils';
+import { deleteSessionByCookieValue } from '../../logto-kit/logic/session-wrapper';
 import { logEvent } from '../../logto-kit/logic/log';
 import { LOG_EVENTS } from '../../lib/log-events';
 import { withLogger } from '../../lib/with-logger';
@@ -63,6 +64,18 @@ export const GET = withLogger(async (request: NextRequest) => {
       });
     }
   }
+
+  // Server-side cleanup: session data now lives in external storage via the
+  // sessionWrapper, so clearing the cookie alone would orphan a live refresh
+  // token for up to the session TTL. Delete the stored session too. On the
+  // force path signOut() already destroyed it; this call is idempotent.
+  try {
+    await deleteSessionByCookieValue(
+      request.cookies.get(`logto_${getLogtoConfig().appId}`)?.value,
+    );
+  } catch {
+    // Best-effort: the cookie is already cleared; an orphan expires via TTL.
+  }
   return response;
 });
 
@@ -96,6 +109,18 @@ export const POST = withLogger(async (request: NextRequest) => {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  // Server-side cleanup: session data now lives in external storage via the
+  // sessionWrapper, so clearing the cookie alone would orphan a live refresh
+  // token for up to the session TTL. Delete the stored session too. On the
+  // force path signOut() already destroyed it; this call is idempotent.
+  try {
+    await deleteSessionByCookieValue(
+      request.cookies.get(`logto_${getLogtoConfig().appId}`)?.value,
+    );
+  } catch {
+    // Best-effort: the cookie is already cleared; an orphan expires via TTL.
   }
   return response;
 });

@@ -11,7 +11,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Semi-Clean Production-ish UI**: Squared buttons, CSS-variable theming, and a set of UI components
 - **Full Responsive & Mobile Support**: Dynamic orientation-based responsive routing (`useIsPortrait`) that swaps standard sidebar layouts for touch-optimized mobile navigation. Features a tactile, morphing floating button (Hamburger, X, and ArrowLeft), a beautiful two-stage fullscreen navigation drawer (Topics -> Subtopics), and fully responsive, horizontally scrollable data tables.
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat, IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat (**blacktop only**; disabled under `BACKEND_TYPE=upstream`), IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Theme System**: CSS-only theme system with dark/light CSS variables. The `THEME` env var is a build-time folder name only; `app/globals.css` has hardcoded `@import` paths to `themes/default/`. To switch theme folders, you must manually edit those `@import` paths — the env var alone does NOT dynamically switch CSS. No JS registration needed.
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
@@ -101,49 +101,34 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 ```
 ./
 ├── .dockerignore
-├── .env.example
 ├── .github/
-│   ├── ISSUE_TEMPLATE/
 │   └── workflows/
+│       └── semgrep.yml
 ├── .gitignore
-├── .kilo/
-│   ├── .gitignore
-│   ├── bun.lock
-│   ├── package-lock.json
-│   ├── package.json
-│   └── plans/
-├── .opencode/
-│   ├── .gitignore
-│   ├── bun.lock
-│   ├── package-lock.json
-│   ├── package.json
-│   └── plans/
-├── .vscode/
-│   └── settings.json
+├── .semgrep.yml
+├── .semgrepignore
 ├── AGENTS.md
 ├── app/
 │   ├── (docs)/
 │   │   ├── [topic]/
 │   │   │   └── [section]/
-│   │   │       ├── page.tsx
-│   │   │       └── scroll-to-section.tsx
+│   │   │       └── page.tsx
+│   │   ├── docs-error-fallback.tsx
+│   │   ├── layout-client.tsx
 │   │   └── layout.tsx
 │   ├── api/
 │   │   ├── auth/
 │   │   │   └── sign-in/
 │   │   │       └── route.ts
 │   │   ├── protected/
-│   │   │   ├── route.test.ts
 │   │   │   └── route.ts
 │   │   └── wipe/
-│   │       ├── route.test.ts
 │   │       └── route.ts
 │   ├── callback/
 │   │   └── route.ts
 │   ├── demo/                              # Self-documenting showcase for logto-kit
 │   │   ├── components/                    # Shared UI and utilities for doc pages
 │   │   │   ├── calculator/
-│   │   │   │   ├── CalculatorClient.test.tsx
 │   │   │   │   ├── CalculatorClient.tsx   # Calculator UI + expression parser
 │   │   │   │   └── CalculatorPanel.tsx    # Protected wrapper for the calculator
 │   │   │   ├── Section.tsx                # Multi-page section layout with keyboard nav
@@ -196,36 +181,33 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │       ├── examples.tsx
 │   │   │       └── specs.tsx
 │   │   ├── ContentArea.tsx
-│   │   ├── docs/                          # Legacy doc components location
-│   │   │   └── components/
 │   │   ├── index.tsx
+│   │   ├── MobileDocsNav.tsx
 │   │   ├── nav-data.tsx
 │   │   ├── Sidebar.tsx
 │   │   └── types.ts
 │   ├── error.tsx
+│   ├── global-error.tsx
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── lib/
 │   │   ├── distributed-state.ts
-│   │   ├── log-events.test.ts
 │   │   ├── log-events.ts
-│   │   ├── logger.test.ts
 │   │   ├── logger.ts
 │   │   ├── request-context.ts
 │   │   ├── scrub-log-string.ts
 │   │   ├── slugify.ts
-│   │   ├── with-logger.test.ts
 │   │   └── with-logger.ts
 │   ├── logto-kit/
 │   │   ├── config.ts                      # Logto SDK config + M2M token helper
 │   │   ├── action-registry/               # Protected action registry for /api/protected
 │   │   │   ├── calc-actions.ts            # Calculator action handlers (basic + scientific)
-│   │   │   └── index.ts                   # Registry types and getAction() loader
+│   │   │   ├── index.ts                   # Registry types and getAction() loader
+│   │   │   └── validate-action-config.ts
 │   │   ├── components/
 │   │   │   ├── auth-error-banner.tsx      # Auth error display banner
 │   │   │   ├── LangSync.tsx               # Language synchronization component
 │   │   │   ├── dashboard/
-│   │   │   │   ├── client.test.tsx
 │   │   │   │   ├── client.tsx             # Desktop dashboard UI
 │   │   │   │   ├── dashboard-router.tsx   # Responsive desktop/mobile router
 │   │   │   │   ├── index.tsx              # Server component: fetches data, wires actions
@@ -233,32 +215,32 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   ├── mobile-page.tsx        # Server component: mobile counterpart
 │   │   │   │   ├── shared/
 │   │   │   │   │   ├── CodeBlock.tsx      # Themed JSON/data display block
-│   │   │   │   │   ├── ContactRow.test.tsx
 │   │   │   │   │   ├── ContactRow.tsx     # Email/phone row with verification flow
-│   │   │   │   │   ├── FlowModal.test.tsx
+│   │   │   │   │   ├── FarewellOverlay.tsx
 │   │   │   │   │   ├── FlowModal.tsx      # Multi-step modal for security flows
+│   │   │   │   │   ├── focus-trap.ts
 │   │   │   │   │   ├── ImageCropper.tsx   # Canvas-based drag/zoom image cropper
 │   │   │   │   │   ├── primitives.tsx     # Shared UI atoms: Card, HR, IconBox, SL, Lbl
+│   │   │   │   │   ├── rbac-streams.tsx
 │   │   │   │   │   ├── RefreshButton.tsx
 │   │   │   │   │   ├── RoleCard.tsx       # Role badge with lazy-loaded tooltip
-│   │   │   │   │   ├── SessionMapModal.test.tsx
 │   │   │   │   │   ├── SessionMapModal.tsx
-│   │   │   │   │   └── Toast.tsx
-│   │   │   │   ├── tab-utils.ts           # getTabLabel (shared by desktop + mobile)
+│   │   │   │   │   ├── SignOutModal.tsx
+│   │   │   │   │   ├── TabErrorBoundary.tsx
+│   │   │   │   │   ├── Toast.tsx
+│   │   │   │   │   └── tooltip-position.ts
+│   │   │   │   ├── tab-utils.tsx          # getTabLabel (shared by desktop + mobile)
 │   │   │   │   ├── tabs/
 │   │   │   │   │   ├── identities.tsx
 │   │   │   │   │   ├── organizations.tsx
 │   │   │   │   │   ├── preferences.tsx
-│   │   │   │   │   ├── profile.test.tsx
 │   │   │   │   │   ├── profile.tsx
 │   │   │   │   │   ├── security.tsx
-│   │   │   │   │   ├── sessions.test.tsx
 │   │   │   │   │   └── sessions.tsx
 │   │   │   │   └── types.ts
 │   │   │   ├── providers/                 # Context providers and behavior components
 │   │   │   │   ├── auth-watcher.tsx       # Zero-UI component: refreshes on tab focus / reconnect
 │   │   │   │   ├── logto-provider.tsx     # Root provider composing theme + lang + org + dashboard
-│   │   │   │   ├── preferences.test.tsx
 │   │   │   │   ├── preferences.tsx        # Theme / lang / org context + useThemeMode etc.
 │   │   │   │   ├── rbac-stream-context.tsx # RBAC streaming context
 │   │   │   │   ├── session-heartbeat.tsx  # Zero-UI component: pings heartbeat every 30s
@@ -274,7 +256,6 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   ├── custom-logic/                  # App-level feature implementations
 │   │   │   ├── index.ts
 │   │   │   ├── org-switcher-wrapper.tsx   # Server wrapper: fetches org list automatically
-│   │   │   ├── set-active-org.test.ts
 │   │   │   └── set-active-org.ts          # Server action: validates org membership
 │   │   ├── hooks/                         # React hooks
 │   │   │   ├── sessions/                  # Session-related hooks
@@ -282,8 +263,22 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   ├── use-session-geo-locate.ts # Session IP geolocation
 │   │   │   │   ├── use-session-revocation.ts # Session revocation hook
 │   │   │   │   └── use-session-verification.ts # Session verification hook
+│   │   │   ├── use-async-guard.ts
+│   │   │   ├── use-async-list.ts
+│   │   │   ├── use-auth-gated-action.ts
+│   │   │   ├── use-avatar-modal.ts
 │   │   │   ├── use-avatar-upload.ts       # Hook wrapping the uploadAvatar server action
-│   │   │   └── use-refreshable.ts         # Hook for unmount/remount refresh cycles
+│   │   │   ├── use-data-fetch.ts
+│   │   │   ├── use-modal-flow.ts
+│   │   │   ├── use-name-form.ts
+│   │   │   ├── use-org-permissions.ts
+│   │   │   ├── use-org-roles.ts
+│   │   │   ├── use-org-switcher.ts
+│   │   │   ├── use-personal-permissions.ts
+│   │   │   ├── use-personal-roles.ts
+│   │   │   ├── use-refreshable.ts         # Hook for unmount/remount refresh cycles
+│   │   │   ├── use-scroll-lock.ts
+│   │   │   └── use-tooltip-trigger.ts
 │   │   ├── index.ts                       # Public barrel
 │   │   ├── locales/
 │   │   │   ├── en-US.ts
@@ -293,68 +288,64 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   ├── logic/
 │   │   │   ├── assert-safe-route.ts       # Safe route path validator
 │   │   │   ├── actions/                   # Internal server actions
-│   │   │   │   ├── account.test.ts
 │   │   │   │   ├── account.ts
 │   │   │   │   ├── auth.ts
 │   │   │   │   ├── avatar.ts              # Avatar upload (S3/Logto Native)
 │   │   │   │   ├── dashboard.ts
 │   │   │   │   ├── heartbeat.ts
+│   │   │   │   ├── helpers.ts
 │   │   │   │   ├── index.ts               # Barrel (re-exports all actions)
 │   │   │   │   ├── introspection.ts
-│   │   │   │   ├── mfa.test.ts
+│   │   │   │   ├── management-request.ts
 │   │   │   │   ├── mfa.ts
-│   │   │   │   ├── organizations.test.ts
 │   │   │   │   ├── organizations.ts
 │   │   │   │   ├── password.ts
-│   │   │   │   ├── profile.test.ts
 │   │   │   │   ├── profile.ts
-│   │   │   │   ├── request.test.ts
 │   │   │   │   ├── request.ts             # Authenticated Account API HTTP client
 │   │   │   │   ├── roles.ts
 │   │   │   │   ├── safe.ts                # safeAction wrapper + ActionResult/DataResult types
-│   │   │   │   ├── sessions.test.ts
 │   │   │   │   ├── sessions.ts
 │   │   │   │   ├── shared.ts              # patchMyAccount helper
 │   │   │   │   ├── tokens.ts
-│   │   │   │   ├── verification.test.ts
+│   │   │   │   ├── verification-cookie.ts
 │   │   │   │   ├── verification.ts
-│   │   │   │   ├── webauthn.test.ts
 │   │   │   │   └── webauthn.ts
-│   │   │   ├── audit.test.ts
 │   │   │   ├── audit.ts
+│   │   │   ├── cached-dashboard.ts
+│   │   │   ├── cached-rbac.ts
 │   │   │   ├── capture-message.ts
+│   │   │   ├── client-logger.ts
 │   │   │   ├── client-storage.ts          # Client-side storage utilities
 │   │   │   ├── constants.ts               # Shared constants
+│   │   │   ├── cookie-utils.ts
+│   │   │   ├── country-codes.ts
 │   │   │   ├── country-list-filter.ts     # Phone country code filtering
+│   │   │   ├── dashboard-data.ts
 │   │   │   ├── debug.ts
-│   │   │   ├── dev-mode.test.ts
 │   │   │   ├── dev-mode.ts
 │   │   │   ├── env.ts
 │   │   │   ├── error-codes.ts             # Error code definitions
-│   │   │   ├── errors.test.ts
 │   │   │   ├── errors.ts
 │   │   │   ├── formatting.ts              # formatPhone (E.164 display)
 │   │   │   ├── geo-cache.ts               # IP geolocation TTL cache (no React dependency)
-│   │   │   ├── guards.test.ts
 │   │   │   ├── guards.ts                  # Assert-style input guards for trust boundaries
 │   │   │   ├── i18n.ts
 │   │   │   ├── index.ts
 │   │   │   ├── lang-allowlist.ts          # Language allowlist filtering
 │   │   │   ├── log.ts
 │   │   │   ├── map-error-toast.ts         # Maps error codes to toast messages
-│   │   │   ├── origin-guard.test.ts
 │   │   │   ├── origin-guard.ts            # CSRF origin check for plain route handlers
 │   │   │   ├── OrgSwitcher.tsx            # Org selector dropdown (client, moved from custom-logic)
 │   │   │   ├── preferences.ts
 │   │   │   ├── Protected.tsx              # Client-side UI permission gate (moved from custom-logic)
+│   │   │   ├── rbac-data.ts
 │   │   │   ├── tabs.ts
 │   │   │   ├── types.ts                   # All domain types (UserData, MfaType, etc.)
-│   │   │   ├── utils.test.ts
 │   │   │   ├── utils.ts
-│   │   │   ├── validation.test.ts
 │   │   │   ├── validation.ts
 │   │   │   └── verbosity.ts               # Error verbosity control
 │   │   ├── server-actions/                # Public server action adapters (client-callable)
+│   │   │   ├── index.ts
 │   │   │   ├── load-org-permission-descriptions.ts
 │   │   │   ├── load-org-permissions.ts
 │   │   │   ├── load-org-roles.ts
@@ -370,16 +361,12 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 ├── docker-compose.yml
 ├── docker-entrypoint.sh
 ├── Dockerfile
-├── docs/
-│   └── superpowers/
-│       └── plans/
-│           ├── 2026-06-02-documentation-fixes-group-a.md
-│           ├── 2026-06-04-docs-update.md
-│           └── 2026-06-04-verification-staleness-fix.md
+├── CHANGELOG.md
+├── eslint.config.mjs
+├── instrumentation.ts
 ├── LICENSE
 ├── next-env.d.ts
 ├── next.config.ts
-├── opencode.json
 ├── package-lock.json
 ├── package.json
 ├── public/
@@ -394,6 +381,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   ├── copy-standalone-assets.js
 │   └── inject-next-public.js
 ├── global.d.ts
+├── SECURITY.md
 ├── tree.py
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -497,7 +485,7 @@ Runtime env passthrough currently includes backend and country behavior gates:
 - `COUNTRY_CODE_BLOCK_LIST`
 - `LOGTO_M2M_RESOURCE`
 
-## Security Architecture (v0.4.0)
+## Security Architecture
 
 v0.3.0 introduced dedicated security modules for defense-in-depth; v0.4.0 extended the model with server-sealed identity verification (BUG-001).
 
@@ -505,14 +493,14 @@ v0.3.0 introduced dedicated security modules for defense-in-depth; v0.4.0 extend
 |--------|----------|---------|
 | `origin-guard.ts` | `app/logto-kit/logic/origin-guard.ts` | CSRF protection - validates `Origin` header on `/api/wipe` and `/api/protected` only (auth routes rely on OAuth `state`; Server Actions have built-in origin validation) |
 | `guards.ts` | `app/logto-kit/logic/guards.ts` | Input validators for all trust boundaries - IDs, user IDs, MFA types, passkey names, custom data |
-| `audit.ts` | `app/logto-kit/logic/audit.ts` | Audit log primitive - emits structured events for mutations (no-op until you provide a custom transport) |
+| `audit.ts` | `app/logto-kit/logic/audit.ts` | Audit log primitive - immediately emits structured records through the shared logger for mutations |
 | `dev-mode.ts` | `app/logto-kit/logic/dev-mode.ts` | `NODE_ENV` gate - strips dev-only features at runtime in non-development/test environments |
 
-To activate audit logging, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`.
+To replace the default audit logger path, create `app/logto-kit/audit-transport.ts` exporting a default `async function(entry: AuditEntry)`.
 
 ### Identity Verification (BUG-001 — v0.4.0 server-sealed cookie)
 
-Destructive operations (account deletion, password change, email/phone update, MFA enrollment, session revocation, identity linking) require identity re-verification via `verifyPasswordForIdentity`. After verification succeeds, the server seals `{ recordId, expiresAt }` into an httpOnly, HMAC-signed cookie (`app/logto-kit/logic/actions/verification-cookie.ts`). Each destructive action reads that cookie via `requireVerifiedIdentity(recordId)`, verifies the HMAC, binds the sealed `recordId` to the client-supplied record ID, and runs `assertVerificationNotExpired(sealed.expiresAt)`. The expiry is server-authoritative; the client never provides its own timestamp (all 18 destructive actions had `verificationTimestamp` removed in commit `6964022`). Requires `LOGTO_VERIFICATION_COOKIE_SECRET` in production.
+Destructive operations (account deletion, password change, email/phone update, MFA enrollment, session revocation, identity linking) require identity re-verification via `verifyPasswordForIdentity`. After verification succeeds, the server seals `{ recordId, expiresAt }` into an httpOnly, HMAC-signed cookie (`app/logto-kit/logic/actions/verification-cookie.ts`). Each destructive action reads that cookie via `requireVerifiedIdentity(recordId)`, verifies the HMAC, binds the sealed `recordId` to the client-supplied record ID, and runs `assertVerificationNotExpired(sealed.expiresAt)`. The expiry is server-authoritative; the client never provides its own timestamp (all 18 destructive actions had `verificationTimestamp` removed in commit `6964022`). A dedicated `LOGTO_VERIFICATION_COOKIE_SECRET` is preferred in production, with `COOKIE_SECRET` as the fallback.
 
 ## Environment Variables
 
@@ -537,7 +525,8 @@ SCOPES=openid,profile,custom_data,email,phone,identities,sessions,organizations,
 ### Identity Verification Cookie (BUG-001 sealed cookie)
 
 ```env
-# Verification cookie secret (required in production; falls back to COOKIE_SECRET in dev)
+# Dedicated verification-cookie secret (preferred); falls back to COOKIE_SECRET
+# In production, one of these secrets must be set.
 # Used for the BUG-001 server-sealed identity verification cookie (HMAC-signed httpOnly).
 # After verifyPasswordForIdentity succeeds, the server seals { recordId, expiresAt } into
 # this cookie. Each destructive action reads it via requireVerifiedIdentity(recordId),
@@ -558,7 +547,7 @@ LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api  # Logto Cloud. For OSS, de
 LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 ```
 
-You have to set this up for pfp uploads (in upstream mode) and account deletion to work. User data retrieval uses the user's own access token via the Account API (`/api/my-account`), not M2M.
+M2M credentials are required for account deletion and other Management API operations. Avatar uploads use the session user's access token via the Account API (`/api/my-account/avatar`) when using Logto Native, or S3/Supabase storage; avatar uploads do not require M2M credentials. User data retrieval also uses the user's own access token via the Account API (`/api/my-account`).
 
 ### Tab Configuration
 
@@ -648,10 +637,11 @@ LANG_AVAILABLE=en-US,ka-GE,uk-UA
 ### Error Verbosity
 
 ```env
-# Controls the level of detail in error responses (default: standard)
-# Options: minimal, standard, verbose
-# ERROR_VERBOSITY=standard
-# NEXT_PUBLIC_ERROR_VERBOSITY=standard
+# Controls the level of detail in error responses (default: each code's registry setting)
+# Options: generic, specific, silent
+# If unset, the per-code default applies (specific for most registered codes).
+# ERROR_VERBOSITY=specific
+# NEXT_PUBLIC_ERROR_VERBOSITY=specific
 ```
 
 ### CSP Image Origin
@@ -697,7 +687,7 @@ Set `BACKEND_TYPE` explicitly in your env file. The resolver falls back to `upst
 
 Configure how phone number registration and update validation behaves for different countries.
 
-You can specify either an allow-list or a block-list (they are mutually exclusive). If both are set, the allow-list takes precedence. If neither is set, fallback allow-list is `1,995`.
+You can specify either an allow-list or a block-list (they are mutually exclusive). If both are set, the allow-list takes precedence. If neither is set, filtering mode is `none` and all countries are allowed.
 
 ```env
 # Comma-separated list of country dial codes to ALLOW (e.g., 1,995,380).
@@ -710,7 +700,7 @@ You can specify either an allow-list or a block-list (they are mutually exclusiv
 ```
 
 - **Interactive Dropdown Combobox**: When adding or updating phone numbers, the **PhoneCountrySelect** dropdown matches and filters active countries on-the-fly. If an allow-list is active, only permitted countries are shown. If a block-list is active, blocked countries are removed from the options list.
-- **Dropdown fallback behavior**: If filtering produces zero options, the dropdown falls back to the full country list.
+- **Empty filtered list**: If filtering produces zero active countries, the selector is disabled and has no options.
 - **Server-Side Verification**: Server actions normalize phone input to digits and enforce the country filter. In allow mode, unknown or unmapped prefixes are rejected with `PHONE_COUNTRY_NOT_ALLOWED`.
 
 ### Avatar Storage Backend
@@ -843,13 +833,12 @@ The demo app (`app/demo/`) is a standalone application with 8 top-level sidebar 
 
 > **Subtopics**: OrgSwitcher, Providers, Theme, i18n, Sessions, Error Handling, Input Guards, Logging, and Primitives are covered as subtopic pages within these 8 top-level topics.
 
-Each tab has its own documentation file in `app/demo/content/`. The **UserButton** tab has full documentation with props, notes, and 6 example cards. The **Dashboard** tab has comprehensive documentation - a 5-page guide covering internals, provider sync, tab configuration, the Server Component rendering pattern, and the mobile layout system. The **tabs-and-flows** doc provides detailed documentation for all dashboard tabs, including props, hooks, actions, and implementation details for Profile, Preferences, Security (with FlowModal architecture, TOTP enrollment, backup codes, and account deletion), Sessions (device overview and session revocation), Identities, and Organizations.
+Documentation is organized as standalone TSX files in `app/demo/content/`: Dashboard has 5 files, Tabs & Flows has 7, RBAC has 2, Anatomy has 5, and Security has 3. The **UserButton** tab has props, notes, and example cards. The **tabs-and-flows** docs cover Profile, Preferences, Security, Sessions, Identities, and Organizations with their props, hooks, actions, and flows.
 
 > **Demo Dark Mode Palette:** The docs pages and sidebar use a custom scoped dark palette (`app/globals.css` → `.docs-content-container`) independent of the main dashboard theme for optimal reading contrast:
 > - Sidebar BG: `#050608`
 > - Docs content BG: `#08090a`
 > - Card/section BG: `#171c2a`
-> - Border: `#181c2b`
 
 ### How It Works
 
@@ -866,34 +855,28 @@ The demo app consists of:
 | `content/user-button/` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
 | `content/dashboard/` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering, Mobile (5 pages) |
 | `content/tabs-and-flows/` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (7 pages) |
-| `content/rbac/` | OrgSwitcher documentation - props, wrapper, useOrgMode, setActiveOrg |
-| `content/anatomy/` | Providers documentation - LogtoProvider, hooks reference |
-| `content/anatomy/` | Theme system documentation - dual system, color tokens, custom themes |
-| `content/anatomy/` | i18n documentation - file-based locales, useLangMode, adding languages |
-| `content/rbac/` | Protected component and API documentation - permission-based access control, server actions, examples (4 pages) |
-| `content/security/` | Error handling guide - sanitization, 22 error codes, safeAction, server action pattern (4 pages) |
-| `content/security/` | Input guards - 13 assert guards, 8 validate functions, safeUrl, pickPreferences, origin-guard, readEnv (5 pages) |
-| `content/security/` | Logging - LOG_BACKEND routing, unstructured API, structured logEvent, child loggers (4 pages) |
-| `content/anatomy/` | Primitives - useRefreshable() hook, RefreshButton, direct token fetch, PermissionsBlock pattern (2 pages) |
+| `content/rbac/` | Protected component and API documentation - permission-based access control, server actions, and examples (2 pages: `api`, `ui-protected`) |
+| `content/anatomy/` | Providers, theme, i18n, primitives, and async patterns (5 pages) |
+| `content/security/` | Error handling (70 registered error codes), input guards (10 assert guards, 8 validate functions, `safeUrl`), and logging (3 pages: `error-handling`, `input-guards`, `logging`) |
 | `content/calculator/` | Permission-gated calculator demo with live RBAC examples |
 | `components/SyntaxBlock.tsx` | Syntax-highlighted code block with VSCode Dark+ colors and copy button |
-| `components/Section.tsx` | `SectionContainer` and `Section` - multi-page split with keyboard navigation |
+| `components/Section.tsx` | Legacy section layout component; current route content uses standalone components |
 | `components/SectionComponents.tsx` | Pre-built page components for documentation (SectionHeader, SectionWrap) |
 | `components/useDocStyles.ts` | Shared CSS-in-JS styles for documentation pages |
 
 ### Documentation Format
 
-Each doc file in `content/` is a TSX component wrapped in a `SectionContainer` with `Section` children (each with a mandatory `id` prop). Pages are split horizontally and navigated with **ArrowUp** / **ArrowDown** keys or the bottom-right chevron buttons.
+Each current doc file in `content/` is a standalone client-side TSX component. Components commonly import `useDocStyles` for shared inline styles, use ordinary JSX headings, paragraphs, lists, and tables, and may use `SyntaxBlock` for code examples and `SectionComponents` helpers for heading IDs. The route wrapper renders the loaded component inside a plain padded `<div>`.
 
 Typical layout:
 - **Two-column grid** - Left and right sections side by side (matching `user-button.tsx` pattern)
 - **Single column** - For detailed content like the Security tab's FlowModal architecture
 
-To add documentation for a new tab/section:
+To add documentation for a new topic/section:
 1. Create a TSX file inside `app/demo/content/{topic}/{section}.tsx`
-2. Add the loader to `CONTENT_REGISTRY` in `app/(docs)/[topic]/[section]/page.tsx`
-3. Update `NAV_ITEMS` and `SECTION_HINTS` in `app/demo/nav-data.tsx` to include the new topic, its sections, and their section descriptions/hints
-4. Use `SectionWrap` for section-bordered layout, `CodeBlock` for code, and inline layouts for live demos
+2. Add its loader to `CONTENT_REGISTRY` in `app/(docs)/[topic]/[section]/page.tsx`
+3. Add the topic or section to `NAV_ITEMS` and its description to `SECTION_HINTS` in `app/demo/nav-data.tsx`
+4. Use `useDocStyles` for shared styling, `SyntaxBlock` for code, and ordinary JSX layouts for the page content
 
 ### Using the Demo App
 
@@ -903,14 +886,13 @@ Visit `/demo` to see the demo app in action. It displays:
 - A theme toggle button
 - A particle background effect
 - Clicking any tab loads its documentation into the content area
-- Press **ArrowUp** / **ArrowDown** to switch between pages within a tab
-- Bottom-right chevron buttons and a page counter (e.g. "1/2") show the current position
+- Selecting a topic/section loads its standalone content component through the docs route registry
 
 The UserButton tab includes a Quick Start section, a full Props table with TypeScript interface, usage notes, and 6 interactive example cards. The Dashboard tab covers internals, provider sync, tab configuration, and rendering patterns across 5 pages with a two-column grid layout.
 
 ### Documentation Utilities
 
-These shared utilities live in `app/demo/components/` and are used by all doc files:
+These shared utilities live in `app/demo/components/` and are available to doc files:
 
 #### SyntaxBlock
 
@@ -934,28 +916,9 @@ import CodeBlock from '../components/SyntaxBlock';
 
 Features: regex-based TSX tokenizer (no external deps), horizontal scroll for long lines, `marginBottom: 6px`, `#1e1e1e` background.
 
-#### SectionContainer & Section
+#### Current content component pattern
 
-A multi-page layout system. `SectionContainer` is the viewport that manages page transitions via CSS `translateY` - each `Section` child is a full-height page stacked vertically. Pages slide up/down with a cubic-bezier transition.
-
-```tsx
-import { SectionContainer, Section } from '../components/Section';
-
-export default function MyDoc() {
-  return (
-    <SectionContainer>
-      <Section id={1}>
-        {/* Page 1 content - Quick Start, Props table */}
-      </Section>
-      <Section id={2}>
-        {/* Page 2 content - Example cards */}
-      </Section>
-    </SectionContainer>
-  );
-}
-```
-
-Features: ArrowUp/ArrowDown keyboard navigation, bottom-right nav buttons with page counter, `overflowY: auto` per page for scrollable content, `overflow: hidden` on the viewport to prevent scrollbar cascade.
+Use a standalone component with `useDocStyles()` and normal JSX. The route supplies the outer padding; the content component owns its headings, explanatory text, tables, code blocks, and live examples. `components/Section.tsx` exists in the repository but is not imported by the current content files.
 
 ### PreferencesProvider
 
@@ -1264,7 +1227,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 **What it does:**
 - **Tab visibility** - When user switches back to the tab (catches "logged out in another tab")
 - **Network reconnect** - When device comes back online (catches expired sessions during offline)
-- **Periodic check** - Every 60 seconds by default (catches account deletion while idle)
+- **Periodic check** - Every 30 seconds by default (catches account deletion while idle)
 
 **Props:**
 
@@ -1747,7 +1710,11 @@ The app uses a **proxy choke-point** model — `proxy.ts` (Next.js middleware) i
 
 **Public routes** (no authentication required):
 - `/` — public redirect to `/getting-started/pre-requisites`
+- `/getting-started/*`, `/user-button/*`, `/dashboard/*`, `/tabs-and-flows/*`, `/rbac/*`, `/calculator/*`, `/anatomy/*`, `/security/*` — documentation pages
 - `/demo` and `/demo/*` — demo app and documentation
+- `/api/auth/sign-in` — OAuth sign-in initiator
+- `/callback` — OAuth callback receiver
+- `/api/wipe` — session/cookie cleaning route
 
 **Protected routes** (everything else): unauthenticated users are redirected to `/api/auth/sign-in` by the proxy before the page handler is reached.
 
@@ -1768,14 +1735,19 @@ Request → proxy.ts
 
 ### Adding New Public Routes
 
-By default all new routes are protected. To make a route publicly accessible (no authentication required), add it to `isPublicPath()` in `proxy.ts`:
+By default all new routes are protected. The existing public set is implemented in `isPublicPath()` in `proxy.ts`: `/`, `/demo` (and descendants), the eight docs topic prefixes, `/api/auth/sign-in`, `/callback`, and `/api/wipe`. Add a new public route by extending that function; add a new docs topic to `DOCS_TOPIC_PREFIXES` as well.
 
 ```typescript
 // proxy.ts
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true;
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
-  // Add your public path:
+  const firstSegment = pathname.split('/')[1];
+  if (firstSegment && DOCS_TOPIC_PREFIXES.has(firstSegment)) return true;
+  if (pathname === '/api/auth/sign-in') return true;
+  if (pathname === '/callback') return true;
+  if (pathname === '/api/wipe') return true;
+  // Add an unrelated public path explicitly:
   if (pathname === '/about') return true;
   return false;
 }
@@ -2184,8 +2156,8 @@ await updateUserBasicInfo({ name: 'John', username: 'johndoe' });
 // Update profile (given name, family name)
 await updateUserProfile({ givenName: 'John', familyName: 'Doe' });
 
-// Update custom data
-await updateUserCustomData({ preferences: { notifications: true } });
+// Update allowed customData.Preferences keys
+await updateUserCustomData({ Preferences: { theme: 'dark', lang: 'en-US' } });
 
 // Update avatar URL
 await updateAvatarUrl('https://example.com/avatar.png');
@@ -2208,10 +2180,14 @@ await signOutUser();
 
 ```tsx
 // List all MFA methods
-const mfaList = await getMfaVerifications();
+const mfaResult = await getMfaVerifications();
+if (!mfaResult.ok) throw new Error(mfaResult.error);
+const mfaList = mfaResult.data;
 
 // Generate TOTP secret for new enrollment
-const { secret } = await generateTotpSecret();
+const totpResult = await generateTotpSecret();
+if (!totpResult.ok) throw new Error(totpResult.error);
+const { secret } = totpResult.data;
 // Use `secret` with qrcode.react to generate a scannable QR code
 
 // Add MFA verification (takes 2 args: verification payload + identity verification record ID)
@@ -2224,17 +2200,23 @@ await deleteMfaVerification('mfaVerificationId', 'verificationRecordId');
 await replaceTotpVerification('new-totp-secret', '123456', 'verificationRecordId');
 
 // Generate backup codes
-const { codes } = await generateBackupCodes('verificationRecordId');
+const generatedCodesResult = await generateBackupCodes('verificationRecordId');
+if (!generatedCodesResult.ok) throw new Error(generatedCodesResult.error);
+const { codes } = generatedCodesResult.data;
 
 // Get existing backup codes
-const backupCodes = await getBackupCodes('verificationRecordId');
+const backupCodesResult = await getBackupCodes('verificationRecordId');
+if (!backupCodesResult.ok) throw new Error(backupCodesResult.error);
+const backupCodes = backupCodesResult.data;
 ```
 
 ### WebAuthn Passkeys
 
 ```tsx
 // Request registration options from Logto
-const { registrationOptions, verificationRecordId } = await requestWebAuthnRegistration();
+const registrationResult = await requestWebAuthnRegistration();
+if (!registrationResult.ok) throw new Error(registrationResult.error);
+const { registrationOptions, verificationRecordId } = registrationResult.data;
 
 // Client-side: run browser ceremony with @simplewebauthn/browser
 import { startRegistration } from '@simplewebauthn/browser';
@@ -2255,11 +2237,15 @@ await deleteMfaVerification('passkey-verification-id', identityVerificationRecor
 ### Sessions & Grants
 
 ```tsx
-// Get all user sessions (raw from Logto API)
-const sessions = await getUserSessions('identityVerificationRecordId');
+// Get all user sessions (data from Logto API)
+const sessionsResult = await getUserSessions('identityVerificationRecordId');
+if (!sessionsResult.ok) throw new Error(sessionsResult.error);
+const sessions = sessionsResult.data;
 
 // Get sessions with device metadata (browser, OS, IP geo-location)
-const sessionsWithMeta = await getSessionsWithDeviceMeta('identityVerificationRecordId');
+const sessionsWithMetaResult = await getSessionsWithDeviceMeta('identityVerificationRecordId');
+if (!sessionsWithMetaResult.ok) throw new Error(sessionsWithMetaResult.error);
+const sessionsWithMeta = sessionsWithMetaResult.data;
 
 // Revoke a single session
 await revokeUserSession('sessionId', 'identityVerificationRecordId');
@@ -2268,7 +2254,9 @@ await revokeUserSession('sessionId', 'identityVerificationRecordId');
 await revokeAllOtherSessions('identityVerificationRecordId');
 
 // Get OAuth grants (third-party app consents)
-const grants = await getUserGrants();
+const grantsResult = await getUserGrants();
+if (!grantsResult.ok) throw new Error(grantsResult.error);
+const grants = grantsResult.data;
 
 // Revoke a grant (third-party app consent)
 await revokeUserGrant('grantId');
@@ -2278,12 +2266,16 @@ await revokeUserGrant('grantId');
 
 ```tsx
 // Get all permissions for a user in a specific organization
-const permissions = await getOrganizationUserPermissions('org-123');
-// Returns: string[] (e.g., ['read:users', 'write:users'])
+const permissionsResult = await getOrganizationUserPermissions('org-123');
+if (!permissionsResult.ok) throw new Error(permissionsResult.error);
+const permissions = permissionsResult.data;
+// string[] (e.g., ['read:users', 'write:users'])
 
 // Get all roles assigned to the authenticated user
-const roles = await getUserRoles();
-// Returns: DataResult<UserRole[]> ({ id, name, description, type, tenantId, isDefault })
+const rolesResult = await getUserRoles();
+if (!rolesResult.ok) throw new Error(rolesResult.error);
+const roles = rolesResult.data;
+// UserRole[] ({ id, name, description, type, tenantId, isDefault })
 ```
 
 ### Utilities
@@ -2300,22 +2292,28 @@ const displayPhone = formatPhone('+12345678901');
 
 ```tsx
 // Verify password for identity operations
-const { verificationRecordId } = await verifyPasswordForIdentity('password123');
+const verificationResult = await verifyPasswordForIdentity('password123');
+if (!verificationResult.ok) throw new Error(verificationResult.error);
+const { verificationRecordId } = verificationResult.data;
 
 // Send email verification code
-const { verificationId } = await sendEmailVerificationCode('user@example.com');
+const emailCodeResult = await sendEmailVerificationCode('user@example.com');
+if (!emailCodeResult.ok) throw new Error(emailCodeResult.error);
+const { verificationId: emailVerificationId } = emailCodeResult.data;
 
 // Send phone verification code  
-const { verificationId } = await sendPhoneVerificationCode('+1234567890');
+const phoneCodeResult = await sendPhoneVerificationCode('+1234567890');
+if (!phoneCodeResult.ok) throw new Error(phoneCodeResult.error);
+const { verificationId: phoneVerificationId } = phoneCodeResult.data;
 
 // Verify any code (email, phone, or backup)
-await verifyVerificationCode('email', 'user@example.com', 'verificationId', '123456');
+await verifyVerificationCode('email', 'user@example.com', emailVerificationId, '123456');
 
 // Update email with verification
-await updateEmailWithVerification('newemail@example.com', 'verificationId', 'verificationRecordId');
+await updateEmailWithVerification('newemail@example.com', emailVerificationId, verificationRecordId);
 
 // Update phone with verification
-await updatePhoneWithVerification('+1234567890', 'verificationId', 'verificationRecordId');
+await updatePhoneWithVerification('+1234567890', phoneVerificationId, verificationRecordId);
 
 // Remove email
 await removeUserEmail('verificationRecordId');
@@ -2328,13 +2326,16 @@ await removeUserPhone('verificationRecordId');
 
 ```tsx
 // Upload avatar (returns the public URL)
-const { url } = await uploadAvatar(formData);
-
 // FormData must contain ONLY:
 // - file: File object (JPEG, PNG, WebP, GIF, max 2MB)
-// The access token and user ID are derived server-side from the session cookie.
 const formData = new FormData();
 formData.append('file', fileInput.files[0]);
+
+const uploadResult = await uploadAvatar(formData);
+if (!uploadResult.ok) throw new Error(uploadResult.error);
+const { url } = uploadResult.data;
+
+// The access token and user ID are derived server-side from the session cookie.
 ```
 
 ## Installation
@@ -2386,7 +2387,7 @@ npm run test:run
 npm test
 ```
 
-**Test coverage** (120+ test files):
+**Test suite status** (135 test files, 2,209 tests; type-check PASS; lint PASS):
 - Security: `origin-guard.test.ts`, `guards.test.ts`, `dev-mode.test.ts`
 - Logic: `validation.test.ts`, `errors.test.ts`
 - Actions: `sessions.test.ts`, `webauthn.test.ts`

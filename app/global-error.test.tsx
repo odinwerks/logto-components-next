@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 // Mock next/font/google
 vi.mock('next/font/google', () => ({
@@ -154,6 +154,78 @@ describe('GlobalError', () => {
       render(<GlobalError error={error} reset={vi.fn()} />);
 
       expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    });
+  });
+
+  describe('auto-retry', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls reset after 30s via interval', () => {
+      vi.useFakeTimers();
+      const error = new Error('transient crash');
+      const reset = vi.fn();
+
+      render(<GlobalError error={error} reset={reset} />);
+
+      expect(reset).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(reset).toHaveBeenCalledTimes(1);
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(reset).toHaveBeenCalledTimes(2);
+    });
+
+    it('calls reset on window online event', () => {
+      const error = new Error('offline crash');
+      const reset = vi.fn();
+
+      render(<GlobalError error={error} reset={reset} />);
+
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      expect(reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls reset on visibilitychange when document becomes visible', () => {
+      const error = new Error('hidden crash');
+      const reset = vi.fn();
+      const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+
+      render(<GlobalError error={error} reset={reset} />);
+
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      try {
+        act(() => {
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        expect(reset).toHaveBeenCalledTimes(1);
+      } finally {
+        if (originalVisibility) {
+          Object.defineProperty(document, 'visibilityState', originalVisibility);
+        } else {
+          delete (document as unknown as Record<string, unknown>).visibilityState;
+        }
+      }
+    });
+
+    it('does NOT call reset after unmount', () => {
+      vi.useFakeTimers();
+      const error = new Error('unmounted crash');
+      const reset = vi.fn();
+
+      const { unmount } = render(<GlobalError error={error} reset={reset} />);
+      unmount();
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(reset).not.toHaveBeenCalled();
     });
   });
 });

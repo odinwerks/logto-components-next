@@ -1,9 +1,10 @@
 import 'server-only';
 
-import { UserScope } from '@logto/next';
+import { UserScope, type LogtoNextConfig } from '@logto/next';
 import { readEnv } from './logic/env';
 import { warn } from './logic/log';
 import { parseCountryList } from './logic/country-list-filter';
+import { createLogtoSessionWrapper } from './logic/session-wrapper';
 
 // Map SCOPES string to Logto enum
 const SCOPE_MAP: Record<string, string> = {
@@ -214,7 +215,24 @@ export const logtoConfig = (() => {
   return config;
 })();
 
-export const getLogtoConfig = () => logtoConfig;
+/**
+ * Returns the Logto client config with a FRESH session wrapper per call.
+ *
+ * The session wrapper carries per-request state (the session ID read from the
+ * incoming cookie) so it must never be shared across requests — see
+ * session-wrapper.ts for the full contract. The wrapper moves session data
+ * out of the encrypted cookie into external storage (Redis, or the in-memory
+ * backend when REDIS_URL is unset), which fixes the RSC cookie-write
+ * limitation: token refreshes inside React Server Components now persist.
+ *
+ * Typed as the SDK's `LogtoNextConfig` (where `sessionWrapper` is optional)
+ * so tests can mock this function with a plain config object; at runtime the
+ * wrapper is always present.
+ */
+export const getLogtoConfig = (): LogtoNextConfig => ({
+  ...logtoConfig,
+  sessionWrapper: createLogtoSessionWrapper(),
+});
 
 // ============================================================================
 // Management API Token Helper

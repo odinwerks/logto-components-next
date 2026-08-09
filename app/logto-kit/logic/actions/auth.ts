@@ -2,7 +2,7 @@
 
 import { signIn, signOut } from '@logto/next/server-actions';
 import { cookies } from 'next/headers';
-import { logtoConfig, getLogtoConfig } from '../../config';
+import { getLogtoConfig } from '../../config';
 import { sanitize } from '../errors';
 import { assertSafeRouteTo } from '../assert-safe-route';
 import { clearLogtoCookiesFromJar } from '../cookie-utils';
@@ -29,7 +29,7 @@ export async function signInUser(routeTo?: string): Promise<void> {
 
   try {
     await signIn(
-      logtoConfig,
+      getLogtoConfig(),
       routeTo
         ? {
             redirectUri: new URL('/callback', baseUrl).toString(),
