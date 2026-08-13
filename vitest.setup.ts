@@ -73,3 +73,41 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 if (typeof globalThis.IntersectionObserver === 'undefined') {
   (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = NoopObserver;
 }
+
+// Node 26+ predefines its own experimental localStorage/sessionStorage globals
+// (backed by --localstorage-file). In vitest's jsdom environment those
+// unavailable accessors shadow jsdom's Storage, leaving `window.localStorage`
+// undefined and breaking suites that touch Web Storage. Only when the global
+// is missing do we install a minimal in-memory Storage, restoring the jsdom
+// contract. On older Node versions this block is a no-op.
+if (typeof window !== 'undefined' && typeof window.localStorage === 'undefined') {
+  const makeStorage = (): Storage => {
+    const store = new Map<string, string>();
+    return {
+      get length() {
+        return store.size;
+      },
+      clear: () => store.clear(),
+      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+      key: (index: number) => [...store.keys()][index] ?? null,
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      setItem: (key: string, value: string) => {
+        store.set(key, String(value));
+      },
+    } as Storage;
+  };
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: makeStorage(),
+    writable: true,
+    configurable: true,
+  });
+  if (typeof globalThis.sessionStorage === 'undefined') {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: makeStorage(),
+      writable: true,
+      configurable: true,
+    });
+  }
+}
