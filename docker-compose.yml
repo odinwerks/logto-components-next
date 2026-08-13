@@ -1,3 +1,4 @@
+name: next-dash
 services:
   # ── logto-dash (Next.js dashboard) ──────────────────────────────────────────
   logto-dash:
@@ -112,7 +113,7 @@ services:
   # Remove or comment out this service if you are not using Redis.
   redis:
     image: redis:7-alpine
-    container_name: logto-dash-redis
+    container_name: next-dash-redis
     # Read the password from a mounted Compose secret rather than embedding it
     # in Config.Cmd. The shell only passes the generated config over stdin.
     # appendonly+dir: AOF persistence so Logto session data (sess:* keys) and
@@ -132,6 +133,8 @@ services:
 
 volumes:
   redis-data:
+    external: true
+    name: next-dash_redis-data
 
 networks:
   dash-net:
