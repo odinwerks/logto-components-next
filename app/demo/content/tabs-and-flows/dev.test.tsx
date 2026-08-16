@@ -107,7 +107,8 @@ describe('Dev/PAT documentation consistency', () => {
     expect(source).toMatch(/primary blue password modal opens immediately over a[\s\S]{0,80}non-interactive locked skeleton/);
     expect(source).toMatch(/successful password verification[\s\S]{0,80}<strong>and<\/strong>[\s\S]{0,80}successful PAT list fetch/);
     expect(source).toMatch(/exactly one fresh purpose-specific password challenge for every mutation/);
-    expect(source).toMatch(/only the final delete confirmation uses destructive[\s\S]{0,30}styling/);
+    expect(source).toMatch(/no intermediate[\s\S]{0,30}confirmation step[\s\S]{0,140}destructive red styling/);
+    expect(source).toMatch(/close via the[\s\S]{0,20}header X, Escape, or backdrop click/);
     expect(source).toMatch(/<strong>Token created<\/strong>[\s\S]{0,180}full one-time[\s\S]{0,120}copy and close controls/);
     expect(source).toMatch(/no token metadata, usage prose,[\s\S]{0,100}generated exchange snippet/);
     expect(source).toMatch(/separate external usage guidance[\s\S]{0,160}not content in[\s\S]{0,80}result modal/);

@@ -5,11 +5,12 @@ import type { UserData, PatToken, VerificationPurpose } from '../../../logic/typ
 import type { ThemeColors } from '../../../themes';
 import { FONT_SANS, FONT_MONO } from '../../../themes';
 import type { Translations } from '../../../locales';
-import { KeyRound, Plus, Pencil, Trash2, RefreshCw, Copy, Check, AlertTriangle } from 'lucide-react';
+import { KeyRound, Plus, Pencil, Trash2, RefreshCw, Copy, Check, AlertTriangle, X } from 'lucide-react';
 import { Button } from '../../shared/Button';
 import { Input } from '../../shared/Input';
 import { AnimatePresence, Pulse } from '../../shared/motion';
-import { FlowModal, PasswordVerifyModal, PasswordModalStep } from '../shared/FlowModal';
+import { FlowModal, PasswordVerifyModal, PasswordModalStep, Overlay } from '../shared/FlowModal';
+import { useFocusTrap } from '../shared/focus-trap';
 import { Card, IconBox, Lbl } from '../shared/primitives';
 import type { ActionResult, DataResult } from '../../../logic/actions/safe';
 import { mapErrorCode } from '../../../logic/map-error-toast';
@@ -103,6 +104,7 @@ function formatDate(input: number | string): string {
 
 // ─── CreatePatModal ──────────────────────────────────────────────────────────
 function CreatePatModal({
+  initialName,
   onCancel,
   onSubmit,
   loading,
@@ -111,6 +113,8 @@ function CreatePatModal({
   mode,
   colors,
 }: {
+  /** Seeds the name input — used when the modal reopens with the preserved draft after a recoverable failure. */
+  initialName?: string;
   onCancel: () => void;
   onSubmit: (name: string, expiresAt: number | null) => void;
   loading: boolean;
@@ -120,7 +124,7 @@ function CreatePatModal({
   colors: ThemeColors;
 }) {
   const c = colors;
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName ?? '');
   const [preset, setPreset] = useState<PatExpiryPreset>('never');
   const [localError, setLocalError] = useState('');
   const inputId = useId();
@@ -147,6 +151,7 @@ function CreatePatModal({
       valueSubmitLabel={t.dev.createToken}
       onPasswordSubmit={() => {}}
       onClose={close}
+      hideFooterClose
       loading={loading}
       mode={mode}
       colors={colors}
@@ -169,7 +174,7 @@ function CreatePatModal({
           />
           {(localError || error) && (
             <div role="alert" id={errorId} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: FONT_SANS, fontSize: '0.75rem', color: c.accentRed }}>
-              <AlertTriangle size={13} color={c.accentRed} strokeWidth={1.5} /> {localError || error}
+              <AlertTriangle size={'0.8125rem'} color={c.accentRed} strokeWidth={1.5} /> {localError || error}
             </div>
           )}
           <div style={{ marginTop: '1rem' }}>
@@ -192,7 +197,6 @@ function CreatePatModal({
                       border: `1px solid ${isSelected ? c.accentBlue : c.borderColor}`,
                       background: isSelected ? `${c.accentBlue}1f` : 'transparent',
                       color: isSelected ? c.accentBlue : c.textSecondary,
-                      borderRadius: '0.25rem',
                       cursor: loading ? 'not-allowed' : 'pointer',
                       opacity: loading ? 0.6 : 1,
                     }}
@@ -254,6 +258,7 @@ function RenamePatModal({
       valueSubmitLabel={t.dev.save}
       onPasswordSubmit={() => {}}
       onClose={close}
+      hideFooterClose
       loading={loading}
       mode={mode}
       colors={colors}
@@ -275,7 +280,7 @@ function RenamePatModal({
           />
           {(localError || error) && (
             <div role="alert" id={errorId} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontFamily: FONT_SANS, fontSize: '0.75rem', color: c.accentRed }}>
-              <AlertTriangle size={13} color={c.accentRed} strokeWidth={1.5} /> {localError || error}
+              <AlertTriangle size={'0.8125rem'} color={c.accentRed} strokeWidth={1.5} /> {localError || error}
             </div>
           )}
         </>
@@ -284,60 +289,27 @@ function RenamePatModal({
   );
 }
 
-// ─── DeletePatConfirmModal ───────────────────────────────────────────────────
-function DeletePatConfirmModal({
-  name,
-  onCancel,
-  onConfirm,
-  loading,
-  t,
-  mode,
-  colors,
-}: {
-  name: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-  loading: boolean;
-  t: Translations;
-  mode: 'dark' | 'light';
-  colors: ThemeColors;
-}) {
-  const close = () => { if (!loading) onCancel(); };
-
-  return (
-    <FlowModal
-      title={t.dev.deleteTitle}
-      subtitle={t.dev.deleteDesc.replace('{name}', name)}
-      step={{ kind: 'value' }}
-      onValueSubmit={onConfirm}
-      valueSubmitLabel={t.dev.delete}
-      onPasswordSubmit={() => {}}
-      onClose={close}
-      loading={loading}
-      mode={mode}
-      colors={colors}
-      t={t}
-      danger
-    />
-  );
-}
-
 // ─── PatValueModal (one-time token value) ────────────────────────────────────
+// Bespoke single-purpose dialog (BackupCodesModal / sessions-tab pattern): the
+// value is shown exactly once with an appended copy control and closes only via
+// the header X, Escape, or backdrop click. No subtitle, no footer buttons —
+// FlowModal's value-step footer is a form contract this modal does not have.
 function PatValueModal({
   value,
   onClose,
   t,
-  mode,
   colors,
 }: {
   value: string;
   onClose: () => void;
   t: Translations;
-  mode: 'dark' | 'light';
   colors: ThemeColors;
 }) {
   const c = colors;
   const [copied, setCopied] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(dialogRef, onClose);
 
   const handleCopy = async () => {
     try {
@@ -350,60 +322,55 @@ function PatValueModal({
   };
 
   return (
-    <FlowModal
-      title={t.dev.valueTitle}
-      step={{ kind: 'value' }}
-      onPasswordSubmit={() => {}}
-      onClose={onClose}
-      hideValueSubmit
-      mode={mode}
-      colors={colors}
-      t={t}
-      extra={(
+    <Overlay onDismiss={onClose}>
+      <div style={{
+        width: '100%', maxWidth: '27.5rem', maxHeight: '100%',
+        background: c.bgSecondary, border: `1px solid ${c.borderColor}`,
+        boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div style={{
-          position: 'relative',
-          background: c.bgPrimary,
-          border: `1px solid ${c.borderColor}`,
-          borderRadius: '0.25rem',
-          padding: '0.625rem 3rem 0.625rem 0.75rem',
+          padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${c.borderColor}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
         }}>
-          <pre style={{
-            margin: 0,
-            fontFamily: FONT_MONO,
-            fontSize: '0.75rem',
-            lineHeight: 1.5,
-            color: c.textPrimary,
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'anywhere',
-            userSelect: 'text',
-          }}>
-            {value}
-          </pre>
-          <button
-            onClick={handleCopy}
-            aria-label={copied ? t.common.copied : t.common.copy}
-            title={t.common.copy}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              right: '0.5rem',
-              transform: 'translateY(-50%)',
-              background: c.bgSecondary,
-              border: `1px solid ${c.borderColor}`,
-              borderRadius: '0.25rem',
-              padding: '0.25rem',
-              cursor: 'pointer',
-              color: copied ? c.accentGreen : c.textTertiary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2} />}
+          <p id={titleId} style={{ fontFamily: FONT_SANS, fontWeight: 600, fontSize: '0.9375rem', color: c.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
+            {t.dev.valueTitle}
+          </p>
+          <button aria-label="Close dialog" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textTertiary, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
+            <X size={'0.875rem'} color={c.textTertiary} strokeWidth={1.5} />
           </button>
         </div>
-      )}
-    />
+        <div style={{ padding: '1.25rem 1.375rem' }}>
+          {/* Stock TOTP-secret-box pattern (square, appended copy control). */}
+          <div style={{ display: 'flex', border: `1px solid ${c.borderColor}`, background: c.bgPrimary }}>
+            <pre style={{
+              flex: 1, minWidth: 0, margin: 0, padding: '0.4375rem 0.625rem',
+              fontFamily: FONT_MONO, fontSize: '0.75rem', lineHeight: 1.5,
+              color: c.textPrimary, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
+              userSelect: 'text',
+            }}>
+              {value}
+            </pre>
+            <button
+              onClick={handleCopy}
+              aria-label={copied ? t.common.copied : t.common.copy}
+              title={t.common.copy}
+              style={{
+                padding: '0 0.625rem', background: c.bgPrimary, border: 'none',
+                borderLeft: `1px solid ${c.borderColor}`, cursor: 'pointer',
+                color: copied ? c.accentGreen : c.textTertiary,
+                display: 'flex', alignItems: 'center', transition: 'color .2s',
+              }}
+            >
+              {copied
+                ? <Check size={'0.8125rem'} color={c.accentGreen} strokeWidth={1.5} />
+                : <Copy size={'0.8125rem'} color={c.textTertiary} strokeWidth={1.5} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Overlay>
   );
 }
 
@@ -451,6 +418,12 @@ export function DevTab({
   // event/async guards; state drives disabled controls without reading refs
   // during render (and guarantees the lock state re-renders immediately).
   const [mutationOwned, setMutationOwned] = useState(false);
+  // Render-facing mirrors of the staged mutation's kind and display name —
+  // set and cleared alongside EVERY mutationRef assignment. They drive the
+  // password prompt's title/subtitle/danger chrome because refs must not be
+  // read during render (this file's own convention).
+  const [pendingKind, setPendingKind] = useState<PendingMutation['kind'] | null>(null);
+  const [pendingName, setPendingName] = useState<string | null>(null);
 
   const [verificationRecordId, setVerificationRecordId] = useState<string | null>(null);
   // verificationExpiry is the server-derived expiresAt (from onVerifyPassword),
@@ -461,15 +434,23 @@ export function DevTab({
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createError, setCreateError] = useState('');
+  // Draft captured at submit so the create modal can remount with the user's
+  // typed name after a non-rejection failure (no stacked overlays).
+  const [createDraft, setCreateDraft] = useState('');
   const [showRenameModal, setShowRenameModal] = useState<PatToken | null>(null);
   const [renameError, setRenameError] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState<PatToken | null>(null);
+  // Rename draft + original token, preserved across the password overlay for
+  // the same failure-reopen mechanism as create.
+  const [renameDraft, setRenameDraft] = useState<{ currentName: string; name: string } | null>(null);
   const [createdValue, setCreatedValue] = useState<{ token: PatToken; value: string } | null>(null);
 
   // Exclusive ownership of the staged/in-flight mutation. Starting a new
   // mutation while one exists is a no-op. The staged action survives every
   // recoverable failure so drafts and targets are preserved by construction.
   const mutationRef = useRef<PendingMutation | null>(null);
+  // Original token behind a staged rename, kept so the rename modal can
+  // remount against the SAME list entry after a non-rejection failure.
+  const renameTokenRef = useRef<PatToken | null>(null);
   // Generation counter (security.tsx pattern): bumped on open/close/reset.
   // Every async continuation after an await compares the captured generation
   // and silently aborts when stale.
@@ -489,8 +470,9 @@ export function DevTab({
   // eslint-disable-next-line react-hooks/purity
   const isVerificationValid = Boolean(verificationRecordId && Date.now() < verificationExpiry);
 
-  // True while the action-purpose password overlay is up: the source modal
-  // underneath stays mounted but must be locked (loading/disabled).
+  // True while the action-purpose password overlay is up. Source modals are
+  // closed (never stacked) before the overlay opens; this flag keeps the list
+  // locked and gates the loading contract of any remounted source modal.
   const actionOverlayOpen = modalStep !== null && modalPurpose === 'action';
 
   // Auto-invalidate verification when it expires, forcing re-verification
@@ -654,6 +636,8 @@ export function DevTab({
       if (mutationRef.current === action) {
         mutationRef.current = null;
         setMutationOwned(false);
+        setPendingKind(null);
+        setPendingName(null);
       }
     };
 
@@ -679,6 +663,9 @@ export function DevTab({
                     clearExactMutation();
                     setCreateError(t.dev.mayHaveCreated);
                     setModalStep(null);
+                    // Failure rehydration: remount the create modal with the
+                    // preserved draft and the ambiguity notice.
+                    setShowCreateModal(true);
                     return;
                   }
                 } else if (LIST_INVALIDATION_ERRORS.has(refreshed.error)) {
@@ -694,13 +681,16 @@ export function DevTab({
           clearExactMutation();
           setCreateError(mapError(code, t));
           setModalStep(null);
+          // Failure rehydration: remount the create modal with the preserved
+          // draft (initialName=createDraft) and the localized error.
+          setShowCreateModal(true);
           return;
         }
         clearExactMutation();
         // The one-time value is committed BEFORE the best-effort refresh —
         // a refresh failure must never clear it.
         setCreatedValue(result.data);
-        setShowCreateModal(false);
+        setCreateDraft('');
         setCreateError('');
         onSuccess(t.dev.createdMsg);
         setModalStep(null);
@@ -719,10 +709,16 @@ export function DevTab({
           clearExactMutation();
           setRenameError(mapError(code, t));
           setModalStep(null);
+          // Failure rehydration: remount the rename modal against the original
+          // token with the user's typed draft (not the old name) and the
+          // localized error.
+          setShowRenameModal(renameTokenRef.current);
           return;
         }
         clearExactMutation();
         setShowRenameModal(null);
+        setRenameDraft(null);
+        renameTokenRef.current = null;
         setRenameError('');
         onSuccess(t.dev.renamed);
         setModalStep(null);
@@ -737,17 +733,14 @@ export function DevTab({
         const code = result.error;
         if (handleRejection(code)) return;
         handleUnauthorized(code);
-        // The delete confirm modal has no inline error surface (existing prop
-        // contract) — surface the mapped error via toast, matching prior
-        // behavior.
+        // Delete has no draft form to reopen — surface the mapped error via
+        // toast, matching prior behavior.
         clearExactMutation();
         onError(mapError(code, t));
-        setShowDeleteModal(null);
         setModalStep(null);
         return;
       }
       clearExactMutation();
-      setShowDeleteModal(null);
       onSuccess(t.dev.deleted);
       setModalStep(null);
       await loadTokens(undefined, gen);
@@ -824,9 +817,13 @@ export function DevTab({
   };
 
   // ── Mutation staging ─────────────────────────────────────────────────────
-  // The source modal STAYS MOUNTED while the password overlay runs (the
-  // overlay is rendered after it in the DOM and paints on top). Drafts and
-  // targets therefore survive every recoverable failure by construction.
+  // Single-modal-per-flow (base dashboard convention): the source modal
+  // CLOSES when the password overlay opens — overlays are never stacked.
+  // Drafts and targets are preserved explicitly (createDraft, renameDraft +
+  // renameTokenRef) so a non-rejection failure can reopen the source modal
+  // with the draft and a localized error. Cancelling the overlay ends the
+  // flow and drops the draft; verification rejections keep everything for an
+  // in-overlay retry.
 
   const submitCreate = (name: string, expiresAt: number | null) => {
     if (mutationRef.current) return; // exclusive ownership
@@ -834,6 +831,11 @@ export function DevTab({
     // M2M operation (like account deletion) and requires a fresh password.
     mutationRef.current = { kind: 'create', name, expiresAt };
     setMutationOwned(true);
+    setPendingKind('create');
+    setPendingName(name);
+    // Capture the draft, then close the form before the overlay opens.
+    setCreateDraft(name);
+    setShowCreateModal(false);
     opGenRef.current++;
     setModalPurpose('action');
     setModalStep({ kind: 'password' });
@@ -846,6 +848,13 @@ export function DevTab({
     if (!showRenameModal) return;
     mutationRef.current = { kind: 'rename', currentName: showRenameModal.name, name };
     setMutationOwned(true);
+    setPendingKind('rename');
+    setPendingName(showRenameModal.name);
+    // Preserve the typed draft and the original token so a non-rejection
+    // failure reopens the modal with the user's new name (not the old one).
+    setRenameDraft({ currentName: showRenameModal.name, name });
+    renameTokenRef.current = showRenameModal;
+    setShowRenameModal(null);
     opGenRef.current++;
     setModalPurpose('action');
     setModalStep({ kind: 'password' });
@@ -857,6 +866,8 @@ export function DevTab({
     if (mutationRef.current) return;
     mutationRef.current = { kind: 'delete', name: token.name };
     setMutationOwned(true);
+    setPendingKind('delete');
+    setPendingName(token.name);
     opGenRef.current++;
     setModalPurpose('action');
     setModalStep({ kind: 'password' });
@@ -870,6 +881,24 @@ export function DevTab({
   // one-time value modal survive branch switches by construction.
   const showSkeleton = viewState === 'unverified' || loading;
   const listLocked = loading || actionOverlayOpen || mutationLoading || mutationOwned;
+
+  // Password-prompt chrome mirrors the staged mutation kind (mirrored into
+  // state because mutationRef must not be read during render). Delete is the
+  // only destructive verification — sessions-tab revoke parity. The transient
+  // action-without-kind window (none exists today) falls back to view copy.
+  const verifyTitle = modalPurpose === 'view' || pendingKind === null
+    ? t.dev.verifyToView
+    : pendingKind === 'create'
+      ? t.dev.createToken
+      : pendingKind === 'rename'
+        ? t.dev.renameTitle
+        : t.dev.deleteTitle;
+  const verifySubtitle = modalPurpose === 'view' || pendingKind === null
+    ? t.dev.verifyToViewDesc
+    : pendingKind === 'delete'
+      ? t.dev.deleteDesc.replace('{name}', pendingName ?? '')
+      : t.dev.verifyToActionDesc;
+  const verifyDanger = modalPurpose === 'action' && pendingKind === 'delete';
 
   return (
     <div>
@@ -934,7 +963,7 @@ export function DevTab({
           {isMobile ? (
             <>
                <button
-                 onClick={() => { setCreateError(''); setShowCreateModal(true); }}
+                 onClick={() => { setCreateError(''); setCreateDraft(''); setShowCreateModal(true); }}
                   disabled={listLocked}
                  aria-label={t.dev.createToken}
                  title={t.dev.createToken}
@@ -985,7 +1014,7 @@ export function DevTab({
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => { setCreateError(''); setShowCreateModal(true); }}
+                onClick={() => { setCreateError(''); setCreateDraft(''); setShowCreateModal(true); }}
                  disabled={listLocked}
                 mode={mode}
                 colors={c}
@@ -1075,7 +1104,7 @@ export function DevTab({
                       <Pencil size={14} strokeWidth={1.5} />
                     </button>
                     <button
-                      onClick={() => setShowDeleteModal(token)}
+                      onClick={() => submitDelete(token)}
                        disabled={listLocked}
                        aria-label={`${t.dev.delete} ${token.name}`}
                        title={`${t.dev.delete} ${token.name}`}
@@ -1110,7 +1139,7 @@ export function DevTab({
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => setShowDeleteModal(token)}
+                      onClick={() => submitDelete(token)}
                       disabled={listLocked}
                       mode={mode}
                       colors={c}
@@ -1132,7 +1161,8 @@ export function DevTab({
       {showCreateModal && (
         <CreatePatModal
           key="dev-create"
-          onCancel={() => { setShowCreateModal(false); setCreateError(''); }}
+          initialName={createDraft}
+          onCancel={() => { setShowCreateModal(false); setCreateError(''); setCreateDraft(''); }}
           onSubmit={submitCreate}
           loading={actionOverlayOpen || mutationLoading}
           error={createError}
@@ -1147,8 +1177,8 @@ export function DevTab({
       {showRenameModal && (
         <RenamePatModal
           key={`dev-rename-${showRenameModal.name}`}
-          currentName={showRenameModal.name}
-          onCancel={() => { setShowRenameModal(null); setRenameError(''); }}
+          currentName={renameDraft?.name ?? showRenameModal.name}
+          onCancel={() => { setShowRenameModal(null); setRenameError(''); setRenameDraft(null); renameTokenRef.current = null; }}
           onSubmit={submitRename}
           loading={actionOverlayOpen || mutationLoading}
           error={renameError}
@@ -1159,30 +1189,14 @@ export function DevTab({
       )}
       </AnimatePresence>
 
-      <AnimatePresence>
-      {showDeleteModal && (
-        <DeletePatConfirmModal
-          key={`dev-delete-${showDeleteModal.name}`}
-          name={showDeleteModal.name}
-          onCancel={() => setShowDeleteModal(null)}
-          onConfirm={() => submitDelete(showDeleteModal)}
-          loading={actionOverlayOpen || mutationLoading}
-          t={t}
-          mode={mode}
-          colors={c}
-        />
-      )}
-      </AnimatePresence>
-
-      {/* Password verification is deliberately rendered after the source
-          modal so its equal-z-index overlay paints on top while the source
-          remains mounted with its draft/target intact. */}
+      {/* Single-modal-per-flow: source modals are closed before this overlay
+          opens, so only one dialog is mounted at a time. */}
       <AnimatePresence>
       {modalStep && (
         <PasswordVerifyModal
           key="dev-verify"
-          title={t.dev.verifyToView}
-          subtitle={modalPurpose === 'view' ? t.dev.verifyToViewDesc : t.dev.verifyToActionDesc}
+          title={verifyTitle}
+          subtitle={verifySubtitle}
           step={modalStep}
           onPasswordSubmit={handlePasswordSubmit}
           onClose={() => {
@@ -1200,6 +1214,13 @@ export function DevTab({
               mutationRef.current = null;
               setMutationOwned(false);
             }
+            // Cancelling ends the flow (base convention): staged chrome and
+            // preserved drafts are dropped; source modals stay closed.
+            setPendingKind(null);
+            setPendingName(null);
+            setCreateDraft('');
+            setRenameDraft(null);
+            renameTokenRef.current = null;
             setModalStep(null);
             setModalError('');
             setModalLoading(false);
@@ -1210,6 +1231,7 @@ export function DevTab({
           mode={mode}
           colors={c}
           t={t}
+          danger={verifyDanger}
         />
       )}
       </AnimatePresence>
@@ -1221,7 +1243,6 @@ export function DevTab({
           value={createdValue.value}
           onClose={() => setCreatedValue(null)}
           t={t}
-          mode={mode}
           colors={c}
         />
       )}

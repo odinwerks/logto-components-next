@@ -39,7 +39,6 @@ describe('FlowModal - localization', () => {
         step={{ kind: 'value' }}
         onPasswordSubmit={noop}
         onClose={noop}
-        hideValueSubmit
         t={enUS}
         mode="dark"
         colors={DARK_COLORS}
@@ -49,32 +48,6 @@ describe('FlowModal - localization', () => {
     const dialog = screen.getByRole('dialog', { name: 'Token created' });
     expect(dialog).not.toHaveAttribute('aria-describedby');
     expect(Array.from(dialog.querySelectorAll('p')).some((node) => node.textContent === '')).toBe(false);
-  });
-
-  it('can hide only the generic value submit while preserving the shared close control', () => {
-    const onClose = vi.fn();
-    const onValueSubmit = vi.fn();
-    render(
-      <FlowModal
-        title="Token created"
-        step={{ kind: 'value' }}
-        onPasswordSubmit={noop}
-        onValueSubmit={onValueSubmit}
-        onClose={onClose}
-        hideValueSubmit
-        extra={<div>ONE-TIME VALUE</div>}
-        t={enUS}
-        mode="dark"
-        colors={DARK_COLORS}
-      />,
-    );
-
-    expect(screen.queryByRole('button', { name: enUS.profile.saveChanges })).toBeNull();
-    expect(screen.getByText('ONE-TIME VALUE')).toBeInTheDocument();
-    const closeButtons = screen.getAllByRole('button', { name: /close/i });
-    fireEvent.click(closeButtons[closeButtons.length - 1]);
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onValueSubmit).not.toHaveBeenCalled();
   });
 
   it('renders code step with translation keys instead of hardcoded English', () => {

@@ -179,12 +179,19 @@ NEXT_PUBLIC_LOAD_TABS=profile,preferences,security,sessions,organizations,identi
           and atomically consumes the verification record before the upstream mutation. A
           record issued for one operation cannot authorize another and cannot be replayed.
         </p>
+        <p style={styles.textStyle}>
+          All Dev modals follow the single-modal dashboard convention: they close via the
+          header X, Escape, or backdrop click—never footer buttons, and overlays are never
+          stacked. Create and rename are single value-step dialogs that close as they hand
+          off to the password prompt; a recoverable failure reopens the form with the draft
+          and a localized error intact, while cancelling the prompt ends the flow.
+        </p>
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>Visual intent:</strong>{' '}
-          The <code style={styles.codeSmStyle}>view</code> prompt and all three mutation
-          password prompts use the primary blue verification treatment. Password entry is
-          never styled as destructive; only the final delete confirmation uses destructive
-          styling.
+          The <code style={styles.codeSmStyle}>view</code> prompt and the create and rename
+          prompts use the primary blue verification treatment. Delete has no intermediate
+          confirmation step: clicking Delete opens the password challenge directly with
+          destructive red styling, exactly like the Sessions revoke flow.
         </div>
         <ul style={{ ...styles.textStyle, paddingLeft: '20px' }}>
           <li style={{ marginBottom: '8px' }}>
@@ -268,7 +275,9 @@ NEXT_PUBLIC_LOAD_TABS=profile,preferences,security,sessions,organizations,identi
           A new PAT&apos;s value is shown only in the post-create result modal. That modal is
           deliberately limited to the <strong>Token created</strong> title, the full one-time
           token value, and copy and close controls—no token metadata, usage prose, endpoint
-          placeholders, or generated exchange snippet. The value is committed to UI state
+          placeholders, or generated exchange snippet. It has no subtitle and no footer; the
+          header X, Escape, and the backdrop are its only close controls. The value is
+          committed to UI state
           before the best-effort background list refresh, so a refresh failure cannot erase
           it; it remains visible until the user explicitly closes the modal. The value is
           never available from list responses afterward.

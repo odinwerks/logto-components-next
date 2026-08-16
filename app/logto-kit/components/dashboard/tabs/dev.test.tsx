@@ -226,7 +226,7 @@ describe('DevTab (personal access tokens)', () => {
     }
   });
 
-  it('uses primary verification styling for view and mutation password checks', async () => {
+  it('uses primary verification styling for view and create password checks, titled per action', async () => {
     renderDevTab();
     const viewDialog = await screen.findByRole('dialog', { name: enUS.dev.verifyToView });
     expect(within(viewDialog).getByText(enUS.dev.verifyToViewDesc)).toBeInTheDocument();
@@ -236,27 +236,34 @@ describe('DevTab (personal access tokens)', () => {
     await waitFor(() => expect(screen.getByText('ci-token')).toBeInTheDocument());
     await stageCreate('primary-action');
 
-    const actionDialog = await screen.findByRole('dialog', { name: enUS.dev.verifyToView });
+    // The create form hands off (closes) and the password prompt takes the
+    // action's title; only one dialog is mounted at a time.
+    await waitFor(() => expect(screen.queryByPlaceholderText(enUS.dev.namePlaceholder)).toBeNull());
+    const actionDialog = await screen.findByRole('dialog', { name: enUS.dev.createToken });
     expect(within(actionDialog).getByText(enUS.dev.verifyToActionDesc)).toBeInTheDocument();
     const verifyButton = within(actionDialog).getByRole('button', { name: enUS.verification.verifyPassword });
     expect(verifyButton).toHaveClass('ldd-btn-primary');
     expect(verifyButton).not.toHaveClass('ldd-btn-danger');
   });
 
-  it('keeps only delete confirmation dangerous and returns to primary password verification', async () => {
-    renderDevTab();
+  it('opens the delete password check directly as a red danger modal (no confirmation step)', async () => {
+    const { deleteFn } = renderDevTab();
     await verifyAndLoad();
     await waitFor(() => expect(screen.getByText('ci-token')).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByRole('button', { name: enUS.dev.delete })[0]);
-    const confirm = await screen.findByRole('dialog', { name: enUS.dev.deleteTitle });
-    expect(within(confirm).getByRole('button', { name: enUS.dev.delete })).toHaveClass('ldd-btn-danger');
-    fireEvent.click(within(confirm).getByRole('button', { name: enUS.dev.delete }));
 
-    const verifyDialog = await screen.findByRole('dialog', { name: enUS.dev.verifyToView });
+    // No intermediate confirm dialog: the danger password challenge opens
+    // immediately, titled like the Sessions revoke modal and naming the token.
+    const verifyDialog = await screen.findByRole('dialog', { name: enUS.dev.deleteTitle });
+    expect(within(verifyDialog).getByText(enUS.dev.deleteDesc.replace('{name}', 'ci-token'))).toBeInTheDocument();
     const verifyButton = within(verifyDialog).getByRole('button', { name: enUS.verification.verifyPassword });
-    expect(verifyButton).toHaveClass('ldd-btn-primary');
-    expect(verifyButton).not.toHaveClass('ldd-btn-danger');
+    expect(verifyButton).toHaveClass('ldd-btn-danger');
+    expect(verifyButton).not.toHaveClass('ldd-btn-primary');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+
+    await submitPassword();
+    await waitFor(() => expect(deleteFn).toHaveBeenCalledWith('ci-token', 'vid-fresh'));
   });
 
   it('uses the shared dialog shell for create and restores focus after Escape', async () => {
@@ -277,7 +284,7 @@ describe('DevTab (personal access tokens)', () => {
   });
 
   // ── Scenario 3: fresh, purpose-scoped password before create ────────────
-  it('requires a FRESH password verification (pat.create) before creating a PAT; source modal stays mounted', async () => {
+  it('requires a FRESH password verification (pat.create) before creating a PAT; the form hands off without stacking', async () => {
     const { createFn, verifyFn, getTokensFn } = renderDevTab({ isActive: true });
     await verifyAndLoad();
     await waitFor(() => expect(screen.getByText('ci-token')).toBeInTheDocument());
@@ -291,13 +298,16 @@ describe('DevTab (personal access tokens)', () => {
     fireEvent.click(within(dialog).getByRole('radio', { name: enUS.dev.expiry30Days }));
     fireEvent.click(within(dialog).getByRole('button', { name: enUS.dev.createToken }));
 
-    // The password overlay opens on top; the create modal STAYS MOUNTED but
-    // is locked. Creation must NEVER reuse the view-purpose record.
+    // Single-modal flow: the create form CLOSES (no stacked overlay) and the
+    // password prompt takes the action title. Creation must NEVER reuse the
+    // view-purpose record.
     await waitFor(() => {
       expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
     });
-    const srcDialog = screen.getByRole('dialog', { name: enUS.dev.createToken });
-    expect(within(srcDialog).getByPlaceholderText(enUS.dev.namePlaceholder)).toBeDisabled();
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText(enUS.dev.namePlaceholder)).toBeNull();
+    });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(createFn).not.toHaveBeenCalled();
     expect(verifyFn).toHaveBeenCalledTimes(1); // still only the view verification
 
@@ -314,8 +324,8 @@ describe('DevTab (personal access tokens)', () => {
     // The verify function was called a SECOND time, purpose-scoped to create.
     expect(verifyFn).toHaveBeenNthCalledWith(2, 'test-password', 'pat.create');
 
-    // The one-time value modal shows the token value exactly once, and the
-    // create modal closes only on success.
+    // The one-time value modal shows the token value exactly once; the create
+    // modal handed off at staging and never reopens on success.
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: enUS.dev.createToken })).toBeNull();
     });
@@ -366,14 +376,10 @@ describe('DevTab (personal access tokens)', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(`^${enUS.dev.delete}$`) })[0]);
 
-    const confirm = await screen.findByRole('dialog', { name: enUS.dev.deleteTitle });
-    await act(async () => {
-      fireEvent.click(within(confirm).getByRole('button', { name: enUS.dev.delete }));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
-    });
+    // The delete button opens the danger password challenge directly — no
+    // intermediate confirmation dialog.
+    const verifyDialog = await screen.findByRole('dialog', { name: enUS.dev.deleteTitle });
+    expect(within(verifyDialog).getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeInTheDocument();
     expect(deleteFn).not.toHaveBeenCalled();
 
     await submitPasswordAgain();
@@ -448,7 +454,8 @@ describe('DevTab (personal access tokens)', () => {
     fireEvent.click(copyButton);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('pat_new_generated_value'));
     expect(within(dialog).getByRole('button', { name: 'Close dialog' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: enUS.common.close })).toBeInTheDocument();
+    // No footer buttons: the header X (plus Escape/backdrop) is the only way out.
+    expect(within(dialog).queryByRole('button', { name: enUS.common.close })).toBeNull();
     expect(within(dialog).queryByRole('button', { name: enUS.profile.saveChanges })).toBeNull();
 
     for (const forbidden of [
@@ -763,12 +770,13 @@ describe('DevTab (personal access tokens)', () => {
       expect(renameFn).toHaveBeenCalledWith('  spaced  ', 'new-name', 'vid-fresh');
     });
 
-    // Delete: same verbatim name.
+    // Delete: same verbatim name — the danger password check opens directly.
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${enUS.dev.delete}$`) }));
     const deleteDialog = await screen.findByRole('dialog', { name: enUS.dev.deleteTitle });
-    await act(async () => {
-      fireEvent.click(within(deleteDialog).getByRole('button', { name: enUS.dev.delete }));
-    });
+    // Raw textContent comparison — the stored name's whitespace is verbatim.
+    expect(within(deleteDialog).getByText(
+      (_, el) => el?.textContent === enUS.dev.deleteDesc.replace('{name}', '  spaced  '),
+    )).toBeInTheDocument();
     await submitPasswordAgain();
     await waitFor(() => {
       expect(deleteFn).toHaveBeenCalledWith('  spaced  ', 'vid-fresh');
@@ -944,10 +952,8 @@ describe('DevTab (personal access tokens)', () => {
     expect(within(valueDialog).getByText('pat_new_generated_value')).toBeInTheDocument();
     expect(screen.queryByText('ci-token')).toBeNull();
 
-    const explicitCloseButtons = within(valueDialog).getAllByRole('button', {
-      name: enUS.common.close,
-    });
-    fireEvent.click(explicitCloseButtons[explicitCloseButtons.length - 1]);
+    // X-only close (no footer close control exists anymore).
+    fireEvent.click(within(valueDialog).getByRole('button', { name: 'Close dialog' }));
     await waitFor(() => {
       expect(screen.queryByText('pat_new_generated_value')).toBeNull();
     });

@@ -224,7 +224,7 @@ export function PasswordVerifyModal({
 
 export function FlowModal({
   title, subtitle, step, onValueSubmit, valueSubmitDisabled, valueSubmitLabel, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
-  passwordError, extra, headerExtra, hideFooterClose, hideValueSubmit = false, mode, colors, t, danger, mobmode,
+  passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger, mobmode,
   loading = false,
 }: {
   title: string;
@@ -243,7 +243,6 @@ export function FlowModal({
   extra?: React.ReactNode;
   headerExtra?: React.ReactNode;
   hideFooterClose?: boolean;
-  hideValueSubmit?: boolean;
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
@@ -374,20 +373,18 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-                {!hideValueSubmit && (
-                  <Button
-                    variant={danger ? 'danger' : 'primary'}
-                    onClick={() => onValueSubmit?.()}
-                    disabled={valueSubmitDisabled || loading}
-                    mode={mode}
-                    colors={colors}
-                    style={{ minWidth: '6.5rem', position: 'relative' }}
-                  >
-                    <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
-                      {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
-                    </StableButtonContent>
-                  </Button>
-                )}
+                <Button
+                  variant={danger ? 'danger' : 'primary'}
+                  onClick={() => onValueSubmit?.()}
+                  disabled={valueSubmitDisabled || loading}
+                  mode={mode}
+                  colors={colors}
+                  style={{ minWidth: '6.5rem', position: 'relative' }}
+                >
+                  <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
+                    {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                  </StableButtonContent>
+                </Button>
               </div>
             </>
           )}

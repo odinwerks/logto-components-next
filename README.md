@@ -565,7 +565,7 @@ Enabling PAT management requires all three of the following:
 
 No additional end-user OIDC scope is required. Turning the flag off hides the Dev tab and makes direct list/create/rename/delete actions return `PAT_DISABLED` before validation, session, M2M, lock, verification, or upstream work. It does **not** revoke PATs that were already issued by Logto.
 
-When enabled, opening Dev starts a `view` password check over a locked skeleton before the token list becomes interactive. Create, rename, and delete each require one new password verification for their own purpose (`pat.create`, `pat.rename`, or `pat.delete`); the view verification does not authorize mutations. All password prompts use the primary blue treatment, while only the delete confirmation is destructive. After creation, the result modal contains only the full one-time token value with copy and close controls—no metadata, usage prose, or generated usage snippet.
+When enabled, opening Dev starts a `view` password check over a locked skeleton before the token list becomes interactive. Create, rename, and delete each require one new password verification for their own purpose (`pat.create`, `pat.rename`, or `pat.delete`); the view verification does not authorize mutations. The view, create, and rename password prompts use the primary blue treatment; the delete password prompt is destructive red and opens directly, with no intermediate confirmation step. After creation, the result modal contains only the full one-time token value with copy and close controls—no metadata, usage prose, or generated usage snippet.
 
 ### Tab Configuration
 
