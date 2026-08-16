@@ -1,6 +1,6 @@
 {
   "name": "logto-debug-dashboard",
-  "version": "1.0.0",
+  "version": "1.1.0-beta.0",
   "private": true,
   "description": "A Next.js dashboard for Logto authentication with comprehensive user profile management",
   "license": "MIT",
