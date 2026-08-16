@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   fetchAllManagementPages,
+  makeManagementFetch,
   MANAGEMENT_LIST_MAX_ITEMS,
   MANAGEMENT_LIST_MAX_PAGES,
   MANAGEMENT_LIST_PAGE_SIZE,
@@ -52,6 +53,86 @@ describe('getManagementRequestTimeoutMs', () => {
 
     await expectation;
     vi.useRealTimers();
+  });
+});
+
+describe('makeManagementFetch extraHeaders', () => {
+  it('merges extraHeaders into the request headers (logto-verification-id forwarding)', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(mockJsonResponse([]));
+
+    await makeManagementFetch('https://auth.example.org/api/users/user-1/personal-access-tokens', {
+      method: 'DELETE',
+      token: 'm2m-token',
+      extraHeaders: { 'logto-verification-id': 'verif_rec_123' },
+    });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toMatchObject({
+      'logto-verification-id': 'verif_rec_123',
+      Authorization: 'Bearer m2m-token',
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it('blocks case-insensitive Authorization and Content-Type overrides', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(mockJsonResponse([]));
+
+    await makeManagementFetch('https://auth.example.org/api/users/user-1', {
+      method: 'POST',
+      token: 'm2m-token',
+      body: { name: 'pat-1' },
+      extraHeaders: {
+        authorization: 'Bearer attacker-token',
+        'CONTENT-TYPE': 'text/plain',
+        'X-Custom': 'keep-me',
+      },
+    });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer m2m-token',
+      'Content-Type': 'application/json',
+      'X-Custom': 'keep-me',
+    });
+    expect((init.headers as Record<string, string>).Authorization).not.toContain('attacker');
+    expect(init.headers).not.toHaveProperty('authorization');
+    expect(init.headers).not.toHaveProperty('CONTENT-TYPE');
+    fetchSpy.mockRestore();
+  });
+
+  it('drops a caller-supplied content type when there is no JSON body', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(mockJsonResponse([]));
+
+    await makeManagementFetch('https://auth.example.org/api/users/user-1', {
+      method: 'GET',
+      token: 'm2m-token',
+      extraHeaders: { 'content-Type': 'text/plain' },
+    });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toEqual({ Authorization: 'Bearer m2m-token' });
+    fetchSpy.mockRestore();
+  });
+
+  it('sends identical headers when extraHeaders is absent', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(mockJsonResponse([]));
+
+    await makeManagementFetch('https://auth.example.org/api/users/user-1/roles', {
+      method: 'GET',
+      token: 'm2m-token',
+    });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toEqual({ Authorization: 'Bearer m2m-token' });
+    fetchSpy.mockRestore();
   });
 });
 

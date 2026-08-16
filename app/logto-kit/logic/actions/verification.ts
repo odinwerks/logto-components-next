@@ -12,6 +12,7 @@ import { ValidationError } from '../validation';
 import { assertPhoneCountryAllowed } from '../country-list-filter';
 import { getCountryFilter, getBackendType } from '../../config';
 import { sealVerificationCookie, requireVerifiedIdentity } from './verification-cookie';
+import { VERIFICATION_PURPOSES, type VerificationPurpose } from '../types';
 import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { logEvent } from '../log';
@@ -35,7 +36,25 @@ function cleanPhoneNumber(phone: string): string {
 // Password Verification
 // ============================================================================
 
-export async function verifyPasswordForIdentity(password: string): Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>> {
+/**
+ * Verifies the user's password and seals the resulting verification record
+ * into an httpOnly, HMAC-signed cookie.
+ *
+ * `purpose` scopes the sealed verification (PAT remediation):
+ *   - omitted → the seal is scoped to `'view'` (the legacy default; accepted
+ *     by all existing default-mode `requireVerifiedIdentity` callers).
+ *   - `'pat.create' | 'pat.rename' | 'pat.delete'` → the seal is only
+ *     accepted by the destructive action declaring the same purpose.
+ *   - any other value → `VERIFICATION_FAILED` before any upstream request.
+ *
+ * The return shape is unchanged: `verificationRecordId` is the value clients
+ * must present to destructive actions; `verificationTimestamp` is UX-ONLY and
+ * never trusted on the return path.
+ */
+export async function verifyPasswordForIdentity(
+  password: string,
+  purpose?: VerificationPurpose,
+): Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>> {
   return safeAction(async () => {
     // ── Explicit auth check ───────────────────────────────────────────────
     const sessionToken = await getTokenForServerAction();
@@ -51,6 +70,13 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     // Block control characters (except common whitespace)
     if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(password)) {
       throw new ValidationError('INVALID_INPUT', 'password');
+    }
+    // Guard: an explicit purpose must be a known purpose value. Checked
+    // before any upstream request so an invalid scope never burns a
+    // verification record or seals a cookie entry.
+    if (purpose !== undefined
+      && !(VERIFICATION_PURPOSES as readonly string[]).includes(purpose)) {
+      throw new ValidationError('VERIFICATION_FAILED', 'purpose');
     }
     const res = await makeRequest('/api/verifications/password', {
       method: 'POST',
@@ -100,7 +126,15 @@ export async function verifyPasswordForIdentity(password: string): Promise<DataR
     // timestamp. The cookie is HMAC-signed and bound to this recordId and the
     // session user's sub (CAN-ACT-002), so a malicious client cannot forge it,
     // substitute a different expiry, or replay it across user sessions.
-    await sealVerificationCookie(parsed.verificationRecordId, verificationTimestamp, introspection.sub);
+    // PAT remediation: the seal also carries the purpose scope (default
+    // 'view'), so a seal issued for e.g. 'pat.create' cannot authorize a
+    // different destructive action.
+    await sealVerificationCookie(
+      parsed.verificationRecordId,
+      verificationTimestamp,
+      introspection.sub,
+      purpose ?? 'view',
+    );
     return {
       verificationRecordId: parsed.verificationRecordId,
       // NOTE: verificationTimestamp is returned for CLIENT UX ONLY (e.g. the

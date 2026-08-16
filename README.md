@@ -11,7 +11,7 @@ A modular Next.js app that provides a base for building with a dashboard, user b
 - **Semi-Clean Production-ish UI**: Squared buttons, CSS-variable theming, and a set of UI components
 - **Full Responsive & Mobile Support**: Dynamic orientation-based responsive routing (`useIsPortrait`) that swaps standard sidebar layouts for touch-optimized mobile navigation. Features a tactile, morphing floating button (Hamburger, X, and ArrowLeft), a beautiful two-stage fullscreen navigation drawer (Topics -> Subtopics), and fully responsive, horizontally scrollable data tables.
 - **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat (**blacktop only**; disabled under `BACKEND_TYPE=upstream`), IP geolocation minimap, "Revoke all other sessions", identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
+- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat (**blacktop only**; disabled under `BACKEND_TYPE=upstream`), IP geolocation minimap, "Revoke all other sessions", optional purpose-scoped personal access token (PAT) management (private, default-off feature), identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
 - **Theme System**: CSS-only theme system with dark/light CSS variables. The `THEME` env var is a build-time folder name only; `app/globals.css` has hardcoded `@import` paths to `themes/default/`. To switch theme folders, you must manually edit those `@import` paths — the env var alone does NOT dynamically switch CSS. No JS registration needed.
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
@@ -170,6 +170,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   ├── input-guards.tsx
 │   │   │   │   └── logging.tsx
 │   │   │   ├── tabs-and-flows/
+│   │   │   │   ├── dev.tsx
 │   │   │   │   ├── identities.tsx
 │   │   │   │   ├── organizations.tsx
 │   │   │   │   ├── overview.tsx
@@ -231,6 +232,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   │   └── tooltip-position.ts
 │   │   │   │   ├── tab-utils.tsx          # getTabLabel (shared by desktop + mobile)
 │   │   │   │   ├── tabs/
+│   │   │   │   │   ├── dev.tsx             # Personal access token management
 │   │   │   │   │   ├── identities.tsx
 │   │   │   │   │   ├── organizations.tsx
 │   │   │   │   │   ├── preferences.tsx
@@ -299,6 +301,7 @@ Unauthenticated users who access a protected URL directly (or via browser refres
 │   │   │   │   ├── management-request.ts
 │   │   │   │   ├── mfa.ts
 │   │   │   │   ├── organizations.ts
+│   │   │   │   ├── pat.ts                   # Purpose-scoped Management API PAT actions
 │   │   │   │   ├── password.ts
 │   │   │   │   ├── profile.ts
 │   │   │   │   ├── request.ts             # Authenticated Account API HTTP client
@@ -484,6 +487,7 @@ Runtime env passthrough currently includes backend and country behavior gates:
 - `COUNTRY_CODE_ALLOW_LIST`
 - `COUNTRY_CODE_BLOCK_LIST`
 - `LOGTO_M2M_RESOURCE`
+- `PAT_ENABLED` (private PAT feature gate; defaults to false)
 
 ## Security Architecture
 
@@ -547,17 +551,37 @@ LOGTO_M2M_RESOURCE=https://your-tenant.logto.app/api  # Logto Cloud. For OSS, de
 LOGTO_INTROSPECTION_URL=https://your-tenant.logto.app/oidc/token/introspection
 ```
 
-M2M credentials are required for account deletion and other Management API operations. Avatar uploads use the session user's access token via the Account API (`/api/my-account/avatar`) when using Logto Native, or S3/Supabase storage; avatar uploads do not require M2M credentials. User data retrieval also uses the user's own access token via the Account API (`/api/my-account`).
+M2M credentials are required for account deletion, enabled Dev/PAT management, and other Management API operations. PAT actions derive the user from session introspection and require no additional end-user OIDC scope. Avatar uploads use the session user's access token via the Account API (`/api/my-account/avatar`) when using Logto Native, or S3/Supabase storage; avatar uploads do not require M2M credentials. User data retrieval also uses the user's own access token via the Account API (`/api/my-account`).
+
+#### Personal Access Tokens (private, default off)
+
+PAT management has a private server-side hard lock. Missing, empty, `false`, `1`, or any other value keeps it disabled; only `PAT_ENABLED=true` after trimming and case normalization enables it. There is no `NEXT_PUBLIC_PAT_ENABLED` setting.
+
+Enabling PAT management requires all three of the following:
+
+1. Set the private runtime variable `PAT_ENABLED=true`.
+2. Include `dev` (or one of its aliases) in `LOAD_TABS` when using an explicit tab list. If the list is empty, Dev joins the normal default order only while PAT is enabled.
+3. Configure the existing M2M application for Logto Management API access.
+
+No additional end-user OIDC scope is required. Turning the flag off hides the Dev tab and makes direct list/create/rename/delete actions return `PAT_DISABLED` before validation, session, M2M, lock, verification, or upstream work. It does **not** revoke PATs that were already issued by Logto.
+
+When enabled, opening Dev starts a `view` password check over a locked skeleton before the token list becomes interactive. Create, rename, and delete each require one new password verification for their own purpose (`pat.create`, `pat.rename`, or `pat.delete`); the view verification does not authorize mutations. All password prompts use the primary blue treatment, while only the delete confirmation is destructive. After creation, the result modal contains only the full one-time token value with copy and close controls—no metadata, usage prose, or generated usage snippet.
 
 ### Tab Configuration
 
 ```env
-# Which tabs to show and in what order (comma-separated)
-# Allowed: profile, preferences, security, sessions, identities, organizations
-# Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations
-LOAD_TABS=profile,preferences,security,sessions,organizations,identities
+# Default-off configuration: all ordinary tabs, no Dev/PAT tab
+# Allowed: profile, preferences, security, sessions, identities, organizations, dev
+# Aliases: personal, user → profile; prefs, custom-data, custom, customdata → preferences; mfa, 2fa, totp → security; sessions, session, devices, activity → sessions; identity → identities; orgs, org → organizations; developer, pat, pats, pat-tokens, tokens → dev
+PAT_ENABLED=false
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
+
+# Explicit PAT opt-in (also requires the existing Management API M2M setup)
+# PAT_ENABLED=true
+# LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
 ```
 
+`PAT_ENABLED` is private. `dev` and all of its aliases are removed from either `LOAD_TABS` or `NEXT_PUBLIC_LOAD_TABS` while the flag is off. Mixed lists retain the configured order of their non-Dev tabs and remove duplicates. Missing, empty, all-invalid, or Dev-only input falls back to all non-Dev tabs in the existing default order while PAT is off.
 
 ### Account Deletion
 
@@ -747,7 +771,7 @@ No S3 configuration required. Logto handles upload, storage, and cleanup interna
 
 ### NEXT_PUBLIC_* Variants
 
-All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`, `NEXT_PUBLIC_BACKEND_TYPE`, `NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY`, `NEXT_PUBLIC_FORCE_ANIMATIONS`.
+All user-facing config variables support `NEXT_PUBLIC_` prefixes for Next.js build-time inlining into client bundles: `NEXT_PUBLIC_THEME`, `NEXT_PUBLIC_DEFAULT_THEME_MODE`, `NEXT_PUBLIC_USER_SHAPE`, `NEXT_PUBLIC_LANG_MAIN`, `NEXT_PUBLIC_LANG_AVAILABLE`, `NEXT_PUBLIC_MFA_ISSUER`, `NEXT_PUBLIC_LOAD_TABS`, `NEXT_PUBLIC_NAME_TYPE`, `NEXT_PUBLIC_DELETE_REDIRECT_DELAY`, `NEXT_PUBLIC_BACKEND_TYPE`, `NEXT_PUBLIC_SIGNOUT_REDIRECT_DELAY`, `NEXT_PUBLIC_FORCE_ANIMATIONS`. The private `PAT_ENABLED` hard lock is deliberately excluded from this list and has no public-prefixed equivalent.
 
 ### Redis Configuration
 
@@ -824,8 +848,8 @@ The demo app (`app/demo/`) is a standalone application with 8 top-level sidebar 
 |-----|------|-------------|
 | Getting Started | guide | Clone, configure, set up avatar upload, Logto Console setup |
 | UserButton | component | Clickable avatar button, badge, and card with props table and live examples |
-| Dashboard | component | Full user management dashboard modal (internals, provider sync, tab config, rendering, mobile) |
-| Tabs & Flows | reference | Deep dive into each dashboard tab: profile, preferences, security, sessions, identities, organizations |
+| Dashboard | component | Full user management dashboard modal, including Sessions and Dev/PATs (internals, provider sync, tab config, rendering, mobile) |
+| Tabs & Flows | reference | Deep dive into each dashboard tab: profile, preferences, security, sessions, Dev/PATs, identities, organizations |
 | RBAC | reference | `<Protected />`, `OrgSwitcher`, `setActiveOrg`, Protected Actions API, and permission-gated access patterns |
 | Calculator | component | Permission-gated calculator demo with live RBAC examples |
 | Anatomy | reference | Providers, theme system, i18n, async patterns, and reusable primitives |
@@ -833,7 +857,7 @@ The demo app (`app/demo/`) is a standalone application with 8 top-level sidebar 
 
 > **Subtopics**: OrgSwitcher, Providers, Theme, i18n, Sessions, Error Handling, Input Guards, Logging, and Primitives are covered as subtopic pages within these 8 top-level topics.
 
-Documentation is organized as standalone TSX files in `app/demo/content/`: Dashboard has 5 files, Tabs & Flows has 7, RBAC has 2, Anatomy has 5, and Security has 3. The **UserButton** tab has props, notes, and example cards. The **tabs-and-flows** docs cover Profile, Preferences, Security, Sessions, Identities, and Organizations with their props, hooks, actions, and flows.
+Documentation is organized as standalone TSX files in `app/demo/content/`: Dashboard has 5 files, Tabs & Flows has 8, RBAC has 2, Anatomy has 5, and Security has 3. The **UserButton** tab has props, notes, and example cards. The **tabs-and-flows** docs cover Profile, Preferences, Security, Sessions, Dev/PATs, Identities, and Organizations with their props, hooks, actions, and flows.
 
 > **Demo Dark Mode Palette:** The docs pages and sidebar use a custom scoped dark palette (`app/globals.css` → `.docs-content-container`) independent of the main dashboard theme for optimal reading contrast:
 > - Sidebar BG: `#050608`
@@ -854,7 +878,7 @@ The demo app consists of:
 | `content/getting-started/` | Getting started guide - clone, configure, avatar upload, Logto Console |
 | `content/user-button/` | UserButton documentation - Quick Start, Props table, Notes, 6 example cards |
 | `content/dashboard/` | Dashboard documentation - Internals, Provider Sync, Tab Structure, Rendering, Mobile (5 pages) |
-| `content/tabs-and-flows/` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (7 pages) |
+| `content/tabs-and-flows/` | Detailed tabs documentation - props, hooks, actions for all dashboard tabs (8 pages, including Dev/PATs) |
 | `content/rbac/` | Protected component and API documentation - permission-based access control, server actions, and examples (2 pages: `api`, `ui-protected`) |
 | `content/anatomy/` | Providers, theme, i18n, primitives, and async patterns (5 pages) |
 | `content/security/` | Error handling (70 registered error codes), input guards (10 assert guards, 8 validate functions, `safeUrl`), and logging (3 pages: `error-handling`, `input-guards`, `logging`) |
@@ -1661,7 +1685,7 @@ Translations are loaded from `app/logto-kit/locales/`:
 
 ## Tab Configuration
 
-The dashboard supports configurable tabs via the `LOAD_TABS` environment variable. This allows you to control which tabs are displayed and their order.
+The dashboard supports configurable tabs via the `LOAD_TABS` environment variable. This allows you to control which enabled tabs are displayed and their order. Dev/PAT is additionally controlled by the private, strict, default-off `PAT_ENABLED` hard lock.
 
 ### Tab IDs and Aliases
 
@@ -1675,30 +1699,41 @@ Available tab IDs with their display aliases:
 | `sessions` | `session`, `devices`, `activity` | Active session management and device overview |
 | `identities` | `identity` | External identity providers |
 | `organizations` | `orgs`, `org` | Organization memberships and roles |
+| `dev` | `developer`, `pat`, `pats`, `pat-tokens`, `tokens` | Purpose-scoped personal access token management |
 
 ### Configuration Examples
 
 ```env
-# Show all tabs (example order)
-LOAD_TABS=profile,preferences,security,sessions,organizations,identities
+# Safe default: show all non-Dev tabs in default order
+PAT_ENABLED=false
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
 
 # Show only profile, security, sessions, and preferences (in that order)
 LOAD_TABS=profile,security,sessions,preferences
 
-# Use aliases - these are all equivalent to the first example
-LOAD_TABS=personal,prefs,mfa,sessions,identity,orgs
-LOAD_TABS=user,custom-data,2fa,devices,identities,organization
+# Opt in to PAT management. Existing Management API M2M setup is also required.
+PAT_ENABLED=true
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev
 
-# If not set or empty, shows all tabs in default order
+# Aliases preserve configured order and are deduplicated
+LOAD_TABS=personal,prefs,mfa,devices,identity,orgs,pat-tokens
+
+# If LOAD_TABS is missing or empty, show all enabled tabs in default order.
+# With PAT_ENABLED off, "enabled tabs" excludes Dev.
 ```
+
+Only `PAT_ENABLED=true` after trimming and case normalization enables PAT. There is no `NEXT_PUBLIC_PAT_ENABLED` setting. While disabled, `dev`, `developer`, `pat`, `pats`, `pat-tokens`, and `tokens` are ignored whether they come from `LOAD_TABS` or its `NEXT_PUBLIC_LOAD_TABS` fallback.
 
 ### How Tab Loading Works
 
-1. **ENV Parsing**: `LOAD_TABS` is parsed as comma-separated list
-2. **Alias Resolution**: Each token is mapped to its canonical tab ID
-3. **Validation**: Invalid tokens are skipped with a warning
-4. **Deduplication**: Duplicate tabs are removed while preserving order
-5. **Fallback**: If no valid tabs remain, all tabs are shown in default order
+1. **Private feature gate**: Resolve `PAT_ENABLED`; anything except normalized `true` disables Dev/PAT
+2. **ENV Parsing**: `LOAD_TABS` is parsed as a comma-separated list, with `NEXT_PUBLIC_LOAD_TABS` as the existing tab-list fallback
+3. **Alias Resolution**: Each token is mapped to its canonical tab ID
+4. **Validation**: Invalid tokens are skipped with a warning
+5. **Filtering and deduplication**: Duplicate tabs are removed in configured order, and Dev aliases are removed while PAT is disabled
+6. **Fallback**: If the source is missing/empty or no enabled tabs remain, all enabled tabs are returned in default order; with PAT off this means all non-Dev tabs
+
+The server action boundary is independent of navigation. When PAT is disabled, direct list/create/rename/delete calls return `PAT_DISABLED` before input validation, session-token access or introspection, M2M acquisition, locks/rate limits, identity verification, or Logto requests. Disabling the feature does not revoke existing upstream PATs.
 
 ## Implementation Patterns
 

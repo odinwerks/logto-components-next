@@ -42,6 +42,13 @@ const SettingsIcon = ({ size = 14, color = 'currentColor', ...rest }: SvgIconPro
   </svg>
 );
 
+const TerminalIcon = ({ size = 14, color = 'currentColor', ...rest }: SvgIconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" {...rest}>
+    <polyline points="4 17 10 11 4 5" />
+    <line x1="12" y1="19" x2="20" y2="19" />
+  </svg>
+);
+
 const LogoutIcon = ({ size = 14, color = 'currentColor', ...rest }: SvgIconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" {...rest}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -58,6 +65,7 @@ export function getTabIcon(id: TabId): React.ComponentType<React.SVGProps<SVGSVG
     case 'identities': return LinkIcon;
     case 'organizations': return BuildingIcon;
     case 'preferences': return SettingsIcon;
+    case 'dev': return TerminalIcon;
     default: return UserIcon;
   }
 }
@@ -70,8 +78,44 @@ export function getTabLabel(id: TabId, t: Translations): string {
     case 'sessions': return t.tabs.sessions;
     case 'identities': return t.tabs.identities;
     case 'organizations': return t.tabs.organizations;
+    case 'dev': return t.tabs.dev;
     default: return (id as string).toUpperCase();
   }
 }
 
-export { UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon, LogoutIcon };
+// ── Auto-verify fallback ────────────────────────────────────────────────────
+
+/**
+ * Tabs that auto-open a password-verification modal on entry (sessions/dev).
+ * These are never eligible as an auto-verify *fallback* target — navigating
+ * away from a dismissed verification prompt must not land the user on another
+ * tab that immediately re-prompts for a password.
+ */
+export const AUTO_VERIFY_TABS = ['sessions', 'dev'] as const satisfies readonly TabId[];
+
+/**
+ * Picks a fallback tab for the auto-verify dismissal flow.
+ *
+ * Semantics:
+ * - Never returns `currentTab` or any AUTO_VERIFY_TABS member.
+ * - Prefers `lastTab` when it is loaded and eligible.
+ * - Otherwise returns the first loaded eligible tab.
+ * - Returns null when no loaded tab is eligible (caller keeps the user where
+ *   they are rather than bouncing them into another password prompt).
+ */
+export function resolveAutoVerifyFallbackTab(opts: {
+  loadedTabs: readonly TabId[];
+  lastTab: TabId | null;
+  currentTab: TabId;
+}): TabId | null {
+  const autoVerifyTabs = new Set<TabId>(AUTO_VERIFY_TABS);
+  const isEligible = (tab: TabId): boolean =>
+    tab !== opts.currentTab && !autoVerifyTabs.has(tab);
+
+  if (opts.lastTab && opts.loadedTabs.includes(opts.lastTab) && isEligible(opts.lastTab)) {
+    return opts.lastTab;
+  }
+  return opts.loadedTabs.find(isEligible) ?? null;
+}
+
+export { UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon, TerminalIcon, LogoutIcon };

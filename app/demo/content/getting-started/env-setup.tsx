@@ -72,7 +72,7 @@ export default function EnvSetup() {
       </p>
       
       <div style={{ ...styles.noteStyle, marginTop: '16px' }}>
-        <strong style={styles.strongNoteStyle}>Pre-Dev Hook behavior:</strong> The <code style={styles.codeSmStyle}>scripts/inject-next-public.js</code> script automatically runs during the pre-dev hook. It parses the <code style={styles.codeSmStyle}>.env</code> file, extracts variables, and writes their public equivalents (prefixed with <code style={styles.codeSmStyle}>NEXT_PUBLIC_</code>) to <code style={styles.codeSmStyle}>.env.local</code>. This eliminates the need to manually duplicate environment variables for client-side usage.
+        <strong style={styles.strongNoteStyle}>Pre-Dev Hook behavior:</strong> The <code style={styles.codeSmStyle}>scripts/inject-next-public.js</code> script automatically runs during the pre-dev hook. It parses the <code style={styles.codeSmStyle}>.env</code> file and writes public equivalents only for variables on its explicit client-safe allowlist. Private values are not copied. In particular, <code style={styles.codeSmStyle}>PAT_ENABLED</code> is excluded and has no <code style={styles.codeSmStyle}>NEXT_PUBLIC_PAT_ENABLED</code> equivalent.
       </div>
 
       <h2 id={slugify("Core Variables Reference")} style={h2Style}>Core Variables Reference</h2>
@@ -168,6 +168,9 @@ LOGTO_M2M_APP_ID=         # Machine-to-Machine app ID from Logto Console
 LOGTO_M2M_APP_SECRET=     # Machine-to-Machine client secret
 LOGTO_INTROSPECTION_URL=  # Optional: Token introspection endpoint
 
+# - Personal Access Tokens (private, strict default off) -
+PAT_ENABLED=false          # Only a trimmed, case-normalized value of true enables Dev/PAT
+
 # - Backend Selection -
 BACKEND_TYPE=upstream      # Backend mode: blacktop | upstream (server default: upstream)
 
@@ -218,6 +221,20 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
         </thead>
         <tbody>
           <tr>
+            <td style={customTdPathStyle}>PAT_ENABLED</td>
+            <td style={customTdStyle}>
+              Private server-side hard lock for personal access token management. It is
+              disabled by default; only a trimmed, case-normalized{' '}
+              <code style={styles.codeSmStyle}>true</code> enables it. Missing, empty,{' '}
+              <code style={styles.codeSmStyle}>false</code>,{' '}
+              <code style={styles.codeSmStyle}>1</code>, and all other values keep it off.
+              There is no <code style={styles.codeSmStyle}>NEXT_PUBLIC_PAT_ENABLED</code>{' '}
+              setting. Opt-in also requires <code style={styles.codeSmStyle}>dev</code> (or an
+              alias) in an explicit tab list and the existing Logto Management API M2M
+              configuration; no additional end-user OIDC scope is required.
+            </td>
+          </tr>
+          <tr>
             <td style={customTdPathStyle}>THEME</td>
             <td style={customTdStyle}>
               The directory name of the active custom theme layout folder. Currently unused infrastructure.
@@ -244,7 +261,24 @@ LOGGING_WEBHOOK_URL=      # Slack or Discord webhook target for error log teleme
           <tr>
             <td style={customTdPathStyle}>LOAD_TABS</td>
             <td style={customTdStyle}>
-              A comma-separated, ordered sequence list of dashboard tabs to actively load and render. Supported tokens: <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>security</code>, <code style={styles.codeSmStyle}>sessions</code>, <code style={styles.codeSmStyle}>organizations</code>, <code style={styles.codeSmStyle}>identities</code>.
+              A comma-separated, ordered sequence of dashboard tabs to actively load and
+              render. Supported canonical tokens are{' '}
+              <code style={styles.codeSmStyle}>profile</code>,{' '}
+              <code style={styles.codeSmStyle}>preferences</code>,{' '}
+              <code style={styles.codeSmStyle}>security</code>,{' '}
+              <code style={styles.codeSmStyle}>sessions</code>,{' '}
+              <code style={styles.codeSmStyle}>organizations</code>,{' '}
+              <code style={styles.codeSmStyle}>identities</code>, and{' '}
+              <code style={styles.codeSmStyle}>dev</code>. Dev aliases are{' '}
+              <code style={styles.codeSmStyle}>developer</code>,{' '}
+              <code style={styles.codeSmStyle}>pat</code>,{' '}
+              <code style={styles.codeSmStyle}>pats</code>,{' '}
+              <code style={styles.codeSmStyle}>pat-tokens</code>, and{' '}
+              <code style={styles.codeSmStyle}>tokens</code>. While PAT is disabled, Dev and
+              every alias are removed after alias resolution from both this value and the{' '}
+              <code style={styles.codeSmStyle}>NEXT_PUBLIC_LOAD_TABS</code> fallback. Mixed
+              lists preserve non-Dev order and deduplicate entries. Missing, empty,
+              all-invalid, or Dev-only input falls back to all non-Dev tabs in default order.
             </td>
           </tr>
           <tr>

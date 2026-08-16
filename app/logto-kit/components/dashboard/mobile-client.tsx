@@ -19,10 +19,22 @@ import { SecurityTab } from './tabs/security';
 import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
-import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession, PersonalRbacResult, OrgRbacResult } from '../../logic/types';
+import { DevTab } from './tabs/dev';
+import type { UserData, MfaVerificationPayload, MfaVerification, LogtoSession, PersonalRbacResult, OrgRbacResult, VerificationPurpose } from '../../logic/types';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { ArrowLeft, Monitor } from 'lucide-react';
-import { getTabLabel, UserIcon, ShieldIcon, LinkIcon, BuildingIcon, SettingsIcon, LogoutIcon } from './tab-utils';
+import {
+  AUTO_VERIFY_TABS,
+  getTabLabel,
+  UserIcon,
+  ShieldIcon,
+  LinkIcon,
+  BuildingIcon,
+  SettingsIcon,
+  LogoutIcon,
+  TerminalIcon,
+  resolveAutoVerifyFallbackTab,
+} from './tab-utils';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +60,7 @@ interface MobileClientProps {
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
-  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
+  onVerifyPassword: (password: string, purpose?: VerificationPurpose) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
@@ -70,6 +82,10 @@ interface MobileClientProps {
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onGetPatTokens: (verificationRecordId: string) => Promise<DataResult<import('../../logic/types').PatToken[]>>;
+  onCreatePatToken: (name: string, expiresAt: number | null, verificationRecordId: string) => Promise<DataResult<{ token: import('../../logic/types').PatToken; value: string }>>;
+  onRenamePatToken: (currentName: string, name: string, verificationRecordId: string) => Promise<ActionResult>;
+  onDeletePatToken: (name: string, verificationRecordId: string) => Promise<ActionResult>;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -125,6 +141,10 @@ export function MobileClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
+  onGetPatTokens,
+  onCreatePatToken,
+  onRenamePatToken,
+  onDeletePatToken,
 }: MobileClientProps) {
 
   const { mode, colors } = useThemeMode();
@@ -170,10 +190,10 @@ export function MobileClient({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [activeTab]);
 
-  // Last-tab tracking for Sessions verification dismissal (D13).
+  // Last ordinary-tab tracking for Sessions/Dev verification dismissal (D13).
   const lastNonSessionsTabRef = useRef<TabId | null>(null);
   useEffect(() => {
-    if (activeTab !== 'sessions' && activeTab !== null) {
+    if (activeTab !== null && !AUTO_VERIFY_TABS.some((tabId) => tabId === activeTab)) {
       lastNonSessionsTabRef.current = activeTab;
     }
   }, [activeTab]);
@@ -500,12 +520,12 @@ export function MobileClient({
                           onError={(msg) => showToast('error', mapErrorToast(msg))}
                           isActive={view === 'tab' && activeTab === 'sessions'}
                           onVerificationDismissed={() => {
-                            const fallbackTab = lastNonSessionsTabRef.current
-                              ?? loadedTabs.find((id) => id !== 'sessions')
-                              ?? loadedTabs[0]
-                              ?? 'profile';
-                            if (fallbackTab === activeTab) {
-                              // Sessions is the only tab — go back to menu
+                            const fallbackTab = resolveAutoVerifyFallbackTab({
+                              loadedTabs,
+                              lastTab: lastNonSessionsTabRef.current,
+                              currentTab: 'sessions',
+                            });
+                            if (fallbackTab === null) {
                               backToMenu();
                             } else {
                               setActiveTab(fallbackTab);
@@ -520,6 +540,36 @@ export function MobileClient({
 
                       {tabId === 'organizations' && (
                         <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} mobmode={1} />
+                      )}
+
+                      {tabId === 'dev' && (
+                        <DevTab
+                          userData={userData}
+                          mode={mode}
+                          colors={colors}
+                          t={t}
+                          mobmode={1}
+                          onGetPatTokens={onGetPatTokens}
+                          onCreatePatToken={onCreatePatToken}
+                          onRenamePatToken={onRenamePatToken}
+                          onDeletePatToken={onDeletePatToken}
+                          onVerifyPassword={onVerifyPassword}
+                          onSuccess={(msg) => showToast('success', msg)}
+                          onError={(msg) => showToast('error', mapErrorToast(msg))}
+                          isActive={view === 'tab' && activeTab === 'dev'}
+                          onVerificationDismissed={() => {
+                            const fallbackTab = resolveAutoVerifyFallbackTab({
+                              loadedTabs,
+                              lastTab: lastNonSessionsTabRef.current,
+                              currentTab: 'dev',
+                            });
+                            if (fallbackTab === null) {
+                              backToMenu();
+                            } else {
+                              setActiveTab(fallbackTab);
+                            }
+                          }}
+                        />
                       )}
                  </>
                 )}
@@ -643,6 +693,7 @@ function TabIcon({ id, size, color }: { id: TabId; size?: number; color?: string
     case 'identities': return <LinkIcon size={size} color={color} aria-hidden="true" />;
     case 'organizations': return <BuildingIcon size={size} color={color} aria-hidden="true" />;
     case 'preferences': return <SettingsIcon size={size} color={color} aria-hidden="true" />;
+    case 'dev': return <TerminalIcon size={size} color={color} aria-hidden="true" />;
     default: return <UserIcon size={size} color={color} aria-hidden="true" />;
   }
 }

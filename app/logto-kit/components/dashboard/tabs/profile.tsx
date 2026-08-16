@@ -1378,6 +1378,7 @@ export function ProfileTab({
           countryFilter={countryFilter}
           hasOtherContact={!!userData.primaryEmail}
           hideEditButtons={isEditing}
+          showDesktopAddIcon={false}
           onVerifyPassword={onVerifyPassword}
           onSendVerification={onSendPhoneVerification}
           onVerifyCodeAndUpdate={async (value, verificationId, identityVerificationId, code): Promise<ActionResult> => {

@@ -63,10 +63,20 @@ export default function DashboardTabStructure() {
       </h2>
 
       <p style={styles.textStyle}>
-        Tabs are configured via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. This variable accepts a comma-separated list of tab names. On the client, <code style={styles.codeStyle}>readEnv(&apos;LOAD_TABS&apos;)</code> falls back to <code style={styles.codeStyle}>NEXT_PUBLIC_LOAD_TABS</code> (see <code style={styles.codeSmStyle}>app/logto-kit/logic/env.ts</code>).
+        Tabs are configured via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. This variable accepts a comma-separated list of tab names. On the client, <code style={styles.codeStyle}>readEnv(&apos;LOAD_TABS&apos;)</code> falls back to <code style={styles.codeStyle}>NEXT_PUBLIC_LOAD_TABS</code> (see <code style={styles.codeSmStyle}>app/logto-kit/logic/env.ts</code>). Dev/PAT has an additional private, strict, default-off <code style={styles.codeSmStyle}>PAT_ENABLED</code> gate.
       </p>
 
-      <CodeBlock title="ENV Configuration" code={`LOAD_TABS=profile,security,organizations`} />
+      <CodeBlock
+        title="ENV Configuration"
+        code={`# Safe default: Dev/PAT is disabled and absent from both tab lists
+PAT_ENABLED=false
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
+NEXT_PUBLIC_LOAD_TABS=profile,preferences,security,sessions,identities,organizations
+
+# Explicit PAT opt-in (existing Management API M2M setup is also required)
+PAT_ENABLED=true
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev`}
+      />
 
       <p style={styles.textStyle}>
         The system resolves active tabs dynamically during the initialization phase:
@@ -88,14 +98,26 @@ export default function DashboardTabStructure() {
   security: 'security', mfa: 'security', '2fa': 'security', totp: 'security',
   // sessions aliases
   sessions: 'sessions', session: 'sessions', devices: 'sessions', activity: 'sessions',
+  // dev / personal access token aliases
+  dev: 'dev', developer: 'dev', pat: 'dev', pats: 'dev',
+  'pat-tokens': 'dev', tokens: 'dev',
 };
 
+export function isPatEnabled(): boolean {
+  // Private read: no public-prefixed fallback.
+  return readEnv('PAT_ENABLED', false)?.trim().toLowerCase() === 'true';
+}
+
 export function getLoadedTabs(): TabId[] {
+  const patEnabled = isPatEnabled();
+  const defaultTabs = patEnabled
+    ? [...ALL_TABS]
+    : ALL_TABS.filter((tab) => tab !== 'dev');
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
-    // ENV not set -> show all tabs in default order.
-    return [...ALL_TABS];
+    // Missing/empty -> all enabled tabs in default order.
+    return defaultTabs;
   }
 
   const seen = new Set<TabId>();
@@ -114,12 +136,27 @@ export function getLoadedTabs(): TabId[] {
     }
   }
 
-  return result.length === 0 ? [...ALL_TABS] : result;
+  // Filter after alias resolution so every Dev alias is covered.
+  const enabledTabs = patEnabled
+    ? result
+    : result.filter((tab) => tab !== 'dev');
+
+  // Covers all-invalid and Dev-only input without reintroducing Dev.
+  return enabledTabs.length === 0 ? defaultTabs : enabledTabs;
 }`}
       />
 
       <div style={styles.noteStyle}>
-        <strong style={styles.strongNoteStyle}>Alias Resolution:</strong> Operators can use user-friendly values in <code style={styles.codeSmStyle}>LOAD_TABS</code> (e.g. <code style={styles.codeSmStyle}>personal</code> or <code style={styles.codeSmStyle}>user</code> for <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>prefs</code> or <code style={styles.codeSmStyle}>custom-data</code> for <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>2fa</code> or <code style={styles.codeSmStyle}>mfa</code> for <code style={styles.codeSmStyle}>security</code>, etc.).
+        <strong style={styles.strongNoteStyle}>Alias Resolution:</strong> Operators can use user-friendly values in <code style={styles.codeSmStyle}>LOAD_TABS</code> (e.g. <code style={styles.codeSmStyle}>personal</code> or <code style={styles.codeSmStyle}>user</code> for <code style={styles.codeSmStyle}>profile</code>, <code style={styles.codeSmStyle}>prefs</code> or <code style={styles.codeSmStyle}>custom-data</code> for <code style={styles.codeSmStyle}>preferences</code>, <code style={styles.codeSmStyle}>2fa</code> or <code style={styles.codeSmStyle}>mfa</code> for <code style={styles.codeSmStyle}>security</code>, and <code style={styles.codeSmStyle}>developer</code>, <code style={styles.codeSmStyle}>pat</code>, <code style={styles.codeSmStyle}>pats</code>, <code style={styles.codeSmStyle}>pat-tokens</code>, or <code style={styles.codeSmStyle}>tokens</code> for <code style={styles.codeSmStyle}>dev</code>). Dev aliases are retained as valid configuration vocabulary, but all resolve to the gated Dev tab and are ignored while PAT is disabled.
+      </div>
+
+      <div style={styles.noteStyle}>
+        <strong style={styles.strongNoteStyle}>Filtering and fallback:</strong>{' '}
+        Filtering happens after alias resolution for either tab-list source. Mixed lists
+        preserve the configured order of deduplicated non-Dev tabs. Missing, empty,
+        all-invalid, or Dev-only input returns all enabled tabs in the existing default
+        order—all non-Dev tabs while PAT is off. The PAT gate is private and has no{' '}
+        <code style={styles.codeSmStyle}>NEXT_PUBLIC_PAT_ENABLED</code> assignment.
       </div>
 
       <table style={customTableStyle}>
@@ -151,6 +188,10 @@ export function getLoadedTabs(): TabId[] {
             <td style={customTdStyle}>Active device session tracking, active heartbeat, device-specific metadata, and remote revocation.</td>
           </tr>
           <tr>
+            <td style={customTdPropStyle}>dev</td>
+            <td style={customTdStyle}>Purpose-scoped personal access token listing, creation, renaming, deletion, and one-time credential display.</td>
+          </tr>
+          <tr>
             <td style={customTdPropStyle}>organizations</td>
             <td style={customTdStyle}>Associated user organizations, active roles, and organization switching logic.</td>
           </tr>
@@ -159,7 +200,7 @@ export function getLoadedTabs(): TabId[] {
 
       <div style={{ ...styles.noteStyle, marginBottom: 0 }}>
         <strong style={styles.strongNoteStyle}>Note:</strong>{' '}
-        Leaving the <code style={styles.codeStyle}>LOAD_TABS</code> variable empty instructs the server to render all configured tabs in default order. Tabs are displayed and rendered using the <code style={styles.codeStyle}>activeTab</code> client state inside <code style={styles.codeStyle}>DashboardClient</code>.
+        Leaving the <code style={styles.codeStyle}>LOAD_TABS</code> variable empty instructs the server to render all enabled tabs in default order. With PAT disabled, that fallback contains every non-Dev tab and never Dev. Tabs are displayed and rendered using the <code style={styles.codeStyle}>activeTab</code> client state inside <code style={styles.codeStyle}>DashboardClient</code>.
       </div>
     </div>
   );

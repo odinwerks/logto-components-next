@@ -16,14 +16,21 @@ import { SecurityTab } from './tabs/security';
 import { SessionsTab } from './tabs/sessions';
 import { IdentitiesTab } from './tabs/identities';
 import { OrganizationsTab } from './tabs/organizations';
+import { DevTab } from './tabs/dev';
 import { UserBadge } from '../UserButton';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
 import { useToast } from '../providers/toast-provider';
 import { CrossFade, MotionButton, AnimatePresence } from '../shared/motion';
 
 // Import MfaVerification type
-import type { MfaVerification, LogtoSession } from '../../logic/types';
-import { getTabIcon, getTabLabel, LogoutIcon } from './tab-utils';
+import type { MfaVerification, LogtoSession, VerificationPurpose } from '../../logic/types';
+import {
+  AUTO_VERIFY_TABS,
+  getTabIcon,
+  getTabLabel,
+  LogoutIcon,
+  resolveAutoVerifyFallbackTab,
+} from './tab-utils';
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
@@ -66,7 +73,7 @@ interface DashboardClientProps {
   onUpdateBasicInfo: (updates: { name?: string; username?: string }) => Promise<ActionResult>;
   onUpdateAvatarUrl: (avatarUrl: string) => Promise<ActionResult>;
   onUpdateProfile: (profile: { givenName?: string; familyName?: string }) => Promise<ActionResult>;
-  onVerifyPassword: (password: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
+  onVerifyPassword: (password: string, purpose?: VerificationPurpose) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendEmailVerification: (email: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onSendPhoneVerification: (phone: string, lang?: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCode: (type: 'email' | 'phone', value: string, verificationId: string, code: string) => Promise<DataResult<{ verificationRecordId: string }>>;
@@ -88,6 +95,10 @@ interface DashboardClientProps {
   onGetSessionsWithDeviceMeta: (verificationRecordId: string) => Promise<DataResult<LogtoSession[]>>;
   onRevokeSession: (sessionId: string, identityVerificationRecordId: string, revokeGrantsTarget?: 'all' | 'firstParty') => Promise<ActionResult>;
   onRevokeAllOtherSessions: (verificationRecordId: string) => Promise<ActionResult>;
+  onGetPatTokens: (verificationRecordId: string) => Promise<DataResult<import('../../logic/types').PatToken[]>>;
+  onCreatePatToken: (name: string, expiresAt: number | null, verificationRecordId: string) => Promise<DataResult<{ token: import('../../logic/types').PatToken; value: string }>>;
+  onRenamePatToken: (currentName: string, name: string, verificationRecordId: string) => Promise<ActionResult>;
+  onDeletePatToken: (name: string, verificationRecordId: string) => Promise<ActionResult>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,6 +142,10 @@ export function DashboardClient({
   onGetSessionsWithDeviceMeta,
   onRevokeSession,
   onRevokeAllOtherSessions,
+  onGetPatTokens,
+  onCreatePatToken,
+  onRenamePatToken,
+  onDeletePatToken,
 }: DashboardClientProps) {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
@@ -186,12 +201,14 @@ export function DashboardClient({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [activeTab]);
 
-  // Last-tab tracking for Sessions verification dismissal (D13).
-  // Stores the most recent non-sessions tab so that when the user dismisses
-  // the sessions verification modal, the shell can navigate back to it.
+  // Last-tab tracking for auto-verification dismissal (D13).
+  // Stores the most recent ordinary tab so dismissing Sessions or Dev can
+  // navigate back without chaining into another auto-verifying tab.
   const lastNonSessionsTabRef = useRef<TabId | null>(null);
   useEffect(() => {
-    if (activeTab !== 'sessions') {
+    // Exclude auto-verifying tabs (sessions + dev): they open a password
+    // modal on entry, so they must never become the dismissal fallback.
+    if (!AUTO_VERIFY_TABS.some((tabId) => tabId === activeTab)) {
       lastNonSessionsTabRef.current = activeTab;
     }
   }, [activeTab]);
@@ -533,16 +550,17 @@ export function DashboardClient({
                     onError={(msg) => showToast('error', mapErrorToast(msg))}
                     isActive={activeTab === 'sessions'}
                     onVerificationDismissed={() => {
-                      const fallbackTab = lastNonSessionsTabRef.current
-                        && loadedTabs.includes(lastNonSessionsTabRef.current)
-                        ? lastNonSessionsTabRef.current
-                        : loadedTabs.find((id) => id !== 'sessions')
-                        ?? loadedTabs[0]
-                        ?? 'profile';
+                      const fallbackTab = resolveAutoVerifyFallbackTab({
+                        loadedTabs,
+                        lastTab: lastNonSessionsTabRef.current,
+                        currentTab: 'sessions',
+                      });
                       // The sessions content may be hidden during CrossFade;
                       // return focus to the visible navigation control, not to
                       // the dismissed (and potentially hidden) panel.
-                      focusAndActivateTab(fallbackTab);
+                      if (fallbackTab !== null) {
+                        focusAndActivateTab(fallbackTab);
+                      }
                     }}
                   />
                 )}
@@ -553,6 +571,33 @@ export function DashboardClient({
 
                 {tabId === 'organizations' && (
                   <OrganizationsTab userData={userData} currentOrgId={currentOrgId} mode={mode} colors={colors} t={t} />
+                )}
+
+                {tabId === 'dev' && (
+                  <DevTab
+                    userData={userData}
+                    mode={mode}
+                    colors={colors}
+                    t={t}
+                    onGetPatTokens={onGetPatTokens}
+                    onCreatePatToken={onCreatePatToken}
+                    onRenamePatToken={onRenamePatToken}
+                    onDeletePatToken={onDeletePatToken}
+                    onVerifyPassword={onVerifyPassword}
+                    onSuccess={(msg) => showToast('success', msg)}
+                    onError={(msg) => showToast('error', mapErrorToast(msg))}
+                    isActive={activeTab === 'dev'}
+                    onVerificationDismissed={() => {
+                      const fallbackTab = resolveAutoVerifyFallbackTab({
+                        loadedTabs,
+                        lastTab: lastNonSessionsTabRef.current,
+                        currentTab: 'dev',
+                      });
+                      if (fallbackTab !== null) {
+                        focusAndActivateTab(fallbackTab);
+                      }
+                    }}
+                  />
                 )}
               </>
             )}

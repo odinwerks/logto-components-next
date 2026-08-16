@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { TabId } from './types';
 import type { Translations } from '../../locales';
 import type { ActionResult, DataResult } from '../../logic/actions/safe';
@@ -53,7 +53,20 @@ vi.mock('./tabs/profile', () => ({
 }));
 vi.mock('./tabs/preferences', () => ({ PreferencesTab: () => null }));
 vi.mock('./tabs/security', () => ({ SecurityTab: () => null }));
-vi.mock('./tabs/sessions', () => ({ SessionsTab: () => null }));
+vi.mock('./tabs/sessions', () => ({
+  SessionsTab: ({ onVerificationDismissed }: { onVerificationDismissed?: () => void }) => (
+    <button type="button" data-testid="dismiss-sessions-verification" onClick={onVerificationDismissed}>
+      Dismiss Sessions verification
+    </button>
+  ),
+}));
+vi.mock('./tabs/dev', () => ({
+  DevTab: ({ onVerificationDismissed }: { onVerificationDismissed?: () => void }) => (
+    <button type="button" data-testid="dismiss-dev-verification" onClick={onVerificationDismissed}>
+      Dismiss Dev verification
+    </button>
+  ),
+}));
 vi.mock('./tabs/identities', () => ({ IdentitiesTab: () => null }));
 vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
 vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
@@ -103,6 +116,7 @@ const stubTranslations = {
     sessions: 'Sessions',
     identities: 'Identities',
     organizations: 'Organizations',
+    dev: 'Dev',
   },
   profile: { notSet: 'Not set' },
   validation: { phoneCountryNotAllowed: 'Country not allowed' },
@@ -142,6 +156,10 @@ const requiredProps = {
   onGetSessionsWithDeviceMeta: stubDataAction as () => Promise<DataResult<LogtoSession[]>>,
   onRevokeSession: stubAction,
   onRevokeAllOtherSessions: stubAction,
+  onGetPatTokens: stubDataAction as () => Promise<DataResult<import('../../logic/types').PatToken[]>>,
+  onCreatePatToken: stubDataAction as () => Promise<DataResult<{ token: import('../../logic/types').PatToken; value: string }>>,
+  onRenamePatToken: stubAction,
+  onDeletePatToken: stubAction,
 };
 
 beforeAll(() => {
@@ -240,5 +258,58 @@ describe('MobileClient menu layout', () => {
 
     expect(screen.getByLabelText('Profile draft')).toBe(draft);
     expect(screen.getByLabelText('Profile draft')).toHaveValue('unsaved mobile edit');
+  });
+
+  it('returns from Dev dismissal to the last ordinary tab instead of the menu', async () => {
+    render(<MobileClient {...requiredProps} loadedTabs={['profile', 'dev']} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to menu' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dev' }));
+    fireEvent.click(await screen.findByTestId('dismiss-dev-verification'));
+
+    expect(screen.getByTestId('mobile-tab-view')).not.toHaveAttribute('aria-hidden');
+    await waitFor(() => {
+      expect(screen.getByTestId('mobile-tab-view').querySelector('[data-tab="profile"]'))
+        .not.toHaveAttribute('aria-hidden');
+    });
+  });
+
+  it('never falls back from Sessions dismissal to Dev', async () => {
+    render(<MobileClient {...requiredProps} loadedTabs={['profile', 'dev', 'sessions']} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dev' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to menu' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sessions' }));
+    fireEvent.click(await screen.findByTestId('dismiss-sessions-verification'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mobile-tab-view').querySelector('[data-tab="profile"]'))
+        .not.toHaveAttribute('aria-hidden');
+      expect(screen.getByTestId('mobile-tab-view').querySelector('[data-tab="dev"]'))
+        .toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  it('returns to the menu when Dev is the only loaded tab', () => {
+    render(<MobileClient {...requiredProps} loadedTabs={['dev']} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dev' }));
+    fireEvent.click(screen.getByTestId('dismiss-dev-verification'));
+
+    expect(screen.getByTestId('mobile-menu-view')).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByTestId('mobile-tab-view')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('button', { name: 'Dev' })).toBeInTheDocument();
+  });
+
+  it('returns to the menu when Sessions is the only loaded tab', () => {
+    render(<MobileClient {...requiredProps} loadedTabs={['sessions']} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
+    fireEvent.click(screen.getByTestId('dismiss-sessions-verification'));
+
+    expect(screen.getByTestId('mobile-menu-view')).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByTestId('mobile-tab-view')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('button', { name: 'Sessions' })).toBeInTheDocument();
   });
 });

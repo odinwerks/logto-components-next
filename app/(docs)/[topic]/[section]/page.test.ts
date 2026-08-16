@@ -41,4 +41,28 @@ describe('docs section content registry', () => {
       expect(notFoundMock, `Unexpected notFound for anatomy/${sectionSlug}`).not.toHaveBeenCalled();
     }
   });
+
+  it('resolves every tabs-and-flows nav-data section without falling into notFound', async () => {
+    const tabsNavItem = NAV_ITEMS.find((item) => item.id === 'tabs-and-flows');
+
+    expect(tabsNavItem).toBeDefined();
+
+    for (const sectionName of tabsNavItem!.sections) {
+      const sectionSlug = slugify(sectionName);
+
+      await expect(
+        DocPage({
+          params: Promise.resolve({
+            topic: 'tabs-and-flows',
+            section: sectionSlug,
+          }),
+        })
+      ).resolves.toBeDefined();
+
+      expect(
+        notFoundMock,
+        `Unexpected notFound for tabs-and-flows/${sectionSlug}`
+      ).not.toHaveBeenCalled();
+    }
+  });
 });

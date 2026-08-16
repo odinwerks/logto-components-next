@@ -41,15 +41,16 @@ describe('log-events', () => {
   });
 
   it('has the correct number of events', () => {
-    // Net: 28 (original) - 2 (removed) + 2 (added: API_THROTTLED, MFA_WEBAUTHN_RENAME) = 28.
+    // Net: 28 (original) - 2 (removed) + 2 (added: API_THROTTLED, MFA_WEBAUTHN_RENAME)
+    // + 3 (added: PAT_CREATE, PAT_RENAME, PAT_DELETE) = 31.
     const eventKeys = Object.keys(LOG_EVENTS);
-    expect(eventKeys.length).toBe(28);
+    expect(eventKeys.length).toBe(31);
   });
 
   it('LogEvent type includes all events', () => {
     // This test verifies the type is correct at compile time.
     // If this compiles, the type is correct.
     const events: LogEvent[] = Object.values(LOG_EVENTS);
-    expect(events.length).toBe(28);
+    expect(events.length).toBe(31);
   });
 });

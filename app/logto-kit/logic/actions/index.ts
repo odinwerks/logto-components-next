@@ -81,6 +81,14 @@ export { getUserRoles, getUserScopes, getRoleDetails, getOrganizationUserRoles }
 // Heartbeat
 export { recordHeartbeat } from './heartbeat';
 
+// Personal Access Tokens (Logto Management API — M2M)
+export {
+  getPatTokens,
+  createPatToken,
+  renamePatToken,
+  deletePatToken,
+} from './pat';
+
 // Session Management
 export { 
   getUserSessions,

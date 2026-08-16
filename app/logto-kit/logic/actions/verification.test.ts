@@ -147,7 +147,7 @@ describe('verifyPasswordForIdentity', () => {
         body: { password: 'MySecureP@ss1' },
       })
     );
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_test123', expect.any(Number), 'user-test-123');
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_test123', expect.any(Number), 'user-test-123', 'view');
   });
 
   it('returns verificationRecordId from successful API response', async () => {
@@ -170,7 +170,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123');
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123', 'view');
   });
 
   it('correctly handles expiresAt as a Unix timestamp in milliseconds', async () => {
@@ -182,7 +182,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(1717441200000);
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123');
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', 1717441200000, 'user-test-123', 'view');
   });
 
   it('correctly handles expiresAt as an ISO string', async () => {
@@ -194,7 +194,7 @@ describe('verifyPasswordForIdentity', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('Expected success');
     expect(result.data.verificationTimestamp).toBe(new Date('2024-06-03T19:00:00.000Z').getTime());
-    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', new Date('2024-06-03T19:00:00.000Z').getTime(), 'user-test-123');
+    expect(sealVerificationCookie).toHaveBeenCalledWith('verif_abc456', new Date('2024-06-03T19:00:00.000Z').getTime(), 'user-test-123', 'view');
   });
 
   it('does NOT call makeRequest when validation fails', async () => {
@@ -220,6 +220,69 @@ describe('verifyPasswordForIdentity', () => {
     const result = await verifyPasswordForIdentity('ValidPassword1!');
     expect(result.ok).toBe(false);
     expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================================
+// verifyPasswordForIdentity - Purpose Scoping (PAT remediation)
+// ============================================================================
+
+describe('verifyPasswordForIdentity purpose scoping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ verificationRecordId: 'verif_purpose', expiresAt: 1717441200 })
+    );
+    vi.mocked(throwOnApiError).mockResolvedValue(undefined);
+  });
+
+  it('seals with the default "view" purpose when no purpose is supplied', async () => {
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity('ValidPassword1!');
+    expect(result.ok).toBe(true);
+    expect(sealVerificationCookie).toHaveBeenCalledWith(
+      'verif_purpose',
+      1717441200000,
+      'user-test-123',
+      'view',
+    );
+  });
+
+  it('forwards an explicit "pat.create" purpose to the seal', async () => {
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity('ValidPassword1!', 'pat.create');
+    expect(result.ok).toBe(true);
+    expect(sealVerificationCookie).toHaveBeenCalledWith(
+      'verif_purpose',
+      1717441200000,
+      'user-test-123',
+      'pat.create',
+    );
+  });
+
+  it('rejects an invalid purpose string with VERIFICATION_FAILED before any upstream request', async () => {
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity(
+      'ValidPassword1!',
+      'pat.exfiltrate' as unknown as Parameters<typeof verifyPasswordForIdentity>[1],
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error');
+    expect(result.error).toBe('VERIFICATION_FAILED');
+    expect(vi.mocked(makeRequest)).not.toHaveBeenCalled();
+    expect(sealVerificationCookie).not.toHaveBeenCalled();
+  });
+
+  it('keeps the return shape unchanged for purpose-scoped verifications', async () => {
+    const { verifyPasswordForIdentity } = await import('./verification');
+    const result = await verifyPasswordForIdentity('ValidPassword1!', 'pat.delete');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected success');
+    expect(Object.keys(result.data).sort()).toEqual(['verificationRecordId', 'verificationTimestamp']);
+    expect(result.data.verificationRecordId).toBe('verif_purpose');
+    expect(result.data.verificationTimestamp).toBe(1717441200000);
   });
 });
 

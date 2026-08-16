@@ -44,6 +44,7 @@ export interface Translations {
     sessions: string;
     identities: string;
     organizations: string;
+    dev: string;
     mfa: string;
   };
   
@@ -418,6 +419,50 @@ export interface Translations {
     gcOnlyOneBody: string;
     gcOnlyOneAck: string;
   };
+
+  // Dev tab (personal access tokens)
+  dev: {
+    title: string;
+    description: string;
+    verifyToView: string;
+    verifyToViewDesc: string;
+    verifyToActionDesc: string;
+    createToken: string;
+    createDesc: string;
+    tokenName: string;
+    namePlaceholder: string;
+    expiresLabel: string;
+    neverExpires: string;
+    expiry30Days: string;
+    expiry60Days: string;
+    expiry90Days: string;
+    expiry1Year: string;
+    created: string;
+    expires: string;
+    noTokens: string;
+    rename: string;
+    renameTitle: string;
+    renameDesc: string;
+    newNameLabel: string;
+    save: string;
+    renamed: string;
+    delete: string;
+    deleteTitle: string;
+    deleteDesc: string;
+    deleted: string;
+    createdMsg: string;
+    valueTitle: string;
+    refreshData: string;
+    loadFailed: string;
+    nameRequired: string;
+    nameTooLong: string;
+    invalidExpiry: string;
+    createFailed: string;
+    renameFailed: string;
+    deleteFailed: string;
+    nameInUse: string;
+    mayHaveCreated: string;
+  };
    
   // Common
   common: {
@@ -504,6 +549,15 @@ export interface Translations {
     PHONE_UPDATE_FAILED: string;
     SESSION_REVOKE_FAILED: string;
     GRANT_REVOKE_FAILED: string;
+    PAT_DISABLED: string;
+    PAT_FETCH_FAILED: string;
+    PAT_CREATE_FAILED: string;
+    PAT_RENAME_FAILED: string;
+    PAT_DELETE_FAILED: string;
+    PAT_NAME_IN_USE: string;
+    INVALID_PAT_NAME: string;
+    PAT_NAME_TOO_LONG: string;
+    INVALID_PAT_EXPIRY: string;
 
     // ── rate-limit ──
     RATE_LIMITED: string;
@@ -593,6 +647,7 @@ const TRANSLATION_NAMESPACES = [
   'rbac',
   'mfa',
   'sessions',
+  'dev',
   'common',
   'auth',
   'signout',

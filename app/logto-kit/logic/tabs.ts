@@ -5,7 +5,7 @@
 
 // TabId is defined here (logic layer) so that components/dashboard/types.ts
 // can import it from logic - not the other way around.
-export type TabId = 'profile' | 'preferences' | 'security' | 'sessions' | 'identities' | 'organizations';
+export type TabId = 'profile' | 'preferences' | 'security' | 'sessions' | 'identities' | 'organizations' | 'dev';
 
 // All valid tab IDs and their display labels (used as fallback)
 export const ALL_TABS: TabId[] = [
@@ -15,6 +15,7 @@ export const ALL_TABS: TabId[] = [
   'sessions',
   'identities',
   'organizations',
+  'dev',
 ];
 
 // ENV value aliases - lets operators use friendly names
@@ -49,12 +50,30 @@ const TAB_ALIASES: Record<string, TabId> = {
   '2fa': 'security',
   totp: 'security',
 
+  // dev aliases (personal access tokens)
+  dev: 'dev',
+  developer: 'dev',
+  pat: 'dev',
+  pats: 'dev',
+  'pat-tokens': 'dev',
+  tokens: 'dev',
+
   // sessions aliases
   sessions: 'sessions',
   session: 'sessions',
   devices: 'sessions',
   activity: 'sessions',
 };
+
+/**
+ * Returns whether personal access token management is explicitly enabled.
+ *
+ * This is a private, default-off flag. Only the bare `PAT_ENABLED` value is
+ * read; a public-prefixed value must never enable this server-side feature.
+ */
+export function isPatEnabled(): boolean {
+  return readEnv('PAT_ENABLED', false)?.trim().toLowerCase() === 'true';
+}
 
 /**
  * Returns the ordered list of tab IDs to load, based on LOAD_TABS env var.
@@ -67,14 +86,18 @@ const TAB_ALIASES: Record<string, TabId> = {
  *  2. Resolve aliases (e.g. "personal" -> "profile").
  *  3. Filter to valid TabId values.
  *  4. Deduplicate while preserving order.
- *  5. If ENV is not set or empty -> show ALL tabs in default order.
+ *  5. If ENV is not set or empty -> show all enabled tabs in default order.
  */
 export function getLoadedTabs(): TabId[] {
+  const patEnabled = isPatEnabled();
+  const defaultTabs = patEnabled
+    ? [...ALL_TABS]
+    : ALL_TABS.filter((tab) => tab !== 'dev');
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
     // ENV not set -> show all tabs in default order.
-    return [...ALL_TABS];
+    return defaultTabs;
   }
 
   const seen = new Set<TabId>();
@@ -96,10 +119,14 @@ export function getLoadedTabs(): TabId[] {
     }
   }
 
-  if (result.length === 0) {
+  const enabledTabs = patEnabled
+    ? result
+    : result.filter((tab) => tab !== 'dev');
+
+  if (enabledTabs.length === 0) {
     warn('[tabs] LOAD_TABS produced no valid tabs. Falling back to safe defaults.');
-    return [...ALL_TABS];
+    return defaultTabs;
   }
 
-  return result;
+  return enabledTabs;
 }

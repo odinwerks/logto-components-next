@@ -33,6 +33,8 @@ export interface ContactRowProps {
   hasOtherContact?: boolean;
   /** When true, suppress the edit/add/remove buttons. Display values remain visible. */
   hideEditButtons?: boolean;
+  /** Whether to show the Plus icon in the desktop add action. Defaults to true. */
+  showDesktopAddIcon?: boolean;
   onVerifyPassword: (p: string) => Promise<DataResult<{ verificationRecordId: string; verificationTimestamp: number }>>;
   onSendVerification: (value: string) => Promise<DataResult<{ verificationId: string }>>;
   onVerifyCodeAndUpdate: (value: string, verificationId: string, identityVerificationId: string, code: string) => Promise<ActionResult>;
@@ -47,6 +49,7 @@ export interface ContactRowProps {
 
 export function ContactRow({
   label, Icon, currentValue, type, placeholder, countryFilter, hasOtherContact = true, hideEditButtons = false,
+  showDesktopAddIcon = true,
   onVerifyPassword, onSendVerification, onVerifyCodeAndUpdate, onRemove,
   onSuccess, onError, mobmode, t, mode, colors,
 }: ContactRowProps) {
@@ -399,7 +402,8 @@ export function ContactRow({
             </button>
           ) : (
             <Button size="sm" variant="primary" onClick={openEdit} mode={mode} colors={colors}>
-              <Plus size={'0.6875rem'} color={c.contrastText} strokeWidth={1.5} /> {t.profile.add}
+              {showDesktopAddIcon && <Plus size={'0.6875rem'} color={c.contrastText} strokeWidth={1.5} />}
+              {t.profile.add}
             </Button>
           )}
         </div>

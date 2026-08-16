@@ -70,6 +70,7 @@ services:
       - USER_SHAPE=${USER_SHAPE}
       - NAME_TYPE=${NAME_TYPE}
       - LOAD_TABS=${LOAD_TABS}
+      - PAT_ENABLED=${PAT_ENABLED:-false}
       - DELETE_REDIRECT_DELAY=${DELETE_REDIRECT_DELAY}
       # ── Logging ───────────────────────────────────────────────
       - LOG_BACKEND=${LOG_BACKEND}

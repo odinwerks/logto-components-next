@@ -174,7 +174,7 @@ export function PasswordVerifyModal({
         }}
         placeholder={t.mfa.enterPasswordPlaceholder}
         hasError={!!passwordError}
-        onKeyDown={(e) => { if (e.key === 'Enter' && pw) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
+        onKeyDown={(e) => { if (e.key === 'Enter' && pw && !loading) { void Promise.resolve(onPasswordSubmit(pw)).catch(() => {}); } }}
         mode={mode}
         colors={colors}
         disabled={loading}
@@ -224,11 +224,11 @@ export function PasswordVerifyModal({
 
 export function FlowModal({
   title, subtitle, step, onValueSubmit, valueSubmitDisabled, valueSubmitLabel, onPasswordSubmit, onCodeSubmit, onTotpSubmit, onNewPasswordSubmit, onRenamePasskeySubmit, onClose,
-  passwordError, extra, headerExtra, hideFooterClose, mode, colors, t, danger, mobmode,
+  passwordError, extra, headerExtra, hideFooterClose, hideValueSubmit = false, mode, colors, t, danger, mobmode,
   loading = false,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   step: ModalStep;
   onValueSubmit?: () => void;
   valueSubmitDisabled?: boolean;
@@ -243,6 +243,7 @@ export function FlowModal({
   extra?: React.ReactNode;
   headerExtra?: React.ReactNode;
   hideFooterClose?: boolean;
+  hideValueSubmit?: boolean;
   mode: 'dark' | 'light';
   colors: ThemeColors;
   t: Translations;
@@ -297,6 +298,7 @@ export function FlowModal({
       : undefined;
 
   const dangerColor = c.accentRed;
+  const hasSubtitle = Boolean(subtitle?.trim());
 
   const submitNewPassword = (verificationRecordId: string) => {
     if (!newPw || newPasswordError || loading) return;
@@ -334,7 +336,7 @@ export function FlowModal({
         boxShadow: '0 2rem 5rem rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
-      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
+      }} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={hasSubtitle ? descriptionId : undefined}>
         <div style={{
           padding: '1.125rem 1.375rem 1rem', borderBottom: `1px solid ${danger ? dangerColor : T.borderFaint}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem',
@@ -346,7 +348,9 @@ export function FlowModal({
               </p>
               {headerExtra}
             </div>
-            <p id={descriptionId} style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
+            {hasSubtitle && (
+              <p id={descriptionId} style={{ fontFamily: T.font, fontSize: '0.75rem', color: T.sub, lineHeight: 1.55 }}>{subtitle}</p>
+            )}
           </div>
           <button aria-label="Close dialog" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, padding: '0.125rem', display: 'flex', flexShrink: 0 }}>
             <X size={'0.875rem'} color={T.muted} strokeWidth={1.5} />
@@ -370,18 +374,20 @@ export function FlowModal({
                 {!hideFooterClose && (
                   <Button onClick={onClose} disabled={loading} mode={mode} colors={colors}>{t.common.close}</Button>
                 )}
-          <Button
-            variant={danger ? 'danger' : 'primary'}
-            onClick={() => onValueSubmit?.()}
-            disabled={valueSubmitDisabled || loading}
-            mode={mode}
-            colors={colors}
-            style={{ minWidth: '6.5rem', position: 'relative' }}
-          >
-            <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
-              {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
-            </StableButtonContent>
-          </Button>
+                {!hideValueSubmit && (
+                  <Button
+                    variant={danger ? 'danger' : 'primary'}
+                    onClick={() => onValueSubmit?.()}
+                    disabled={valueSubmitDisabled || loading}
+                    mode={mode}
+                    colors={colors}
+                    style={{ minWidth: '6.5rem', position: 'relative' }}
+                  >
+                    <StableButtonContent loading={loading} dotsColor={danger ? colors.accentRed : colors.contrastText}>
+                      {(valueSubmitLabel ?? t.profile.saveChanges)} <ChevronRight size={'0.75rem'} color={danger ? colors.accentRed : colors.contrastText} strokeWidth={1.5} />
+                    </StableButtonContent>
+                  </Button>
+                )}
               </div>
             </>
           )}

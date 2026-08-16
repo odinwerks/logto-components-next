@@ -49,6 +49,24 @@ const hoistedIntrospect = vi.hoisted(() => ({
   })),
 }));
 
+const hoistedConsumeLimiter = vi.hoisted(() => {
+  const state = {
+    check: vi.fn<(key: string) => Promise<boolean>>().mockResolvedValue(true),
+    reset: vi.fn<(key: string) => Promise<void>>().mockResolvedValue(undefined),
+    options: undefined as { name: string; windowMs: number; max: number } | undefined,
+    create: vi.fn(),
+  };
+  state.create.mockImplementation((options) => {
+    state.options = options;
+    return { check: state.check, reset: state.reset };
+  });
+  return state;
+});
+
+vi.mock('../../../lib/distributed-state', () => ({
+  createRateLimiter: hoistedConsumeLimiter.create,
+}));
+
 vi.mock('./tokens', () => ({
   getTokenForServerAction: vi.fn(async () => 'mock-token'),
 }));
@@ -76,6 +94,7 @@ vi.mock('../errors', () => ({
 import { cookies } from 'next/headers';
 import { assertVerificationNotExpired } from './helpers';
 import { plainCode } from '../errors';
+import { LOGTO_VERIFICATION_MAX_FUTURE_MS } from '../constants';
 import {
   sealVerificationCookie,
   readVerificationCookie,
@@ -348,5 +367,288 @@ describe('verification-cookie secret resolution', () => {
     } finally {
       setNodeEnv(original ?? 'test');
     }
+  });
+});
+
+// ============================================================================
+// v3 Purpose-Scoped Seals + Consumption (PAT remediation)
+// ============================================================================
+
+describe('verification-cookie purpose scoping (v3)', () => {
+  beforeEach(() => {
+    hoisted.cookieStore.clear();
+    hoisted.setSpy.mockClear();
+    hoisted.getSpy.mockClear();
+    vi.clearAllMocks();
+    process.env.LOGTO_VERIFICATION_COOKIE_SECRET = TEST_SECRET;
+    delete process.env.COOKIE_SECRET;
+    vi.mocked(assertVerificationNotExpired).mockImplementation(() => undefined);
+    hoistedIntrospect.mockIntrospectToken.mockResolvedValue({
+      active: true,
+      sub: 'user-A-123',
+      client_id: 'test-client',
+      token_type: 'Bearer',
+      scope: 'all',
+      exp: Date.now() / 1000 + 3600,
+      iat: Date.now() / 1000,
+    });
+  });
+
+  /** Decodes the stored cookie payload (HMAC not re-verified here). */
+  const decodeCookiePayload = (): { v?: number; seals?: Array<Record<string, unknown>> } => {
+    const value = hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME)!;
+    const b64 = value.slice(0, value.lastIndexOf('.'));
+    return JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+  };
+
+  /** Builds and stores a v2-shaped cookie (no purpose field) with a valid HMAC. */
+  const setV2Cookie = async (entries: Array<{ r: string; e: number; s: string }>) => {
+    const crypto = await import('node:crypto');
+    const key = Buffer.from(TEST_SECRET, 'utf8');
+    const b64 = Buffer.from(JSON.stringify({ v: 2, seals: entries })).toString('base64url');
+    const sig = Buffer.from(
+      crypto.createHmac('sha256', key).update(`logto-verification-cookie-v2.${b64}`).digest(),
+    ).toString('base64url');
+    hoisted.cookieStore.set(VERIFICATION_COOKIE_NAME, `${b64}.${sig}`);
+  };
+
+  it('seals a v3 payload carrying the purpose and round-trips it', async () => {
+    const expiresAt = Date.now() + 600_000;
+    await sealVerificationCookie('rec_pat', expiresAt, 'user-A-123', 'pat.create');
+
+    const payload = decodeCookiePayload();
+    expect(payload.v).toBe(3);
+    expect(payload.seals).toEqual([
+      { r: 'rec_pat', e: expiresAt, s: 'user-A-123', p: 'pat.create' },
+    ]);
+
+    await expect(
+      requireVerifiedIdentity('rec_pat', { purpose: 'pat.create' }),
+    ).resolves.toBeUndefined();
+    expect(assertVerificationNotExpired).toHaveBeenCalledWith(expiresAt);
+  });
+
+  it('purpose-less requireVerifiedIdentity accepts a v3 seal (default mode ignores purpose)', async () => {
+    await sealVerificationCookie('rec_view', Date.now() + 600_000, 'user-A-123', 'view');
+    await expect(requireVerifiedIdentity('rec_view')).resolves.toBeUndefined();
+
+    // Even a non-'view' purpose is ignored by the legacy no-opts mode.
+    await sealVerificationCookie('rec_scoped', Date.now() + 600_000, 'user-A-123', 'pat.rename');
+    await expect(requireVerifiedIdentity('rec_scoped')).resolves.toBeUndefined();
+  });
+
+  it('purpose-bound call accepts a matching purpose', async () => {
+    await sealVerificationCookie('rec_match', Date.now() + 600_000, 'user-A-123', 'pat.delete');
+    await expect(
+      requireVerifiedIdentity('rec_match', { purpose: 'pat.delete' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('purpose-bound call rejects a mismatched purpose with VERIFICATION_EXPIRED', async () => {
+    await sealVerificationCookie('rec_mismatch', Date.now() + 600_000, 'user-A-123', 'pat.create');
+    await expect(
+      requireVerifiedIdentity('rec_mismatch', { purpose: 'pat.delete' }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+    expect(plainCode).toHaveBeenCalledWith('VERIFICATION_EXPIRED');
+    expect(assertVerificationNotExpired).toHaveBeenCalled();
+  });
+
+  it('purpose-bound call rejects a seal with no purpose (v3 view) with VERIFICATION_EXPIRED', async () => {
+    await sealVerificationCookie('rec_unscoped', Date.now() + 600_000, 'user-A-123', 'view');
+    await expect(
+      requireVerifiedIdentity('rec_unscoped', { purpose: 'pat.create' }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+    expect(plainCode).toHaveBeenCalledWith('VERIFICATION_EXPIRED');
+  });
+
+  it('accepts a v2-shaped seal (no p) in default mode and rejects it when purpose-bound', async () => {
+    const expiresAt = Date.now() + 600_000;
+    await setV2Cookie([{ r: 'rec_v2', e: expiresAt, s: 'user-A-123' }]);
+
+    // Default mode: v2 seals remain valid (purpose-unscoped).
+    await expect(requireVerifiedIdentity('rec_v2')).resolves.toBeUndefined();
+    expect(assertVerificationNotExpired).toHaveBeenCalledWith(expiresAt);
+
+    // Purpose-bound mode: no `p` cannot satisfy a strict purpose requirement.
+    await expect(
+      requireVerifiedIdentity('rec_v2', { purpose: 'view' }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('a tampered purpose-scoped seal fails closed', async () => {
+    await sealVerificationCookie('rec_tamper_p', Date.now() + 600_000, 'user-A-123', 'pat.create');
+    const value = hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME)!;
+    const [b64, sig] = [value.slice(0, value.lastIndexOf('.')), value.slice(value.lastIndexOf('.') + 1)];
+    const tamperedSig = sig.slice(0, -1) + (sig.endsWith('A') ? 'B' : 'A');
+    hoisted.cookieStore.set(VERIFICATION_COOKIE_NAME, `${b64}.${tamperedSig}`);
+
+    await expect(
+      requireVerifiedIdentity('rec_tamper_p', { purpose: 'pat.create' }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+    await expect(requireVerifiedIdentity('rec_tamper_p')).rejects.toThrow('VERIFICATION_EXPIRED');
+  });
+});
+
+describe('requireVerifiedIdentity consumption', () => {
+  beforeEach(() => {
+    hoisted.cookieStore.clear();
+    hoisted.setSpy.mockClear();
+    hoisted.getSpy.mockClear();
+    vi.clearAllMocks();
+    process.env.LOGTO_VERIFICATION_COOKIE_SECRET = TEST_SECRET;
+    delete process.env.COOKIE_SECRET;
+    vi.mocked(assertVerificationNotExpired).mockImplementation(() => undefined);
+    hoistedConsumeLimiter.check.mockResolvedValue(true);
+    hoistedIntrospect.mockIntrospectToken.mockResolvedValue({
+      active: true,
+      sub: 'user-A-123',
+      client_id: 'test-client',
+      token_type: 'Bearer',
+      scope: 'all',
+      exp: Date.now() / 1000 + 3600,
+      iat: Date.now() / 1000,
+    });
+  });
+
+  it('configures a one-shot claim for the maximum accepted verification horizon', () => {
+    expect(hoistedConsumeLimiter.options).toEqual({
+      name: 'verification-record-consume',
+      windowMs: LOGTO_VERIFICATION_MAX_FUTURE_MS,
+      max: 1,
+    });
+  });
+
+  it('consume removes exactly the matched entry and preserves the others', async () => {
+    await sealVerificationCookie('rec_keep_view', Date.now() + 600_000, 'user-A-123', 'view');
+    await sealVerificationCookie('rec_consume', Date.now() + 600_000, 'user-A-123', 'pat.create');
+    await sealVerificationCookie('rec_keep_rename', Date.now() + 600_000, 'user-A-123', 'pat.rename');
+
+    // Consume the middle entry.
+    await expect(
+      requireVerifiedIdentity('rec_consume', { purpose: 'pat.create', consume: true }),
+    ).resolves.toBeUndefined();
+    expect(hoistedConsumeLimiter.check).toHaveBeenCalledWith('rec_consume');
+
+    // The consumed seal is gone — sequential replay is blocked.
+    await expect(
+      requireVerifiedIdentity('rec_consume', { purpose: 'pat.create' }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+
+    // The other entries survive with their original purpose scopes intact.
+    await expect(requireVerifiedIdentity('rec_keep_view')).resolves.toBeUndefined();
+    await expect(
+      requireVerifiedIdentity('rec_keep_rename', { purpose: 'pat.rename' }),
+    ).resolves.toBeUndefined();
+
+    // The rewrite preserved the writer's cookie attributes.
+    const rewriteCall = hoisted.setSpy.mock.calls.find(
+      ([name]) => name === VERIFICATION_COOKIE_NAME,
+    );
+    expect(rewriteCall).toBeDefined();
+    expect(rewriteCall![2]).toMatchObject({
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: VERIFICATION_COOKIE_MAX_AGE_SECONDS,
+    });
+  });
+
+  it('keeps the bounded-seal retention on the consume rewrite', async () => {
+    const future = () => Date.now() + 600_000;
+    for (const id of ['rec_r1', 'rec_r2', 'rec_r3', 'rec_r4']) {
+      await sealVerificationCookie(id, future(), 'user-A-123', 'view');
+    }
+    expect(
+      hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME),
+    ).toBeDefined();
+
+    await expect(requireVerifiedIdentity('rec_r2', { consume: true })).resolves.toBeUndefined();
+
+    // Consumed entry removed; the remaining three stay verifiable.
+    for (const id of ['rec_r1', 'rec_r3', 'rec_r4']) {
+      await expect(requireVerifiedIdentity(id)).resolves.toBeUndefined();
+    }
+    await expect(requireVerifiedIdentity('rec_r2')).rejects.toThrow('VERIFICATION_EXPIRED');
+  });
+
+  it('fails closed when the consume cookie rewrite fails', async () => {
+    await sealVerificationCookie('rec_write_fail', Date.now() + 600_000, 'user-A-123', 'pat.create');
+    const originalCookie = hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME)!;
+    // Make the next cookie write blow up; the atomic claim must remain spent.
+    hoisted.setSpy.mockImplementationOnce(() => {
+      throw new Error('cookie store unavailable');
+    });
+
+    await expect(
+      requireVerifiedIdentity('rec_write_fail', { purpose: 'pat.create', consume: true }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+    expect(plainCode).toHaveBeenCalledWith('VERIFICATION_EXPIRED');
+    expect(hoistedConsumeLimiter.check).toHaveBeenCalledTimes(1);
+
+    // Even with the same original request-cookie snapshot, a retry cannot use
+    // the claimed record. Consumption never calls reset/refund.
+    hoisted.cookieStore.set(VERIFICATION_COOKIE_NAME, originalCookie);
+    hoistedConsumeLimiter.check.mockResolvedValueOnce(false);
+    await expect(
+      requireVerifiedIdentity('rec_write_fail', { purpose: 'pat.create', consume: true }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+    expect(hoistedConsumeLimiter.reset).not.toHaveBeenCalled();
+  });
+
+  it('default and purpose-only calls do not check the claim limiter or rewrite the cookie', async () => {
+    await sealVerificationCookie('rec_no_consume', Date.now() + 600_000, 'user-A-123', 'view');
+    const writesBefore = hoisted.setSpy.mock.calls.length;
+    await expect(requireVerifiedIdentity('rec_no_consume')).resolves.toBeUndefined();
+    await expect(
+      requireVerifiedIdentity('rec_no_consume', { purpose: 'view' }),
+    ).resolves.toBeUndefined();
+    expect(hoistedConsumeLimiter.check).not.toHaveBeenCalled();
+    expect(hoisted.setSpy.mock.calls.length).toBe(writesBefore);
+  });
+
+  it('rejects a concurrent replay carrying the same original sealed-cookie snapshot', async () => {
+    await sealVerificationCookie(
+      'rec_concurrent',
+      Date.now() + 600_000,
+      'user-A-123',
+      'pat.rename',
+    );
+    const originalCookie = hoisted.cookieStore.get(VERIFICATION_COOKIE_NAME)!;
+    hoistedConsumeLimiter.check
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    await expect(
+      requireVerifiedIdentity('rec_concurrent', { purpose: 'pat.rename', consume: true }),
+    ).resolves.toBeUndefined();
+
+    // Simulate a second already-dispatched request with the exact Cookie header
+    // snapshot from before the first response rewrote the browser cookie.
+    hoisted.cookieStore.set(VERIFICATION_COOKIE_NAME, originalCookie);
+    await expect(
+      requireVerifiedIdentity('rec_concurrent', { purpose: 'pat.rename', consume: true }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+
+    expect(hoistedConsumeLimiter.check).toHaveBeenNthCalledWith(1, 'rec_concurrent');
+    expect(hoistedConsumeLimiter.check).toHaveBeenNthCalledWith(2, 'rec_concurrent');
+    expect(hoisted.setSpy).toHaveBeenCalledTimes(2); // initial seal + first consume only
+  });
+
+  it('fails closed when the claim backend rejects', async () => {
+    await sealVerificationCookie(
+      'rec_claim_error',
+      Date.now() + 600_000,
+      'user-A-123',
+      'pat.delete',
+    );
+    const writesBefore = hoisted.setSpy.mock.calls.length;
+    hoistedConsumeLimiter.check.mockRejectedValueOnce(new Error('claim backend unavailable'));
+
+    await expect(
+      requireVerifiedIdentity('rec_claim_error', { purpose: 'pat.delete', consume: true }),
+    ).rejects.toThrow('VERIFICATION_EXPIRED');
+
+    expect(hoisted.setSpy).toHaveBeenCalledTimes(writesBefore);
+    expect(hoistedConsumeLimiter.reset).not.toHaveBeenCalled();
   });
 });

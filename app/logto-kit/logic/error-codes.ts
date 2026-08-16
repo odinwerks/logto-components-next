@@ -125,6 +125,20 @@ export const ERROR_CODES = {
   SESSION_REVOKE_PARTIAL: { code: 'SESSION_REVOKE_PARTIAL', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   GRANT_REVOKE_FAILED: { code: 'GRANT_REVOKE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
 
+  // ── personal access tokens (Management API) ────────────────────────────
+  PAT_DISABLED: { code: 'PAT_DISABLED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  PAT_FETCH_FAILED: { code: 'PAT_FETCH_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  PAT_CREATE_FAILED: { code: 'PAT_CREATE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  PAT_RENAME_FAILED: { code: 'PAT_RENAME_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  PAT_DELETE_FAILED: { code: 'PAT_DELETE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
+  // PAT name conflict (Logto 422: name must be unique within the user).
+  PAT_NAME_IN_USE: { code: 'PAT_NAME_IN_USE', category: 'validation', defaultVerbosity: 'specific', exposeToClient: true },
+  // PAT name shape (must be a string with trimmed length 1..256).
+  INVALID_PAT_NAME: { code: 'INVALID_PAT_NAME', category: 'validation', defaultVerbosity: 'specific', exposeToClient: true },
+  PAT_NAME_TOO_LONG: { code: 'PAT_NAME_TOO_LONG', category: 'validation', defaultVerbosity: 'specific', exposeToClient: true },
+  // PAT expiry (null, or integer epoch ms strictly in the future; undefined rejected).
+  INVALID_PAT_EXPIRY: { code: 'INVALID_PAT_EXPIRY', category: 'validation', defaultVerbosity: 'specific', exposeToClient: true },
+
   // ── rate-limit ─────────────────────────────────────────────────────────
   RATE_LIMITED: { code: 'RATE_LIMITED', category: 'rate-limit', defaultVerbosity: 'specific', exposeToClient: true },
   UPLOAD_RATE_LIMITED: { code: 'UPLOAD_RATE_LIMITED', category: 'rate-limit', defaultVerbosity: 'specific', exposeToClient: true },

@@ -84,6 +84,13 @@ vi.mock('./tabs/sessions', () => ({
 }));
 vi.mock('./tabs/identities', () => ({ IdentitiesTab: () => null }));
 vi.mock('./tabs/organizations', () => ({ OrganizationsTab: () => null }));
+vi.mock('./tabs/dev', () => ({
+  DevTab: ({ onVerificationDismissed }: { onVerificationDismissed?: () => void }) => (
+    <button type="button" data-testid="dismiss-dev-verification" onClick={onVerificationDismissed}>
+      Dismiss Dev verification
+    </button>
+  ),
+}));
 vi.mock('./shared/SignOutModal', () => ({ SignOutModal: () => null }));
 vi.mock('./shared/Toast', () => ({ ToastContainer: () => null }));
 
@@ -132,6 +139,7 @@ const stubTranslations = {
     sessions: 'Sessions',
     identities: 'Identities',
     organizations: 'Organizations',
+    dev: 'Dev',
   },
   profile: { notSet: 'Not set' },
 } as Translations;
@@ -175,6 +183,10 @@ const requiredProps = {
   onGetSessionsWithDeviceMeta: stubDataAction as () => Promise<DataResult<LogtoSession[]>>,
   onRevokeSession: stubAction,
   onRevokeAllOtherSessions: stubAction,
+  onGetPatTokens: stubDataAction as () => Promise<DataResult<import('../../logic/types').PatToken[]>>,
+  onCreatePatToken: stubDataAction as () => Promise<DataResult<{ token: import('../../logic/types').PatToken; value: string }>>,
+  onRenamePatToken: stubAction,
+  onDeletePatToken: stubAction,
 };
 
 afterEach(() => {
@@ -392,6 +404,50 @@ describe('DashboardClient - userShape prop', () => {
 
     expect(screen.getByRole('tab', { name: 'Profile' })).toHaveFocus();
     expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('returns from Dev verification dismissal to the last ordinary tab', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['profile', 'dev']}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dev' }));
+    fireEvent.click(screen.getByTestId('dismiss-dev-verification'));
+
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('never selects Sessions as the fallback after Dev verification dismissal', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['dev', 'sessions', 'profile']}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('dismiss-dev-verification'));
+
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Sessions' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('keeps Dev active when no ordinary fallback tab is loaded', () => {
+    render(
+      <DashboardClient
+        {...requiredProps}
+        loadedTabs={['dev']}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('dismiss-dev-verification'));
+
+    expect(screen.getByRole('tab', { name: 'Dev' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('dismiss-dev-verification')).toBeInTheDocument();
   });
 
   it('links all tabs to one stable tabpanel id with roving tabIndex', () => {

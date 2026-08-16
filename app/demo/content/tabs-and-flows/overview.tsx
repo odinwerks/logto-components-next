@@ -61,8 +61,10 @@ export default function OverviewSection() {
       <div>
         <h2 id={slugify("Tab overview")} style={h2Style}>Tab overview</h2>
         <p style={styles.textStyle}>
-          The Dashboard renders tabs based on the <code style={styles.codeStyle}>LOAD_TABS</code>{' '}
-          env var. <code style={styles.codeStyle}>DashboardClient</code> maintains{' '}
+          The Dashboard renders enabled tabs based on the <code style={styles.codeStyle}>LOAD_TABS</code>{' '}
+          env var. Dev/PAT is additionally protected by the private, strict, default-off{' '}
+          <code style={styles.codeSmStyle}>PAT_ENABLED</code> hard lock.{' '}
+          <code style={styles.codeStyle}>DashboardClient</code> maintains{' '}
           <code style={styles.codeStyle}>activeTab</code> state and conditionally renders
           each tab component.
         </p>
@@ -101,6 +103,12 @@ export default function OverviewSection() {
               <td style={customTdStyle}>List and revoke session actions</td>
             </tr>
             <tr>
+              <td style={customTdPropStyle}>Dev</td>
+              <td style={customTdStyle}>Common props plus PAT callbacks</td>
+              <td style={customTdStyle}>Purpose-scoped verification lifecycle</td>
+              <td style={customTdStyle}>List, create, rename, and delete personal access tokens</td>
+            </tr>
+            <tr>
               <td style={customTdPropStyle}>Identities</td>
               <td style={customTdStyle}>common only</td>
               <td style={customTdStyle}> - </td>
@@ -114,14 +122,16 @@ export default function OverviewSection() {
             </tr>
           </tbody>
         </table>
-        <CodeBlock title="LOAD_TABS" code={`# Show all tabs (default)
-LOAD_TABS=
+        <CodeBlock title="LOAD_TABS" code={`# Safe default: show all ordinary tabs, not Dev/PAT
+PAT_ENABLED=false
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations
 
-# Show specific tabs
-LOAD_TABS=profile,preferences,security,organizations`} />
+# Explicit PAT opt-in (existing Management API M2M configuration is also required)
+PAT_ENABLED=true
+LOAD_TABS=profile,preferences,security,sessions,identities,organizations,dev`} />
         <div style={styles.noteStyle}>
           <strong style={styles.strongNoteStyle}>Common props:</strong>{' '}
-          Profile, Security, Sessions, and Organizations receive <code style={styles.codeSmStyle}>userData: UserData</code>.{' '}
+          Profile, Security, Sessions, Dev, and Organizations receive <code style={styles.codeSmStyle}>userData: UserData</code>.{' '}
           All tabs receive{' '}
           <code style={styles.codeSmStyle}>mode: &apos;dark&apos; | &apos;light&apos;</code>,{' '}
           <code style={styles.codeSmStyle}>colors: ThemeColors</code>,{' '}
@@ -167,19 +177,28 @@ LOAD_TABS=profile,preferences,security,organizations`} />
           <li style={{ marginBottom: '8px' }}>
             <strong>CrossFade Mounting:</strong> The content panel uses <code style={styles.codeSmStyle}>CrossFade</code> with <code style={styles.codeSmStyle}>keepMountedKeys</code> set to the visited tabs set. Visited tabs stay mounted but hidden via <code style={styles.codeSmStyle}>display:none</code>, preserving form drafts, hook subscriptions, and scroll positions across tab switches. Unvisited tabs are not mounted until first opened, so their lazy fetches (MFA, sessions) do not fire on page load.
           </li>
+          <li style={{ marginBottom: '8px' }}>
+            <strong>Auto-verifying tabs:</strong> Sessions and Dev open password verification when they become active and render a locked skeleton until verification plus the initial list fetch succeeds. Dismissing the prompt prefers the prior ordinary tab and never falls through to another auto-verifying tab.
+          </li>
         </ul>
       </div>
 
       <div>
         <h2 id={slugify("LOAD_TABS Env Variable Parsing")} style={h2Style}>LOAD_TABS Env Variable Parsing</h2>
         <p style={styles.textStyle}>
-          The tab configuration is declared via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. The helper function <code style={styles.codeStyle}>getLoadedTabs()</code> parses this variable on the server side or client side (with <code style={styles.codeSmStyle}>NEXT_PUBLIC_LOAD_TABS</code> as a fallback) using the following pipeline:
+          The tab configuration is declared via the <code style={styles.codeStyle}>LOAD_TABS</code> environment variable. The server-side helper <code style={styles.codeStyle}>getLoadedTabs()</code> parses the bare value or its existing <code style={styles.codeSmStyle}>NEXT_PUBLIC_LOAD_TABS</code> tab-list fallback. PAT enablement is read separately from the private <code style={styles.codeSmStyle}>PAT_ENABLED</code> value; there is no <code style={styles.codeSmStyle}>NEXT_PUBLIC_PAT_ENABLED</code> setting.
         </p>
         
         <h3 style={{ ...styles.textStyle, fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
           Parsing and Resolution Sequence
         </h3>
         <ol style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'decimal' }}>
+          <li style={{ marginBottom: '8px' }}>
+            <strong>Private Feature Gate:</strong> Normalizes{' '}
+            <code style={styles.codeSmStyle}>PAT_ENABLED</code> by trimming and lowercasing;
+            only <code style={styles.codeSmStyle}>true</code> enables Dev. Missing, empty,
+            false, numeric, and arbitrary values keep it disabled.
+          </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Comma-Separated Tokenization:</strong> Splits the raw configuration string using commas as delimiters.
           </li>
@@ -191,27 +210,32 @@ LOAD_TABS=profile,preferences,security,organizations`} />
               <li><code style={styles.codeSmStyle}>identity</code> : resolves to <code style={styles.codeSmStyle}>identities</code></li>
               <li><code style={styles.codeSmStyle}>orgs</code>, <code style={styles.codeSmStyle}>org</code> : resolves to <code style={styles.codeSmStyle}>organizations</code></li>
               <li><code style={styles.codeSmStyle}>mfa</code>, <code style={styles.codeSmStyle}>2fa</code>, <code style={styles.codeSmStyle}>totp</code> : resolves to <code style={styles.codeSmStyle}>security</code></li>
-              <li><code style={styles.codeSmStyle}>session</code>, <code style={styles.codeSmStyle}>devices</code>, <code style={styles.codeSmStyle}>activity</code> : resolves to <code style={styles.codeSmStyle}>sessions</code></li>
+               <li><code style={styles.codeSmStyle}>session</code>, <code style={styles.codeSmStyle}>devices</code>, <code style={styles.codeSmStyle}>activity</code> : resolves to <code style={styles.codeSmStyle}>sessions</code></li>
+              <li><code style={styles.codeSmStyle}>developer</code>, <code style={styles.codeSmStyle}>pat</code>, <code style={styles.codeSmStyle}>pats</code>, <code style={styles.codeSmStyle}>pat-tokens</code>, <code style={styles.codeSmStyle}>tokens</code> : resolves to <code style={styles.codeSmStyle}>dev</code></li>
             </ul>
           </li>
           <li style={{ marginBottom: '8px' }}>
             <strong>Deduplication and Validation:</strong> Skips invalid tokens with warning logs and inserts valid canonical IDs into a <code style={styles.codeSmStyle}>Set</code> to eliminate duplicate values while preserving the configured tab order.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Normalization:</strong> The resolved tab list is normalized to canonical tab IDs before render-time checks.
+            <strong>Post-Alias Filtering:</strong> The resolved list is normalized to canonical tab IDs, then Dev is removed when PAT is disabled. This catches <code style={styles.codeSmStyle}>dev</code> and every alias from either tab-list source while preserving non-Dev order.
           </li>
           <li style={{ marginBottom: '8px' }}>
-            <strong>Empty Fallback:</strong> If no tabs remain or the variable is not set, the helper falls back to loading all tabs in default order.
+            <strong>Safe Fallback:</strong> Missing, empty, all-invalid, and Dev-only input falls back to all enabled tabs in default order. With PAT disabled, that means all non-Dev tabs.
           </li>
         </ol>
 
         <CodeBlock
           title="Helper Parsing Flow"
           code={`export function getLoadedTabs(): TabId[] {
+  const patEnabled = readEnv('PAT_ENABLED', false)?.trim().toLowerCase() === 'true';
+  const defaultTabs = patEnabled
+    ? [...ALL_TABS]
+    : ALL_TABS.filter((tab) => tab !== 'dev');
   const raw = readEnv('LOAD_TABS') || '';
 
   if (!raw.trim()) {
-    return [...ALL_TABS];
+    return defaultTabs;
   }
 
   const seen = new Set<TabId>();
@@ -233,9 +257,22 @@ LOAD_TABS=profile,preferences,security,organizations`} />
     }
   }
 
-  return result.length === 0 ? [...ALL_TABS] : result;
+  // Alias resolution happens first, so one canonical filter covers all aliases.
+  const enabledTabs = patEnabled
+    ? result
+    : result.filter((tab) => tab !== 'dev');
+
+  return enabledTabs.length === 0 ? defaultTabs : enabledTabs;
 }`}
         />
+        <div style={styles.noteStyle}>
+          <strong style={styles.strongNoteStyle}>PAT opt-in boundary:</strong>{' '}
+          An explicit deployment enables Dev only with{' '}
+          <code style={styles.codeSmStyle}>PAT_ENABLED=true</code>,{' '}
+          <code style={styles.codeSmStyle}>dev</code> (or an alias) in its tab list, and the
+          existing Logto Management API M2M configuration. It does not require a new
+          end-user OIDC scope.
+        </div>
       </div>
 
       <div>

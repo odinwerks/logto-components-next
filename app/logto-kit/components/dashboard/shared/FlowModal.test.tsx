@@ -32,6 +32,51 @@ describe('FlowModal - localization', () => {
     expect(onValueSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it('omits an empty subtitle and aria-describedby', () => {
+    render(
+      <FlowModal
+        title="Token created"
+        step={{ kind: 'value' }}
+        onPasswordSubmit={noop}
+        onClose={noop}
+        hideValueSubmit
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Token created' });
+    expect(dialog).not.toHaveAttribute('aria-describedby');
+    expect(Array.from(dialog.querySelectorAll('p')).some((node) => node.textContent === '')).toBe(false);
+  });
+
+  it('can hide only the generic value submit while preserving the shared close control', () => {
+    const onClose = vi.fn();
+    const onValueSubmit = vi.fn();
+    render(
+      <FlowModal
+        title="Token created"
+        step={{ kind: 'value' }}
+        onPasswordSubmit={noop}
+        onValueSubmit={onValueSubmit}
+        onClose={onClose}
+        hideValueSubmit
+        extra={<div>ONE-TIME VALUE</div>}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: enUS.profile.saveChanges })).toBeNull();
+    expect(screen.getByText('ONE-TIME VALUE')).toBeInTheDocument();
+    const closeButtons = screen.getAllByRole('button', { name: /close/i });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onValueSubmit).not.toHaveBeenCalled();
+  });
+
   it('renders code step with translation keys instead of hardcoded English', () => {
     render(
       <FlowModal
@@ -890,12 +935,13 @@ describe('FlowModal - loading state (in-button BouncingDots)', () => {
   }
 
   it('PasswordVerifyModal: replaces verify button text with white BouncingDots and disables input when loading', () => {
+    const onPasswordSubmit = vi.fn();
     render(
       <PasswordVerifyModal
         title="Verify"
         subtitle="Enter your password"
         step={{ kind: 'password' }}
-        onPasswordSubmit={noop}
+        onPasswordSubmit={onPasswordSubmit}
         onClose={noop}
         t={enUS}
         mode="dark"
@@ -919,7 +965,35 @@ describe('FlowModal - loading state (in-button BouncingDots)', () => {
     expect(dots[0]).toHaveStyle({ background: 'rgb(255, 255, 255)' });
 
     // Password input is disabled.
-    expect(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder)).toBeDisabled();
+    const input = screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder);
+    expect(input).toBeDisabled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onPasswordSubmit).not.toHaveBeenCalled();
+  });
+
+  it('PasswordVerifyModal ignores Enter while loading even when a password is already present', () => {
+    const onPasswordSubmit = vi.fn();
+    const renderModal = (loading: boolean) => (
+      <PasswordVerifyModal
+        title="Verify"
+        subtitle="Enter your password"
+        step={{ kind: 'password' }}
+        onPasswordSubmit={onPasswordSubmit}
+        onClose={noop}
+        t={enUS}
+        mode="dark"
+        colors={DARK_COLORS}
+        loading={loading}
+      />
+    );
+    const { rerender } = render(renderModal(false));
+    const input = screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder);
+    fireEvent.change(input, { target: { value: 'already-entered' } });
+
+    rerender(renderModal(true));
+    fireEvent.keyDown(screen.getByPlaceholderText(enUS.mfa.enterPasswordPlaceholder), { key: 'Enter' });
+
+    expect(onPasswordSubmit).not.toHaveBeenCalled();
   });
 
   it('FlowModal password step: shows dots in verify button, disables input, retains min-width', () => {

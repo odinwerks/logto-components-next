@@ -206,6 +206,16 @@ describe('ProfileTab - behavioral', () => {
     mockReadEnv.mockClear();
   });
 
+  it('renders the desktop missing-phone action as ADD text without an icon', () => {
+    renderProfile(undefined, {
+      userData: { ...defaultUserData, primaryPhone: undefined },
+    });
+
+    const addButton = screen.getByRole('button', { name: enUS.profile.add });
+    expect(addButton).toHaveTextContent(enUS.profile.add);
+    expect(addButton.querySelector('svg')).toBeNull();
+  });
+
   it('disables clean saves and rejects invalid username input client-side', async () => {
     renderProfile('username', { userData: { ...defaultUserData, username: 'olduser' } });
     fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]!);

@@ -508,6 +508,22 @@ describe('ContactRow - result-checking (ActionResult/DataResult)', () => {
     expect(countryButton).toBeInTheDocument();
   });
 
+  it('retains the Plus icon in the desktop add action when showDesktopAddIcon is omitted', () => {
+    render(<ContactRow {...buildPhoneProps()} />);
+
+    const addButton = screen.getByRole('button', { name: enUS.profile.add });
+    expect(addButton).toHaveTextContent(enUS.profile.add);
+    expect(addButton.querySelector('svg')).not.toBeNull();
+  });
+
+  it('keeps the mobile add action Plus-only when the desktop icon is disabled', () => {
+    render(<ContactRow {...buildPhoneProps({ showDesktopAddIcon: false, mobmode: 1 })} />);
+
+    const addButton = screen.getByRole('button', { name: enUS.profile.add });
+    expect(addButton.querySelector('svg')).not.toBeNull();
+    expect(addButton.textContent).toBe('');
+  });
+
   it('keeps add-phone flow on value step when local phone digits are cleared', async () => {
     const props = buildPhoneProps();
 

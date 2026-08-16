@@ -77,6 +77,12 @@ export function createMapErrorToast(
 }
 
 /**
+ * Alias for `createMapErrorToast` — the canonical client-safe
+ * error-code-to-message mapper. Kept as a direct alias (no duplicated logic).
+ */
+export const mapErrorCode = createMapErrorToast;
+
+/**
  * Looks up a code string in the errors translations object. Tries the raw
  * string first, then the dot-to-underscore variant (for Logto dot-notation
  * codes like `session.invalid_credentials` → `session_invalid_credentials`).

@@ -88,10 +88,31 @@ export async function makeManagementFetch(
     signal?: AbortSignal;
     /** Absolute Date.now() deadline shared by a lock-held request sequence. */
     deadlineAt?: number;
+    /**
+     * Additional headers to merge into the request (e.g. the
+     * `logto-verification-id` header required by Logto's personal-access-token
+     * and other verification-gated Management API calls).
+     *
+     * Reserved headers are applied LAST: callers can never override
+     * `Authorization` or `Content-Type` — an extraHeaders entry with those
+     * keys is silently superseded by the values this helper controls.
+     */
+    extraHeaders?: Record<string, string>;
   },
 ): Promise<Response> {
-  const { method = 'GET', token, body, signal, deadlineAt } = options;
+  const { method = 'GET', token, body, signal, deadlineAt, extraHeaders } = options;
+  // Header names are case-insensitive on the wire. Filter reserved names
+  // case-insensitively before adding the helper-controlled values; merely
+  // assigning `Authorization` after `authorization` would leave two own
+  // properties that Fetch may coalesce in an implementation-dependent order.
+  const callerHeaders = Object.fromEntries(
+    Object.entries(extraHeaders ?? {}).filter(([name]) => {
+      const normalized = name.toLowerCase();
+      return normalized !== 'authorization' && normalized !== 'content-type';
+    }),
+  );
   const headers: Record<string, string> = {
+    ...callerHeaders,
     Authorization: `Bearer ${token}`,
   };
   if (body !== undefined) {

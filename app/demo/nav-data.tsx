@@ -85,7 +85,7 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'component',
     icon: <DashboardIcon />,
-    desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Identities, Organizations. Drop it anywhere - wraps itself in required providers.',
+    desc: 'Full user management dashboard. Tabs: Profile, Preferences, Security (TOTP, backup codes, WebAuthn), Sessions, Dev (personal access tokens), Identities, Organizations. Drop it anywhere - wraps itself in required providers.',
     sections: ['Internals', 'Provider Sync', 'Tab Structure', 'Rendering', 'Mobile'],
   },
   {
@@ -94,8 +94,8 @@ export const NAV_ITEMS: NavItem[] = [
     code: false,
     type: 'reference',
     icon: <DashboardIcon />,
-    desc: 'Deep dive into each dashboard tab: props, hooks (useAvatarUpload, useThemeMode, useLangMode, useOrgMode), server actions, FlowModal architecture, TOTP flows, ContactRow, org switching.',
-    sections: ['Overview', 'Profile', 'Preferences', 'Security', 'Sessions', 'Identities', 'Organizations'],
+    desc: 'Deep dive into each dashboard tab: props, hooks, server actions, FlowModal architecture, Sessions verification, Dev/PAT management, TOTP flows, ContactRow, and org switching.',
+    sections: ['Overview', 'Profile', 'Preferences', 'Security', 'Sessions', 'Dev', 'Identities', 'Organizations'],
   },
   {
     id: 'rbac',
@@ -154,6 +154,7 @@ export const SECTION_HINTS: SectionHint = {
   Preferences: 'Regional languages, theme customizers, and event broadcasts...',
   Security: 'MFA registrations, password complexity validators, and account purges...',
   Sessions: 'Device session maps, hearts beats, and revocations...',
+  Dev: 'Purpose-scoped personal access token creation, rotation, and deletion...',
   Identities: 'OIDC social integrations, sync timelines, and metadata trackers...',
   Organizations: 'Role mappings, permissions, and dynamic organization switching...',
   'UI <Protected />': 'Client-side gating component and conditional layout rendering...',

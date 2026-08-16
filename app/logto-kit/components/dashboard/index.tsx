@@ -27,6 +27,10 @@ import {
   requestWebAuthnRegistration,
   verifyAndLinkWebAuthn,
   renamePasskey,
+  getPatTokens,
+  createPatToken,
+  renamePatToken,
+  deletePatToken,
 } from '../../logic/actions';
 import { getTranslations, getMainLocale, getAllTranslations } from '../../locales';
 import { DARK_COLORS } from '../../themes';
@@ -157,6 +161,10 @@ export async function Dashboard() {
           onGetSessionsWithDeviceMeta={getSessionsWithDeviceMeta}
           onRevokeSession={revokeUserSession}
           onRevokeAllOtherSessions={revokeAllOtherSessions}
+          onGetPatTokens={getPatTokens}
+          onCreatePatToken={createPatToken}
+          onRenamePatToken={renamePatToken}
+          onDeletePatToken={deletePatToken}
         />
   );
 }

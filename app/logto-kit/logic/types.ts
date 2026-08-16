@@ -161,6 +161,26 @@ export interface VerificationResult {
 
 export type VerificationType = 'email' | 'phone';
 
+/**
+ * Purpose scope for a server-sealed identity verification (PAT remediation).
+ *
+ * A purpose-scoped seal (`pat.create` / `pat.rename` / `pat.delete`) can only
+ * be consumed by destructive actions that declare the exact same purpose.
+ * `'view'` is the default, backwards-compatible purpose: seals issued without
+ * an explicit purpose behave exactly as before the PAT hardening.
+ *
+ * This module is client-safe — no server-only imports.
+ */
+export type VerificationPurpose = 'view' | 'pat.create' | 'pat.rename' | 'pat.delete';
+
+/** Runtime allowlist of valid `VerificationPurpose` values. */
+export const VERIFICATION_PURPOSES: readonly VerificationPurpose[] = [
+  'view',
+  'pat.create',
+  'pat.rename',
+  'pat.delete',
+];
+
 // ============================================================================
 // Update Payload Types
 // ============================================================================
@@ -374,4 +394,21 @@ export interface PersonalRbacResult {
 export interface OrgRbacResult {
   roles: UserRole[];
   permissions: OrgRoleScope[];
+}
+
+/**
+ * Personal access token (PAT) metadata as exposed to the client.
+ *
+ * The upstream `value` is deliberately absent — Logto's Management API list
+ * endpoint returns the stored value for every token, but the Logto Console
+ * never surfaces it after creation. The one-time value is only returned by
+ * the create server action (`createPatToken`).
+ */
+export interface PatToken {
+  /** Unique (per user) token name. */
+  name: string;
+  /** Epoch milliseconds when the token was created. */
+  createdAt: number;
+  /** Epoch milliseconds when the token expires, or `null` if it never expires. */
+  expiresAt: number | null;
 }
