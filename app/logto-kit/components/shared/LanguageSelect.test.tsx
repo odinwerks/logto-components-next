@@ -143,6 +143,113 @@ describe('LanguageSelect', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  describe('mobile virtual-keyboard resilience', () => {
+    it('stays open on window resize while the search input is focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      const searchInput = screen.getByPlaceholderText('Search...');
+      searchInput.focus();
+      expect(document.activeElement).toBe(searchInput);
+
+      // Virtual-keyboard summon fires a viewport resize; dropdown must stay open.
+      fireEvent(window, new Event('resize'));
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    it('stays open on window scroll while the search input is focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      const searchInput = screen.getByPlaceholderText('Search...');
+      searchInput.focus();
+
+      // Browser auto-scrolls the focused input into view; dropdown must stay open.
+      fireEvent(window, new Event('scroll'));
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    it('closes on window resize when the search input is not focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+      // Real page resize (input not focused) still closes the dropdown.
+      fireEvent(window, new Event('resize'));
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('closes on window scroll when the search input is not focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+      // Real page scroll (input not focused) still closes the dropdown.
+      fireEvent(window, new Event('scroll'));
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('still closes on selection even while the search input is focused', () => {
+      const onChange = vi.fn();
+      render(<LanguageSelect {...defaultProps} onChange={onChange} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      const searchInput = screen.getByPlaceholderText('Search...');
+      searchInput.focus();
+
+      fireEvent.click(screen.getByText('Ukrainian'));
+
+      expect(onChange).toHaveBeenCalledWith('uk-UA');
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('still closes on Escape even while the search input is focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      const searchInput = screen.getByPlaceholderText('Search...');
+      searchInput.focus();
+
+      fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('still closes on outside mousedown even while the search input is focused', () => {
+      render(<LanguageSelect {...defaultProps} />);
+
+      const trigger = screen.getByRole('combobox');
+      fireEvent.click(trigger);
+
+      const searchInput = screen.getByPlaceholderText('Search...');
+      searchInput.focus();
+
+      fireEvent.mouseDown(document.body);
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+  });
+
   it('closes dropdown when focus leaves the component (focusout)', async () => {
     render(<LanguageSelect {...defaultProps} />);
 

@@ -106,7 +106,17 @@ export function LanguageSelect({
   }, []);
 
   useEffect(() => {
-    const handleScrollOrResize = () => setIsOpen(false);
+    const handleScrollOrResize = () => {
+      // When the search input holds focus, a viewport resize/scroll is almost
+      // certainly driven by the mobile virtual keyboard (keyboard summon resizes
+      // the viewport; browsers also auto-scroll focused inputs into view).
+      // Don't collapse the dropdown mid-interaction — reposition it instead.
+      if (searchInputRef.current && document.activeElement === searchInputRef.current) {
+        updateCoords();
+        return;
+      }
+      setIsOpen(false);
+    };
 
     if (isOpen) {
       updateCoords();
