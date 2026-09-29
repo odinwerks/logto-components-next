@@ -3,6 +3,7 @@
 import { safeAction, type DataResult } from './safe';
 import { getTokenForServerAction } from './tokens';
 import { makeRequest } from './request';
+import { throwOnApiError } from '../errors';
 import { getBackendType } from '../../config';
 import { debug, warn, logEvent } from '../log';
 import { LOG_EVENTS } from '../../../lib/log-events';
@@ -33,7 +34,11 @@ export async function recordHeartbeat(): Promise<DataResult<void>> {
     const token = await getTokenForServerAction().catch(() => null);
     if (!token) return; // Not authenticated - silently skip
     try {
-      await makeRequest('/api/my-account/sessions/heartbeat', { method: 'POST' });
+      const res = await makeRequest('/api/my-account/sessions/heartbeat', { method: 'POST' });
+      // R2: makeRequest resolves a Response for ANY status — check it before
+      // logging success. throwOnApiError returns early on res.ok and throws a
+      // SanitizedError (fixed code, upstream message server-side only) otherwise.
+      await throwOnApiError(res, 'UPDATE_FAILED', 'session-heartbeat');
       logEvent.info(LOG_EVENTS.SESSION_HEARTBEAT, 'Heartbeat recorded');
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {

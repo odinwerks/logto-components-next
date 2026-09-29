@@ -180,6 +180,8 @@ const DOCS_TOPIC_PREFIXES = new Set([
  * - `/api/auth/sign-in` — sign-in flow entry point
  * - `/callback` — OAuth callback handler
  * - `/api/wipe` — cookie cleaning route (protected by its own origin guard)
+ * - `/api/protected/automation` — explicit-bearer automation route (the route
+ *   performs its own bearer authentication and CORS policy)
  *
  * All other paths are protected and require authentication.
  */
@@ -193,6 +195,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/api/auth/sign-in') return true;
   if (pathname === '/callback') return true;
   if (pathname === '/api/wipe') return true;
+  if (pathname === '/api/protected/automation') return true;
   return false;
 }
 
@@ -248,6 +251,13 @@ export async function proxy(request: NextRequest) {
   // Never inspect, refresh, or reissue a Logto session while the wipe route
   // is validating its nonce and clearing cookies.
   if (pathname === '/api/wipe') {
+    return passThroughResponse();
+  }
+
+  // External automation callers authenticate with an explicit bearer token.
+  // Never send this exact route through the cookie/session SDK, which would
+  // otherwise redirect missing browser sessions to the sign-in flow.
+  if (pathname === '/api/protected/automation') {
     return passThroughResponse();
   }
 

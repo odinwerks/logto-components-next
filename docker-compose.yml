@@ -46,6 +46,9 @@ services:
       - LOGTO_M2M_APP_SECRET=${LOGTO_M2M_APP_SECRET}
       - LOGTO_INTROSPECTION_URL=${LOGTO_INTROSPECTION_URL}
       - LOGTO_M2M_RESOURCE=${LOGTO_M2M_RESOURCE}
+      # ── Protected automation bearer API ───────────────────────────────────
+      - PROTECTED_API_RESOURCE=${PROTECTED_API_RESOURCE}
+      - PROTECTED_AUTOMATION_ALLOWED_ORIGINS=${PROTECTED_AUTOMATION_ALLOWED_ORIGINS:-*}
       # ── Backend and phone-country behavior gates ─────────────────────────
       - BACKEND_TYPE=${BACKEND_TYPE}
       - COUNTRY_CODE_ALLOW_LIST=${COUNTRY_CODE_ALLOW_LIST}
