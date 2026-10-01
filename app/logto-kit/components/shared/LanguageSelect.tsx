@@ -9,6 +9,20 @@ import { LANGUAGE_META, getLangFlag } from '../../logic/languages';
 import type { LocaleCode } from '../../logic/i18n';
 import { AVAILABLE_LOCALES } from '../../logic/i18n';
 
+/**
+ * Coarse-pointer (touch-primary) check, SSR/jsdom guarded. Evaluated when read,
+ * not at module load, so it tracks the live media query. Gates the phone
+ * virtual-keyboard tolerance below; non-coarse pointers keep the original
+ * close-on-viewport-event behavior.
+ */
+function isTouchPrimary(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+  );
+}
+
 export interface LanguageSelectProps {
   value: string;
   onChange: (code: string) => void;
@@ -39,6 +53,10 @@ export function LanguageSelect({
   const mountedRef = useRef(false);
   const isKeyboardNavRef = useRef(false);
   const scrollAncestorsRef = useRef<Element[]>([]);
+  // Phone keyboard intent (coarse pointers only): true from open until the
+  // autofocus timer fires, then searchEngagedRef stays true for the open session.
+  const focusPendingRef = useRef(false);
+  const searchEngagedRef = useRef(false);
 
   const triggerId = useId();
   const listboxId = useId();
@@ -107,6 +125,13 @@ export function LanguageSelect({
 
   useEffect(() => {
     const handleScrollOrResize = () => {
+      // Phones: the keyboard summon can fire viewport resize/scroll before the
+      // 50ms autofocus lands (pending) or while focus is settling (engaged).
+      // Reposition instead of collapsing the dropdown the user is about to use.
+      if (isTouchPrimary() && (focusPendingRef.current || searchEngagedRef.current)) {
+        updateCoords();
+        return;
+      }
       // When the search input holds focus, a viewport resize/scroll is almost
       // certainly driven by the mobile virtual keyboard (keyboard summon resizes
       // the viewport; browsers also auto-scroll focused inputs into view).
@@ -140,14 +165,22 @@ export function LanguageSelect({
 
   useEffect(() => {
     if (isOpen) {
+      focusPendingRef.current = true;
       const timer = setTimeout(() => {
+        focusPendingRef.current = false;
         searchInputRef.current?.focus();
       }, 50);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        focusPendingRef.current = false;
+        searchEngagedRef.current = false;
+      };
     }
   }, [isOpen]);
 
   const closeDropdown = useCallback((restoreTriggerFocus = false) => {
+    focusPendingRef.current = false;
+    searchEngagedRef.current = false;
     setIsOpen(false);
     if (restoreTriggerFocus) {
       setTimeout(() => triggerRef.current?.focus(), 0);
@@ -155,7 +188,7 @@ export function LanguageSelect({
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
         triggerRef.current &&
         !triggerRef.current.contains(event.target as Node) &&
@@ -168,9 +201,13 @@ export function LanguageSelect({
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      // Touch outside-tap closes like a desktop outside-click; passive, never
+      // preventDefault, so scrolling is not blocked.
+      document.addEventListener('touchstart', handleClickOutside, { passive: true });
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [isOpen, closeDropdown]);
 
@@ -193,6 +230,16 @@ export function LanguageSelect({
           if (
             (triggerRef.current && triggerRef.current.contains(activeEl)) ||
             (dropdownRef.current && dropdownRef.current.contains(activeEl))
+          ) {
+            return;
+          }
+          // Phones: focus detours through body/null while the keyboard settles
+          // after the search input was engaged. Not a real focus exit — outside
+          // taps are closed by the touchstart handler instead.
+          if (
+            searchEngagedRef.current &&
+            isTouchPrimary() &&
+            (!activeEl || activeEl === document.body)
           ) {
             return;
           }
@@ -454,6 +501,9 @@ export function LanguageSelect({
                 placeholder="Search..."
                 style={searchInputStyle}
                 onKeyDown={handleSearchKeyDown}
+                onFocus={() => {
+                  searchEngagedRef.current = true;
+                }}
                 role="searchbox"
                 aria-label="Search languages"
                 aria-autocomplete="list"

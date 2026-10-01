@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { LanguageSelect } from './LanguageSelect';
 import { DARK_COLORS } from '../../themes';
 import { enUS } from '../../locales/en-US';
@@ -247,6 +247,166 @@ describe('LanguageSelect', () => {
       fireEvent.mouseDown(document.body);
 
       expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('phone keyboard-stable (coarse pointer)', () => {
+    const originalMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+
+    const mockPointer = (coarse: boolean) => {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query === '(pointer: coarse)' ? coarse : false,
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+    };
+
+    const flush = (ms = 20) =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+      });
+
+    afterEach(() => {
+      if (originalMatchMedia) {
+        Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+      } else {
+        delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+      }
+    });
+
+    const openAndEngage = async () => {
+      render(<LanguageSelect {...defaultProps} />);
+      fireEvent.click(screen.getByRole('combobox'));
+      const searchInput = screen.getByPlaceholderText('Search...');
+      // Wait for the 50ms autofocus so the search input is engaged.
+      await waitFor(() => expect(document.activeElement).toBe(searchInput));
+      return searchInput;
+    };
+
+    it('T1: stays open on resize/scroll before the autofocus lands (coarse)', () => {
+      mockPointer(true);
+      render(<LanguageSelect {...defaultProps} />);
+      fireEvent.click(screen.getByRole('combobox'));
+
+      // Autofocus timer (50ms) has not fired: activeElement is not the input.
+      expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Search...'));
+
+      fireEvent(window, new Event('resize'));
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+      fireEvent(window, new Event('scroll'));
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+    });
+
+    it('T1b: still closes on pre-focus resize/scroll on non-coarse pointers', () => {
+      mockPointer(false);
+      render(<LanguageSelect {...defaultProps} />);
+      fireEvent.click(screen.getByRole('combobox'));
+
+      fireEvent(window, new Event('resize'));
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('T1c: stays open on resize after the search input blurred (coarse, engaged)', async () => {
+      mockPointer(true);
+      const searchInput = await openAndEngage();
+
+      searchInput.blur();
+      fireEvent(window, new Event('resize'));
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+    });
+
+    it('T1d: closes on resize after the search input blurred on non-coarse pointers', async () => {
+      mockPointer(false);
+      const searchInput = await openAndEngage();
+
+      searchInput.blur();
+      fireEvent(window, new Event('resize'));
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('T2a: ignores a transient null-relatedTarget blur to body while engaged (coarse)', async () => {
+      mockPointer(true);
+      const searchInput = await openAndEngage();
+
+      // IME/keyboard settle detour: focus leaves to body with no relatedTarget.
+      searchInput.blur();
+      await flush();
+
+      expect(document.activeElement).toBe(document.body);
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    it('T2b: closes on null-relatedTarget blur to body on non-coarse pointers', async () => {
+      mockPointer(false);
+      const searchInput = await openAndEngage();
+
+      searchInput.blur();
+
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('T2c: outside touchstart still closes while engaged (coarse)', async () => {
+      mockPointer(true);
+      await openAndEngage();
+
+      fireEvent.touchStart(document.body);
+
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('T2d: touchstart inside the dropdown does not close it', async () => {
+      mockPointer(true);
+      await openAndEngage();
+
+      fireEvent.touchStart(screen.getByRole('listbox'));
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+    });
+
+    it('still closes on Escape and option select while engaged (coarse)', async () => {
+      mockPointer(true);
+      const onChange = vi.fn();
+      render(<LanguageSelect {...defaultProps} onChange={onChange} />);
+      fireEvent.click(screen.getByRole('combobox'));
+      const searchInput = screen.getByPlaceholderText('Search...');
+      await waitFor(() => expect(document.activeElement).toBe(searchInput));
+
+      fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByText('Ukrainian'));
+      expect(onChange).toHaveBeenCalledWith('uk-UA');
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
+    it('resets intent on close so a re-open starts clean (coarse)', async () => {
+      mockPointer(true);
+      const searchInput = await openAndEngage();
+      fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+      await flush(10);
+
+      // Re-open: intent is pending again (not inherited), so a pre-focus resize
+      // keeps the dropdown open.
+      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent(window, new Event('resize'));
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
     });
   });
 

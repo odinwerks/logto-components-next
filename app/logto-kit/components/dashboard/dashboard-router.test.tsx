@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { DashboardRouter, useIsPortrait } from './dashboard-router';
+import { LanguageSelect } from '../shared/LanguageSelect';
+import { DARK_COLORS } from '../../themes';
+import { enUS } from '../../locales/en-US';
 
 describe('DashboardRouter', () => {
   beforeEach(() => {
@@ -272,5 +275,67 @@ describe('DashboardRouter', () => {
     );
 
     expect(screen.getByText('mobile-dashboard')).toBeInTheDocument();
+  });
+  it('T3 (characterization): real LanguageSelect portal across a portrait flip while open and focused', async () => {
+    const portraitListeners = new Set<() => void>();
+    let portrait = true;
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        get matches() {
+          if (query === '(orientation: portrait)') return portrait;
+          return query === '(pointer: coarse)';
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_: string, cb: () => void) => {
+          if (query === '(orientation: portrait)') portraitListeners.add(cb);
+        },
+        removeEventListener: (_: string, cb: () => void) => {
+          portraitListeners.delete(cb);
+        },
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(
+      <DashboardRouter
+        desktop={<div data-testid="desktop">desktop-dashboard</div>}
+        mobile={
+          <LanguageSelect
+            value="ka-GE"
+            onChange={vi.fn()}
+            options={['en-US', 'ka-GE', 'uk-UA']}
+            mode="dark"
+            colors={DARK_COLORS}
+            t={enUS}
+          />
+        }
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: /language selector/i }));
+    const searchInput = screen.getByPlaceholderText('Search...');
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    expect(document.activeElement).toBe(searchInput);
+
+    // Portrait -> landscape flip while the selector is open and focused.
+    portrait = false;
+    act(() => {
+      portraitListeners.forEach((cb) => cb());
+    });
+
+    // Characterization (jsdom): the body portal is NOT destroyed by the Activity
+    // hide. Same node, still connected, still focused. This proves no router edit
+    // is needed for portal loss; it does not model a real phone's IME/viewport.
+    expect(screen.queryByPlaceholderText('Search...')).toBe(searchInput);
+    expect(searchInput.isConnected).toBe(true);
+    expect(document.activeElement).toBe(searchInput);
+    expect(screen.getByTestId('mobile-dashboard-shell')).toHaveAttribute('inert');
   });
 });
