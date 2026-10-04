@@ -1,19 +1,15 @@
 # logto-components-next
 
-**This is a starter template, not an npm package.** Clone this repo and build your
- secured application on top. See the docs site at `/getting-started/pre-requisites`
- for setup instructions.
+**This is a template implementing auth and basic UI to cover for features logto offers.** Clone this repo and build your
+ secured application on top. See the docs site at `/getting-started/pre-requisites` for setup instructions.
 
-A modular Next.js app that provides a base for building with a dashboard, user button, providers for user data, Logto Auth integration, theme and language handlers, and custom action runners.
+This Next.js app provides a dashboard, user button, theme and language primitives to sync your UI state, custom protected action runners.
 
 ## Features
 
-- **Semi-Clean Production-ish UI**: Squared buttons, CSS-variable theming, and a set of UI components
-- **Full Responsive & Mobile Support**: Dynamic orientation-based responsive routing (`useIsPortrait`) that swaps standard sidebar layouts for touch-optimized mobile navigation. Features a tactile, morphing floating button (Hamburger, X, and ArrowLeft), a beautiful two-stage fullscreen navigation drawer (Topics -> Subtopics), and fully responsive, horizontally scrollable data tables.
-- **Modal-based Dashboard**: Centered modal with sidebar containing user info, tabs for main content area
-- **Full User Management**: Profile, custom data, session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat (**blacktop only**; disabled under `BACKEND_TYPE=upstream`), IP geolocation minimap, "Revoke all other sessions", optional purpose-scoped personal access token (PAT) management (private, default-off feature), identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
+- **Responsive & Mobile Support**: Has a handler that detects portrait or landscape orientation of the monitor. This is a exposed as a primitive you should use to sync your app's orientation to what the runtime selects.  
+- **User Management**: Profile, custom data (used for user extra data, Theme, Lang, Current org if a memeber), session management with device metadata (browser, OS, IP), current-session identification (`isCurrent` badge), per-session `lastActiveAt` with automatic 30s heartbeat (**blacktop only**; disabled under `BACKEND_TYPE=upstream`), IP geolocation minimap (terrible accuracy by the way, should probably remove it), "Revoke all other sessions", optional purpose-scoped personal access token (PAT) management (private, default-off feature), identities, organizations, MFA (TOTP, backup codes, passkeys/WebAuthn)
 - **User Display Components**: UserButton (clickable avatar), UserBadge (display-only), UserCard (avatar + name card)
-- **Theme System**: CSS-only theme system with dark/light CSS variables. The `THEME` env var is a build-time folder name only; `app/globals.css` has hardcoded `@import` paths to `themes/default/`. To switch theme folders, you must manually edit those `@import` paths — the env var alone does NOT dynamically switch CSS. No JS registration needed.
 - **i18n Support**: Multi-language support with ENV-configured locale availability and ordering.
 - **MFA Management**: TOTP enrollment, backup codes generation, and WebAuthn passkey management (register, rename, delete). Uses `@simplewebauthn/browser` for the browser ceremony.
 - **User Preferences**: Automatic persistence of theme and language choices in Logto customData.
