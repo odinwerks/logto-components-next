@@ -1,8 +1,8 @@
-# logto-debug-dashboard
+# logto-components-next
 
-> **This is a starter template, not an npm package.** Clone this repo and build your
-> secured application on top. See the docs site at `/getting-started/pre-requisites`
-> for setup instructions.
+**This is a starter template, not an npm package.** Clone this repo and build your
+ secured application on top. See the docs site at `/getting-started/pre-requisites`
+ for setup instructions.
 
 A modular Next.js app that provides a base for building with a dashboard, user button, providers for user data, Logto Auth integration, theme and language handlers, and custom action runners.
 
@@ -31,8 +31,8 @@ Before running the app locally you need:
 |-------------|-------|
 | **Node.js 20+** | Required by Next.js 16 |
 | **A Logto instance** | OSS (self-hosted) or Logto Cloud; you need an App ID/Secret and an M2M App ID/Secret |
-| **Redis 7+** *(optional)* | Needed for distributed rate limiting and per-user in-process locks across multiple instances. Not required for a single-instance dev setup. |
-| **Docker + Docker Compose** *(optional)* | Only if you want to run Redis via `docker compose` or deploy the full stack |
+| **Redis 7+** | Needed for distributed rate limiting and per-user in-process locks across multiple instances. Now needed for runtime to avoid Logto's Next.js SDK shortcommings.|
+| **Docker + Docker Compose** | Only if you want to run Redis via `docker compose` or deploy the full stack. |
 
 ### Redis Setup (local dev)
 
@@ -59,7 +59,7 @@ docker compose up -d redis
 
 This starts `redis:7-alpine` bound to `127.0.0.1:2998` (loopback-only) with `requirepass` enforced.
 
-> If you prefer not to use Redis at all, omit `REDIS_URL` from `.env`. The app falls back to per-process in-memory state (rate limiting, locks), which is fine for a single-instance dev setup.
+> If you prefer not to use Redis at all, omit `REDIS_URL` from `.env`. The app falls back to per-process in-memory state (rate limiting, locks), which is fine for screwing around during development of your own app, but you will face bugs with session state. They usually manifest as "Cookies can only be modified in a Server Action or Route Handler" (to be clear, I do not think I at any point hand roll or touch auth cookies) so I placed the actual auth state in Redis (not great.) and let the cookie hold pointers to it. Unless you come up with a good workaround to handle this, please use Redis in prod. This solution is stable and holds up in my own tests.  
 
 ### Dev Setup
 
@@ -2490,238 +2490,11 @@ npm test
 
 Configuration: `vitest.config.ts` and `vitest.setup.ts` at the project root.
 
-## Todo
+### TODO
 
-> **⚠️ Organization/RBAC features are FUNCTIONAL but NOT PRODUCTION READY**
-> Extensive testing required before production use. APIs may change.
-
-### Security TODO - Enhanced Session Context Validation
-
-**Goal**: Prevent stolen tokens from being used to call Protected API actions by validating session context (user agent, GEO location) against Logto's native session data.
-
-#### Attack Vector Being Mitigated
-
-Imagine: User (SEDH - evil dingus hacker) steals a token:
-1. User closes tab in Georgia, USA
-2. SEDH tries to call Protected API from Mexico/Russia using stolen token
-3. Even if SEDH has the token + org ID + permissions → **BLOCKED** because GEO/UA doesn't match user's active sessions
-
-#### Current Protected API Security (Already Implemented)
-
-| Check | Purpose |
-|-------|---------|
-| ✅ Token introspection | Token is active (not expired/revoked) |
-| ✅ User ID vs OIDC sub | Token belongs to the claimed user |
-| ✅ Org membership | User is member of the selected organization |
-| ✅ Permission check | User has required permission for action |
-
-#### New Security Pipeline - Session Context Validation
-
-| Check | Data Source | Purpose |
-|-------|-------------|---------|
-| 🔲 **User Agent Match** | Request UA vs Logto sessions | Detect device/browser mismatch |
-| 🔲 **GEO Location** | Request IP country vs Logto session GEO | Detect impossible travel |
-
-#### Implementation Plan
-
-**Phase 1: Core Security Module**
-
-1. Create `app/logto-kit/action-registry/security-validation.ts`
-   - Fetch user's active sessions from Logto API (`GET /api/my-account/sessions`)
-   - Parse User-Agent header into components (browser, OS, device type)
-   - Compare request context against all active sessions (any session match = pass)
-   - Country-level GEO matching (no IP stored, just country from Logto)
-
-2. User Agent Matching Strategy (Strict but Smart)
-   ```
-   Extract from request:
-   - browser: exact match (Chrome, Firefox, Safari, Edge)
-   - browserVersion: major version match only (120.x == 120.y)
-   - os: exact match (Windows, macOS, Linux, iOS, Android)
-   - deviceType: exact match (desktop, mobile, tablet)
-   
-   Excluded (too volatile):
-   - Full UA string (browser updates change it)
-   - OS version (too many variants)
-   ```
-
-3. GEO Matching Strategy
-   ```
-   Normal Mode:
-   - Country must match exactly (e.g., "US" == "US")
-   
-   Travel Mode (user-triggered):
-   - Bypass country check
-   - Still validate UA
-   ```
-
-4. Integrate into Protected Actions API (`/api/protected`)
-   - Add security validation after token introspection, before org validation
-   - New error codes:
-     - `SESSION_CONTEXT_MISMATCH` (403) - Request context doesn't match any active session
-     - `GEO_MISMATCH` (403) - Request location doesn't match session
-     - `UA_MISMATCH` (403) - Request device doesn't match session
-
-**Phase 2: Travel Mode UI**
-
-5. Add travel mode toggle to Preferences tab
-   ```typescript
-   // In customData.Preferences:
-   {
-     "travelMode": {
-       "enabled": true,
-       "expiresAt": "2024-01-15T00:00:00Z"  // Auto-disable after trip
-     }
-   }
-   ```
-   - User enables before traveling
-   - Auto-expires after set time
-   - Can be disabled manually
-
-**Phase 3: Security Hardening**
-
-6. Error handling: Hard reject on security violation
-   - Return 403 with specific error code
-   - Clear `asOrg` in customData (force re-selection)
-   - Log security event for audit
-
-#### Security Check Flow
-
-```
-Request arrives at /api/protected:
-  - token, id, action, payload (from client)
-  - User-Agent header (automatic)
-  - IP address (automatic for GEO)
-
-1. Token introspection
-   └─> Get active status + sub claim
-
-2. Session security validation (NEW)
-   ├─> Fetch user's active sessions from Logto
-   ├─> Parse request UA → {browser, os, deviceType}
-   ├─> Get GEO country from request IP
-   ├─> Compare against all active sessions:
-   │     - UA match? (browser + os + deviceType)
-   │     - GEO match? (country)
-   └─> If no match → SECURITY_VIOLATION (hard reject)
-
-3. Org validation (existing)
-   └─> Check asOrg from customData.Preferences
-
-4. Permission check (existing)
-   └─> Verify user has required permission
-
-5. Execute action
-```
-
-#### Files to Modify/Create
-
-| File | Changes |
-|------|---------|
-| `app/logto-kit/action-registry/security-validation.ts` | **NEW**: UA parsing, GEO matching, session fetching |
-| `app/api/protected/route.ts` | Add security validation pipeline |
-| `app/logto-kit/components/dashboard/tabs/preferences.tsx` | Add travel mode toggle |
-| `app/logto-kit/logic/actions/account.ts` | Add `updateTravelMode` action |
-| `app/logto-kit/locales/en-US.ts` | Add travel mode translations |
-| `app/logto-kit/locales/ka-GE.ts` | Add travel mode translations |
-
-#### Example Logto Session Structure
-
-```json
-{
-  "payload": {
-    "exp": 1712345678,
-    "iat": 1712345678,
-    "jti": "session-id-here",
-    "uid": "user-id",
-    "kind": "Session",
-    "loginTs": 1712345678,
-    "accountId": "user-id",
-    "authorizations": {}
-  },
-  "lastSubmission": {
-    "interactionEvent": "SignIn",
-    "userId": "user-id",
-    "verificationRecords": [...]
-  }
-}
-```
-
-Note: Session context (IP, user agent, GEO) is provided by Logto v1.38.0+ via the session management API. GEO data is attached to sessions by Logto when available.
-
-#### Discussion Notes (for future reference)
-
-- **IP matching excluded**: IPs change too frequently (NAT, VPN, dynamic allocation) - not useful for security
-- **Country matching sufficient**: Store country only, not exact location (privacy + no PII liability)
-- **Any session match**: If user has 3 sessions (phone, laptop, tablet), request matching ANY is sufficient
-- **Step-up auth deferred**: Could be implemented later but adds complexity (Logto's verification API)
-- **Travel mode UX**: User proactively enables before traveling, auto-expires after trip duration
-
-#### ENV Configuration (Future)
-
-```env
-# Security settings (optional, defaults to strict)
-SECURITY_GEO_CHECK=enabled  # enabled | disabled
-SECURITY_UA_CHECK=enabled    # enabled | disabled
-SECURITY_TRAVEL_MODE_UI=enabled  # Show travel mode toggle in preferences
-```
-
----
-
-### Functions
-
-- [x] Org switcher - Complete (OrgSwitcher, OrgSwitcherWrapper, setActiveOrg, useOrgMode)
-- [x] Protected component - Complete (<Protected> client component with async permission loading)
-- [x] Protected Actions API - Complete (POST /api/protected endpoint)
-- [x] RBAC validation - Complete (verifyOrgAccess, verifyPersonalAccess, ActionConfig with mandatory fields)
-- [x] `fallback` prop - Complete (custom placeholder while loading/denied)
-- [ ] Fine-tune permission checks for your needs
-- [ ] Extensive testing before production use
-
-### UI Polish
-- [x] Profile tab - redesigned with proper edit UI
-- [x] Preferences tab - removed JSON editor
-- [x] Security tab - button styling unified across all tabs
-- [x] Identities tab - reviewed, looks good
-- [x] Organizations tab - implemented with org memberships, roles display, and org switching 
-
-### Theme Context Provider
-- [x] Currently theme handling is internal to the dashboard
-- [x] Need to export theme context so consuming apps can sync theme
-- [x] For now: simple "is dark / is light" hook
-- [x] Later: full context provider that pulls theme from dashboard
-- [x] Added onUpdateCustomData prop for Logto sync
-- [x] Exported from providers/ folder
-
-### Lang Context Provider
-- [x] New LangModeProvider for language management
-- [x] Exports useLangMode hook
-- [x] Persists to sessionStorage and Logto customData
-
-### UserData Context
-- [x] New UserDataProvider for user data management
-- [x] Exports useUserDataContext hook
-- [x] Caches in sessionStorage
-
-### UserButton
-- [x] UserBadge exists but could use finishing touches
-- [x] Make it properly reusable as a standalone component
-- [x] Auto-fetch user data when used outside Dashboard
-- [x] Priority system: prop → context → fetch
-- [x] Fallback user icon after 1.5s timeout
-- [x] UserCard component - wider card with avatar + "Logged in as" + name
-- [x] Shared useUserDisplay hook - all three components use provider context
-- [x] Translations resolved from provider lang state (no t prop needed)
-
-### Avatar Upload
-- [x] Profile tab - image upload via drag-and-drop
-- [x] S3-compatible storage (Supabase, AWS S3, MinIO, DO Spaces)
-- [x] OIDC token introspection for security
-- [x] User ID matching prevents cross-user uploads
-- [x] Automatic URL update to Logto profile
-
-### Conquer All.
+- [ ] Add runtime session meta monitoring to target user approximated location VS token activation location with basic trust. To explain, let the app know that your primary operation of the app is within some area, (say a city) and that any operation outside that city can just not be you. If a sign in attempt is detected in Mexico or Moscow while your trusted domain is Delaware, the sign-in should get rejected and you should be sent an email with the blocked attempt data. I know this sort of defeats VPNs or real travel but I'll add travel mode which relaxes the restriction for an N time frame taht you can select. This is a lot and will need modifications to Logto-blacktop. 
+- [ ] Make the mobile dash look pretty. It sucks. 
 - [ ] [Conquer All.](https://music.youtube.com/watch?v=l6t4gx8vCMI)
 
 ## License
-If you cause the decadence of Earth running this horrid code, I am not liable. Also take care <3
+If you cause implosion of Earth running this mesmerizingly terrible code, I am not liable. MIT. 
