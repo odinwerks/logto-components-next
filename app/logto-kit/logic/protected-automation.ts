@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { getCleanEndpoint, introspectToken } from './utils';
 import { assertSafeLogtoId } from './guards';
-import type { OidcIntrospectionResponse, ProtectedAuthContext } from './types';
+import type { OidcIntrospectionResponse, ProtectedTransportContext } from './types';
 
 const AUTOMATION_ALLOWED_ORIGINS_ENV = 'PROTECTED_AUTOMATION_ALLOWED_ORIGINS';
 const AUTOMATION_RESOURCE_ENV = 'PROTECTED_API_RESOURCE';
@@ -127,7 +127,7 @@ interface ProtectedJwtClaims extends JWTPayload {
 }
 
 export type AutomationAuthenticationResult =
-  | { ok: true; context: ProtectedAuthContext }
+  | { ok: true; context: ProtectedTransportContext }
   | { ok: false; code: 'UNAUTHORIZED' | 'INTERNAL_ERROR' };
 
 /**

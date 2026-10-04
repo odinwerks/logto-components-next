@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAction } from '../action-registry';
-import { validateActionConfig } from '../action-registry/validate-action-config';
+import { executeProtectedAction } from '../action-registry/execute';
 import { getCleanEndpoint } from './utils';
 import { getManagementApiToken } from '../config';
-import { verifyPersonalAccess, verifyOrgAccess } from './actions';
 import { createRateLimiter } from '../../lib/distributed-state';
 import { makeManagementFetch } from './actions/management-request';
 import { logEvent } from './log';
@@ -11,11 +10,9 @@ import { LOG_EVENTS, type LogEvent } from '../../lib/log-events';
 import { resolveClientCode } from './verbosity';
 import type { ErrorCode, ErrorCategory } from './error-codes';
 import { ERROR_CODES } from './error-codes';
-import type { ProtectedAuthContext } from './types';
+import type { ProtectedTransportContext } from './types';
 
-// Protects Logto API quotas from exhaustion by a single authenticated user.
-// This limiter is shared by the cookie and bearer endpoints so moving a caller
-// between transports cannot create a second per-user budget.
+// This limiter shares a per-user budget across the session and bearer routes.
 const protectedRouteRateLimiter = createRateLimiter({
   name: 'protected-route',
   windowMs: 60_000,
@@ -131,30 +128,19 @@ export async function readProtectedBodyWithByteCap(
   return JSON.parse(new TextDecoder().decode(merged));
 }
 
-function requiredValues(value: string | string[]): string[] {
-  return Array.isArray(value) ? value : [value];
-}
-
-function hasAllRequiredScopes(context: ProtectedAuthContext, required: string[]): boolean {
-  const scopes = new Set(context.scopes);
-  return required.every(permission => scopes.has(permission));
-}
-
 /**
- * Runs the common protected action pipeline after the route-specific auth
- * boundary has established a server-derived context.
+ * Adapts an authenticated route context to the credential-free executor.
+ * Authentication stays route-specific, while authorization and execution
+ * stay inside executeProtectedAction.
  */
 export async function runProtectedAction(
   request: NextRequest,
-  authContext: ProtectedAuthContext,
+  authContext: ProtectedTransportContext,
 ): Promise<NextResponse> {
   const { userId } = authContext;
-  const expectedPrincipal = authContext.sid
-    ? { sub: userId, sid: authContext.sid }
-    : { sub: userId };
 
   try {
-    // Authenticate and rate-limit before buffering any request body.
+    // Do not buffer attacker-controlled bodies until the shared user budget passes.
     if (!(await protectedRouteRateLimiter.check(userId))) {
       logEvent.warn(LOG_EVENTS.API_THROTTLED, 'Rate limit exceeded', { userId, code: 'RATE_LIMITED' });
       return NextResponse.json(
@@ -186,110 +172,40 @@ export async function runProtectedAction(
 
     const actionConfig = await getAction(action);
     if (!actionConfig) return protectedApiError('ACTION_NOT_FOUND', 404);
-
-    try {
-      validateActionConfig(actionConfig, action);
-    } catch (validationError) {
-      logEvent.error(LOG_EVENTS.CONFIG_ERROR, `IMPROPER_SETUP_ERROR for action "${action}"`, {
+    if (actionConfig.executorHandled !== true) {
+      logEvent.error(LOG_EVENTS.CONFIG_ERROR, `Action "${action}" is not enabled for the protected executor`, {
         action,
         code: 'IMPROPER_SETUP_ERROR',
-        detail: validationError instanceof Error ? validationError.message : String(validationError),
       });
       return protectedApiError('IMPROPER_SETUP_ERROR', 500, { action });
     }
 
-    const requiredRoles = requiredValues(actionConfig.requiredRoleId);
-    const requiredPerms = requiredValues(actionConfig.requiredPermId);
-
-    if (authContext.source === 'bearer' && !hasAllRequiredScopes(authContext, requiredPerms)) {
-      return protectedApiError('PERMISSION_DENIED', 403, {
-        userId,
-        action,
-        required: requiredPerms,
-      });
-    }
-
-    let roles: Array<{ id: string; name: string }>;
-    let permissions: string[];
-
-    if (actionConfig.requiredOrgId === 'self') {
-      const personalAccessResult = authContext.source === 'bearer'
-        ? await verifyPersonalAccess(undefined, authContext)
-        : await verifyPersonalAccess(expectedPrincipal);
-      if (!personalAccessResult.ok) {
-        logEvent.warn(LOG_EVENTS.RBAC_PERMISSION_DENIED, 'Personal access verification failed', {
-          code: 'UNAUTHORIZED',
-          error: personalAccessResult.error,
-        });
-        return protectedApiError('UNAUTHORIZED', 401);
-      }
-      roles = personalAccessResult.data.roles;
-      permissions = personalAccessResult.data.permissions;
-    } else {
-      const orgId = actionConfig.requiredOrgId;
-      if (authContext.source === 'bearer') {
-        // Bearer organization context comes only from the verified token. The
-        // browser's customData.Preferences.asOrg is intentionally ignored.
-        if (!authContext.organizationId || authContext.organizationId !== orgId) {
-          return protectedApiError('ORG_NOT_MEMBER', 403, { userId, action, required: orgId });
-        }
-      } else {
-        const asOrg = await fetchUserAsOrg(userId);
-        if (asOrg !== orgId) {
-          return protectedApiError('ORG_NOT_MEMBER', 403, {
-            userId,
-            action,
-            asOrg,
-            required: orgId,
-          });
-        }
-      }
-
-      const result = authContext.source === 'bearer'
-        ? await verifyOrgAccess(orgId, undefined, authContext)
-        : await verifyOrgAccess(orgId, expectedPrincipal);
-      if (!result.ok) {
-        logEvent.warn(LOG_EVENTS.RBAC_ORG_VALIDATION, 'Org access failed', {
-          code: result.error,
+    if (authContext.source === 'session' && actionConfig.requiredOrgId !== 'self') {
+      const asOrg = await fetchUserAsOrg(userId);
+      if (asOrg !== actionConfig.requiredOrgId) {
+        return protectedApiError('ORG_NOT_MEMBER', 403, {
+          userId,
           action,
+          asOrg,
+          required: actionConfig.requiredOrgId,
         });
-        if (result.error === 'UNAUTHORIZED') return protectedApiError('UNAUTHORIZED', 401);
-        return protectedApiError('ORG_NOT_MEMBER', 403, { userId, action });
       }
-      roles = result.data.roles;
-      permissions = result.data.permissions;
     }
 
-    if (!requiredRoles.every(required => roles.some(role => role.id === required))) {
-      return protectedApiError('ROLE_DENIED', 403, {
-        userId,
-        action,
-        required: requiredRoles,
-        has: roles.map(role => role.id),
-      });
+    const mode = authContext.source === 'session' ? 'session' : 'external';
+    const result = await executeProtectedAction({
+      action,
+      payload: payload ?? {},
+      context: { principal: { sub: userId, mode } },
+    });
+
+    if (result.ok) {
+      return NextResponse.json({ error: null, data: result.data });
     }
 
-    if (!requiredPerms.every(permission => permissions.includes(permission))) {
-      return protectedApiError('PERMISSION_DENIED', 403, {
-        userId,
-        action,
-        required: requiredPerms,
-        has: permissions,
-      });
-    }
-
-    try {
-      const result = await actionConfig.handler({
-        userId,
-        orgId: actionConfig.requiredOrgId === 'self' ? null : actionConfig.requiredOrgId,
-        payload: payload ?? {},
-      });
-      return NextResponse.json({ error: null, data: result });
-    } catch (handlerError) {
-      const message = handlerError instanceof Error ? handlerError.message : 'Invalid input';
-      if (message.includes('INVALID_PAYLOAD')) return protectedApiError('INVALID_PAYLOAD', 400);
-      return protectedApiError('INTERNAL_ERROR', 500);
-    }
+    const response = protectedApiError(result.error, result.status, { userId, action });
+    if (result.status === 429) response.headers.set('Retry-After', '60');
+    return response;
   } catch (error) {
     logEvent.error(LOG_EVENTS.API_ERROR, 'Unexpected error', {
       code: 'INTERNAL_ERROR',

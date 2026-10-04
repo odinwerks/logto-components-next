@@ -270,9 +270,27 @@ async function callProtectedAction(action: string, payload: unknown): Promise<nu
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, payload }),
   });
-  const json = await res.json();
-  if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
-  return json.data.answer;
+  const body: unknown = await res.json();
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error('INTERNAL_ERROR');
+  }
+
+  const envelope = body as { error?: unknown; data?: unknown };
+  if (envelope.error !== null && envelope.error !== undefined) {
+    if (typeof envelope.error === 'string' && envelope.error.length > 0) {
+      throw new Error(envelope.error);
+    }
+    throw new Error('INTERNAL_ERROR');
+  }
+  if (!res.ok || typeof envelope.data !== 'object' || envelope.data === null || Array.isArray(envelope.data)) {
+    throw new Error('INTERNAL_ERROR');
+  }
+
+  const answer = (envelope.data as { answer?: unknown }).answer;
+  if (typeof answer !== 'number' || !Number.isFinite(answer)) {
+    throw new Error('INTERNAL_ERROR');
+  }
+  return answer;
 }
 
 async function evalNode(node: ExprNode, isRad: boolean): Promise<number> {

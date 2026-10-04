@@ -63,6 +63,7 @@ import { getTokenForServerAction } from './tokens';
 import { introspectToken } from '../utils';
 import { getManagementApiToken, getLogtoConfig } from '../../config';
 import { assertSafeLogtoId, decodeLogtoAccessToken } from '../guards';
+import type { ProtectedTransportContext } from '../types';
 
 // ============================================================================
 // Test Helpers
@@ -481,6 +482,85 @@ describe('verifyOrgAccess - expected principal compatibility hardening', () => {
     const result = await getOrgPermissionsWithDescriptions('org-123');
 
     expect(result).toEqual({ ok: false, error: 'ORG_NOT_MEMBER' });
+  });
+});
+
+describe('verifyOrgAccess — RBAC core delegation compatibility', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTokenForServerAction).mockResolvedValue('mock-access-token');
+    vi.mocked(introspectToken).mockResolvedValue({ active: true, sub: 'user-test-123', sid: 'session-test-123' });
+    vi.mocked(getManagementApiToken).mockResolvedValue('mock-m2m-token');
+    vi.mocked(getLogtoConfig).mockReturnValue({ endpoint: 'https://auth.example.org', appId: 'mock-app-id', appSecret: 'mock-secret', baseUrl: 'http://localhost:3000', cookieSecret: 'mock-cookie-secret', cookieSecure: false, resources: [], scopes: [] });
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('preserves the legacy flat result and permission order', async () => {
+    const roleA = makeRole('r1', 'Admin');
+    const roleB = makeRole('r2', 'Editor');
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([roleA, roleB]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders')]))
+      .mockResolvedValueOnce(mockJsonResponse([
+        makeScope('s2', 'write:orders'),
+        makeScope('s1', 'read:orders'),
+      ]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-test-123' });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { roles: [roleA, roleB], permissions: ['read:orders', 'write:orders'] },
+    });
+    if (result.ok) expect(Object.keys(result.data)).toEqual(['roles', 'permissions']);
+  });
+
+  it('keeps bearer-aware callers on the authenticated-principal path', async () => {
+    const context: ProtectedTransportContext = {
+      source: 'bearer',
+      token: 'verified-bearer-token',
+      userId: 'user-test-123',
+      scopes: [],
+      introspection: { active: true, sub: 'user-test-123' },
+    };
+    fetchSpy
+      .mockResolvedValueOnce(mockJsonResponse([makeRole('r1', 'Admin')]))
+      .mockResolvedValueOnce(mockJsonResponse([makeScope('s1', 'read:orders')]));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', { sub: 'user-test-123' }, context);
+
+    expect(result).toEqual({
+      ok: true,
+      data: { roles: [makeRole('r1', 'Admin')], permissions: ['read:orders'] },
+    });
+    expect(getTokenForServerAction).not.toHaveBeenCalled();
+    expect(introspectToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects a bearer context whose introspected subject does not match its user id', async () => {
+    const context: ProtectedTransportContext = {
+      source: 'bearer',
+      token: 'verified-bearer-token',
+      userId: 'user-test-123',
+      scopes: [],
+      introspection: { active: true, sub: 'user-other-456' },
+    };
+    fetchSpy.mockRejectedValue(new Error('fetch should not be called'));
+
+    const { verifyOrgAccess } = await import('./organizations');
+    const result = await verifyOrgAccess('org-123', undefined, context);
+
+    expect(result).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getManagementApiToken).not.toHaveBeenCalled();
   });
 });
 

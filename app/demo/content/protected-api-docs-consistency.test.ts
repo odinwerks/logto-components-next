@@ -68,9 +68,23 @@ describe('Protected API docs consistency', () => {
     expect(rbacSource).toMatch(/\/api\/protected/);
     expect(rbacSource).toMatch(/\/api\/protected\/automation/);
     expect(rbacSource).toMatch(/\/oidc\/token/);
-    expect(rbacSource).toMatch(/CORS is not authentication/i);
+    expect(rbacSource).toMatch(/CORS controls browser access and is not authentication/i);
     expect(rbacSource).toMatch(/OPNform origin/i);
     expect(rbacSource).toMatch(/pat_/i);
+  });
+
+  it('documents adapter checks before executor and live RBAC without inline route checks', () => {
+    for (const relativePath of apiDocPaths) {
+      const source = readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+      const executorOffset = source.indexOf('executeProtectedAction');
+      const liveRbacOffset = source.indexOf('fetchOrgRolePermissions');
+
+      expect(executorOffset, `${relativePath} should name the executor`).toBeGreaterThanOrEqual(0);
+      expect(liveRbacOffset, `${relativePath} should name the live RBAC lookup`).toBeGreaterThan(executorOffset);
+      expect(source).toMatch(/credentialModes/);
+      expect(source).toMatch(/permissionBinding/);
+      expect(source).not.toMatch(/verifyOrgAccess|fetchUserAsOrg|customData\.Preferences\.asOrg/);
+    }
   });
 
   // ──── Regression assertions ────

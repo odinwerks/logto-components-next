@@ -10,8 +10,9 @@ import { sanitize, plainCode } from '../errors';
 import crypto from 'node:crypto';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
-import type { UserRole, OrgRoleScope, OidcIntrospectionResponse, ProtectedAuthContext } from '../types';
+import type { UserRole, OrgRoleScope, OidcIntrospectionResponse, ProtectedTransportContext } from '../types';
 import { fetchAllManagementPages } from './management-request';
+import { fetchOrgRolePermissions } from './rbac-core';
 
 interface OrganizationNodeClient {
   getRefreshToken: () => Promise<string | null>;
@@ -334,7 +335,7 @@ interface ExpectedPrincipal {
 export async function verifyOrgAccess(
   orgId: string,
   expectedPrincipal?: ExpectedPrincipal,
-  authenticatedContext?: ProtectedAuthContext,
+  authenticatedContext?: ProtectedTransportContext,
 ): Promise<DataResult<OrgAccessResult>> {
   return safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
@@ -388,74 +389,9 @@ export async function verifyOrgAccess(
 
     assertSafeUserId(userId);
 
-    const m2mToken = await getManagementApiToken();
-    const endpoint = getLogtoConfig().endpoint.replace(/\/$/, '');
-
-    // Step 1: fetch user's org roles - also acts as membership verification
-    const rolesUrl = `${endpoint}/api/organizations/${encodeURIComponent(orgId)}/users/${encodeURIComponent(userId)}/roles`;
-    debugLog(`[verifyOrgAccess] Fetching org roles: ${rolesUrl}`);
-
-    const rolesResult = await fetchAllManagementPages<UserRole>(rolesUrl, { token: m2mToken });
-
-    if (!rolesResult.ok) {
-      const rolesRes = rolesResult.response;
-      const text = await rolesRes.text().catch(() => '');
-      warn(`[verifyOrgAccess] Roles endpoint returned ${rolesRes.status}: ${text.substring(0, 200)}`);
-       if ((rolesRes.status === 403 || rolesRes.status === 404) || isConfirmedOrganizationNonMembership(rolesRes.status, text)) {
-         throw plainCode('ORG_NOT_MEMBER');
-       }
-      throw new Error(`Management API error: HTTP ${rolesRes.status}`);
-    }
-
-    const roles = rolesResult.data;
-    debugLog(`[verifyOrgAccess] User ${userId} has ${roles.length} roles in org ${orgId}`);
-
-    if (roles.length === 0) {
-      // Member with zero roles - no permissions possible
-      return { roles: [], permissions: [] };
-    }
-
-    // Step 2: fetch scopes for every role in parallel, tolerating individual failures
-    const scopeResults = await Promise.allSettled(
-      roles.map(async (role) => {
-        const scopesUrl = `${endpoint}/api/organization-roles/${encodeURIComponent(role.id)}/scopes`;
-        const scopesResult = await fetchAllManagementPages<OrgRoleScope>(scopesUrl, { token: m2mToken });
-
-        if (!scopesResult.ok) {
-          const scopesRes = scopesResult.response;
-          const text = await scopesRes.text().catch(() => '');
-          warn(`[verifyOrgAccess] Scopes endpoint returned ${scopesRes.status} for role ${role.id}: ${text.substring(0, 200)}`);
-          throw new Error(`Scopes fetch failed for role ${role.id}: ${scopesRes.status}`);
-        }
-
-        return scopesResult.data;
-      })
-    );
-
-    // Union scope names from all successful role-scope fetches
-    const seen = new Set<string>();
-    const permissions: string[] = [];
-    let successfulFetches = 0;
-
-    for (const result of scopeResults) {
-      if (result.status === 'fulfilled') {
-        successfulFetches++;
-        for (const scope of result.value) {
-          if (scope.name && !seen.has(scope.name)) {
-            seen.add(scope.name);
-            permissions.push(scope.name);
-          }
-        }
-      } else {
-        warn(`[verifyOrgAccess] Scope fetch failed for a role: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
-      }
-    }
-
-    if (roles.length > 0 && successfulFetches === 0) {
-      throw plainCode('FETCH_FAILED');
-    }
-
-    debugLog(`[verifyOrgAccess] Effective permissions for user ${userId} in org ${orgId}:`, permissions);
+    // The token-independent RBAC core owns the Management API calls. Keep this
+    // wrapper's public result shape and principal checks unchanged.
+    const { roles, permissions } = await fetchOrgRolePermissions(orgId, userId);
     return { roles, permissions };
   });
 }

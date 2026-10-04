@@ -519,6 +519,7 @@ export const enUS: Translations = {
     FETCH_FAILED: "Couldn't reach the server. Check your connection.",
     UPDATE_FAILED: "The update didn't go through. Try again.",
     DELETE_FAILED: "Couldn't delete. Try again.",
+    NOT_FOUND: 'The requested item could not be found.',
     SERVICE_UNAVAILABLE: 'The service is temporarily down. Try again soon.',
     MFA_ENROLL_FAILED: "Couldn't set up two-factor authentication.",
     MFA_REMOVE_FAILED: "Couldn't remove two-factor authentication.",

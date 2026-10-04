@@ -24,6 +24,30 @@ import {
   getCalcExp,
 } from './calc-actions';
 
+const calcActionGetters = [
+  getCalcAdd,
+  getCalcSubtract,
+  getCalcMultiply,
+  getCalcDivide,
+  getCalcModulo,
+  getCalcPower,
+  getCalcSin,
+  getCalcCos,
+  getCalcTan,
+  getCalcAsin,
+  getCalcAcos,
+  getCalcAtan,
+  getCalcLn,
+  getCalcLog,
+  getCalcLog2,
+  getCalcSqrt,
+  getCalcFact,
+  getCalcAbs,
+  getCalcInv,
+  getCalcExp10,
+  getCalcExp,
+];
+
 // Helper: extract the handler from an ActionConfig and invoke it
 async function callHandler(
   getter: () => Promise<ActionConfig>,
@@ -32,6 +56,19 @@ async function callHandler(
   const config = await getter();
   return config.handler({ userId: 'test-user', orgId: 'test-org', payload });
 }
+
+describe('calculator action executor metadata', () => {
+  it('marks all 21 actions as executor-handled and eligible for session and external modes', async () => {
+    const configs = await Promise.all(calcActionGetters.map((getter) => getter()));
+
+    expect(configs).toHaveLength(21);
+    for (const config of configs) {
+      expect(config.executorHandled).toBe(true);
+      expect(config.credentialModes).toEqual(['session', 'external']);
+      expect(config.permissionBinding).toBe('union');
+    }
+  });
+});
 
 // ============================================================================
 // assertNumber — finite input validation

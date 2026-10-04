@@ -3,35 +3,47 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mock the calc actions so we can trigger a load failure.
 // The mock is set up at the module level but individual function behaviors
 // are controlled per-test via globalThis.__calcActionError.
-vi.mock('./calc-actions', () => ({
-  getCalcAdd: vi.fn().mockImplementation(() => {
-    const globalRecord = globalThis as unknown as Record<string, unknown>;
-    if (globalRecord.__calcActionError) {
-      throw globalRecord.__calcActionError;
-    }
-    return { requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) };
-  }),
-  getCalcSubtract: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcMultiply: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcDivide: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcModulo: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcPower: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcSin: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcCos: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcTan: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcAsin: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcAcos: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcAtan: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcLn: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcLog: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcLog2: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcSqrt: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcFact: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcAbs: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcInv: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcExp10: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-  getCalcExp: vi.fn().mockResolvedValue({ requiredOrgId: 'org', requiredRoleId: 'role', requiredPermId: 'perm', handler: async () => ({}) }),
-}));
+vi.mock('./calc-actions', () => {
+  const createConfig = () => ({
+    requiredOrgId: 'org',
+    requiredRoleId: 'role',
+    requiredPermId: 'perm',
+    handler: async () => ({}),
+    credentialModes: ['session', 'external'],
+    permissionBinding: 'union',
+    executorHandled: true,
+  });
+
+  return {
+    getCalcAdd: vi.fn().mockImplementation(() => {
+      const globalRecord = globalThis as unknown as Record<string, unknown>;
+      if (globalRecord.__calcActionError) {
+        throw globalRecord.__calcActionError;
+      }
+      return createConfig();
+    }),
+    getCalcSubtract: vi.fn().mockResolvedValue(createConfig()),
+    getCalcMultiply: vi.fn().mockResolvedValue(createConfig()),
+    getCalcDivide: vi.fn().mockResolvedValue(createConfig()),
+    getCalcModulo: vi.fn().mockResolvedValue(createConfig()),
+    getCalcPower: vi.fn().mockResolvedValue(createConfig()),
+    getCalcSin: vi.fn().mockResolvedValue(createConfig()),
+    getCalcCos: vi.fn().mockResolvedValue(createConfig()),
+    getCalcTan: vi.fn().mockResolvedValue(createConfig()),
+    getCalcAsin: vi.fn().mockResolvedValue(createConfig()),
+    getCalcAcos: vi.fn().mockResolvedValue(createConfig()),
+    getCalcAtan: vi.fn().mockResolvedValue(createConfig()),
+    getCalcLn: vi.fn().mockResolvedValue(createConfig()),
+    getCalcLog: vi.fn().mockResolvedValue(createConfig()),
+    getCalcLog2: vi.fn().mockResolvedValue(createConfig()),
+    getCalcSqrt: vi.fn().mockResolvedValue(createConfig()),
+    getCalcFact: vi.fn().mockResolvedValue(createConfig()),
+    getCalcAbs: vi.fn().mockResolvedValue(createConfig()),
+    getCalcInv: vi.fn().mockResolvedValue(createConfig()),
+    getCalcExp10: vi.fn().mockResolvedValue(createConfig()),
+    getCalcExp: vi.fn().mockResolvedValue(createConfig()),
+  };
+});
 
 describe('action-registry failure caching', () => {
   const globalRecord = globalThis as unknown as Record<string, unknown>;
@@ -165,5 +177,21 @@ describe('action-registry inherited-property hardening (CAN-ACT-013)', () => {
     expect(action?.requiredOrgId).toBe('org');
     expect(action?.requiredRoleId).toBe('role');
     expect(action?.requiredPermId).toBe('perm');
+  });
+
+  it('keeps all 21 calculator actions executor-handled and external-mode eligible', async () => {
+    const names = [
+      'calc/add', 'calc/subtract', 'calc/multiply', 'calc/divide', 'calc/modulo', 'calc/power',
+      'calc/sin', 'calc/cos', 'calc/tan', 'calc/asin', 'calc/acos', 'calc/atan', 'calc/ln',
+      'calc/log', 'calc/log2', 'calc/sqrt', 'calc/fact', 'calc/abs', 'calc/inv', 'calc/exp10', 'calc/exp',
+    ];
+    const { getAction } = await import('./index');
+    const configs = await Promise.all(names.map((name) => getAction(name)));
+
+    expect(configs).toHaveLength(21);
+    for (const config of configs) {
+      expect(config?.executorHandled).toBe(true);
+      expect(config?.credentialModes).toContain('external');
+    }
   });
 });

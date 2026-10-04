@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const introspectMock = vi.hoisted(() => vi.fn());
+
+vi.mock('./utils', () => ({
+  getCleanEndpoint: () => 'https://logto.example.test',
+  introspectToken: introspectMock,
+}));
 import {
   authenticateProtectedAutomationBearer,
   evaluateProtectedAutomationCors,
@@ -73,5 +80,6 @@ describe('protected automation bearer extraction', () => {
     process.env.PROTECTED_API_RESOURCE = 'https://resource.example.test';
     const result = await authenticateProtectedAutomationBearer('pat_never-send-this-to-the-api');
     expect(result).toEqual({ ok: false, code: 'UNAUTHORIZED' });
+    expect(introspectMock).not.toHaveBeenCalled();
   });
 });

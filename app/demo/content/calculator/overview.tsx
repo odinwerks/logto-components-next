@@ -60,8 +60,8 @@ export default function CalculatorOverviewDoc() {
       <h2 id={slugify("Case Study Overview")} style={{ ...h2Style, marginTop: 0 }}>Case Study Overview</h2>
       
       <p style={styles.textStyle}>
-        This case study demonstrates an organization-scoped permissions implementation. 
-        The application uses Logto to restrict execution of operations based on organization membership, roles, and fine-grained permissions.
+        This case study demonstrates server-side authorization through a credential-free protected-action executor.
+        Session and automation adapters authenticate requests, then pass a server-derived principal to the executor.
       </p>
       <p style={styles.textStyle}>
         Mathematical operations are split into basic and scientific permission tiers:
@@ -90,27 +90,39 @@ export default function CalculatorOverviewDoc() {
         </thead>
         <tbody>
           <tr>
-            <td style={customTdPropStyle}>app/components/calculator/CalculatorPanel.tsx</td>
+            <td style={customTdPropStyle}>app/demo/components/calculator/CalculatorPanel.tsx</td>
             <td style={customTdStyle}>
-              Protected route guard that wraps calculator access. Verifies the user session and enforces organization-scoped RBAC before rendering the calculator UI.
+              Client-side UI gate. The <code>&lt;Protected&gt;</code> wrapper hides the calculator when its display permission is absent, but it does not authorize API requests.
             </td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>app/components/calculator/CalculatorClient.tsx</td>
+            <td style={customTdPropStyle}>app/demo/components/calculator/CalculatorClient.tsx</td>
             <td style={customTdStyle}>
-              Client-side AST parser, expression evaluator, and calculator keypad UI. Handles all expression tokenization, operator precedence, and rendering of the interactive keypad.
+              Client-side AST parser, expression evaluator, and keypad UI. Sends only the action name and operation payload to the session endpoint.
             </td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>app/api/protected/route.ts</td>
             <td style={customTdStyle}>
-              The server-side endpoint handling calculations. It enforces origin guard (CSRF), authenticates the session token before body parsing (BUG-011), verifies token audience (BUG-H02), rate-limits per-user (429 with Retry-After), caps body size at 1 MiB (413), validates action config, branches on self vs. organization-scoped RBAC (checking org membership via Management API customData, not token claims), verifies roles and permissions, and cross-checks the token principal via sid-based verification.
+              Session transport adapter. It checks same-origin requests, authenticates the session, applies route-side request limits, and serializes the executor result as <code>{'{ error, data }'}</code>.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>app/api/protected/automation/route.ts</td>
+            <td style={customTdStyle}>
+              Separate automation transport adapter. It validates the configured CORS origin and bearer token before calling the shared executor.
+            </td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>app/logto-kit/action-registry/execute.ts</td>
+            <td style={customTdStyle}>
+              Credential-free action executor. It validates action policy, performs live organization RBAC through <code>fetchOrgRolePermissions()</code>, and invokes the handler.
             </td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>app/logto-kit/action-registry/calc-actions.ts</td>
             <td style={customTdStyle}>
-              Safe action registry mapping math operations to specific roles, permissions, and organization checks.
+              Calculator action handlers and policy metadata for organization, role, permissions, allowed credential modes, and permission binding.
             </td>
           </tr>
         </tbody>

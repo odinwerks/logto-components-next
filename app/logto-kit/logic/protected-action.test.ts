@@ -1,33 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import type { ActionConfig, ProtectedAuthContext } from './types';
+import type { ActionConfig, ProtectedTransportContext } from './types';
 
 const mocks = vi.hoisted(() => ({
   getAction: vi.fn(),
-  verifyPersonalAccess: vi.fn(),
-  verifyOrgAccess: vi.fn(),
-  getTokenForServerAction: vi.fn(),
+  executeProtectedAction: vi.fn(),
   rateLimitCheck: vi.fn(),
-  rateLimitReset: vi.fn(),
   getManagementApiToken: vi.fn(),
   getCleanEndpoint: vi.fn(),
   makeManagementFetch: vi.fn(),
 }));
 
-// The authorization core is intentionally not mocked in this file. These
-// boundaries stand in for the registry, RBAC Management API verifiers, and
-// distributed limiter so the real ordering and bearer branches are exercised.
 vi.mock('../action-registry', () => ({
   getAction: mocks.getAction,
 }));
 
-vi.mock('./actions', () => ({
-  verifyPersonalAccess: mocks.verifyPersonalAccess,
-  verifyOrgAccess: mocks.verifyOrgAccess,
-}));
-
-vi.mock('./actions/tokens', () => ({
-  getTokenForServerAction: mocks.getTokenForServerAction,
+vi.mock('../action-registry/execute', () => ({
+  executeProtectedAction: mocks.executeProtectedAction,
 }));
 
 vi.mock('../config', () => ({
@@ -43,45 +32,34 @@ vi.mock('./actions/management-request', () => ({
 }));
 
 vi.mock('../../lib/distributed-state', () => ({
-  createRateLimiter: vi.fn(() => ({
-    check: mocks.rateLimitCheck,
-    reset: mocks.rateLimitReset,
-  })),
+  createRateLimiter: vi.fn(() => ({ check: mocks.rateLimitCheck })),
 }));
 
 import { PROTECTED_ACTION_MAX_BODY_BYTES, runProtectedAction } from './protected-action';
 
-const successfulAccess = {
-  ok: true as const,
-  data: {
-    roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-    permissions: ['calc:basic'],
-  },
-};
-
-function makeContext(overrides: Partial<ProtectedAuthContext> = {}): ProtectedAuthContext {
+function makeContext(source: ProtectedTransportContext['source'] = 'bearer'): ProtectedTransportContext {
   return {
-    source: 'bearer',
-    token: 'bearer-test-credential',
+    source,
+    token: 'transport-secret',
     userId: 'authenticated-user',
     scopes: ['calc:basic'],
     organizationId: 'org-1',
     introspection: { active: true, sub: 'authenticated-user' },
-    ...overrides,
   };
 }
 
 function makeAction(overrides: Partial<ActionConfig> = {}): ActionConfig {
   return {
     requiredOrgId: 'self',
-    requiredRoleId: 'calc-user-role-id',
-    requiredPermId: 'calc:basic',
+    requiredRoleId: 'any',
+    requiredPermId: 'any',
+    executorHandled: true,
     handler: vi.fn().mockResolvedValue({ answer: 3 }),
     ...overrides,
   };
 }
 
-function makeRequest(body: object): NextRequest {
+function makeRequest(body: unknown): NextRequest {
   return new NextRequest('https://dashboard.example.test/api/protected/automation', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -91,187 +69,179 @@ function makeRequest(body: object): NextRequest {
 
 beforeEach(() => {
   mocks.getAction.mockReset();
-  mocks.verifyPersonalAccess.mockReset();
-  mocks.verifyOrgAccess.mockReset();
-  mocks.getTokenForServerAction.mockReset();
+  mocks.executeProtectedAction.mockReset().mockResolvedValue({ ok: true, data: { answer: 3 } });
   mocks.rateLimitCheck.mockReset().mockResolvedValue(true);
-  mocks.rateLimitReset.mockReset();
-  mocks.getManagementApiToken.mockReset().mockResolvedValue('management-test-credential');
+  mocks.getManagementApiToken.mockReset().mockResolvedValue('management-secret');
   mocks.getCleanEndpoint.mockReset().mockReturnValue('https://logto.example.test');
-  mocks.makeManagementFetch.mockReset();
-  mocks.verifyPersonalAccess.mockResolvedValue(successfulAccess);
-  mocks.verifyOrgAccess.mockResolvedValue(successfulAccess);
+  mocks.makeManagementFetch.mockReset().mockResolvedValue({
+    ok: true,
+    json: async () => ({ customData: { Preferences: { asOrg: 'org-1' } } }),
+  });
+  mocks.getAction.mockResolvedValue(makeAction());
 });
 
-describe('runProtectedAction bearer authorization core', () => {
-  it('denies a personal bearer without the required scope before personal verification', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    mocks.getAction.mockResolvedValue(makeAction({ handler }));
-
+describe('runProtectedAction route adapter', () => {
+  it('delegates bearer requests with only the authenticated principal and external mode', async () => {
     const response = await runProtectedAction(
       makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-      makeContext({ scopes: [] }),
+      makeContext('bearer'),
     );
 
-    expect(response.status).toBe(403);
-    expect(await response.json()).toEqual({ error: 'PERMISSION_DENIED', data: null });
-    expect(mocks.verifyPersonalAccess).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ error: null, data: { answer: 3 } });
+    expect(mocks.executeProtectedAction).toHaveBeenCalledWith({
+      action: 'calc/add',
+      payload: { a: 1, b: 2 },
+      context: { principal: { sub: 'authenticated-user', mode: 'external' } },
+    });
+    expect(JSON.stringify(mocks.executeProtectedAction.mock.calls)).not.toContain('transport-secret');
+    expect(JSON.stringify(mocks.executeProtectedAction.mock.calls)).not.toContain('management-secret');
   });
 
-  it('denies a bearer whose organization claim does not match the action', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    mocks.getAction.mockResolvedValue(makeAction({
-      requiredOrgId: 'org-1',
-      handler,
-    }));
+  it('delegates session requests with session mode after the active-org gate passes', async () => {
+    mocks.getAction.mockResolvedValue(makeAction({ requiredOrgId: 'org-1' }));
 
     const response = await runProtectedAction(
-      makeRequest({ action: 'org/calc', payload: { a: 1, b: 2 } }),
-      makeContext({ organizationId: 'org-2' }),
+      makeRequest({ action: 'org/calc', payload: { n: 3 } }),
+      makeContext('session'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.makeManagementFetch).toHaveBeenCalledWith(
+      'https://logto.example.test/api/users/authenticated-user',
+      { method: 'GET', token: 'management-secret' },
+    );
+    expect(mocks.executeProtectedAction).toHaveBeenCalledWith({
+      action: 'org/calc',
+      payload: { n: 3 },
+      context: { principal: { sub: 'authenticated-user', mode: 'session' } },
+    });
+  });
+
+  it('leaves bearer organization membership checks to the executor', async () => {
+    mocks.getAction.mockResolvedValue(makeAction({ requiredOrgId: 'org-1' }));
+
+    const response = await runProtectedAction(
+      makeRequest({ action: 'org/calc' }),
+      makeContext('bearer'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.makeManagementFetch).not.toHaveBeenCalled();
+    expect(mocks.executeProtectedAction).toHaveBeenCalledWith({
+      action: 'org/calc',
+      payload: {},
+      context: { principal: { sub: 'authenticated-user', mode: 'external' } },
+    });
+  });
+
+  it('rejects session org actions when customData.Preferences.asOrg does not match', async () => {
+    mocks.getAction.mockResolvedValue(makeAction({ requiredOrgId: 'org-required' }));
+    mocks.makeManagementFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ customData: { Preferences: { asOrg: 'other-org' } } }),
+    });
+
+    const response = await runProtectedAction(
+      makeRequest({ action: 'org/calc' }),
+      makeContext('session'),
     );
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'ORG_NOT_MEMBER', data: null });
-    expect(mocks.verifyOrgAccess).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
+    expect(mocks.executeProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('uses the personal bearer verifier context without attempting cookie fallback', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    const context = makeContext();
-    mocks.getAction.mockResolvedValue(makeAction({ handler }));
-    mocks.getTokenForServerAction.mockRejectedValue(new Error('cookie fallback must not be used'));
-    mocks.verifyPersonalAccess.mockImplementation(async (_principal, authenticatedContext) => {
-      if (!authenticatedContext) await mocks.getTokenForServerAction();
-      return successfulAccess;
-    });
+  it('fails closed when an action is not explicitly handled by the executor', async () => {
+    mocks.getAction.mockResolvedValue(makeAction({ executorHandled: false }));
 
     const response = await runProtectedAction(
-      makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-      context,
-    );
-
-    expect(response.status).toBe(200);
-    expect(mocks.verifyPersonalAccess).toHaveBeenCalledWith(undefined, context);
-    expect(mocks.getTokenForServerAction).not.toHaveBeenCalled();
-    expect(handler).toHaveBeenCalledWith({
-      userId: 'authenticated-user',
-      orgId: null,
-      payload: { a: 1, b: 2 },
-    });
-  });
-
-  it('uses the organization bearer verifier context without attempting cookie fallback', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    const context = makeContext({ organizationId: 'org-1' });
-    mocks.getAction.mockResolvedValue(makeAction({
-      requiredOrgId: 'org-1',
-      handler,
-    }));
-    mocks.getTokenForServerAction.mockRejectedValue(new Error('cookie fallback must not be used'));
-    mocks.verifyOrgAccess.mockImplementation(async (_orgId, _principal, authenticatedContext) => {
-      if (!authenticatedContext) await mocks.getTokenForServerAction();
-      return successfulAccess;
-    });
-
-    const response = await runProtectedAction(
-      makeRequest({ action: 'org/calc', payload: { a: 1, b: 2 } }),
-      context,
-    );
-
-    expect(response.status).toBe(200);
-    expect(mocks.verifyOrgAccess).toHaveBeenCalledWith('org-1', undefined, context);
-    expect(mocks.getTokenForServerAction).not.toHaveBeenCalled();
-    expect(handler).toHaveBeenCalledWith({
-      userId: 'authenticated-user',
-      orgId: 'org-1',
-      payload: { a: 1, b: 2 },
-    });
-  });
-
-  it('binds handler identity to authenticated context and action configuration', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    mocks.getAction.mockResolvedValue(makeAction({
-      requiredOrgId: 'org-1',
-      handler,
-    }));
-
-    const response = await runProtectedAction(
-      makeRequest({
-        action: 'org/calc',
-        payload: {
-          userId: 'attacker-user',
-          orgId: 'attacker-org',
-          a: 1,
-          b: 2,
-        },
-      }),
+      makeRequest({ action: 'calc/add' }),
       makeContext(),
     );
 
-    expect(response.status).toBe(200);
-    expect(handler).toHaveBeenCalledWith({
-      userId: 'authenticated-user',
-      orgId: 'org-1',
-      payload: {
-        userId: 'attacker-user',
-        orgId: 'attacker-org',
-        a: 1,
-        b: 2,
-      },
-    });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'INTERNAL_ERROR', data: null });
+    expect(mocks.executeProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('returns the rate-limit response before parsing the request body or resolving an action', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    mocks.getAction.mockResolvedValue(makeAction({ handler }));
+  it('maps executor errors to the existing response envelope and status', async () => {
+    mocks.executeProtectedAction.mockResolvedValue({ ok: false, error: 'PERMISSION_DENIED', status: 403 });
+
+    const response = await runProtectedAction(
+      makeRequest({ action: 'calc/add' }),
+      makeContext(),
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'PERMISSION_DENIED', data: null });
+  });
+
+  it('adds Retry-After to executor 429 responses', async () => {
+    mocks.executeProtectedAction.mockResolvedValue({ ok: false, error: 'RATE_LIMITED', status: 429 });
+
+    const response = await runProtectedAction(
+      makeRequest({ action: 'calc/add' }),
+      makeContext(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('60');
+  });
+
+  it('rate-limits before reading or resolving the body', async () => {
     mocks.rateLimitCheck.mockResolvedValue(false);
-    const request = makeRequest({
-      action: 'calc/add',
-      payload: 'x'.repeat(PROTECTED_ACTION_MAX_BODY_BYTES),
-    });
+    const request = makeRequest({ action: 'calc/add', payload: 'x'.repeat(PROTECTED_ACTION_MAX_BODY_BYTES) });
     const getReader = vi.spyOn(request.body!, 'getReader');
 
     const response = await runProtectedAction(request, makeContext());
 
     expect(response.status).toBe(429);
-    expect(await response.json()).toEqual({ error: 'RATE_LIMITED', data: null });
+    expect(response.headers.get('Retry-After')).toBe('60');
     expect(getReader).not.toHaveBeenCalled();
     expect(mocks.getAction).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
+    expect(mocks.executeProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('sanitizes upstream-looking handler errors', async () => {
-    const handler = vi.fn().mockRejectedValue(new Error('upstream secret: management credential leaked'));
-    mocks.getAction.mockResolvedValue(makeAction({ handler }));
+  it.each([
+    ['null', null],
+    ['an array', []],
+    ['a JSON string', 'hello'],
+    ['a JSON number', 1],
+    ['a missing action', {}],
+    ['an empty action', { action: '' }],
+    ['an oversized action name', { action: 'a'.repeat(129) }],
+  ])('rejects %s before executor delegation', async (_description, body) => {
+    const response = await runProtectedAction(makeRequest(body), makeContext());
 
-    const response = await runProtectedAction(
-      makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-      makeContext(),
-    );
-    const responseText = await response.text();
-
-    expect(response.status).toBe(500);
-    expect(responseText).toContain('INTERNAL_ERROR');
-    expect(responseText).not.toContain('upstream secret');
-    expect(responseText).not.toContain('management credential');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'MISSING_FIELDS', data: null });
+    expect(mocks.executeProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('returns a fixed sanitized response when bearer RBAC verification fails', async () => {
-    const handler = vi.fn().mockResolvedValue({ answer: 3 });
-    mocks.getAction.mockResolvedValue(makeAction({ handler }));
-    mocks.verifyPersonalAccess.mockResolvedValue({ ok: false, error: 'upstream secret' });
+  it('accepts an action name at the 128-character limit', async () => {
+    const action = 'a'.repeat(128);
+    const response = await runProtectedAction(makeRequest({ action }), makeContext());
 
-    const response = await runProtectedAction(
-      makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } }),
-      makeContext(),
-    );
-    const responseText = await response.text();
+    expect(response.status).toBe(200);
+    expect(mocks.executeProtectedAction).toHaveBeenCalledWith({
+      action,
+      payload: {},
+      context: { principal: { sub: 'authenticated-user', mode: 'external' } },
+    });
+  });
 
-    expect(response.status).toBe(401);
-    expect(responseText).toEqual(JSON.stringify({ error: 'UNAUTHORIZED', data: null }));
-    expect(responseText).not.toContain('upstream secret');
-    expect(handler).not.toHaveBeenCalled();
+  it('enforces the 1 MiB stream byte cap', async () => {
+    const request = new NextRequest('https://dashboard.example.test/api/protected/automation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'calc/add', payload: 'x'.repeat(PROTECTED_ACTION_MAX_BODY_BYTES) }),
+    });
+
+    const response = await runProtectedAction(request, makeContext());
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: 'PAYLOAD_TOO_LARGE', data: null });
+    expect(mocks.executeProtectedAction).not.toHaveBeenCalled();
   });
 });

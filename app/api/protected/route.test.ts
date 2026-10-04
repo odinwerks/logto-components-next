@@ -1,902 +1,171 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NextRequest } from 'next/server';
-import { getAction } from '../../logto-kit/action-registry';
-import {
-  getCalcAdd,
-  getCalcAsin,
-  getCalcMultiply,
-  getCalcPower,
-} from '../../logto-kit/action-registry/calc-actions';
-import type { ActionConfig } from '../../logto-kit/logic/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest, NextResponse } from 'next/server';
+
+const mocks = vi.hoisted(() => ({
+  getTokenForServerAction: vi.fn(),
+  introspectToken: vi.fn(),
+  getLogtoConfig: vi.fn(),
+  runProtectedAction: vi.fn(),
+}));
 
 vi.mock('../../logto-kit/logic/actions/tokens', () => ({
-  getTokenForServerAction: vi.fn().mockResolvedValue('mock-token'),
+  getTokenForServerAction: mocks.getTokenForServerAction,
 }));
 
 vi.mock('../../logto-kit/logic/utils', () => ({
-  getCleanEndpoint: vi.fn().mockReturnValue('https://example.com'),
-  introspectToken: vi.fn().mockResolvedValue({
-    active: true,
-    sub: 'mock-user-id',
-    client_id: 'test-app-id',
-    jti: 'mock-jti',
-  }),
-}));
-
-vi.mock('../../logto-kit/action-registry', () => ({
-  getAction: vi.fn().mockResolvedValue(null),
-}));
-
-vi.mock('../../logto-kit/logic/actions', () => ({
-  verifyOrgAccess: vi.fn().mockResolvedValue({
-    ok: true,
-    data: { roles: [], permissions: [] },
-  }),
-  verifyPersonalAccess: vi.fn().mockResolvedValue({
-    ok: true,
-    data: { roles: [], permissions: [] },
-  }),
-  getUserRoles: vi.fn().mockResolvedValue({
-    ok: true,
-    data: [],
-  }),
+  introspectToken: mocks.introspectToken,
 }));
 
 vi.mock('../../logto-kit/config', () => ({
-  getLogtoConfig: vi.fn().mockReturnValue({
-    appId: 'test-app-id',
-    appSecret: 'test-app-secret',
-    endpoint: 'https://test.logto.app',
-    baseUrl: 'http://localhost:3000',
-    cookieSecret: 'test-cookie-secret',
-    cookieSecure: false,
-    resources: [],
-    scopes: [],
-  }),
-  getManagementApiToken: vi.fn().mockResolvedValue('mock-m2m-token'),
+  getLogtoConfig: mocks.getLogtoConfig,
 }));
 
-// Reset env before each test since checkSameOrigin reads process.env.BASE_URL
-beforeEach(() => {
-  process.env.BASE_URL = 'http://localhost:3000';
-  delete process.env.APP_URL;
-  delete process.env.PROTECTED_ALLOW_BEARER_FALLBACK;
-  vi.clearAllMocks();
-  vi.resetModules();
-});
+vi.mock('../../logto-kit/logic/protected-action', () => ({
+  protectedApiError: (code: string, status: number) => {
+    const error = code === 'TOKEN_INVALID' ? 'UNAUTHORIZED' : code;
+    return NextResponse.json({ error, data: null }, { status });
+  },
+  runProtectedAction: mocks.runProtectedAction,
+}));
 
-// ── Helper for building same-origin requests ────────────────────────────────
-function makeRequest(body: object): NextRequest {
-  const bodyStr = JSON.stringify(body);
+function makeRequest(body: object = { action: 'calc/add' }): NextRequest {
   return new NextRequest('http://localhost:3000/api/protected', {
     method: 'POST',
     headers: {
       origin: 'http://localhost:3000',
       'content-type': 'application/json',
-      'content-length': String(Buffer.from(bodyStr).length),
     },
-    body: bodyStr,
+    body: JSON.stringify(body),
   });
 }
 
-// ── CSRF protection ─────────────────────────────────────────────────────────
-describe('POST /api/protected - CSRF protection', () => {
-  it('returns 403 for cross-origin POST', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
+beforeEach(() => {
+  process.env.BASE_URL = 'http://localhost:3000';
+  delete process.env.APP_URL;
+  mocks.getTokenForServerAction.mockReset().mockResolvedValue('session-token');
+  mocks.introspectToken.mockReset().mockResolvedValue({
+    active: true,
+    sub: 'mock-user-id',
+    client_id: 'test-app-id',
+    sid: 'session-id',
+    scope: 'openid calc:basic',
+    organization_id: 'org-1',
+  });
+  mocks.getLogtoConfig.mockReset().mockReturnValue({ appId: 'test-app-id' });
+  mocks.runProtectedAction.mockReset().mockResolvedValue(
+    NextResponse.json({ error: null, data: { answer: 3 } }),
+  );
+});
+
+describe('POST /api/protected route boundary', () => {
+  it.each([
+    ['cross-origin', { origin: 'https://evil.example.test' }],
+    ['missing Origin', {}],
+  ])('rejects %s requests before session authentication', async (_label, headers) => {
+    const request = new NextRequest('http://localhost:3000/api/protected', {
       method: 'POST',
-      headers: {
-        origin: 'https://evil.com',
-        'content-length': '0',
-      },
+      headers,
     });
     const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).toBe(403);
+    const response = await POST(request);
+
+    expect(response.status).toBe(403);
+    expect(mocks.getTokenForServerAction).not.toHaveBeenCalled();
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when Origin header is missing', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        'content-length': '0',
-      },
-    });
+  it('returns unauthorized when session token retrieval fails', async () => {
+    mocks.getTokenForServerAction.mockRejectedValue(new Error('missing session'));
     const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).toBe(403);
+    const response = await POST(makeRequest());
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'UNAUTHORIZED', data: null });
+    expect(mocks.introspectToken).not.toHaveBeenCalled();
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('allows same-origin POST', async () => {
-    const req = makeRequest({ action: 'test' });
+  it('returns an authentication error when introspection fails', async () => {
+    mocks.introspectToken.mockRejectedValue(new Error('introspection unavailable'));
     const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).not.toBe(403);
+    const response = await POST(makeRequest());
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'INTROSPECTION_ERROR', data: null });
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
-});
 
-// ── Action resolution ───────────────────────────────────────────────────────
-describe('POST /api/protected - action resolution', () => {
-  it('returns 401 UNAUTHORIZED when session token retrieval fails', async () => {
-    const { getTokenForServerAction } = await import('../../logto-kit/logic/actions/tokens');
-    (getTokenForServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('missing session token'));
-
-    const req = makeRequest({ action: 'some-action' });
+  it('rejects inactive or subject-less session introspection results', async () => {
+    mocks.introspectToken.mockResolvedValue({ active: false, sub: 'mock-user-id' });
     const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
+    const response = await POST(makeRequest());
 
-    expect(res.status).toBe(401);
-    expect(body.error).toBe('UNAUTHORIZED');
-    expect(body.data).toBeNull();
+    expect(response.status).toBe(401);
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
+
+    mocks.introspectToken.mockResolvedValueOnce({ active: true });
+    const nextResponse = await POST(makeRequest());
+    expect(nextResponse.status).toBe(401);
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('returns 404 when action is not found', async () => {
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
-
-    const req = makeRequest({ action: 'missing-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(404);
-    // ACTION_NOT_FOUND has exposeToClient:false → client sees the server-category
-    // generic code INTERNAL_ERROR; the precise code is server-log-only.
-    expect(body.error).toBe('INTERNAL_ERROR');
-    expect(body.data).toBeNull();
-  });
-});
-
-// ── Action config validation ────────────────────────────────────────────────
-describe('POST /api/protected - config validation', () => {
-  it('returns 500 IMPROPER_SETUP_ERROR when requiredOrgId is missing', async () => {
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'bad-config' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
-    expect(body.error).toBe('INTERNAL_ERROR');
-  });
-
-  it('returns 500 IMPROPER_SETUP_ERROR when requiredRoleId is empty', async () => {
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: [],
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'bad-config' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
-    expect(body.error).toBe('INTERNAL_ERROR');
-  });
-
-  it('returns 500 IMPROPER_SETUP_ERROR when requiredPermId is empty', async () => {
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'role-1',
-      requiredPermId: [],
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'bad-config' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    // IMPROPER_SETUP_ERROR has exposeToClient:false → client sees INTERNAL_ERROR.
-    expect(body.error).toBe('INTERNAL_ERROR');
-  });
-});
-
-// ── Personal RBAC (self bypass) ─────────────────────────────────────────────
-describe('POST /api/protected - personal RBAC (self bypass)', () => {
-  it('returns 403 ROLE_DENIED when user lacks the required personal role', async () => {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'other-role', name: 'Other Role' }],
-        permissions: ['calc:basic'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockResolvedValue({ answer: 42 }),
-    });
-
-    const req = makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('ROLE_DENIED');
-  });
-
-  it('returns 403 PERMISSION_DENIED when user lacks the required personal permission', async () => {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-        permissions: [],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockResolvedValue({ answer: 42 }),
-    });
-
-    const req = makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('PERMISSION_DENIED');
-  });
-
-  it('returns the answer when personal RBAC passes (both role and permission present)', async () => {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-        permissions: ['calc:basic'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockResolvedValue({ answer: 3 }),
-    });
-
-    const req = makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.error).toBeNull();
-    expect(body.data).toEqual({ answer: 3 });
-  });
-
-  it('returns 401 UNAUTHORIZED when personal verifier reports principal mismatch in compatibility mode', async () => {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockImplementationOnce(async (expectedPrincipal?: { sub?: string }) => {
-      if (expectedPrincipal?.sub === 'mock-user-id') {
-        return { ok: false, error: 'UNAUTHORIZED' };
-      }
-
-      return {
-        ok: true,
-        data: {
-          roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-          permissions: ['calc:basic'],
-        },
-      };
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockResolvedValue({ answer: 3 }),
-    });
-
-    const req = makeRequest({ action: 'calc/add', payload: { a: 1, b: 2 } });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(body.error).toBe('UNAUTHORIZED');
-  });
-});
-
-// ── Org RBAC ────────────────────────────────────────────────────────────────
-describe('POST /api/protected - org RBAC', () => {
-  it('returns 403 ORG_NOT_MEMBER when active org (asOrg) in custom data does not match requiredOrgId', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'different-org-id' } },
-      }),
-    } as Response);
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('ORG_NOT_MEMBER');
-  });
-
-  it('returns 403 ORG_NOT_MEMBER when active org matches, but verifyOrgAccess fails', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'test-org-id' } },
-      }),
-    } as Response);
-
-    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-      error: 'ORG_NOT_MEMBER',
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('ORG_NOT_MEMBER');
-  });
-
-  it('returns 403 ROLE_DENIED when user lacks the required org role', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'test-org-id' } },
-      }),
-    } as Response);
-
-    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'other-role', name: 'Other Role' }],
-        permissions: ['perm:1'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('ROLE_DENIED');
-  });
-
-  it('returns 403 PERMISSION_DENIED when user lacks the required org permission', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'test-org-id' } },
-      }),
-    } as Response);
-
-    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'role-1', name: 'Role 1' }],
-        permissions: ['other:perm'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(403);
-    expect(body.error).toBe('PERMISSION_DENIED');
-  });
-
-  it('returns the answer when active org matches and org RBAC passes', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'test-org-id' } },
-      }),
-    } as Response);
-
-    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'role-1', name: 'Role 1' }],
-        permissions: ['perm:1'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn().mockResolvedValue({ answer: 42 }),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.error).toBeNull();
-    expect(body.data).toEqual({ answer: 42 });
-  });
-
-  it('returns 401 UNAUTHORIZED when org verifier reports principal mismatch in compatibility mode', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        customData: { Preferences: { asOrg: 'test-org-id' } },
-      }),
-    } as Response);
-
-    const { verifyOrgAccess } = await import('../../logto-kit/logic/actions');
-    (verifyOrgAccess as ReturnType<typeof vi.fn>).mockImplementationOnce(async (_orgId: string, expectedPrincipal?: { sub?: string }) => {
-      if (expectedPrincipal?.sub === 'mock-user-id') {
-        return { ok: false, error: 'UNAUTHORIZED' };
-      }
-
-      return { ok: false, error: 'ORG_NOT_MEMBER' };
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'test-org-id',
-      requiredRoleId: 'role-1',
-      requiredPermId: 'perm:1',
-      handler: vi.fn(),
-    });
-
-    const req = makeRequest({ action: 'org-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(body.error).toBe('UNAUTHORIZED');
-  });
-});
-
-// ── Handler errors ──────────────────────────────────────────────────────────
-describe('POST /api/protected - handler errors', () => {
-  it('returns 400 INVALID_PAYLOAD when the handler throws INVALID_PAYLOAD', async () => {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-        permissions: ['calc:basic'],
-      },
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-      handler: vi.fn().mockRejectedValue(new Error('INVALID_PAYLOAD: a must be a number')),
-    });
-
-    const req = makeRequest({ action: 'calc/add', payload: { a: 'bad', b: 2 } });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(body.error).toBe('INVALID_PAYLOAD');
-  });
-});
-
-// ── CAN-ACT-012: calculator finite-number contract ─────────────────────────
-describe('POST /api/protected - CAN-ACT-012 calculator validation', () => {
-  async function allowCalculatorAction(getter: () => Promise<ActionConfig>): Promise<ActionConfig> {
-    const calculatorConfig = await getter();
-    // Exercise the real calculator handler while using the self-access branch
-    // to keep this route contract test independent of Management API mocks.
-    return {
-      ...calculatorConfig,
-      requiredOrgId: 'self',
-      requiredRoleId: 'calc-user-role-id',
-      requiredPermId: 'calc:basic',
-    };
-  }
-
-  async function expectInvalidCalculatorPayload(
-    getter: () => Promise<ActionConfig>,
-    requestBody: string,
-  ): Promise<void> {
-    const { verifyPersonalAccess } = await import('../../logto-kit/logic/actions');
-    (verifyPersonalAccess as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      data: {
-        roles: [{ id: 'calc-user-role-id', name: 'Calc User' }],
-        permissions: ['calc:basic'],
-      },
-    });
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(await allowCalculatorAction(getter));
-
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-      },
-      body: requestBody,
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(body).toEqual({ error: 'INVALID_PAYLOAD', data: null });
-  }
-
-  it('rejects JSON 1e400 before calculator computation', async () => {
-    await expectInvalidCalculatorPayload(
-      getCalcAdd,
-      '{"action":"calc/add","payload":{"a":1e400,"b":1}}',
-    );
-  });
-
-  it('rejects a NaN input after JSON serialization converts it to null', async () => {
-    await expectInvalidCalculatorPayload(
-      getCalcAdd,
-      '{"action":"calc/add","payload":{"a":null,"b":1}}',
-    );
-  });
-
-  it('rejects a finite domain-invalid input that computes NaN', async () => {
-    await expectInvalidCalculatorPayload(
-      getCalcAsin,
-      '{"action":"calc/asin","payload":{"n":2,"mode":"rad"}}',
-    );
-  });
-
-  it('rejects a finite arithmetic overflow that computes Infinity', async () => {
-    await expectInvalidCalculatorPayload(
-      getCalcMultiply,
-      '{"action":"calc/multiply","payload":{"a":1e155,"b":1e155}}',
-    );
-  });
-
-  it('rejects a finite NaN-producing power operation', async () => {
-    await expectInvalidCalculatorPayload(
-      getCalcPower,
-      '{"action":"calc/power","payload":{"a":-1,"b":0.5}}',
-    );
-  });
-});
-
-// ── BUG-011: Stream-based body byte cap (replaces header-only Content-Length) ──
-describe('POST /api/protected - BUG-011 stream-based body byte cap', () => {
-  it('returns 413 PAYLOAD_TOO_LARGE when actual body exceeds 1 MiB', async () => {
-    // Build a body whose JSON serialization exceeds 1 MiB. Content-Length is
-    // intentionally NOT set to prove the cap reads actual stream bytes.
-    const largePayload = 'x'.repeat(1_048_577);
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ action: 'test', payload: largePayload }),
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(413);
-    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
-  });
-
-  it('allows request when actual body is under 1 MiB', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ action: 'test' }),
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-
-    // Should not be 413 (may be other errors like action not found, but not payload too large)
-    expect(res.status).not.toBe(413);
-  });
-
-  it('enforces byte cap even when Content-Length header is absent (chunked)', async () => {
-    // No Content-Length header — the stream reader must still cap actual bytes.
-    // This is the key BUG-011 fix: the old header-only check was bypassable by
-    // chunked requests without Content-Length.
-    const largePayload = 'x'.repeat(1_048_577);
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        // 'content-length' intentionally omitted (chunked encoding)
-      },
-      body: JSON.stringify({ action: 'test', payload: largePayload }),
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(413);
-    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
-  });
-
-  it('ignores spoofed small Content-Length header when actual body is large', async () => {
-    // Attacker sets a small Content-Length but sends a large body. The stream
-    // cap must reject based on actual bytes, not the spoofed header.
-    const largePayload = 'x'.repeat(1_048_577);
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        'content-length': '100', // spoofed — actual body is > 1 MiB
-      },
-      body: JSON.stringify({ action: 'test', payload: largePayload }),
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(413);
-    expect(body.error).toBe('PAYLOAD_TOO_LARGE');
-  });
-});
-
-// ── BUG-008: Action name validation ───────────────────────────────────────
-describe('POST /api/protected - BUG-008 action name validation', () => {
-  it('returns 400 MISSING_FIELDS when action is empty string', async () => {
-    const req = makeRequest({ action: '' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(body.error).toBe('MISSING_FIELDS');
-  });
-
-  it('returns 400 MISSING_FIELDS when action exceeds 128 characters', async () => {
-    const req = makeRequest({ action: 'a'.repeat(129) });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(body.error).toBe('MISSING_FIELDS');
-  });
-
-  it('allows action names up to 128 characters', async () => {
-    const req = makeRequest({ action: 'a'.repeat(128) });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-
-    // Should not be 400 for action length (may fail for other reasons)
-    expect(res.status).not.toBe(400);
-  });
-});
-
-// ── BUG-009: Token audience verification ─────────────────────────────────
-describe('POST /api/protected - BUG-009 token audience verification', () => {
-  it('returns 401 TOKEN_INVALID when client_id does not match appId', async () => {
-    const { introspectToken } = await import('../../logto-kit/logic/utils');
-    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  it('rejects a client_id that does not match the configured appId', async () => {
+    mocks.introspectToken.mockResolvedValue({
       active: true,
       sub: 'mock-user-id',
       client_id: 'wrong-client-id',
     });
-
-    const req = makeRequest({ action: 'test' });
     const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
+    const response = await POST(makeRequest());
 
-    expect(res.status).toBe(401);
-    // TOKEN_INVALID has exposeToClient:false → client sees the auth-category
-    // generic code UNAUTHORIZED; the precise code is server-log-only.
-    expect(body.error).toBe('UNAUTHORIZED');
+    expect(response.status).toBe(401);
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('allows request when client_id matches appId', async () => {
-    const { introspectToken } = await import('../../logto-kit/logic/utils');
-    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  it('fails closed when introspection omits client_id', async () => {
+    mocks.introspectToken.mockResolvedValue({ active: true, sub: 'mock-user-id' });
+    const { POST } = await import('./route');
+    const response = await POST(makeRequest());
+
+    expect(response.status).toBe(401);
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unsafe subject before invoking the route adapter', async () => {
+    mocks.introspectToken.mockResolvedValue({
       active: true,
-      sub: 'mock-user-id',
+      sub: '../other-user',
       client_id: 'test-app-id',
     });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
-
-    const req = makeRequest({ action: 'test' });
     const { POST } = await import('./route');
-    const res = await POST(req);
+    const response = await POST(makeRequest());
 
-    // Should not be 401 for audience (may be 404 for missing action)
-    expect(res.status).not.toBe(401);
+    expect(response.status).toBe(400);
+    expect(mocks.runProtectedAction).not.toHaveBeenCalled();
   });
 
-  it('returns 401 TOKEN_INVALID when client_id is absent from introspection (BUG-H02)', async () => {
-    const { introspectToken } = await import('../../logto-kit/logic/utils');
-    (introspectToken as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      active: true,
-      sub: 'mock-user-id',
-      // client_id intentionally absent — must fail closed
-    });
-
-    (getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
-
-    const req = makeRequest({ action: 'test' });
+  it('constructs a server-derived session transport context and delegates', async () => {
+    const request = makeRequest({ action: 'org/calc', payload: { n: 3 } });
     const { POST } = await import('./route');
-    const res = await POST(req);
-    const body = await res.json();
+    const response = await POST(request);
 
-    // Absent client_id must now be rejected (fail-closed)
-    expect(res.status).toBe(401);
-    // TOKEN_INVALID has exposeToClient:false → client sees UNAUTHORIZED.
-    expect(body.error).toBe('UNAUTHORIZED');
-  });
-});
-
-// ── BUG-L-005/BUG-L-006: Dead custom_data fallback removed, ?fields= removed ─
-describe('POST /api/protected - BUG-L-005/BUG-L-006 fetchUserAsOrg', () => {
-  it('returns only customData (no custom_data fallback) from Management API response', async () => {
-    // This test verifies the route no longer tries to read custom_data (snake_case).
-    // The route uses makeManagementFetch which is already mocked via management-request mock.
-    // We just verify the route works fine when only customData is present in the response.
-    // The route module is freshly imported each test due to vi.resetModules() in beforeEach.
-    const req = makeRequest({ action: 'some-action' });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    // Route completes without a 500 error (fetchUserAsOrg is resilient to missing custom_data)
-    expect(res.status).not.toBe(500);
-  });
-});
-
-// ── BUG-L-007: 429 response includes Retry-After header ──────────────────────
-// Tests Retry-After header is sent on 429 by examining an existing rate-limit scenario.
-// NOTE: The rate limiter is in-memory and allows through by default in tests.
-// We verify the header is present by directly testing the apiError → NextResponse path.
-describe('POST /api/protected - BUG-L-007 Retry-After on 429', () => {
-  it('includes Retry-After: 60 header when rate limited via direct route inspection', async () => {
-    // The route was updated to use NextResponse.json directly with Retry-After header for 429.
-    // We verify that the route code structure is correct by testing a unit where
-    // the rate limiter mock triggers a 429.
-    // Since vi.mock inside describe is hoisted and affects all tests, we instead
-    // test this by creating an isolated module test using a fresh module scope.
-    vi.resetModules();
-
-    // Set up a mock for distributed-state that returns false from check()
-    // We need to re-mock after resetModules
-    const rateLimitCheckMock = vi.fn().mockResolvedValue(false);
-
-    // Inline module factory approach: override for just this test
-    vi.doMock('../../lib/distributed-state', () => ({
-      createRateLimiter: () => ({
-        check: rateLimitCheckMock,
-        reset: vi.fn().mockResolvedValue(undefined),
-      }),
-    }));
-
-    process.env.BASE_URL = 'http://localhost:3000';
-
-    const { POST } = await import('./route');
-    const req = makeRequest({ action: 'test' });
-    const res = await POST(req);
-
-    expect(res.status).toBe(429);
-    expect(res.headers.get('Retry-After')).toBe('60');
-
-    const body = await res.json();
-    expect(body.error).toBe('RATE_LIMITED');
-
-    // Clean up
-    vi.doUnmock('../../lib/distributed-state');
-  });
-});
-
-// ── Null/non-object body validation (BUG-106) ──────────────────────────────
-describe('POST /api/protected - null body', () => {
-  it('returns 400 when request body is JSON null', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        'content-length': '4',
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ error: null, data: { answer: 3 } });
+    expect(mocks.runProtectedAction).toHaveBeenCalledWith(request, {
+      source: 'session',
+      token: 'session-token',
+      userId: 'mock-user-id',
+      sid: 'session-id',
+      scopes: ['openid', 'calc:basic'],
+      organizationId: 'org-1',
+      introspection: {
+        active: true,
+        sub: 'mock-user-id',
+        client_id: 'test-app-id',
+        sid: 'session-id',
+        scope: 'openid calc:basic',
+        organization_id: 'org-1',
       },
-      body: 'null',
     });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('MISSING_FIELDS');
-  });
-
-  it('returns 400 when request body is a JSON string', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        'content-length': '6',
-      },
-      body: '"hello"',
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('MISSING_FIELDS');
-  });
-
-  it('returns 400 when request body is a JSON number', async () => {
-    const req = new NextRequest('http://localhost:3000/api/protected', {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:3000',
-        'content-type': 'application/json',
-        'content-length': '1',
-      },
-      body: '0',
-    });
-    const { POST } = await import('./route');
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('MISSING_FIELDS');
   });
 });

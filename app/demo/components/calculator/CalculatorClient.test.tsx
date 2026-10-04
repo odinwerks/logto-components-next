@@ -9,6 +9,7 @@ const mockLoadOrganizationPermissions = vi.fn().mockResolvedValue({
   ok: true,
   data: ['calc:basic', 'calc:scientific'],
 });
+const mockShowToast = vi.fn();
 
 vi.mock('../../../logto-kit', () => ({
   useOrgMode: () => mockUseOrgMode(),
@@ -22,7 +23,7 @@ vi.mock('../../../logto-kit/server-actions', () => ({
 // Mock useToast — CalculatorClient now shows error toasts via the unified toast context.
 vi.mock('../../../logto-kit/components/providers/toast-provider', () => ({
   useToast: () => ({
-    showToast: vi.fn(),
+    showToast: mockShowToast,
     dismissToast: vi.fn(),
     dismissAll: vi.fn(),
     mapErrorToast: vi.fn((code: string) => code),
@@ -41,6 +42,7 @@ describe('CalculatorClient', () => {
       ok: true,
       data: ['calc:basic', 'calc:scientific'],
     });
+    mockShowToast.mockClear();
     if (typeof window !== 'undefined') {
       window.sessionStorage.clear();
     }
@@ -51,7 +53,7 @@ describe('CalculatorClient', () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ data: { answer: 5621 } }),
+        json: () => Promise.resolve({ error: null, data: { answer: 5621 } }),
       } as Response)
     );
     global.fetch = fetchMock;
@@ -96,6 +98,33 @@ describe('CalculatorClient', () => {
         action: 'calc/add',
         payload: { a: 66, b: 5555 },
       }),
+    });
+  });
+
+  it('shows a sanitized executor denial without exposing server details', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ error: 'PERMISSION_DENIED', data: null }),
+    } as Response);
+    global.fetch = fetchMock;
+
+    render(<CalculatorClient />);
+    fireEvent.click(screen.getByRole('button', { name: '1' }));
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    fireEvent.click(screen.getByRole('button', { name: '=' }));
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'PERMISSION_DENIED');
+      expect(screen.getByText('Error')).toBeInTheDocument();
+    });
+    expect(mockShowToast).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/protected', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'calc/add', payload: { a: 12, b: 3 } }),
     });
   });
 

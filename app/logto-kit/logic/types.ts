@@ -99,6 +99,14 @@ export interface OrgRoleScope {
 // Protected Action Types
 // ============================================================================
 
+/**
+ * Context modes the protected executor accepts.
+ *
+ * `external` declares eligibility for a future non-session transport. It does
+ * not implement a credential path.
+ */
+export type ProtectedContextMode = 'session' | 'external';
+
 export interface ProtectedActionHandler {
   (data: { userId: string; orgId: string | null; payload: unknown }): Promise<unknown>;
 }
@@ -115,6 +123,12 @@ export interface ActionConfig {
   requiredRoleId: string | string[];
   requiredPermId: string | string[];
   handler: ProtectedActionHandler;
+  /** Context modes accepted by this action. Defaults to session-only. */
+  credentialModes?: ProtectedContextMode[];
+  /** Permission association rule. Defaults to union across the subject's roles. */
+  permissionBinding?: 'union' | 'required-role';
+  /** Marks actions whose authorization and execution run through the executor. */
+  executorHandled?: boolean;
 }
 
 export type ActionRegistry = Record<string, ActionConfig>;
@@ -325,7 +339,7 @@ export interface OidcIntrospectionResponse {
  * verification and OIDC introspection have succeeded.  The token is retained
  * for server-side downstream work only and must never be serialized or logged.
  */
-export interface ProtectedAuthContext {
+export interface ProtectedTransportContext {
   source: 'session' | 'bearer';
   token: string;
   userId: string;

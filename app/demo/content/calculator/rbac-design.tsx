@@ -59,8 +59,8 @@ export default function CalculatorRbacDesignDoc() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <h2 id={slugify("Permission Scope Matrix")} style={{ ...h2Style, marginTop: 0 }}>Permission Scope Matrix</h2>
       <p style={styles.textStyle}>
-        Access control is defined through a set of permission scopes mapped to roles within Logto. 
-        The application evaluates these scopes during computation requests to determine if the operation is allowed.
+        Each calculator action declares its organization, required role, and required permission in the action registry.
+        The credential-free executor checks live organization assignments through <code style={styles.codeSmStyle}>fetchOrgRolePermissions()</code> before it calls a handler.
       </p>
       <table style={customTableStyle}>
         <thead>
@@ -74,14 +74,14 @@ export default function CalculatorRbacDesignDoc() {
             <td style={customTdPropStyle}>calc:basic</td>
             <td style={customTdStyle}>
               Grants access to basic mathematical operations (add, subtract, multiply, divide, modulo, power). 
-              This scope is also required for the initial rendering of the calculator keypad.
+              The client uses this permission to decide whether to show basic controls. The executor checks the permission on every protected operation.
             </td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>calc:scientific</td>
             <td style={customTdStyle}>
               Grants access to advanced scientific functions (sin, cos, tan, asin, acos, atan, log, ln, log2, sqrt, abs, inv, exp10, exp, fact).
-              This scope is checked prior to evaluating trigonometric, logarithmic, exponential, or other advanced nodes.
+              The executor checks this permission before it runs trigonometric, logarithmic, exponential, or other advanced operations.
             </td>
           </tr>
         </tbody>
@@ -89,22 +89,24 @@ export default function CalculatorRbacDesignDoc() {
 
       <h2 id={slugify("Role-Assignment Mechanics")} style={h2Style}>Role-Assignment Mechanics</h2>
       <p style={styles.textStyle}>
-        User access changes dynamically when switching organizations via the workspace selector in the UI. 
-        The application state updates the active organization selection, changing the contextual customData state.
+        The action policy names the required organization and role. The executor uses the authenticated subject and action configuration to query current membership and permissions.
       </p>
       <p style={styles.textStyle}>
-        When switching organizations, the client requests a new access token from Logto with scopes corresponding to the selected organization. 
-        Both the frontend UI and the backend API then contextually evaluate permissions against the newly selected organization:
+        The executor receives a server-derived principal with a context mode. It does not read a client-selected organization or accept client-supplied roles and permissions.
+        Action metadata also declares allowed <code style={styles.codeSmStyle}>credentialModes</code> and a <code style={styles.codeSmStyle}>permissionBinding</code> rule:
       </p>
       <ul style={{ ...styles.textStyle, marginLeft: '1rem', marginBottom: '0.75rem' }}>
         <li>
-          <strong>Token Scope Update:</strong> The active token scope changes to reflect the selected organization&apos;s context, including corresponding organizational roles and permissions.
+          <strong>Context Mode:</strong> <code style={styles.codeSmStyle}>credentialModes</code> controls which authenticated modes an action accepts. It defaults to <code style={styles.codeSmStyle}>session</code>.
         </li>
         <li>
-          <strong>Frontend Adaptability:</strong> The client detects the change in active organization permissions and restricts or enables calculator buttons dynamically.
+          <strong>Permission Binding:</strong> <code style={styles.codeSmStyle}>union</code> accepts required permissions across the user&apos;s assigned roles. <code style={styles.codeSmStyle}>required-role</code> binds the permissions to the required role.
         </li>
         <li>
-          <strong>Backend Verification:</strong> The server-side route handles incoming computation payloads and verifies org membership via the Management API (<code>customData.Preferences.asOrg</code>) plus token introspection for principal/audience. Org membership is NOT read from token claims.
+          <strong>Live Authorization:</strong> <code style={styles.codeSmStyle}>fetchOrgRolePermissions()</code> reads current organization roles and permissions. The executor returns a fixed denial code if policy checks fail.
+        </li>
+        <li>
+          <strong>Client UI:</strong> <code style={styles.codeSmStyle}>&lt;Protected&gt;</code> and disabled keypad buttons improve the interface. They do not replace server authorization.
         </li>
       </ul>
     </div>

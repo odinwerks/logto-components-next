@@ -5,7 +5,7 @@ import { getLogtoConfig } from '../../logto-kit/config';
 import { introspectToken } from '../../logto-kit/logic/utils';
 import { assertSafeLogtoId } from '../../logto-kit/logic/guards';
 import { protectedApiError, runProtectedAction } from '../../logto-kit/logic/protected-action';
-import type { ProtectedAuthContext } from '../../logto-kit/logic/types';
+import type { ProtectedTransportContext } from '../../logto-kit/logic/types';
 import { withLogger } from '../../lib/with-logger';
 
 /**
@@ -57,7 +57,7 @@ export const POST = withLogger(async (request: NextRequest) => {
     return protectedApiError('TOKEN_INVALID', 400);
   }
 
-  const authContext: ProtectedAuthContext = {
+  const authContext: ProtectedTransportContext = {
     source: 'session',
     token,
     userId: introspection.sub,

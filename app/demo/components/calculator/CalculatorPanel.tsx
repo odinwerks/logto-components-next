@@ -21,6 +21,8 @@ export default function CalculatorPanel() {
     return null;
   }
 
+  // This client-side guard controls rendering only. The protected API route
+  // and executor perform server-side authentication and authorization.
   return (
     <Protected
       orgId="8joxv3kicmlz"

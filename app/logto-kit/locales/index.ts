@@ -539,6 +539,7 @@ export interface Translations {
     FETCH_FAILED: string;
     UPDATE_FAILED: string;
     DELETE_FAILED: string;
+    NOT_FOUND: string;
     SERVICE_UNAVAILABLE: string;
     MFA_ENROLL_FAILED: string;
     MFA_REMOVE_FAILED: string;

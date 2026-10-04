@@ -11,7 +11,7 @@ import type {
   RoleScope,
   PersonalAccessResult,
   OidcIntrospectionResponse,
-  ProtectedAuthContext,
+  ProtectedTransportContext,
 } from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
@@ -218,7 +218,7 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
  */
 export async function verifyPersonalAccess(
   expectedPrincipal?: ExpectedPrincipal,
-  authenticatedContext?: ProtectedAuthContext,
+  authenticatedContext?: ProtectedTransportContext,
 ): Promise<DataResult<PersonalAccessResult>> {
   return safeAction(async () => {
     let introspection: OidcIntrospectionResponse;

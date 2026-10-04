@@ -104,6 +104,9 @@ function calcConfig(perm: string, handler: ActionConfig['handler']): ActionConfi
     requiredRoleId: CALC_ROLE_ID,
     requiredPermId: perm,
     handler: wrappedHandler,
+    credentialModes: ['session', 'external'],
+    permissionBinding: 'union',
+    executorHandled: true,
   };
 }
 

@@ -138,6 +138,15 @@ describe('/api/protected/automation CORS and bearer boundary', () => {
     expect(authenticateMock).not.toHaveBeenCalled();
   });
 
+  it('does not use a session cookie when the Authorization header is absent', async () => {
+    const { POST } = await import('./route');
+    const response = await POST(makePost({ Cookie: 'logto_session=valid-session-cookie' }));
+
+    expect(response.status).toBe(401);
+    expect(authenticateMock).not.toHaveBeenCalled();
+    expect(runProtectedActionMock).not.toHaveBeenCalled();
+  });
+
   it('accepts a validated bearer context and reaches the shared action core', async () => {
     authenticateMock.mockResolvedValue({ ok: true, context: validContext });
     const { POST } = await import('./route');

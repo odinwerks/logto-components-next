@@ -62,31 +62,32 @@ export default function ApiProtectedDoc() {
         Server-Side Security Boundary
       </h2>
       <p style={styles.textStyle}>
-        The <code style={styles.codeStyle}>POST /api/protected</code> route acts as the server-side security boundary for all permission-gated operations. It performs multi-step token verification, role checking, and permission validation before invoking the target handler.
+        The <code style={styles.codeStyle}>POST /api/protected</code> route is the browser session transport adapter. It checks same-origin requests, authenticates the session cookie, applies route-side limits, and passes a server-derived principal to <code style={styles.codeStyle}>executeProtectedAction()</code>.
       </p>
       <div style={styles.warningBannerStyle}>
-        <strong style={styles.warningBannerStrongStyle}>Security Requirement:</strong> Unlike client-side rendering checks, this backend route enforces strict checks on every request. It derives user and organization context from secure tokens, making it resilient to client-side manipulation.
+        <strong style={styles.warningBannerStrongStyle}>Security Requirement:</strong> Client-side gates improve the interface but do not authorize requests. The executor validates the action policy and performs live RBAC for every operation.
       </div>
       <CodeBlock
-        title="Protected API Request Example"
+        title="Session Adapter Request and Response"
         code={`// Example of calling the protected API from a client component
 const response = await fetch('/api/protected', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
   },
-  // Same-origin requests use the authenticated session cookie automatically
+  // The same-origin browser request sends the session cookie automatically.
+  // The body carries no token, principal, organization, role, or permission.
   body: JSON.stringify({
     action: 'calc/add', // Name of the registered action
-    payload: { a: 10, b: 20 }        // Client payload passed to the action
+    payload: { a: 10, b: 20 },
   })
 });
 
 const result = await response.json();
 if (result.error) {
-  handleApiError(result.error); // Handle sanitized error code
+  handleApiError(result.error); // Handle a fixed sanitized code
 } else {
-  renderData(result.data);       // Process successful result
+  renderData(result.data); // Process the successful result
 }`}
       />
 
@@ -94,7 +95,7 @@ if (result.error) {
         External Automation Endpoint
       </h2>
       <p style={styles.textStyle}>
-        <code style={styles.codeStyle}>POST /api/protected</code> remains the browser session-cookie endpoint and keeps same-origin CSRF protection. External automation must use the separate <code style={styles.codeStyle}>POST /api/protected/automation</code> endpoint with an exchanged bearer access token. A raw <code style={styles.codeStyle}>pat_...</code> value is never accepted here.
+        <code style={styles.codeStyle}>POST /api/protected</code> remains the session-cookie endpoint with same-origin CSRF protection. External automation uses the separate <code style={styles.codeStyle}>POST /api/protected/automation</code> adapter with a verified API-resource bearer token. A raw <code style={styles.codeStyle}>pat_...</code> value is not accepted as a bearer token.
       </p>
       <CodeBlock
         title="PAT exchange, then automation request"
@@ -112,37 +113,36 @@ const response = await fetch('/api/protected/automation', {
 });`}
       />
       <p style={styles.textStyle}>
-        The automation endpoint verifies the API-resource audience and performs the same live RBAC checks. Configure <code style={styles.codeStyle}>PROTECTED_AUTOMATION_ALLOWED_ORIGINS=*</code> only for the temporary rollout; CORS is not authentication. Later set it to the exact OPNform origin, such as <code style={styles.codeStyle}>https://&lt;opnform-origin&gt;</code>, with no path or wildcard. The endpoint never enables wildcard credentials.
+        The automation adapter verifies the API-resource audience, then passes an <code style={styles.codeStyle}>external</code> principal to the same executor. An action must allow <code style={styles.codeStyle}>external</code> in <code style={styles.codeStyle}>credentialModes</code> before this transport can invoke it. Configure <code style={styles.codeStyle}>PROTECTED_AUTOMATION_ALLOWED_ORIGINS</code> with the intended origin or origins. Prefer the exact OPNform origin, such as <code style={styles.codeStyle}>https://&lt;opnform-origin&gt;</code>, in production. CORS controls browser access and is not authentication.
       </p>
 
-      <h2 id={slugify("Server-Side API Claim Validation")} style={h2Style}>
-        Server-Side API Claim Validation
+      <h2 id={slugify("Adapter Checks and Live RBAC")} style={h2Style}>
+        Adapter Checks and Live RBAC
       </h2>
       <p style={styles.textStyle}>
-        The API route validates incoming claims using a secure multi-layer sequence:
+        Each transport adapter authenticates its own credential before it calls the executor. The executor receives a credential-free context with only the server-derived subject and mode.
       </p>
       <p style={styles.textStyle}>
-        1. **Active Organization Determination**: The backend calls <code style={styles.codeStyle}>fetchUserAsOrg()</code>, which executes <code style={styles.codeSmStyle}>GET /api/users/{"{id}"}</code> via the Management API and reads <code style={styles.codeStyle}>customData.Preferences.asOrg</code> to determine the user&apos;s active organization. If it does not match the action&apos;s required org, the request is rejected immediately with <code style={styles.codeStyle}>ORG_NOT_MEMBER</code>.
+        1. **Session Adapter:** The route checks same-origin policy, retrieves and introspects the session, validates its application audience, applies the shared request limit, caps the parsed body at 1 MiB, and checks the selected organization for the registered action.
       </p>
       <p style={styles.textStyle}>
-        2. **Token Introspection**: The endpoint retrieves the user session token and executes token introspection via Logto OIDC endpoints. This validates whether the token is active, unexpired, and associated with a valid user ID.
+        2. **Automation Adapter:** The route checks the configured CORS policy, verifies a signed bearer token for the configured API resource, and rejects raw PAT values. It does not use the session cookie as a fallback.
       </p>
       <p style={styles.textStyle}>
-        3. **Management API Verification (M2M)**: If the active organization matches, the backend calls <code style={styles.codeStyle}>verifyOrgAccess()</code>, which uses Machine-to-Machine (M2M) credentials to confirm the user&apos;s organization roles and permissions. It executes the following endpoints:
+        3. **Executor Policy:** <code style={styles.codeStyle}>executeProtectedAction()</code> resolves the action, validates its policy, and checks that the context mode appears in <code style={styles.codeStyle}>credentialModes</code>. That field defaults to <code style={styles.codeStyle}>session</code>.
       </p>
-      <ul style={{ ...styles.textStyle, paddingLeft: '20px', listStyleType: 'disc' }}>
-        <li><code style={styles.codeSmStyle}>GET /api/organizations/{"{orgId}"}/users/{"{userId}"}/roles</code> to fetch the user&apos;s roles in the organization. A non-empty result confirms membership.</li>
-        <li><code style={styles.codeSmStyle}>GET /api/organization-roles/{"{roleId}"}/scopes</code> in parallel for each role to resolve active permission claims.</li>
-      </ul>
       <p style={styles.textStyle}>
-        4. **Assertion Gating**: If any of the required organization, role, or permission claims are missing, the server halts execution immediately and rejects the request.
+        4. **Live RBAC:** For organization actions, the executor calls <code style={styles.codeStyle}>fetchOrgRolePermissions()</code> with the configured organization and authenticated subject. It checks required roles and permissions before calling the handler.
+      </p>
+      <p style={styles.textStyle}>
+        The <code style={styles.codeStyle}>permissionBinding</code> policy defaults to <code style={styles.codeStyle}>union</code>, which checks permissions across the subject&apos;s roles. The <code style={styles.codeStyle}>required-role</code> option binds permissions to the required role. The handler receives its actor and organization from the executor, not from the client payload.
       </p>
 
       <h2 id={slugify("API Error Codes")} style={h2Style}>
         API Error Codes
       </h2>
       <p style={styles.textStyle}>
-        The backend route rejects invalid or unauthorized requests with standardized HTTP status codes and fixed error strings:
+        The adapters return a consistent <code style={styles.codeSmStyle}>{'{ error, data }'}</code> envelope. Failures contain a fixed error code and <code style={styles.codeSmStyle}>data: null</code>, not exception details.
       </p>
       <table style={customTableStyle}>
         <thead>
@@ -154,9 +154,9 @@ const response = await fetch('/api/protected/automation', {
         </thead>
         <tbody>
           <tr>
-            <td style={customTdPropStyle}>MISSING_FIELDS</td>
+            <td style={customTdPropStyle}>INVALID_PAYLOAD</td>
             <td style={customTdStyle}>400</td>
-            <td style={customTdStyle}>The action name is missing from the request body.</td>
+            <td style={customTdStyle}>The executor rejected the action payload.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>PAYLOAD_TOO_LARGE</td>
@@ -164,54 +164,44 @@ const response = await fetch('/api/protected/automation', {
             <td style={customTdStyle}>The request body exceeds the 1 MiB size limit (enforced by reading the actual stream bytes).</td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>TOKEN_INVALID</td>
-            <td style={customTdStyle}>401 / 400</td>
-            <td style={customTdStyle}>The access token is expired, inactive, or the user ID format is invalid.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>INTROSPECTION_ERROR</td>
-            <td style={customTdStyle}>401</td>
-            <td style={customTdStyle}>Failed to complete token introspection with the OIDC server.</td>
-          </tr>
-          <tr>
             <td style={customTdPropStyle}>UNAUTHORIZED</td>
             <td style={customTdStyle}>401</td>
-            <td style={customTdStyle}>No authenticated session token was provided.</td>
+            <td style={customTdStyle}>The session adapter or automation adapter did not establish an active principal.</td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>RATE_LIMITED</td>
-            <td style={customTdStyle}>429</td>
-            <td style={customTdStyle}>The per-user request rate limit has been exceeded. The response includes a <code style={styles.codeSmStyle}>Retry-After: 60</code> header.</td>
-          </tr>
-          <tr>
-            <td style={customTdPropStyle}>ACTION_NOT_FOUND</td>
-            <td style={customTdStyle}>404</td>
-            <td style={customTdStyle}>The requested action is not registered in the system.</td>
+            <td style={customTdPropStyle}>FORBIDDEN_ORIGIN</td>
+            <td style={customTdStyle}>403</td>
+            <td style={customTdStyle}>The request origin failed the applicable same-origin or CORS policy.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>ORG_NOT_MEMBER</td>
             <td style={customTdStyle}>403</td>
-            <td style={customTdStyle}>The user is not a member of the required organization.</td>
+            <td style={customTdStyle}>Live organization lookup did not confirm the required membership.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>ROLE_DENIED</td>
             <td style={customTdStyle}>403</td>
-            <td style={customTdStyle}>The user lacks one or more required organization roles.</td>
+            <td style={customTdStyle}>The subject does not hold every role required by the action.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>PERMISSION_DENIED</td>
             <td style={customTdStyle}>403</td>
-            <td style={customTdStyle}>The user lacks one or more required permissions.</td>
+            <td style={customTdStyle}>The live permissions or allowed context modes do not satisfy the action policy.</td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>INVALID_PAYLOAD</td>
-            <td style={customTdStyle}>400</td>
-            <td style={customTdStyle}>The action handler rejected the payload structure or type.</td>
+            <td style={customTdPropStyle}>NOT_FOUND</td>
+            <td style={customTdStyle}>404</td>
+            <td style={customTdStyle}>The action handler could not find the requested resource.</td>
           </tr>
           <tr>
-            <td style={customTdPropStyle}>IMPROPER_SETUP_ERROR</td>
-            <td style={customTdStyle}>500</td>
-            <td style={customTdStyle}>The action configuration lacks required organization, role, or permission keys.</td>
+            <td style={customTdPropStyle}>RATE_LIMITED</td>
+            <td style={customTdStyle}>429</td>
+            <td style={customTdStyle}>The shared per-user limit of 60 requests per 60 seconds was reached. The response includes <code style={styles.codeSmStyle}>Retry-After</code>.</td>
+          </tr>
+          <tr>
+            <td style={customTdPropStyle}>SERVICE_UNAVAILABLE</td>
+            <td style={customTdStyle}>503</td>
+            <td style={customTdStyle}>A required shared dependency could not provide service.</td>
           </tr>
           <tr>
             <td style={customTdPropStyle}>INTERNAL_ERROR</td>
@@ -221,35 +211,6 @@ const response = await fetch('/api/protected/automation', {
         </tbody>
       </table>
 
-      <h2 id={slugify("The safeAction Wrapper")} style={h2Style}>
-        The safeAction Wrapper
-      </h2>
-      <p style={styles.textStyle}>
-        All server actions utilize the <code style={styles.codeStyle}>safeAction</code> wrapper. It catches exceptions thrown during execution, sanitizes error messages to prevent internal details from leaking, and returns a standardized result type.
-      </p>
-      <CodeBlock
-        title="safeAction Implementation"
-        code={`export type ActionResult = { ok: true } | { ok: false; error: string };
-export type DataResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
-export async function safeAction<T>(fn: () => Promise<T>): Promise<DataResult<T>> {
-  try {
-    const data = await fn();
-    return { ok: true, data };
-  } catch (err) {
-    // Preserve pre-sanitized errors (e.g. sanitize() in errors.ts sets name='SanitizedError')
-    // so intentional codes like 'UNAUTHORIZED' survive the double-wrap.
-    if (err instanceof Error && (err.name === 'SanitizedError' || err.name === 'ValidationError')) {
-      return { ok: false, error: captureMessage(err) };
-    }
-    const safe = sanitize(err, { fallback: 'INTERNAL_ERROR' });
-    return { ok: false, error: captureMessage(safe) };
-  }
-}`}
-      />
-      <p style={styles.textStyle}>
-        By wrapping execution blocks with <code style={styles.codeStyle}>safeAction</code>, standard exceptions are intercepted and converted into standardized JSON structures before execution enters or returns from the action body. (The debug logging block via <code style={styles.codeStyle}>isDebug</code> / <code style={styles.codeStyle}>warn</code> is omitted above for brevity.)
-      </p>
     </div>
   );
 }

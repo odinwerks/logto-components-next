@@ -105,6 +105,7 @@ export const ERROR_CODES = {
   UPDATE_FAILED: { code: 'UPDATE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   DELETE_FAILED: { code: 'DELETE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   ACTION_NOT_FOUND: { code: 'ACTION_NOT_FOUND', category: 'server', defaultVerbosity: 'generic', exposeToClient: false },
+  NOT_FOUND: { code: 'NOT_FOUND', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   SERVICE_UNAVAILABLE: { code: 'SERVICE_UNAVAILABLE', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   MFA_ENROLL_FAILED: { code: 'MFA_ENROLL_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
   MFA_REMOVE_FAILED: { code: 'MFA_REMOVE_FAILED', category: 'server', defaultVerbosity: 'specific', exposeToClient: true },
