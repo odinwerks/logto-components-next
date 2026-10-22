@@ -275,11 +275,10 @@ export interface SessionMeta {
   lastActive: string | null; // Populated from session.lastActiveAt ?? null
   createdAt: string;
   /**
-   * Enriched UI-facing value derived from `LogtoSession.isCurrent ?? false`.
-   * Always `false` until Logto ships the `isCurrent` field in the Account API
-   * sessions response (PRs #8728-#8731). After enrichment, this is the
-   * authoritative value for UI components - read `session.meta.isCurrent`,
-   * not the raw `session.isCurrent`.
+   * Enriched UI-facing value resolved by `resolveCurrentSessionUid` in
+   * `getSessionsWithDeviceMeta`. The Account API now ships `isCurrent`, but
+   * this is the authoritative, fail-closed value for UI components — read
+   * `session.meta.isCurrent`, not the raw `session.isCurrent`.
    */
   isCurrent: boolean;
 }
@@ -293,10 +292,9 @@ export interface LogtoSession {
   /**
    * Raw value from the Logto Account API (`GET /api/my-account/sessions`).
    * `true` for the session backing the caller's access token, `false` for
-   * the others. `undefined` until Logto ships PRs #8728-#8731 - the
-   * `getSessionsWithDeviceMeta` action uses `?? false` when populating
-   * `SessionMeta.isCurrent`. UI components should read `session.meta.isCurrent`,
-   * not this field directly.
+   * the others (the API now ships this field). UI components should read
+   * `session.meta.isCurrent`, not this field directly — the meta value is
+   * resolved by `resolveCurrentSessionUid` and is fail-closed.
    */
   isCurrent?: boolean;
   lastActiveAt?: string | null;
@@ -317,8 +315,24 @@ export interface OidcIntrospectionResponse {
   iss?: string;
   token_type?: string;
   organization_id?: string;
-  sid?: string; // Session ID
+  sid?: string; // Per-client OIDC session id (NOT payload.uid / sessionUid)
   jti?: string; // JWT ID
+}
+
+/**
+ * Authentication principal supplied to the protected-action authorization
+ * core.  The automation route creates the bearer variant only after both JWT
+ * verification and OIDC introspection have succeeded.  The token is retained
+ * for server-side downstream work only and must never be serialized or logged.
+ */
+export interface ProtectedAuthContext {
+  source: 'session' | 'bearer';
+  token: string;
+  userId: string;
+  sid?: string;
+  scopes: string[];
+  organizationId?: string;
+  introspection: OidcIntrospectionResponse;
 }
 
 // ============================================================================

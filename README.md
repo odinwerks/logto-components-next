@@ -1405,6 +1405,10 @@ A secure API endpoint for executing permission-gated actions from the client.
 
 **Endpoint:** `POST /api/protected`
 
+This is the browser-only, same-origin session-cookie endpoint. It authenticates
+with the Logto session cookie and keeps the existing CSRF `Origin` check. It
+does not accept an `Authorization` header or a PAT.
+
 ```tsx
 import { useCallback } from 'react';
 
@@ -1457,6 +1461,56 @@ const callProtected = useCallback(async (action: string, payload: unknown) => {
 | `PERMISSION_DENIED` | 403 | User lacks required permission |
 | `INVALID_PAYLOAD` | 400 | Handler rejected the payload shape |
 | `INTERNAL_ERROR` | 500 | Unexpected server error (catch-all) |
+
+---
+
+### Protected automation endpoint
+
+External automation clients use the separate
+`POST /api/protected/automation` endpoint. It accepts the same
+`{ action, payload? }` request and `{ error, data }` response contract, but is
+**bearer-only**: it never falls back to the browser cookie and never accepts a
+raw `pat_...` value. Obtain an API-resource access token from Logto's
+`POST /oidc/token` token exchange first, passing `resource` equal to the
+configured `PROTECTED_API_RESOURCE`, then send the exchanged token:
+
+```http
+Authorization: Bearer <exchanged-access-token>
+Content-Type: application/json
+```
+
+The automation endpoint verifies the signed JWT issuer, expiration, signature,
+and API-resource audience, then performs active-token introspection and the
+same server-side RBAC checks as the session endpoint. User, organization, role,
+and permission identity is never accepted from the request body. For
+organization actions, the validated token's `organization_id` must match the
+action configuration; the browser `customData.Preferences.asOrg` value is not
+used for bearer requests.
+
+The endpoint supports CORS preflight (`OPTIONS`). Set
+`PROTECTED_AUTOMATION_ALLOWED_ORIGINS=*` for the temporary rollout default, or
+later replace it with the exact OPNform origin, for example
+`https://<opnform-origin>`—not a path or wildcard. CORS is only a browser
+policy, not authentication: every `POST` still requires a valid exchanged
+bearer token, and responses never enable wildcard credentials.
+
+Automation-specific status behavior is `204` for an allowed preflight,
+`403 FORBIDDEN_ORIGIN` for a disallowed configured origin, and `401
+UNAUTHORIZED` for a missing, malformed, raw-PAT, expired, invalidly signed, or
+wrong-audience bearer credential. Allowed-origin `POST` errors (including
+`403` RBAC denials, `429` rate limits, and `500` failures) include the matching
+CORS response headers and retain `Retry-After` when throttled.
+
+Required runtime configuration:
+
+```env
+PROTECTED_API_RESOURCE=https://your-tenant.logto.app/api
+PROTECTED_AUTOMATION_ALLOWED_ORIGINS=*
+```
+
+`PROTECTED_API_RESOURCE` must exactly match the resource requested during the
+PAT exchange at Logto's `/oidc/token` endpoint. Keep the PAT confined to that
+exchange; do not send it to this application endpoint.
 
 ---
 
@@ -1580,6 +1634,11 @@ function MyComponent() {
 5. **Org Membership Check** - Ensures user is member of selected org (or passes through for personal RBAC with orgId="self")
 6. **Permission Check** - Calls Management API to verify user's organization token has required permission
 7. **Execute Action** - Runs the registered handler if all checks pass
+
+For external automation, the corresponding flow is: exchange the PAT at
+Logto's `/oidc/token` endpoint with the configured API resource, then call
+`POST /api/protected/automation` with the resulting bearer access token. The
+PAT itself is never accepted by this application.
 
 #### Organization Switching Flow
 

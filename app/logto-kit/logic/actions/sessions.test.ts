@@ -83,8 +83,18 @@ import { auditSafe } from './helpers';
  * Build a minimal LogtoSession-shaped object for testing.
  * Pass `isCurrent: true` or `isCurrent: false` to simulate the Logto API
  * returning the field, or omit it entirely (undefined) to simulate pre-ship Logto.
+ * `opts.authorizations` maps clientId -> { sid } (per-client OIDC sid, post-R1 wire).
  */
-const mockSession = (uid: string, isCurrent?: boolean): LogtoSession => ({
+const mockSession = (
+  uid: string,
+  isCurrent?: boolean,
+  opts?: {
+    authorizations?: Record<string, { sid?: string; grantId?: string; persistsLogout?: boolean }>;
+    expiresAt?: number;
+    accountId?: string | null;
+    payloadAccountId?: string;
+  },
+): LogtoSession => ({
   payload: {
     exp: 9999999999,
     iat: 1700000000,
@@ -92,17 +102,18 @@ const mockSession = (uid: string, isCurrent?: boolean): LogtoSession => ({
     uid,
     kind: 'Session' as const,
     loginTs: 1700000000,
-    accountId: 'acct_1',
+    accountId: opts?.payloadAccountId ?? 'acct_1',
+    ...(opts?.authorizations !== undefined ? { authorizations: opts.authorizations } : {}),
   },
   lastSubmission: {
     interactionEvent: 'SignIn' as const,
     userId: 'user_1',
     verificationRecords: [],
-    signInContext: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', ip: '1.2.3.4' },
+    signInContext: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36', ip: '1.2.3.4' },
   },
   clientId: 'app_1',
-  accountId: 'acct_1',
-  expiresAt: 9999999999,
+  accountId: opts?.accountId === undefined ? 'acct_1' : opts.accountId,
+  expiresAt: opts?.expiresAt ?? 9999999999,
   meta: null,
   ...(isCurrent !== undefined ? { isCurrent } : {}),
 });
@@ -159,13 +170,20 @@ describe('getSessionsWithDeviceMeta', () => {
     expect(result.data[0].meta?.isCurrent).toBe(true);
   });
 
-  it('derives the current session by comparing introspected sid to payload.uid (M-035)', async () => {
-    const matchingSession = mockSession('current-session', undefined);
-    const otherSession = mockSession('other-session', undefined);
+  it('resolves the current session via payload.authorizations[client_id].sid when sid differs from payload.uid (post-R1 wire)', async () => {
+    // Post-R1 token carries a per-client `sid` that is NOT `payload.uid`.
+    // The durable association is `authorizations[client_id].sid === sid`.
+    // payloadAccountId === introspection.sub (same-subject binding).
+    const matchingSession = mockSession('uid-current-xyz', true, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+      payloadAccountId: 'user-test-123',
+    });
+    const otherSession = mockSession('uid-other-123', false);
     vi.mocked(introspectToken).mockResolvedValue({
       sub: 'user-test-123',
       active: true,
-      sid: 'current-session',
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
     });
     vi.mocked(makeRequest).mockResolvedValue(
       mockJsonResponse({ sessions: [matchingSession, otherSession] })
@@ -178,6 +196,201 @@ describe('getSessionsWithDeviceMeta', () => {
     if (!result.ok) return;
     expect(result.data[0].meta?.isCurrent).toBe(true);
     expect(result.data[1].meta?.isCurrent).toBe(false);
+  });
+
+  it('resolves via authorizations map when upstream markers are absent (sid present, no isCurrent fields)', async () => {
+    const matchingSession = mockSession('uid-current-xyz', undefined, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+      payloadAccountId: 'user-test-123',
+    });
+    const otherSession = mockSession('uid-other-123', undefined);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [matchingSession, otherSession] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data[0].meta?.isCurrent).toBe(true);
+    expect(result.data[1].meta?.isCurrent).toBe(false);
+  });
+
+  it('fails closed when sid only matches a DIFFERENT client authorization map (wrong-client sid)', async () => {
+    const wrongClient = mockSession('uid-a', false, {
+      authorizations: { other_app: { sid: 'per-client-sid-abc' } },
+    });
+    const other = mockSession('uid-b', false);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [wrongClient, other] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('fails closed when sid matches TWO rows in the same client authorization map (duplicate sid)', async () => {
+    const a = mockSession('uid-a', false, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+    });
+    const b = mockSession('uid-b', false, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+    });
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [a, b] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('fails closed when the sid-matched row is expired (stale-sid resurrection)', async () => {
+    const expired = mockSession('uid-dead', undefined, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+      expiresAt: 1700000000000, // epoch ms, in the past
+    });
+    const other = mockSession('uid-live', undefined);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [expired, other] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('fails closed when sid-matched row is isCurrent:false and upstream reports zero current (explicit-zero markers)', async () => {
+    const dead = mockSession('uid-dead', false, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+    });
+    const other = mockSession('uid-live', false);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [dead, other] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('fails closed when a unique sid match conflicts with upstream isCurrent:true on a different row', async () => {
+    const sidMatch = mockSession('uid-a', false, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+    });
+    const upstreamMatch = mockSession('uid-b', true);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [sidMatch, upstreamMatch] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('fails closed when sid is present but introspection.client_id is absent', async () => {
+    const matchingSession = mockSession('uid-current-xyz', true, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+    });
+    const other = mockSession('uid-other-123', false);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      // client_id absent
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [matchingSession, other] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map(s => s.meta?.isCurrent)).toEqual([true, true]);
+  });
+
+  it('preserves device metadata (lastActive, ip, browser, createdAt) on the resolved row (post-R1 wire)', async () => {
+    const matchingSession = mockSession('uid-current-xyz', true, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+      payloadAccountId: 'user-test-123',
+    });
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+    vi.mocked(makeRequest).mockResolvedValue(
+      mockJsonResponse({ sessions: [matchingSession] })
+    );
+
+    const { getSessionsWithDeviceMeta } = await import('./sessions');
+    const result = await getSessionsWithDeviceMeta('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const meta = result.data[0].meta;
+    expect(meta?.isCurrent).toBe(true);
+    expect(meta?.ip).toBe('1.2.3.4');
+    expect(meta?.browser).toBe('Chrome');
+    expect(meta?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // lastActive comes from lastActiveAt; mockSession leaves it undefined -> null
+    expect(meta?.lastActive).toBeNull();
   });
 
   it('marks all rows non-revocable when sid matches no returned session (M-035)', async () => {
@@ -470,8 +683,19 @@ describe('revokeAllOtherSessions', () => {
     sessions[1].payload.jti = 'jti-other-def';
     sessions[1].payload.uid = 'uid-other-123';
 
-    // Mock introspection to return sid matching the current session's uid
-    vi.mocked(introspectToken).mockResolvedValue({ sub: 'user-test-123', active: true, sid: 'uid-current-xyz' });
+    // Post-R1 premise: per-client sid resolves via authorizations[client_id].sid,
+    // never via payload.uid. uid and jti stay distinct for the DELETE-path check.
+    sessions[0].payload.authorizations = { app_1: { sid: 'per-client-sid-abc' } };
+    // Same-subject binding: payload.accountId must equal introspection.sub.
+    sessions[0].payload.accountId = 'user-test-123';
+
+    // Mock introspection to return a per-client sid + audience-validated client_id.
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
 
     const deletedPaths: string[] = [];
 
@@ -524,6 +748,149 @@ describe('revokeAllOtherSessions', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected error result');
     expect(result.error).toContain('SESSION_REVOKE_FAILED');
+  });
+
+  it('revokes only other uids on the post-R1 wire (sid resolves via authorizations[client_id].sid)', async () => {
+    const currentSession = mockSession('uid-current-xyz', true, {
+      authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+      payloadAccountId: 'user-test-123',
+    });
+    const otherSession1 = mockSession('uid-other-1', false);
+    const otherSession2 = mockSession('uid-other-2', false);
+    vi.mocked(introspectToken).mockResolvedValue({
+      sub: 'user-test-123',
+      active: true,
+      sid: 'per-client-sid-abc',
+      client_id: 'app_1',
+    });
+
+    const deletedPaths: string[] = [];
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: [currentSession, otherSession1, otherSession2] });
+      }
+      if (opts.method === 'DELETE') {
+        deletedPaths.push(path);
+        return mockJsonResponse({}, 204);
+      }
+      return mockJsonResponse({}, 200);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(true);
+    // Only the two OTHER uids deleted; resolved current uid survives.
+    expect(deletedPaths).toHaveLength(2);
+    expect(deletedPaths.every(p => !p.includes('uid-current-xyz'))).toBe(true);
+    expect(deletedPaths.some(p => p.includes('uid-other-1'))).toBe(true);
+    expect(deletedPaths.some(p => p.includes('uid-other-2'))).toBe(true);
+  });
+
+  it.each([
+    {
+      name: 'wrong-client sid only matches a different client map',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc', client_id: 'app_1' },
+      sessions: () => [
+        mockSession('uid-a', false, { authorizations: { other_app: { sid: 'per-client-sid-abc' } } }),
+        mockSession('uid-b', false),
+      ],
+    },
+    {
+      name: 'duplicate sid in same client map',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc', client_id: 'app_1' },
+      sessions: () => [
+        mockSession('uid-a', false, { authorizations: { app_1: { sid: 'per-client-sid-abc' } } }),
+        mockSession('uid-b', false, { authorizations: { app_1: { sid: 'per-client-sid-abc' } } }),
+      ],
+    },
+    {
+      name: 'sid-matched row expired (stale-sid resurrection)',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc', client_id: 'app_1' },
+      sessions: () => [
+        mockSession('uid-dead', undefined, {
+          authorizations: { app_1: { sid: 'per-client-sid-abc' } },
+          expiresAt: 1700000000000,
+        }),
+        mockSession('uid-live', undefined),
+      ],
+    },
+    {
+      name: 'sid-matched row isCurrent:false, upstream reports zero current',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc', client_id: 'app_1' },
+      sessions: () => [
+        mockSession('uid-dead', false, { authorizations: { app_1: { sid: 'per-client-sid-abc' } } }),
+        mockSession('uid-live', false),
+      ],
+    },
+    {
+      name: 'unique sid match conflicts with upstream isCurrent:true on a different row',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc', client_id: 'app_1' },
+      sessions: () => [
+        mockSession('uid-a', false, { authorizations: { app_1: { sid: 'per-client-sid-abc' } } }),
+        mockSession('uid-b', true),
+      ],
+    },
+    {
+      name: 'sid present but client_id absent',
+      introspection: { sub: 'user-test-123', active: true, sid: 'per-client-sid-abc' },
+      sessions: () => [
+        mockSession('uid-a', true, { authorizations: { app_1: { sid: 'per-client-sid-abc' } } }),
+        mockSession('uid-b', false),
+      ],
+    },
+    {
+      name: 'sid absent, all rows isCurrent:false',
+      introspection: { sub: 'user-test-123', active: true },
+      sessions: () => [mockSession('uid-a', false), mockSession('uid-b', false)],
+    },
+    {
+      name: 'sid absent, two rows isCurrent:true',
+      introspection: { sub: 'user-test-123', active: true },
+      sessions: () => [mockSession('uid-a', true), mockSession('uid-b', true)],
+    },
+    {
+      name: 'sid absent, all isCurrent undefined',
+      introspection: { sub: 'user-test-123', active: true },
+      sessions: () => [mockSession('uid-a', undefined), mockSession('uid-b', undefined)],
+    },
+  ])('fails closed with zero DELETEs: $name', async ({ introspection, sessions }) => {
+    vi.mocked(introspectToken).mockResolvedValue(introspection);
+
+    const deletedPaths: string[] = [];
+    vi.mocked(makeRequest).mockImplementation(async (path, opts) => {
+      if (!opts?.method || opts.method === 'GET') {
+        return mockJsonResponse({ sessions: sessions() });
+      }
+      if (opts.method === 'DELETE') {
+        deletedPaths.push(path);
+        return mockJsonResponse({}, 204);
+      }
+      return mockJsonResponse({}, 200);
+    });
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verification-record-id');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error result');
+    expect(result.error).toContain('SESSION_REVOKE_FAILED');
+    // M-035: fail-closed must mean ZERO mutations.
+    expect(deletedPaths).toHaveLength(0);
+  });
+
+  it('issues zero DELETEs and skips the sessions GET when sealed verification is rejected', async () => {
+    const expiredErr = Object.assign(new Error('VERIFICATION_EXPIRED'), { name: 'SanitizedError' });
+    vi.mocked(requireVerifiedIdentity).mockRejectedValueOnce(expiredErr);
+
+    const { revokeAllOtherSessions } = await import('./sessions');
+    const result = await revokeAllOtherSessions('verif_expired');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected error result');
+    expect(result.error).toBe('VERIFICATION_EXPIRED');
+    // requireVerifiedIdentity throws before getUserSessionsInternal runs.
+    expect(makeRequest).not.toHaveBeenCalled();
   });
 
   // BUG-019: Session revocation timeout should abort the HTTP request
@@ -885,6 +1252,11 @@ describe('server action export surface (BUG-002)', () => {
   it('does not export getUserSessionsInternal', async () => {
     const mod = await import('./sessions');
     expect((mod as Record<string, unknown>).getUserSessionsInternal).toBeUndefined();
+  });
+
+  it('does not export resolveCurrentSessionUid (would be a client-callable identity-resolution oracle)', async () => {
+    const mod = await import('./sessions');
+    expect((mod as Record<string, unknown>).resolveCurrentSessionUid).toBeUndefined();
   });
 
   it('still exports the public wrappers (verification-enforced + audited)', async () => {

@@ -5,7 +5,14 @@ import { getCleanEndpoint, introspectToken } from '../utils';
 import { debugLog } from '../debug';
 import { assertSafeUserId, assertSafeLogtoId } from '../guards';
 import { safeAction, type DataResult } from './safe';
-import type { UserRole, PersonalPermission, RoleScope, PersonalAccessResult, OidcIntrospectionResponse } from '../types';
+import type {
+  UserRole,
+  PersonalPermission,
+  RoleScope,
+  PersonalAccessResult,
+  OidcIntrospectionResponse,
+  ProtectedAuthContext,
+} from '../types';
 import { warn } from '../log';
 import { getTokenForServerAction } from './tokens';
 import { sanitize, plainCode } from '../errors';
@@ -190,40 +197,55 @@ export async function getUserRoles(): Promise<DataResult<UserRole[]>> {
  * config sets requiredOrgId to "self", the route calls this instead of
  * verifyOrgAccess.
  *
- * SECURITY CONTRACT (BUG-005): The authoritative user identity ALWAYS comes
- * from a fresh `introspectToken(...)` call performed inside this function,
- * derived from the live session token. The `expectedPrincipal` parameter is
- * treated ONLY as a consistency assertion compared against the introspected
- * `sub`/`sid` — it is never trusted as the identity itself. There is no
- * `existingIntrospection` parameter: trusting a caller-supplied introspection
- * object's `.sub` would be a latent IDOR (a caller could substitute another
- * user's `sub` and gain access to their roles/permissions).
+ * SECURITY CONTRACT (BUG-005): Session callers derive identity from a fresh
+ * `introspectToken(...)` call inside this function. Bearer callers may supply
+ * the protected-action core's already-authenticated context; that context is
+ * accepted only when it is a bearer context whose introspected subject matches
+ * its server-derived userId. The legacy `expectedPrincipal` parameter remains
+ * a consistency assertion for session callers and is never an identity source.
+ * There is no client-supplied introspection path: accepting an unverified
+ * object's `.sub` would be a latent IDOR.
  *
  * BUG-061: The `introspectToken(...)` call is wrapped in try/catch so a
  * network/token failure fails closed as UNAUTHORIZED instead of bubbling raw
  * upstream errors.
  *
  * Flow:
- *   1. Introspect session → userId
+ *   1. Introspect session (or use the authenticated bearer context) → userId
  *   2. GET /api/users/{userId}/roles → personal roles
  *   3. For each role: GET /api/roles/{roleId}/scopes → scope names
  *   4. Union scope names → effective personal permissions
  */
 export async function verifyPersonalAccess(
   expectedPrincipal?: ExpectedPrincipal,
+  authenticatedContext?: ProtectedAuthContext,
 ): Promise<DataResult<PersonalAccessResult>> {
   return safeAction(async () => {
-    // BUG-005: ALWAYS perform a fresh introspection internally. The user
-    // identity must come from the live session token, never from a
-    // caller-supplied introspection object (latent IDOR).
-    // BUG-061: wrap token retrieval + introspection in try/catch so failures
-    // fail closed as UNAUTHORIZED instead of bubbling raw errors.
     let introspection: OidcIntrospectionResponse;
-    try {
-      const sessionToken = await getTokenForServerAction();
-      introspection = await introspectToken(sessionToken, { assertAudience: true });
-    } catch (err) {
-      throw sanitize(err, { fallback: 'UNAUTHORIZED' });
+    if (authenticatedContext) {
+      // The protected-action core passes this context only after the bearer
+      // route has verified the JWT and matched its subject to introspection.
+      // Keep the identity bound to the introspected subject; callers cannot
+      // provide a user ID independently of this server-derived context.
+      introspection = authenticatedContext.introspection;
+      if (
+        authenticatedContext.source !== 'bearer' ||
+        !introspection.active ||
+        introspection.sub !== authenticatedContext.userId
+      ) {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
+    } else {
+      // Session callers retain the historical behavior: re-read the SDK
+      // cookie and introspect it inside this verifier rather than trusting a
+      // caller-supplied principal.
+      // BUG-061: token retrieval + introspection fail closed as UNAUTHORIZED.
+      try {
+        const sessionToken = await getTokenForServerAction();
+        introspection = await introspectToken(sessionToken, { assertAudience: true });
+      } catch (err) {
+        throw sanitize(err, { fallback: 'UNAUTHORIZED' });
+      }
     }
 
     if (!introspection.active) {

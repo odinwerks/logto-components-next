@@ -121,43 +121,15 @@ export async function getSessionsWithDeviceMeta(
     // Reuse the auth-guard introspection result to identify the current session
     // without adding another network round-trip.
     const userId = '';
-    const currentSessionId = introspection.sid || null;
+    const resolution = resolveCurrentSessionUid(sessions, {
+      sid: introspection.sid,
+      client_id: introspection.client_id,
+      sub: introspection.sub,
+    });
+    const currentSessionUnidentified = resolution.status === 'unidentified';
+    const resolvedUid = resolution.status === 'resolved' ? resolution.uid : null;
 
-    const upstreamCurrentIndexes = sessions.flatMap((session, index) =>
-      session.isCurrent === true ? [index] : []
-    );
-    const sidMatchIndexes = currentSessionId
-      ? sessions.flatMap((session, index) =>
-          session.payload.uid === currentSessionId ? [index] : []
-        )
-      : [];
-
-    let resolvedCurrentIndex: number | null = null;
-    let currentSessionUnidentified = false;
-
-    if (currentSessionId) {
-      const sidIsUnique = sidMatchIndexes.length === 1;
-      const upstreamIsConsistent = upstreamCurrentIndexes.length === 0 || (
-        upstreamCurrentIndexes.length === 1 &&
-        upstreamCurrentIndexes[0] === sidMatchIndexes[0]
-      );
-
-      if (sidIsUnique && upstreamIsConsistent) {
-        resolvedCurrentIndex = sidMatchIndexes[0];
-      } else {
-        // A missing/duplicate sid match or disagreement with the upstream flag
-        // cannot safely identify a revocable row. Fail closed for the full list.
-        currentSessionUnidentified = true;
-      }
-    } else if (upstreamCurrentIndexes.length === 1) {
-      resolvedCurrentIndex = upstreamCurrentIndexes[0];
-    } else {
-      // Without a usable sid, exactly one upstream true marker is required.
-      // Explicit false values cannot safely identify which row is current.
-      currentSessionUnidentified = true;
-    }
-
-    const enrichedSessions: LogtoSession[] = sessions.map((session, index) => {
+    const enrichedSessions: LogtoSession[] = sessions.map((session) => {
       const signInContext = session.lastSubmission?.signInContext;
       const deviceInfo = parseSignInContext(signInContext?.userAgent || '');
 
@@ -179,9 +151,9 @@ export async function getSessionsWithDeviceMeta(
         // ambiguous or conflicting, mark every row current so none is revocable.
         isCurrent: currentSessionUnidentified
           ? true
-          : resolvedCurrentIndex === null
-            ? (session.isCurrent ?? true)
-            : index === resolvedCurrentIndex,
+          : resolvedUid === null
+            ? (session.isCurrent ?? true)   // 'none-required' (empty list) — unreachable in practice, kept for shape safety
+            : session.payload.uid === resolvedUid,
       };
 
       return { ...session, meta };
@@ -189,6 +161,114 @@ export async function getSessionsWithDeviceMeta(
 
     return enrichedSessions;
   });
+}
+
+/**
+ * Resolves which session row belongs to the caller's current token.
+ *
+ * NOT exported (BUG-002 pattern): a non-exported function in a
+ * 'use server' file is not callable via RPC. Keep it private — exporting
+ * would create a client-callable identity-resolution oracle.
+ *
+ * Namespace note (post-R1): `introspection.sid` is the PER-CLIENT OIDC
+ * session id emitted since the shared app enabled
+ * `backchannelLogoutSessionRequired`. It is NOT `payload.uid` (the
+ * OP-internal sessionUid). The durable association lives at
+ * `payload.authorizations[clientId].sid` — the same join the OP's own
+ * `findExactSessionActivity` uses.
+ *
+ * Fail-closed contract: returns `{ status: 'unidentified' }` for ANY
+ * ambiguous or hostile shape. Callers must treat 'unidentified' as
+ * "mark every row current / refuse bulk revoke", never as "pick a guess".
+ *
+ * @returns One of:
+ *   `{ status:'resolved', uid }`   — exactly one row resolved; `uid` is the
+ *                                   row's `payload.uid` (canonical for DELETE).
+ *   `{ status:'none-required' }`   — sessions list is empty.
+ *   `{ status:'unidentified' }`    — cannot safely identify the current row.
+ */
+type CurrentSessionResolution =
+  | { status: 'resolved'; uid: string }
+  | { status: 'none-required' }
+  | { status: 'unidentified' };
+
+function resolveCurrentSessionUid(
+  sessions: LogtoSession[],
+  introspection: { sid?: string; client_id?: string; sub?: string },
+): CurrentSessionResolution {
+  if (sessions.length === 0) return { status: 'none-required' };
+
+  const upstreamIndexes = sessions.flatMap((s, i) => (s.isCurrent === true ? [i] : []));
+  const upstreamCount = upstreamIndexes.length;
+
+  // An upstream list that explicitly marks ≥2 rows current is internally
+  // inconsistent; zero explicit markers is handled per-path below.
+  if (upstreamCount > 1) return { status: 'unidentified' };
+
+  const sid = introspection.sid;
+
+  if (sid) {
+    // ── sid-present path (post-R1 wire) ─────────────────────────────────
+    // client_id is already audience-validated by assertAudience before this
+    // runs — keying authorizations[client_id] cannot be redirected by a
+    // forged client claim. A sid matching only a DIFFERENT client's map
+    // yields zero matches → unidentified. Never iterate other clients.
+    const clientId = introspection.client_id;
+    if (!clientId) return { status: 'unidentified' };
+
+    const sidMatchIndexes = sessions.flatMap((s, i) =>
+      s.payload.authorizations?.[clientId]?.sid === sid ? [i] : []
+    );
+    if (sidMatchIndexes.length !== 1) return { status: 'unidentified' };
+
+    const matchIndex = sidMatchIndexes[0];
+    const row = sessions[matchIndex];
+
+    // Same-subject guard (defense-in-depth): the sessions list is already
+    // user-scoped by the Account API and `sub` is asserted non-null upstream,
+    // but a mismatched accountId on a sid-matching row is a shape we must not
+    // honor. Skip rather than fail when either field is absent — old wire
+    // rows may lack accountId.
+    if (
+      row.payload.accountId !== undefined &&
+      introspection.sub !== undefined &&
+      row.payload.accountId !== introspection.sub
+    ) {
+      return { status: 'unidentified' };
+    }
+
+    // Stale-sid hazard: a sid persists in payload.authorizations even after
+    // the row is revoked/expired. If upstream actively reports a DIFFERENT
+    // single current row, or reports zero current while the matched row is
+    // provably dead, do NOT resurrect the dead row as current.
+    if (upstreamCount === 1 && upstreamIndexes[0] !== matchIndex) {
+      return { status: 'unidentified' }; // sid/upstream conflict
+    }
+    if (upstreamCount === 1 && upstreamIndexes[0] === matchIndex) {
+      return { status: 'resolved', uid: row.payload.uid }; // corroborated
+    }
+    // upstreamCount === 0: upstream shipped no marker (legacy shape) OR
+    // explicitly reports zero current. We may only resolve from the
+    // authorizations map when the row itself is not provably dead.
+    // expiresAt on the live wire is epoch milliseconds; the < 1e12 heuristic
+    // is a seconds-unit safety net. A non-numeric/un-parseable expiresAt is
+    // treated as NOT expired (absence of evidence must not demote).
+    const expiresAtMs =
+      typeof row.expiresAt === 'number'
+        ? row.expiresAt * (row.expiresAt < 1e12 ? 1000 : 1)
+        : Number.POSITIVE_INFINITY;
+    const expired = expiresAtMs <= Date.now();
+    const inactive = row.isCurrent === false; // explicit false on the ONLY matched row
+    if (expired || inactive) return { status: 'unidentified' };
+    return { status: 'resolved', uid: row.payload.uid };
+  }
+
+  // ── sid-absent path (pre-R1 wire) ──────────────────────────────────────
+  // Exactly one upstream marker is required; all-false/absent cannot identify.
+  if (upstreamCount === 1) {
+    return { status: 'resolved', uid: sessions[upstreamIndexes[0]].payload.uid };
+  }
+  return { status: 'unidentified' };
 }
 
 /**
@@ -289,10 +369,13 @@ export async function revokeUserSession(
 /**
  * Revokes all sessions except the caller's current session.
  *
- * Safety guard: identifies the current session via session UID matching from
- * token introspection (`sid` claim = OIDC session UID = payload.uid).
- * Falls back to `isCurrent` field if `sid` is unavailable.
- * Throws if neither method can identify the current session.
+ * Safety guard: identifies the current session via the shared
+ * `resolveCurrentSessionUid` resolver — the token's per-client `sid` is
+ * matched against each row's `payload.authorizations[clientId].sid`, and the
+ * resolved row's canonical `payload.uid` is kept. Falls back to a unique
+ * upstream `isCurrent` marker when `sid` is absent.
+ * Throws `SESSION_REVOKE_FAILED` when resolution is ambiguous or the current
+ * row cannot be identified — before any DELETE.
  *
  * @param verificationRecordId - Verification record obtained via password challenge.
  */
@@ -315,21 +398,24 @@ export async function revokeAllOtherSessions(
 
     const sessions = await getUserSessionsInternal(verificationRecordId);
 
-    // Identify current session via token introspection.
-    // The introspection `sid` claim is the OIDC session UID - matches payload.uid.
-    // Fall back to isCurrent flag if sid is absent.
-    const currentSid = introspection.sid;  // session UID, matches payload.uid
+    // Identify the current session via the SAME private resolver the list
+    // action uses. `sessions` was just re-fetched above — resolution is
+    // computed on this FRESH list, never on a previously rendered list.
+    const resolution = resolveCurrentSessionUid(sessions, {
+      sid: introspection.sid,
+      client_id: introspection.client_id,
+      sub: introspection.sub,
+    });
 
-    const currentSession = currentSid
-      ? sessions.find(s => s.payload.uid === currentSid)
-      : sessions.find(s => s.isCurrent === true);
-
-    if (!currentSession) {
+    if (resolution.status !== 'resolved') {
+      // 'unidentified' (ambiguous/hostile wire) or 'none-required' (empty
+      // list): refuse the bulk op before any DELETE.
       throw plainCode('SESSION_REVOKE_FAILED');
     }
 
+    const currentSessionUid = resolution.uid;
     // Filter by uid (the session identifier, not the JWT id)
-    const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSession.payload.uid);
+    const othersToRevoke = sessions.filter(s => s.payload.uid !== currentSessionUid);
     debugLog(`[revokeAllOtherSessions] Revoking ${othersToRevoke.length} session(s)`);
 
     // userId is derived from session introspection (never client-supplied) and

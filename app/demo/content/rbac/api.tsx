@@ -90,6 +90,31 @@ if (result.error) {
 }`}
       />
 
+      <h2 id={slugify("External Automation Endpoint")} style={h2Style}>
+        External Automation Endpoint
+      </h2>
+      <p style={styles.textStyle}>
+        <code style={styles.codeStyle}>POST /api/protected</code> remains the browser session-cookie endpoint and keeps same-origin CSRF protection. External automation must use the separate <code style={styles.codeStyle}>POST /api/protected/automation</code> endpoint with an exchanged bearer access token. A raw <code style={styles.codeStyle}>pat_...</code> value is never accepted here.
+      </p>
+      <CodeBlock
+        title="PAT exchange, then automation request"
+        code={`// First exchange the PAT at Logto's /oidc/token endpoint.
+// Request resource=PROTECTED_API_RESOURCE and keep the PAT server-side.
+const accessToken = await exchangePatAtLogtoTokenEndpoint();
+
+const response = await fetch('/api/protected/automation', {
+  method: 'POST',
+  headers: {
+    Authorization: \`Bearer \${accessToken}\`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ action: 'calc/add', payload: { a: 10, b: 20 } }),
+});`}
+      />
+      <p style={styles.textStyle}>
+        The automation endpoint verifies the API-resource audience and performs the same live RBAC checks. Configure <code style={styles.codeStyle}>PROTECTED_AUTOMATION_ALLOWED_ORIGINS=*</code> only for the temporary rollout; CORS is not authentication. Later set it to the exact OPNform origin, such as <code style={styles.codeStyle}>https://&lt;opnform-origin&gt;</code>, with no path or wildcard. The endpoint never enables wildcard credentials.
+      </p>
+
       <h2 id={slugify("Server-Side API Claim Validation")} style={h2Style}>
         Server-Side API Claim Validation
       </h2>

@@ -8,6 +8,13 @@ const apiDocPaths = [
   'app/demo/content/calculator/api-authorization.tsx',
 ] as const;
 
+// The calculator implementation walkthrough is intentionally session-only.
+// The RBAC page documents both transports and therefore legitimately mentions
+// the explicit bearer endpoint.
+const sessionOnlyApiDocPaths = [
+  'app/demo/content/calculator/api-authorization.tsx',
+] as const;
+
 const disallowedPatterns = [
   /Authorization header fallback/i,
   /request\.headers\.get\('Authorization'\)/,
@@ -45,7 +52,7 @@ describe('Protected API docs consistency', () => {
   // ──── Existing assertions (these must always pass) ────
 
   it('documents /api/protected as session-token-only', () => {
-    for (const relativePath of apiDocPaths) {
+    for (const relativePath of sessionOnlyApiDocPaths) {
       const source = readFileSync(path.join(process.cwd(), relativePath), 'utf8');
 
       for (const pattern of disallowedPatterns) {
@@ -54,6 +61,16 @@ describe('Protected API docs consistency', () => {
 
       expect(source).toMatch(/session token|session cookie/i);
     }
+  });
+
+  it('distinguishes the session and automation protected endpoints', () => {
+    const rbacSource = readFileSync(path.join(process.cwd(), apiDocPaths[0]), 'utf8');
+    expect(rbacSource).toMatch(/\/api\/protected/);
+    expect(rbacSource).toMatch(/\/api\/protected\/automation/);
+    expect(rbacSource).toMatch(/\/oidc\/token/);
+    expect(rbacSource).toMatch(/CORS is not authentication/i);
+    expect(rbacSource).toMatch(/OPNform origin/i);
+    expect(rbacSource).toMatch(/pat_/i);
   });
 
   // ──── Regression assertions ────

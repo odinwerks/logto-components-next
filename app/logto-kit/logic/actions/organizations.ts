@@ -10,7 +10,7 @@ import { sanitize, plainCode } from '../errors';
 import crypto from 'node:crypto';
 import { introspectToken } from '../utils';
 import { getTokenForServerAction } from './tokens';
-import type { UserRole, OrgRoleScope, OidcIntrospectionResponse } from '../types';
+import type { UserRole, OrgRoleScope, OidcIntrospectionResponse, ProtectedAuthContext } from '../types';
 import { fetchAllManagementPages } from './management-request';
 
 interface OrganizationNodeClient {
@@ -315,18 +315,18 @@ interface ExpectedPrincipal {
  * Returns { roles, permissions } for the route to check against
  * ActionConfig.requiredRole and ActionConfig.requiredPerm.
  *
- * SECURITY CONTRACT (BUG-005): The authoritative user identity ALWAYS comes
- * from a fresh `introspectToken(...)` call performed inside this function,
- * derived from the live session token. The `expectedPrincipal` parameter is
- * treated ONLY as a consistency assertion compared against the introspected
- * `sub`/`sid` — it is never trusted as the identity itself. There is no
- * `existingIntrospection` parameter: trusting a caller-supplied introspection
- * object's `.sub` would be a latent IDOR (a caller could substitute another
- * user's `sub` and gain access to their organizations/roles).
+ * SECURITY CONTRACT (BUG-005): Session callers derive identity from a fresh
+ * `introspectToken(...)` call inside this function. Bearer callers may supply
+ * the protected-action core's already-authenticated context; it is accepted
+ * only when its introspected subject matches its server-derived userId. The
+ * `expectedPrincipal` parameter remains a consistency assertion for session
+ * callers and is never the identity source. There is no client-supplied
+ * introspection path: trusting an unverified object's `.sub` would be a latent
+ * IDOR.
  *
  * Any token retrieval or introspection failure fails closed as UNAUTHORIZED
- * (BUG-061): the `introspectToken(...)` call is wrapped in try/catch so raw
- * upstream errors never bubble up unsanitized.
+ * (BUG-061); session introspection is wrapped in try/catch so raw upstream
+ * errors never bubble up unsanitized.
  *
  * Empty roles (member with no roles assigned) → { roles: [], permissions: [] }
  * which downstream permission checks will reject as PERMISSION_DENIED.
@@ -334,21 +334,33 @@ interface ExpectedPrincipal {
 export async function verifyOrgAccess(
   orgId: string,
   expectedPrincipal?: ExpectedPrincipal,
+  authenticatedContext?: ProtectedAuthContext,
 ): Promise<DataResult<OrgAccessResult>> {
   return safeAction(async () => {
     assertSafeLogtoId(orgId, 'orgId');
 
-    // BUG-005: ALWAYS perform a fresh introspection internally. The user
-    // identity must come from the live session token, never from a
-    // caller-supplied introspection object (latent IDOR).
-    // BUG-061: wrap token retrieval + introspection in try/catch so failures
-    // fail closed as UNAUTHORIZED instead of bubbling raw errors.
     let introspection: OidcIntrospectionResponse;
-    try {
-      const sessionToken = await getTokenForServerAction();
-      introspection = await introspectToken(sessionToken, { assertAudience: true });
-    } catch {
-      throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+    if (authenticatedContext) {
+      // The automation route supplies this only after direct JWT verification
+      // and introspection agree on the bearer subject. Never derive identity
+      // from orgId, request payload, or an unverified claim here.
+      introspection = authenticatedContext.introspection;
+      if (
+        authenticatedContext.source !== 'bearer' ||
+        !introspection.active ||
+        introspection.sub !== authenticatedContext.userId
+      ) {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
+    } else {
+      // Session callers retain the historical cookie-backed introspection
+      // contract and cannot substitute a principal.
+      try {
+        const sessionToken = await getTokenForServerAction();
+        introspection = await introspectToken(sessionToken, { assertAudience: true });
+      } catch {
+        throw sanitize(new Error('UNAUTHORIZED'), { fallback: 'UNAUTHORIZED' });
+      }
     }
 
     if (!introspection.active) {

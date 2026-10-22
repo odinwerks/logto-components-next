@@ -441,6 +441,32 @@ describe('proxy choke-point: public vs protected routes', () => {
     expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
   });
 
+  it('passes the exact automation endpoint through without session lookup', async () => {
+    getLogtoContextMock.mockRejectedValue(new Error('session SDK must not run'));
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/protected/automation', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer exchanged-token' },
+    });
+    const res = await proxy(req);
+
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get('Content-Security-Policy')).toBeTruthy();
+    expect(createNodeClientFromEdgeRequestMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps unrelated protected paths on the sign-in redirect path', async () => {
+    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
+
+    const { proxy } = await import('./proxy');
+    const req = new NextRequest('https://example.com/api/protected/other');
+    const res = await proxy(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/api/auth/sign-in');
+  });
+
   it('redirects unauthenticated access to /api/foo to sign-in', async () => {
     getLogtoContextMock.mockResolvedValue({ isAuthenticated: false });
 
